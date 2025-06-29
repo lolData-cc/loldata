@@ -3,7 +3,9 @@ import { useEffect, useState } from "react"
 import { LiveViewer } from "@/components/liveviewer"
 import { Navbar } from "@/components/navbar"
 import { ChevronDown } from "lucide-react"
+import { Toggle } from "@/components/ui/toggle"
 import { cn } from "@/lib/utils"
+import { Star } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,9 +168,9 @@ export default function SummonerPage() {
 
         <div className="w-4/5">
           <div className="flex justify-end">
-            <div className="mr-4">
+            <div className="mr-4 mt-16">
               <div
-                className="uppercase text-3xl mt-16 cursor-pointer select-none"
+                className="uppercase text-3xl cursor-pointer select-none"
                 onClick={() => {
                   if (summonerInfo) {
                     navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
@@ -176,9 +178,15 @@ export default function SummonerPage() {
                 }}
                 title="Clicca per copiare"
               >
-                <p className="text-[#5B5555] text-sm justify-end text-right font-thin">RANK 23.329</p>
-                <span className="text-[#D7D8D9]">{summonerInfo?.name}</span>
-                <span className="text-[#BCC9C6]">#{summonerInfo?.tag}</span>
+                <Toggle className="hover:bg-[#11382E]">
+                  <Star className="text-blue-400"/>
+                </Toggle>
+                <p className="text-[#5B5555] text-sm justify-end text-right font-thin">LEVEL {summonerInfo?.level} | RANK 23.329</p>
+                <div className="">
+                  <span className="text-[#D7D8D9]">{summonerInfo?.name}</span>
+                  <span className="text-[#BCC9C6]">#{summonerInfo?.tag}</span>
+                </div>
+
               </div>
               <div className="mt-2 flex justify-end">
                 <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} />

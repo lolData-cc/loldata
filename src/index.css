@@ -123,3 +123,14 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+html, body {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
+  overflow-y: scroll;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;                 /* Chrome, Safari, Opera */
+}
