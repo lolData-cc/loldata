@@ -4,16 +4,23 @@ import { LiveViewer } from "@/components/liveviewer"
 import { Navbar } from "@/components/navbar"
 import { ChevronDown } from "lucide-react"
 import { Toggle } from "@/components/ui/toggle"
+import { getRankImage } from "@/utils/rankIcons"
+import { getWinrateClass } from '@/utils/winrateColor';
 import { cn } from "@/lib/utils"
+import { formatStat } from "@/utils/formatStat";
 import { Star } from 'lucide-react';
+import { getKdaClass } from '@/utils/kdaColor';
+import { champPath } from "@/config";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
+  // DropdownMenuContent,
+  // DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Separator } from "@/components/ui/separator"
+import { ShowMoreMatches } from "@/components/showmorematches"
 
 type MatchWithWin = {
   match: any
@@ -33,8 +40,12 @@ export default function SummonerPage() {
   const [name, tag] = slug?.split("-") ?? []
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [views, setViews] = useState<number | null>(null)
+  const [topChampions, setTopChampions] = useState<any[]>([])
+
+
 
   const [summonerInfo, setSummonerInfo] = useState<{
+    puuid: string
     rank: string
     lp: number
     wins: number
@@ -106,7 +117,6 @@ export default function SummonerPage() {
 
   }
 
-
   async function fetchSummonerInfo(name: string, tag: string) {
     const res = await fetch("http://localhost:3001/api/summoner", {
       method: "POST",
@@ -123,9 +133,12 @@ export default function SummonerPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
     })
+
     const data = await res.json()
     setMatches(data.matches || [])
+    setTopChampions(data.topChampions || [])
   }
+
 
   useEffect(() => {
     if (!name || !tag) return;
@@ -139,75 +152,204 @@ export default function SummonerPage() {
 
       <div className="flex h-screen">
         <div className="w-2/5 flex justify-center">
-          <div className="w-[90%] bg-[#1f1f1f] h-[400px] pt-3 pl-4 text-sm font-thin rounded-md mt-5">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="w-52 px-3 py-2 rounded-md bg-card text-card-foreground flex items-center gap-2">
-                {selectedQueue}
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="border-none shadow rounded-md z-10">
-                {queueOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option}
-                    onClick={() => setSelectedQueue(option)}
-                    className={cn(
-                      "cursor-pointer",
-                      selectedQueue === option
-                        ? "bg-[#00D992] text-black"
-                        : "hover:bg-[#00D992] hover:text-black"
-                    )}
-                  >
-                    {option}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <div className="z-0">rank: {summonerInfo?.rank}</div>
+          <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+            <nav className="flex flex-col min-h-[400px]">
+              <div className="flex justify-between px-12 py-3">
+                <div className="z-0 text-[14px]">SOLO/DUO</div>
+                <div className="z-0">FLEX</div>
+                <div className="z-0">SEASON</div>
+              </div>
+              <Separator className="bg-[#48504E] w-[85%] mx-auto" />
+
+              <div className="flex flex-col gap-3 mx-2 mt-3 overflow-x-auto">
+                {topChampions.length === 0 ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <div key={idx} className="flex justify-between items-center px-4 py-1 animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="flex flex-col gap-0.5">
+                          <Skeleton className="w-16 h-2.5" />
+                          <Skeleton className="w-12 h-2.5" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Skeleton className="w-10 h-2.5" />
+                        <Skeleton className="w-14 h-2.5" />
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <Skeleton className="w-10 h-2.5" />
+                        <Skeleton className="w-16 h-2.5" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  topChampions.slice(0, 5).map((champ) => (
+                    <div
+                      key={champ.champion}
+                      className="grid grid-cols-3 items-center px-4 gap-4"
+                    >
+                      {/* Colonna 1: Champion info */}
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={`${champPath}/${champ.champion}.png`}
+                          alt={champ.champion}
+                          className="w-12 h-12 rounded-full"
+                        />
+                        <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
+                          <div className="text-[#979D9B] font-thin uppercase truncate w-[90px]">
+                            {champ.champion}
+                          </div>
+                          <div className="text-white font-thin text-[11px]">
+                            {(() => {
+                              const num = Number(champ.csPerMin);
+                              const rounded = Math.round(num * 10) / 10;
+                              return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
+                            })()}CS/({champ.avgGold})
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap pl-20 text-[11px]">
+
+                        <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
+                        <div>
+                          {formatStat(champ.kills / champ.games)}/
+                          {formatStat(champ.deaths / champ.games)}/
+                          {formatStat(champ.assists / champ.games)}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end text-xs text-white gap-1 text-[11px] min-w-[80px]">
+                        <div className={getWinrateClass(champ.winrate)}>{champ.winrate}%</div>
+                        <div className="text-[11px]">{champ.games} MATCHES</div>
+                      </div>
+                    </div>
+
+                  ))
+                )}
+              </div>
+
+              <div className="flex justify-center mt-auto pb-4 pt-4">
+                <ShowMoreMatches />
+              </div>
+            </nav>
+
           </div>
         </div>
 
         <div className="w-4/5">
-          <div className="flex justify-end">
-            <div className="mr-4 mt-16">
-              <div
-                className="uppercase text-3xl cursor-pointer select-none"
-                onClick={() => {
-                  if (summonerInfo) {
-                    navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
-                  }
-                }}
-                title="Clicca per copiare"
-              >
-                <Toggle className="hover:bg-[#11382E]">
-                  <Star className="text-blue-400"/>
-                </Toggle>
-                <p className="text-[#5B5555] text-sm justify-end text-right font-thin">LEVEL {summonerInfo?.level} | RANK 23.329</p>
-                <div className="">
-                  <span className="text-[#D7D8D9]">{summonerInfo?.name}</span>
-                  <span className="text-[#BCC9C6]">#{summonerInfo?.tag}</span>
-                </div>
+          <div className="flex justify-between items-start mt-4 px-4 ml-4">
+            {/* SEZIONE SINISTRA: nuove icone */}
+            <div className="flex flex-col items-center gap-1">
+              <span>CURRENT RANK</span>
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <div className="absolute w-24 h-24 bg-[#1f1f1f] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
+                <img
+  src={getRankImage(summonerInfo?.rank)}
+  alt="Rank Icon"
+  className="w-32 h-32 z-10 relative"
+/>
               </div>
-              <div className="mt-2 flex justify-end">
-                <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} />
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-[#BFC5C6]"> {summonerInfo?.rank} </span>
+                <span className="text-[#5B5555]">{summonerInfo?.lp} LP</span>
               </div>
             </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[#E3E3E3]">HIGHEST RANK</span>
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                {/* Cerchio dietro */}
+                <div className="absolute w-24 h-24 bg-[#1f1f1f] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
-            <div className="relative w-40 h-40 mt-4 mr-4">
-              <img
-                src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`}
-                alt="Icona profilo"
-                className={cn(
-                  "w-full h-full rounded-xl select-none pointer-events-none border-2",
-                  summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                {/* Immagine sopra */}
+                <img
+                  src="/public/master.png"
+                  alt="Icona profilo"
+                  className="w-32 h-32 z-10 relative"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-[#BFC5C6]">MASTER</span>
+                <span className="text-[#5B5555]">461 LP</span>
+              </div>
+            </div>
+            <div>
+            </div>
+
+
+            {/* SEZIONE DESTRA: info summoner */}
+            <div className="flex items-start">
+              <div className="mr-4 mt-4">
+                <div
+                  className="uppercase text-3xl cursor-pointer select-none"
+                  onClick={() => {
+                    if (summonerInfo) {
+                      navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
+                    }
+                  }}
+                  title="Clicca per copiare"
+                >
+                  <div className="flex justify-end">
+                    <Toggle className="data-[state=on]:bg-[#11382E] hover:bg-[#11382E]">
+                      <Star className="text-[#01D18D]" />
+                    </Toggle>
+                  </div>
+
+                  <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
+                    LEVEL {summonerInfo?.level} | RANK 23.329
+                  </p>
+                  <div className="flex justify-end">
+                    <span className="text-[#D7D8D9]">{summonerInfo?.name}</span>
+                    <span className="text-[#BCC9C6]">#{summonerInfo?.tag}</span>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex justify-end">
+                  <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} />
+                </div>
+              </div>
+
+              <div className="relative w-40 h-40 mr-4">
+                <img
+                  src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`}
+                  alt="Icona profilo"
+                  className={cn(
+                    "w-full h-full rounded-xl select-none pointer-events-none border-2",
+                    summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                  )}
+                  draggable={false}
+                />
+                {summonerInfo?.live && summonerInfo?.puuid && (
+                  <LiveViewer puuid={summonerInfo.puuid} />
                 )}
-                draggable={false}
-              />
-              {summonerInfo?.live && <LiveViewer />}
+              </div>
             </div>
           </div>
 
+
+
           <div className="p-6 max-w-4xl mx-auto">
+            <nav className="w-full bg-[#1f1f1f] px-8 h-16 rounded-md border border-[#2B2A2B] shadow-md">
+
+              <div className="flex items-center h-full space-x-8">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
+                    <span className="text-sm font-medium tracking-wide">RANKED SOLO / DUO</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                </DropdownMenu>
+
+                <Separator orientation="vertical" className="h-8 bg-[#48504E] " />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
+                    <span className="text-sm font-medium tracking-wide">CHAMPION</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                </DropdownMenu>
+              </div>
+            </nav>
             {loading ? (
               <ul className="space-y-3 mt-4">
                 {Array.from({ length: 5 }).map((_, idx) => (
@@ -236,12 +378,12 @@ export default function SummonerPage() {
                       }`}
                   >
                     <img
-                      src={`https://opgg-static.akamaized.net/meta/images/lol/${latestPatch}/champion/${championName}.png`}
+                      src={`${champPath}/${championName}.png`}
                       alt={championName}
                       className="w-12 h-12 rounded-md"
                     />
-                    <span className="text-sm font-semibold">
-                      Match ID: {match.metadata.matchId}
+                    <span className="text-sm font-gtthin font-normal">
+                      MATCH ID: {match.metadata.matchId}
                     </span>
                   </li>
                 ))}
@@ -255,3 +397,6 @@ export default function SummonerPage() {
     </div>
   )
 }
+
+
+

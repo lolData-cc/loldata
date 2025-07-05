@@ -81,6 +81,7 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
 
         const summoner = {
             name: account.gameName,
+            puuid: account.puuid,
             tag: account.tagLine,
             rank: soloQueue ? `${soloQueue.tier} ${soloQueue.rank}` : "Unranked",
             lp: soloQueue?.leaguePoints ?? 0,

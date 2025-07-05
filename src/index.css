@@ -4,7 +4,8 @@
 
 @layer base {
   body {
-    @apply cursor-custom;
+    @apply cursor-custom bg-[#171717];
+    
   }
   ::selection {
     background-color: #00d992;
@@ -26,7 +27,6 @@
 
 body {
   @apply bg-[#171717] text-white min-h-screen;
-  font-family: 'GT America Mono', monospace !important;
 }
 
 #root {
@@ -133,4 +133,15 @@ html, body {
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;                 /* Chrome, Safari, Opera */
+}
+
+@font-face {
+  font-family: 'GtThin';
+  src: url('/fonts/gtamericalight.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+}
+
+:root {
+  --font-gtthin: 'GtThin', sans-serif;
 }

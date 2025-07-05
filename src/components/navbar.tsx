@@ -34,7 +34,7 @@ export function Navbar() {
           <MenuItem label="CHAMPIONS" />
           <MenuItem label="LEADERBOARD" />
           <MenuItem label="TIER LISTS" />
-          <MenuItem label="WALLET" />
+          <MenuItem label="LEARN" />
         </div>
 
         {/* Search (dx) */}
