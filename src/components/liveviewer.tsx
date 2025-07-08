@@ -66,7 +66,7 @@ export function LiveViewer({ puuid }: LiveViewerProps) {
 
   return (
     <Dialog onOpenChange={setOpen}>
-      <DialogTrigger className="absolute bottom-[-10px] left-28 -translate-x-1/2 bg-[#00D992] text-[#11382E] text-xs px-2 py-1 rounded-md shadow-md whitespace-nowrap">
+      <DialogTrigger className="absolute bottom-[-10px] left-14 -translate-x-1/2 bg-jade text-liquirice text-xs px-1 py-0.5 rounded-sm whitespace-nowrap">
         LIVE NOW
       </DialogTrigger>
 

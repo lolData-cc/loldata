@@ -146,8 +146,7 @@ export default function SummonerPage() {
 
 
   return (
-    <div>
-      <Navbar />
+    <div className="">
 
       <div className="flex h-screen">
         <div className="w-2/5 flex justify-center">

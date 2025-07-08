@@ -15,16 +15,16 @@ export function UpdateButton({ loading, cooldown, className, children, ...props 
     <Button
       {...props}
       className={cn(
-        "px-7 flex items-center justify-center gap-2 select-none",
+        "flex items-center justify-center gap-2 select-none",
         cooldown
-          ? "bg-[#11382E] text-[#00D992]"
-          : "bg-[#00D992] text-[#11382E]",
+          ? "bg-jade/20 text-jade"
+          : "bg-jade bg-jade/20",
         className
       )}
       disabled={loading || cooldown}
     >
       {loading
-        ? <Loader2 className="animate-spin w-5 h-5" />
+        ? <Loader2 className="animate-spin w-20 h-10" />
         : text
       }
     </Button>
