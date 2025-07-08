@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react"
 import { SearchDialog } from "@/components/searchdialog"
+import { UserDialog } from "@/components/userdialog"
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 
@@ -38,8 +39,9 @@ export function Navbar() {
         </div>
 
         {/* Search (dx) */}
-        <div className="flex">
+        <div className="flex space-x-2">
           <SearchDialog open={open} onOpenChange={setOpen} />
+          <UserDialog />
         </div>
       </div>
     </div>

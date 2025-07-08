@@ -145,3 +145,11 @@ body::-webkit-scrollbar {
 :root {
   --font-gtthin: 'GtThin', sans-serif;
 }
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;     
+}

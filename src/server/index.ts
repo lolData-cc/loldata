@@ -3,6 +3,8 @@ import { getMatchesHandler } from "./routes/getMatches";
 import { getSummonerHandler } from "./routes/getSummoner"
 import { incrementProfileViewHandler } from "./routes/incrementView";
 import { getProfileViewsHandler } from "./routes/getViews"
+import { getLiveGameHandler } from "./routes/livegame";
+import { howToWinHandler } from "./routes/aihelp/howtowin";
 
 
 function withCors(res: Response): Response {
@@ -51,6 +53,16 @@ serve({
     if (url.pathname === "/api/profile/views" && req.method === "POST") {
       const res = await getProfileViewsHandler(req)
       return withCors(res)
+    }
+
+    if (url.pathname === "/api/livegame" && req.method === "POST") {
+      const res = await getLiveGameHandler(req);
+      return withCors(res);
+    }
+
+    if (url.pathname === "/api/aihelp/howtowin" && req.method === "POST") {
+      const res = await howToWinHandler(req);
+      return withCors(res);
     }
 
 

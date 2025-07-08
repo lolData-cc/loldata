@@ -13,6 +13,9 @@ module.exports = {
         fontbase: ['baseFont', 'sans-serif'],
         gtamerica: ['gtamerica', 'sans-serif']
       },
+      fontWeight: {
+        thin: '100'
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

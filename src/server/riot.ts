@@ -101,4 +101,25 @@ export async function getMatchesWithWin(puuid: string, count = 5) {
   return matches
 }
 
+export async function getLiveGameByPuuid(puuid: string) {
+  const RIOT_API_KEY = process.env.RIOT_API_KEY
+  if (!RIOT_API_KEY) throw new Error("Missing Riot API key")
+
+  const liveRes = await fetch(
+    `https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`,
+    {
+      headers: { "X-Riot-Token": RIOT_API_KEY },
+    }
+  )
+
+  if (!liveRes.ok) {
+    const text = await liveRes.text()
+    console.error("❌ Spectator API failed:", liveRes.status, text)
+    return null
+  }
+
+  const liveData = await liveRes.json()
+  return liveData
+}
+
 

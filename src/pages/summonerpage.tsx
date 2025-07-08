@@ -1,20 +1,19 @@
+import type { MatchWithWin, SummonerInfo, ChampionStats } from "@/assets/types/riot"
 import { useParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { LiveViewer } from "@/components/liveviewer"
 import { Navbar } from "@/components/navbar"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Star } from "lucide-react"
 import { Toggle } from "@/components/ui/toggle"
 import { getRankImage } from "@/utils/rankIcons"
-import { getWinrateClass } from '@/utils/winrateColor';
+import { getWinrateClass } from '@/utils/winratecolor'
+import { ChampionPicker } from "@/components/championpicker"
+import { getKdaClass } from '@/utils/kdaColor'
+import { formatStat } from "@/utils/formatStat"
+import { champPath } from "@/config"
 import { cn } from "@/lib/utils"
-import { formatStat } from "@/utils/formatStat";
-import { Star } from 'lucide-react';
-import { getKdaClass } from '@/utils/kdaColor';
-import { champPath } from "@/config";
 import {
   DropdownMenu,
-  // DropdownMenuContent,
-  // DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
@@ -22,13 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
 
-type MatchWithWin = {
-  match: any
-  win: boolean
-  championName: string
-}
-
-const COOLDOWN_MS = 300_000 // 5 minutes
+const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
 
 export default function SummonerPage() {
@@ -40,28 +33,36 @@ export default function SummonerPage() {
   const [name, tag] = slug?.split("-") ?? []
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [views, setViews] = useState<number | null>(null)
-  const [topChampions, setTopChampions] = useState<any[]>([])
+  const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
+  const [summonerInfo, setSummonerInfo] = useState<SummonerInfo | null>(null)
+  const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
+  const [allChampions, setAllChampions] = useState<{ id: string; name: string }[]>([])
 
 
+  const queueTypeMap: Record<number, string> = {
+    400: "Normal Draft",
+    420: "Ranked Solo/Duo",
+    430: "Normal Blind",
+    440: "Ranked Flex",
+    450: "ARAM",
+    700: "Clash",
+    900: "URF",
+    1020: "One for All",
+    1700: "Arena",
+  };
 
-  const [summonerInfo, setSummonerInfo] = useState<{
-    puuid: string
-    rank: string
-    lp: number
-    wins: number
-    losses: number
-    profileIconId: number
-    level: number
-    name: string
-    tag: string
-    live: boolean
-  } | null>(null)
+  useEffect(() => {
+    fetch("http://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
+      .then(res => res.json())
+      .then(data => {
+        const champs = Object.values(data.data).map((champ: any) => ({
+          id: champ.id,
+          name: champ.name,
+        }))
+        setAllChampions(champs)
+      })
+  }, [])
 
-  const queueOptions = [
-    "RANKED SOLO / DUO",
-    "RANKED FLEX",
-    "DRAFTS"
-  ]
 
   useEffect(() => {
     fetch("https://ddragon.leagueoflegends.com/api/versions.json")
@@ -80,23 +81,28 @@ export default function SummonerPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!name || !tag) return
+    refreshData()
+  }, [name, tag])
+
   async function refreshData() {
-    if (!name || !tag) return;
+    if (!name || !tag) return
 
-    setLoading(true);
-    setSummonerInfo(null);
-    setMatches([]);
+    setLoading(true)
+    setSummonerInfo(null)
+    setMatches([])
 
-    const [summoner, matches] = await Promise.all([
+    const [summoner, matchData] = await Promise.all([
       fetchSummonerInfo(name, tag),
       fetchMatches(name, tag),
-    ]);
+    ])
 
     await fetch("http://localhost:3001/api/profile/view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
-    }).catch(console.error);
+    }).catch(console.error)
 
     await fetch("http://localhost:3001/api/profile/views", {
       method: "POST",
@@ -105,16 +111,12 @@ export default function SummonerPage() {
     })
       .then(res => res.json())
       .then(data => setViews(data.views))
-      .catch(console.error);
+      .catch(console.error)
 
-
-    setLoading(false);
-
+    setLoading(false)
     localStorage.setItem(STORAGE_KEY, Date.now().toString())
     setOnCooldown(true)
     setTimeout(() => setOnCooldown(false), COOLDOWN_MS)
-
-
   }
 
   async function fetchSummonerInfo(name: string, tag: string) {
@@ -124,7 +126,7 @@ export default function SummonerPage() {
       body: JSON.stringify({ name, tag }),
     })
     const data = await res.json()
-    setSummonerInfo(data.summoner)
+    setSummonerInfo(data.summoner as SummonerInfo)
   }
 
   async function fetchMatches(name: string, tag: string) {
@@ -133,17 +135,14 @@ export default function SummonerPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
     })
-
     const data = await res.json()
     setMatches(data.matches || [])
     setTopChampions(data.topChampions || [])
   }
 
-
-  useEffect(() => {
-    if (!name || !tag) return;
-    refreshData();
-  }, [name, tag]);
+  const filteredMatches = selectedChampion
+    ? matches.filter((m) => m.championName === selectedChampion)
+    : matches
 
 
   return (
@@ -246,10 +245,10 @@ export default function SummonerPage() {
                 <div className="absolute w-24 h-24 bg-[#1f1f1f] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
                 <img
-  src={getRankImage(summonerInfo?.rank)}
-  alt="Rank Icon"
-  className="w-32 h-32 z-10 relative"
-/>
+                  src={getRankImage(summonerInfo?.rank)}
+                  alt="Rank Icon"
+                  className="w-32 h-32 z-10 relative"
+                />
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-[#BFC5C6]"> {summonerInfo?.rank} </span>
@@ -342,12 +341,11 @@ export default function SummonerPage() {
 
                 <Separator orientation="vertical" className="h-8 bg-[#48504E] " />
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">CHAMPION</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </DropdownMenu>
+                <ChampionPicker
+                  champions={allChampions}
+                  onSelect={(champId) => setSelectedChampion(champId)}
+                />
+
               </div>
             </nav>
             {loading ? (
@@ -369,24 +367,34 @@ export default function SummonerPage() {
               <p className="text-muted-foreground mt-4">Nessuna partita trovata.</p>
             ) : (
               <ul className="space-y-3 mt-4">
-                {matches.map(({ match, win, championName }) => (
-                  <li
-                    key={match.metadata.matchId}
-                    className={`flex items-center gap-4 text-white p-3 rounded-md h-28 transition-colors duration-300 ${win
-                      ? "bg-gradient-to-r from-[#11382E] to-[#00D992]"
-                      : "bg-gradient-to-r from-[#420909] to-[#c93232]"
-                      }`}
-                  >
-                    <img
-                      src={`${champPath}/${championName}.png`}
-                      alt={championName}
-                      className="w-12 h-12 rounded-md"
-                    />
-                    <span className="text-sm font-gtthin font-normal">
-                      MATCH ID: {match.metadata.matchId}
-                    </span>
-                  </li>
-                ))}
+                {filteredMatches.map(({ match, win, championName }) => {
+                  const queueId = match.info.queueId;
+                  const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
+
+                  return (
+                    <li
+                      key={match.metadata.matchId}
+                      className={`flex items-center gap-4 text-white p-3 rounded-md h-28 transition-colors duration-300 ${win
+                          ? "bg-gradient-to-r from-[#11382E] to-[#00D992]"
+                          : "bg-gradient-to-r from-[#420909] to-[#c93232]"
+                        }`}
+                    >
+                      
+                      <img
+                        src={`${champPath}/${championName}.png`}
+                        alt={championName}
+                        className="w-12 h-12 rounded-md"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-gtthin font-normal">
+                          MATCH ID: {match.metadata.matchId}
+                        </span>
+                        <span className="text-xs text-gray-300">{queueLabel}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+
               </ul>
             )}
 
