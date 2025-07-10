@@ -142,14 +142,21 @@ body::-webkit-scrollbar {
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'geistMono';
+  src: url('/fonts/geist.ttf');
+  font-weight: 100;
+  font-style: normal;
+}
+
 :root {
   --font-gtthin: 'GtThin', sans-serif;
 }
 
-.scrollbar-hide::-webkit-scrollbar {
+.hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.scrollbar-hide {
-  -ms-overflow-style: none;  
+.hide-scrollbar {
+  -ms-overflow-style: none; 
   scrollbar-width: none;     
 }

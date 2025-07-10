@@ -11,7 +11,8 @@ module.exports = {
         gtthin: ['var(--font-gtthin)', 'sans-serif'],
         sans: ['var(--font-gtthin)', 'sans-serif'],
         fontbase: ['baseFont', 'sans-serif'],
-        gtamerica: ['gtamerica', 'sans-serif']
+        gtamerica: ['gtamerica', 'sans-serif'],
+        geist: ['geistMono', "sans-serif"]
       },
       fontWeight: {
         thin: '100'
@@ -83,4 +84,5 @@ module.exports = {
     },
   },
   plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwind-scrollbar-hide")]
 }

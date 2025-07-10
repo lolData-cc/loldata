@@ -26,12 +26,11 @@ You're a high-ELO League of Legends coach.
 Enemy team:
 ${summary}
 
-How can I beat this comp?
+How can I win this game? please dont talk about matchups and what to build because those are other requests. Please give an answer highly related to the game champions and compositions. Use a maximum of 750 characters and be very concise
 Give:
 - Strengths and weaknesses
 - Teamfight advice
 - Macro/objective tips
-- Itemization ideas
     `;
 
     const completion = await openai.chat.completions.create({
