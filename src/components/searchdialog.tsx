@@ -2,14 +2,17 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Dialog,
-  DialogTrigger,
+  DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { TypingInput } from "./typinginput"
 
 export function SearchDialog() {
   const [open, setOpen] = useState(false)
@@ -48,15 +51,15 @@ export function SearchDialog() {
   }, [])
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen} >
       <DialogTrigger asChild>
-        <Button className="text-[#00D992] bg-[#122322] hover:bg-[#11382E] rounded">
+        <Button variant="default" size="sm" className="hover:text-liquirice">
           SEARCH A PLAYER
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-[#171717] border-none top-40 translate-y-0 select-none">
-        <DialogHeader>
-          <DialogTitle className="font-thin text-md">SEARCH A PLAYER</DialogTitle>
+      <DialogContent className="w-1/3 font-jetbrains bg-liquirice  top-60 select-none">
+        <DialogHeader >
+          <DialogTitle className=" text-flash">Search a player</DialogTitle>
         </DialogHeader>
 
         <form
@@ -70,13 +73,13 @@ export function SearchDialog() {
             placeholder="Your username + #TAG"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="bg-[#060F11] border border-gray-800 shadow-sm shadow-black/20 focus:outline-none focus:ring-1 focus:ring-gray-700 rounded-sm"
+            className="bg-black/10 border border-jade/10 focus:outline-none focus:ring-1 focus:ring-jade/20 rounded text-flash placeholder:text-flash/20"
           />
 
           <DialogFooter>
             <Button
+              variant="default"
               type="submit"
-              className="bg-gradient-to-r from-[#10352B] to-[#122322] text-[#00D992] hover:opacity-90 px-10 rounded-sm border-none shadow-none"
             >
               SEARCH
             </Button>

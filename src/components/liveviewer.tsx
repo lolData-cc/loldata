@@ -139,23 +139,24 @@ export function LiveViewer({ puuid }: LiveViewerProps) {
         </div>
 
         <div className="mt-6 flex flex-col items-end gap-4">
-          <div className="w-full bg-[#1f1f1f] text-white p-4 rounded text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto shadow-lg border border-white/10">
-            <Tabs
-              defaultValue="statistics"
-              value={selectedTab}
-              onValueChange={value => {
-                setSelectedTab(value)
-                if (value === "howtowin" && !aiHelp) {
-                  generateAiHelp()
-                }
-              }}
-              className="bg-none"
-            >
-              <TabsList className="bg-[#1f1f1f] space-x-4">
-                <TabsTrigger
+          <div className="w-full bg-[#1f1f1f] text-white p-4 rounded text-sm shadow-lg border border-white/10 max-h-[300px] flex flex-col">
+  <Tabs
+    defaultValue="statistics"
+    value={selectedTab}
+    onValueChange={(value) => {
+      setSelectedTab(value)
+      if (value === "howtowin" && !aiHelp) {
+        generateAiHelp()
+      }
+    }}
+    className="bg-none flex flex-col h-full"
+  >
+    {/* Tabs header */}
+    <TabsList className="bg-[#1f1f1f] space-x-4 font-jetbrains justify-start">
+      <TabsTrigger
                   value="statistics"
                   className="group flex items-center space-x-2 px-2 py-1 rounded-sm text-white bg-[#1f1f1f] hover:bg-[#2a2a2a]
-                data-[state=active]:bg-[#11382E] data-[state=active]:text-white"
+                data-[state=active]:bg-[#11382E] data-[state=active]:text-white "
                 >
                   <div className="">STATISTICS</div>
                 </TabsTrigger>
@@ -191,22 +192,31 @@ export function LiveViewer({ puuid }: LiveViewerProps) {
                     AI
                   </div>
                 </TabsTrigger>
-              </TabsList>
+    </TabsList>
 
-              <TabsContent value="statistics" className="font-geist text-[12px] leading-6 mt-4 px-2">doupgra eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+    {/* Contenuto scrollabile */}
+    <div className="mt-4 px-2 overflow-y-auto max-h-[230px]">
+      <TabsContent
+        value="statistics"
+        className="font-geist text-[12px] leading-6"
+      >
+        {/* testo */}
+      </TabsContent>
+      <TabsContent
+        value="howtowin"
+        className="font-geist text-[12px] leading-6 whitespace-pre-wrap"
+      >
+        {loadingHelp ? (
+          <div className="animate-pulse text-white/60">AI is thinking...</div>
+        ) : (
+          aiHelp || "No advice generated."
+        )}
+      </TabsContent>
+      <TabsContent value="matchups">{aiHelp}</TabsContent>
+    </div>
+  </Tabs>
+</div>
 
-              </TabsContent>
-              <TabsContent value="howtowin" className="font-geist text-[12px] leading-6 mt-4 px-2 ">
-                {loadingHelp ? (
-                  <div className="animate-pulse text-white/60">AI is thinking...</div>
-                ) : (
-                  aiHelp || "No advice generated."
-                )}
-              </TabsContent>
-              <TabsContent value="matchups">{aiHelp}</TabsContent>
-            </Tabs>
-
-          </div>
 
 
         </div>

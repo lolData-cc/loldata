@@ -2,7 +2,6 @@ import type { MatchWithWin, SummonerInfo, ChampionStats } from "@/assets/types/r
 import { useParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { LiveViewer } from "@/components/liveviewer"
-import { Navbar } from "@/components/navbar"
 import { ChevronDown, Star } from "lucide-react"
 import { Toggle } from "@/components/ui/toggle"
 import { getRankImage } from "@/utils/rankIcons"
@@ -32,7 +31,6 @@ export default function SummonerPage() {
   const [selectedQueue, setSelectedQueue] = useState("RANKED SOLO / DUO")
   const [name, tag] = slug?.split("-") ?? []
   const [latestPatch, setLatestPatch] = useState("15.13.1")
-  const [views, setViews] = useState<number | null>(null)
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
   const [summonerInfo, setSummonerInfo] = useState<SummonerInfo | null>(null)
   const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
@@ -146,10 +144,8 @@ export default function SummonerPage() {
 
 
   return (
-    <div>
-      <Navbar />
-
-      <div className="flex h-screen">
+    <div className="">
+      <div className="flex h-screen -mt-4">
         <div className="w-2/5 flex justify-center">
           <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
@@ -326,12 +322,10 @@ export default function SummonerPage() {
             </div>
           </div>
 
-
-
           <div className="p-6 max-w-4xl mx-auto">
-            <nav className="w-full bg-[#1f1f1f] px-8 h-16 rounded-md border border-[#2B2A2B] shadow-md">
+            <nav className="w-full bg-[#1f1f1f] px-8 h-10 rounded-md border border-[#2B2A2B] shadow-md">
 
-              <div className="flex items-center h-full space-x-8">
+              <div className="flex items-center h-full justify-between">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
                     <span className="text-sm font-medium tracking-wide">RANKED SOLO / DUO</span>
@@ -339,13 +333,33 @@ export default function SummonerPage() {
                   </DropdownMenuTrigger>
                 </DropdownMenu>
 
-                <Separator orientation="vertical" className="h-8 bg-[#48504E] " />
+                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
 
-                <ChampionPicker
-                  champions={allChampions}
-                  onSelect={(champId) => setSelectedChampion(champId)}
-                />
+                <div className="space-x-2 flex items-center">
+                  <ChampionPicker
+                    champions={allChampions}
+                    onSelect={(champId) => setSelectedChampion(champId)}
+                  />
+                  <ChevronDown className="h-4 w-4" />
+                </div>
 
+                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
+                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                </DropdownMenu>
+
+                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
+                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                </DropdownMenu>
               </div>
             </nav>
             {loading ? (
