@@ -6,6 +6,7 @@ export type Participant = {
     teamId: number
     summonerName: string
     championId: number
+    riotId: string
     spell1Id: number
     spell2Id: number
     perks: any

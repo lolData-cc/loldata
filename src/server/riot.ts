@@ -47,14 +47,14 @@ export async function getRankedDataBySummonerId(summonerId: string) {
     throw new Error("RIOT_API_KEY non definita nel .env")
   }
 
-  const response = await fetch(
-    `https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`,
-    {
-      headers: {
-        "X-Riot-Token": RIOT_API_KEY,
-      },
-    }
-  )
+  const url = `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${summonerId}`
+  console.log("📡 Chiamata API Ranked:", url)
+
+  const response = await fetch(url, {
+    headers: {
+      "X-Riot-Token": RIOT_API_KEY,
+    },
+  })
 
   if (!response.ok) {
     const text = await response.text()
@@ -63,9 +63,8 @@ export async function getRankedDataBySummonerId(summonerId: string) {
   }
 
   return await response.json()
-
-  
 }
+
 
 export async function getMatchDetails(matchId: string) {
   const res = await fetch(

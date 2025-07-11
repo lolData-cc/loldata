@@ -5,6 +5,8 @@ import { incrementProfileViewHandler } from "./routes/incrementView";
 import { getProfileViewsHandler } from "./routes/getViews"
 import { getLiveGameHandler } from "./routes/livegame";
 import { howToWinHandler } from "./routes/aihelp/howtowin";
+import { getMultiRankHandler } from "./routes/multirank"
+
 
 
 function withCors(res: Response): Response {
@@ -63,6 +65,11 @@ serve({
     if (url.pathname === "/api/aihelp/howtowin" && req.method === "POST") {
       const res = await howToWinHandler(req);
       return withCors(res);
+    }
+
+    if (url.pathname === "/api/multirank" && req.method === "POST") {
+      const res = await getMultiRankHandler(req)
+      return withCors(res)
     }
 
 

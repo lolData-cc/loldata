@@ -2,9 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -12,7 +10,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { TypingInput } from "./typinginput"
 
 export function SearchDialog() {
   const [open, setOpen] = useState(false)
@@ -53,11 +50,11 @@ export function SearchDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen} >
       <DialogTrigger asChild>
-        <Button variant="default" size="sm" className="hover:text-liquirice">
+        <Button variant="default" size="sm">
           SEARCH A PLAYER
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-1/3 font-jetbrains bg-liquirice  top-60 select-none">
+      <DialogContent className="w-1/3 font-jetbrains bg-liquirice top-60 select-none">
         <DialogHeader >
           <DialogTitle className=" text-flash">Search a player</DialogTitle>
         </DialogHeader>
