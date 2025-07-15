@@ -159,21 +159,21 @@ export default function SummonerPage() {
               <div className="flex flex-col gap-3 mx-2 mt-3 overflow-x-auto">
                 {topChampions.length === 0 ? (
                   Array.from({ length: 5 }).map((_, idx) => (
-                    <div key={idx} className="flex justify-between items-center px-4 py-1 animate-pulse">
+                    <div key={idx} className="grid grid-cols-[170px_90px_90px] items-center px-4 py-1 animate-pulse">
                       <div className="flex items-center gap-3">
                         <Skeleton className="w-10 h-10 rounded-full" />
                         <div className="flex flex-col gap-0.5">
-                          <Skeleton className="w-16 h-2.5" />
-                          <Skeleton className="w-12 h-2.5" />
+                          <Skeleton className="w-[70px] h-2.5" />
+                          <Skeleton className="w-[60px] h-2.5" />
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-0.5">
-                        <Skeleton className="w-10 h-2.5" />
-                        <Skeleton className="w-14 h-2.5" />
+                        <Skeleton className="w-[40px] h-2.5" />
+                        <Skeleton className="w-[50px] h-2.5" />
                       </div>
                       <div className="flex flex-col items-end gap-0.5">
-                        <Skeleton className="w-10 h-2.5" />
-                        <Skeleton className="w-16 h-2.5" />
+                        <Skeleton className="w-[30px] h-2.5" />
+                        <Skeleton className="w-[50px] h-2.5" />
                       </div>
                     </div>
                   ))
@@ -277,7 +277,7 @@ export default function SummonerPage() {
             <div className="flex items-start">
               <div className="mr-4 mt-4">
                 <div
-                  className="uppercase text-3xl cursor-pointer select-none"
+                  className="uppercase text-2xl cursor-pointer select-none"
                   onClick={() => {
                     if (summonerInfo) {
                       navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
@@ -316,7 +316,7 @@ export default function SummonerPage() {
                   draggable={false}
                 />
                 {summonerInfo?.live && summonerInfo?.puuid && (
-                  <LiveViewer puuid={summonerInfo.puuid} />
+                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`}/>
                 )}
               </div>
             </div>

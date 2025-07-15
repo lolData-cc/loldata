@@ -25,7 +25,9 @@ export function Navbar() {
 
       {/* Logo (sx) */}
       <div className="flex-shrink-0">
-        <img src="/typelogo.png" className="w-28 h-28" />
+        <Link to="/" className="flex-shrink-0">
+          <img src="/typelogo.png" className="w-28 h-28 cursor-clicker" alt="Logo" />
+        </Link>
       </div>
 
       {/* Menu (centro) */}

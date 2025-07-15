@@ -1,3 +1,4 @@
+// #region imports
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
@@ -8,19 +9,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Zap } from 'lucide-react'
+// #endregion
 
 export function SearchDialog() {
+  // #region constants
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const navigate = useNavigate()
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  // #endergion
 
+  // #region functions
   const handleSearch = () => {
     if (!input.includes("#")) return
-
     const [nameRaw, tagRaw] = input.split("#")
-
     const name = nameRaw.trim()
     const tag = tagRaw.trim()
 
@@ -33,6 +45,7 @@ export function SearchDialog() {
 
     navigate(`/summoners/${region}/${slug}`)
     setOpen(false)
+    setInput("")
   }
 
   useEffect(() => {
@@ -46,43 +59,136 @@ export function SearchDialog() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
-
+  // #endregion
   return (
-    <Dialog open={open} onOpenChange={setOpen} >
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen)
+      if (!isOpen) {
+        setInput("")
+        setSuggestions([])
+      }
+
+    }} >
       <DialogTrigger asChild>
         <Button variant="default" size="sm">
           SEARCH A PLAYER
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-1/3 font-jetbrains bg-liquirice top-60 select-none">
-        <DialogHeader >
-          <DialogTitle className=" text-flash">Search a player</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-full max-w-xl bg-transparent top-60 [&>button]:hidden flex flex-col items-center">
+        <div className="w-full relative">
+          <div className="font-jetbrains bg-liquirice/90 top-60 select-none border-flash/10 border px-7 py-5 rounded-md">
+            <DialogHeader >
+              <DialogTitle className=" text-flash flex justify-between items-center">
+                <div>
+                  Search a player
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex text-citrine/80 bg-citrine/20 px-1.5 py-0.5 border-citrine/10 border space-x-1 rounded-sm items-center cursor-default">
+                        <Zap className="w-3.5 h-3.5" />
+                        <div className="text-sm pr-1">CTRL+K</div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs max-w-xs">
+                      You can now use the <kbd className="px-1 py-0.5 bg-muted rounded font-mono text-xs">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-muted rounded font-mono text-xs">K</kbd> shortcut to open the searchbox faster.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSearch()
-          }}
-          className="space-y-4"
-        >
-          <Input
-            placeholder="Your username + #TAG"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="bg-black/10 border border-jade/10 focus:outline-none focus:ring-1 focus:ring-jade/20 rounded text-flash placeholder:text-flash/20"
-          />
+              </DialogTitle>
+            </DialogHeader>
 
-          <DialogFooter>
-            <Button
-              variant="default"
-              type="submit"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSearch()
+              }}
+              className="space-y-4 pt-4"
             >
-              SEARCH
-            </Button>
-          </DialogFooter>
-        </form>
+              <Input
+                placeholder="Your username + #TAG"
+                value={input}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setInput(value)
+
+                  const [partialName] = value.split("#")
+                  if (partialName.length < 2) {
+                    setSuggestions([])
+                    return
+                  }
+
+                  setLoadingSuggestions(true)
+                  fetch("http://localhost:3001/api/autocomplete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: partialName.trim() }),
+                  })
+                    .then((res) => res.json())
+                    .then((data) => setSuggestions(data.results))
+                    .catch((err) => console.error("❌ Autocomplete fetch:", err))
+                    .finally(() => setLoadingSuggestions(false))
+                }}
+                className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20"
+              />
+
+              <DialogFooter className="pt-2">
+                <Button
+                  variant="default"
+                  type="submit">
+                  SEARCH
+                </Button>
+              </DialogFooter>
+            </form>
+
+
+
+          </div>
+          <div>
+            {suggestions.length > 0 && (
+              <div className="flex flex-col gap-2 max-h-128 overflow-y-auto mt-2 space-y-2">
+                {suggestions.length > 0 && (
+                  <div className="absolute w-full mt-2 z-50 left-0 top-full max-h-128 overflow-y-auto flex flex-col gap-2">
+                    {suggestions.map((sugg, idx) => (
+                      <div
+                        key={idx}
+                        className="cursor-clicker h-16 bg-liquirice/90 border border-flash/10 hover:border-flash/30 text-flash px-7 py-2 rounded-md flex justify-between items-center"
+                        onClick={() => {
+                          const formattedName = sugg.name.replace(/\s+/g, "")
+                          const formattedTag = sugg.tag.toUpperCase()
+                          const region = formattedTag.toLowerCase()
+                          const slug = `${formattedName}-${formattedTag}`
+
+                          navigate(`/summoners/${region}/${slug}`)
+                          setOpen(false)
+                          setInput("")
+                          setSuggestions([])
+                        }}
+                      >
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-flash text-sm font-medium">{sugg.name}</span>
+                            <span className="text-flash/60 text-sm font-medium">#{sugg.tag}</span>
+                          </div>
+                          
+                        </div>
+                        <span className="text-xs text-flash/40 font-jetbrains">{sugg.rank}</span>
+                        <img
+                          src={`https://cdn.loldata.cc/15.13.1/img/profileicon/${sugg.icon_id}.png`}
+                          alt="icon"
+                          className="w-8 h-8 rounded-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </DialogContent>
+
     </Dialog>
   )
 }

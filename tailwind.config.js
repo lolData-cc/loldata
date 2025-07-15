@@ -16,7 +16,8 @@ module.exports = {
         liquirice: '#040A0C',
         flash: '#d7d8d9',
         jade: '#00d992',
-        error: '#ff6286'
+        error: '#ff6286',
+        citrine: '#FFB615',
       },
       animation: {
         glow: 'glowPulse 3s ease-in-out infinite',
@@ -49,5 +50,8 @@ module.exports = {
       pointer: 'url("cursors/base.svg") 8 8, auto',
     },
   },
-  plugins: [require("tailwindcss-animate")]
+  plugins: [
+    require("tailwindcss-animate"),
+    require('tailwind-scrollbar-hide'),
+  ],
 }
