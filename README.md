@@ -1,69 +1,19 @@
-# React + TypeScript + Vite
+# Project + Considerations
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```text
+      ..                   ..        ....                           s                
+x .d88"              x .d88"     .xH888888Hx.                      :8                
+ 5888R          u.    5888R    .H8888888888888:                   .88                
+ '888R    ...ue888b   '888R    888*"""?""*88888X         u       :888ooo       u     
+  888R    888R Y888r   888R   'f     d8x.   ^%88k     us888u.  -*8888888    us888u.  
+  888R    888R I888>   888R   '>    <88888X   '?8  .@88 "8888"   8888    .@88 "8888" 
+  888R    888R I888>   888R    `:..:`888888>    8> 9888  9888    8888    9888  9888  
+  888R    888R I888>   888R           `"*88     X  9888  9888    8888    9888  9888  
+  888R   u8888cJ888    888R      .xHHhx.."      !  9888  9888   .8888Lu= 9888  9888  
+ .888B .  "*888*P"    .888B .   X88888888hx. ..!   9888  9888   ^%888*   9888  9888  
+ ^*888%     'Y"       ^*888%   !   "*888888888"    "888*""888"    'Y"    "888*""888" 
+   "%                   "%            ^"***"`       ^Y"   ^Y'             ^Y"   ^Y'                                                                                                                                                  
+```                                                     
+                                                                                     
+lolData is a performance analytics platform for League of Legends that leverages intelligent systems to help players improve. By combining real-time data tracking with AI-driven insights, it supports smarter decision-making around itemization, strategy, and matchup optimization—empowering players to play better, adapt faster, and achieve consistent results.                                                                                
+                                                                                     
