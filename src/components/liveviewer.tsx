@@ -81,7 +81,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
 
           const riotIds = gameData.game.participants.map((p: Participant) => p.riotId)
 
-          const rankRes = await fetch("http://localhost:3001/api/multirank", {
+          const rankRes = await fetch(`${API_BASE_URL}/api/multirank`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ riotIds }),
@@ -107,7 +107,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           })
           setRanks(rankMap)
 
-          const rolesRes = await fetch("http://localhost:3001/api/assignroles", {
+          const rolesRes = await fetch("`${API_BASE_URL}/api/assignroles", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ participants: gameData.game.participants }),

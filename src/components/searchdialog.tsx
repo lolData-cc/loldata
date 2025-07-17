@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
+import { API_BASE_URL } from "@/config"
 // #endregion
 
 type SearchDialogProps = {
@@ -126,7 +127,7 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
                   }
 
                   setLoadingSuggestions(true)
-                  fetch("http://localhost:3001/api/autocomplete", {
+                  fetch(`${API_BASE_URL}/api/assignroles`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ query: partialName.trim() }),

@@ -20,6 +20,8 @@ function withCors(res: Response): Response {
   return new Response(res.body, { status: res.status, headers })
 }
 
+console.log("🚀 Avvio server Bun...");
+
 serve({
   port: Number(process.env.PORT) || 3001,
   async fetch(req) {
