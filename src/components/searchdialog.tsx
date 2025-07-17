@@ -127,7 +127,7 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
                   }
 
                   setLoadingSuggestions(true)
-                  fetch(`${API_BASE_URL}/api/assignroles`, {
+                  fetch(`${API_BASE_URL}/api/autocomplete`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ query: partialName.trim() }),
