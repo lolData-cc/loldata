@@ -19,9 +19,15 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
+import { API_BASE_URL } from "@/config"
 // #endregion
 
-export function SearchDialog() {
+type SearchDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function SearchDialog({onOpenChange}: SearchDialogProps) {
   // #region constants
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
@@ -121,7 +127,7 @@ export function SearchDialog() {
                   }
 
                   setLoadingSuggestions(true)
-                  fetch("http://localhost:3001/api/autocomplete", {
+                  fetch(`${API_BASE_URL}/api/autocomplete`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ query: partialName.trim() }),

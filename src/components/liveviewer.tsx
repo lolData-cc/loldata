@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { formatChampName } from "@/utils/formatchampname";
 import { formatRank } from '@/utils/rankConverter';
+import { API_BASE_URL } from "@/config"
 import  WinrateBar from "@/components/winratebar"
 
 type Participant = {
@@ -68,7 +69,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
     if (!open) return;
     const fetchGameAndChamps = async () => {
       try {
-        const gameRes = await fetch("http://localhost:3001/api/livegame", {
+        const gameRes = await fetch(`${API_BASE_URL}/api/livegame`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ puuid }),
@@ -80,7 +81,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
 
           const riotIds = gameData.game.participants.map((p: Participant) => p.riotId)
 
-          const rankRes = await fetch("http://localhost:3001/api/multirank", {
+          const rankRes = await fetch(`${API_BASE_URL}/api/multirank`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ riotIds }),
@@ -106,7 +107,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           })
           setRanks(rankMap)
 
-          const rolesRes = await fetch("http://localhost:3001/api/assignroles", {
+          const rolesRes = await fetch(`${API_BASE_URL}/api/assignroles`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ participants: gameData.game.participants }),
@@ -208,7 +209,6 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           <div className="text-center text-white font-bold text-xl flex flex-col items-center justify-center">
             <div>VS</div>
             <span className="uppercase font-jetbrains text-[11px]">{game?.gameType}</span>
-            <span className="uppercase font-jetbrains text-[11px]">{game?.gameDuration}</span>
           </div>
 
             <div className="text-[11px] bg-liquirice/90 w-[45%] h-[300px] p-4 overflow-y-auto rounded-md border border-white/10">
@@ -273,9 +273,9 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                   generateAiHelp()
                 }
 
-                if (value === "matchups" && !matchupAdvice) {
-                  generateMatchupAdvice()
-                }
+                // if (value === "matchups" && !matchupAdvice) {
+                //   generateMatchupAdvice()
+                // }
               }}
               className="bg-none flex flex-col h-full"
             >

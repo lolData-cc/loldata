@@ -84,7 +84,7 @@ export async function getMatchDetails(matchId: string) {
 }
 
 export async function getMatchesWithWin(puuid: string, count = 5) {
-  const matchIds = await getMatchIdsByPuuid(puuid, count)
+  const matchIds: string[] = await getMatchIdsByPuuid(puuid, count)
 
   const matches = await Promise.all(
     matchIds.map(async (id) => {
