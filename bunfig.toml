@@ -1,0 +1,1 @@
+entrypoint = "src/server/index.ts"
