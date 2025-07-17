@@ -21,10 +21,13 @@ function withCors(res: Response): Response {
 }
 
 serve({
-  port: process.env.PORT || 3001,
+  port: Number(process.env.PORT) || 3001,
   async fetch(req) {
-    const url = new URL(req.url)
+    const url = new URL(req.url, `http://${req.headers.get("host")}`);
     const pathname = url.pathname
+
+    console.log("✅ Server avviato sulla porta", process.env.PORT || 3001);
+    console.log("📩 Ricevuta richiesta:", req.method, req.url);
 
     console.log("📎 PATHNAME:", pathname)
 

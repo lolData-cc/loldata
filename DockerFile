@@ -14,7 +14,7 @@ RUN bun install
 RUN bun run build
 
 # Espone la porta usata dal tuo server Bun
-EXPOSE 3001
+EXPOSE 8080
 
 # Avvia il server Bun
 CMD ["bun", "src/server/index.ts"]
