@@ -1,3 +1,4 @@
+import { supabase } from '../supabase/client'
 export async function getSummonerHandler(req: Request): Promise<Response> {
     try {
         const body = await req.json()
@@ -81,6 +82,7 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
 
         const summoner = {
             name: account.gameName,
+            puuid: account.puuid,
             tag: account.tagLine,
             rank: soloQueue ? `${soloQueue.tier} ${soloQueue.rank}` : "Unranked",
             lp: soloQueue?.leaguePoints ?? 0,
@@ -94,7 +96,21 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
 
         console.log("📦 Risposta summoner:", summoner)
 
-        return Response.json({ summoner })
+        const { error } = await supabase.from("users").upsert({
+            name: account.gameName,
+            tag: account.tagLine,
+            icon_id: summonerData.profileIconId,
+            rank: soloQueue ? `${soloQueue.tier} ${soloQueue.rank}` : "Unranked",
+            last_searched_at: new Date().toISOString(),
+        }, {
+            onConflict: 'name,tag',
+        })
+
+        if (error) {
+            console.error("❌ Errore salvataggio Supabase:", error.message)
+        }
+
+        return Response.json({ summoner, saved: true })
 
     } catch (err) {
         console.error("Errore in getSummonerHandler:", err)

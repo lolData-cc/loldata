@@ -1,8 +1,14 @@
 import { serve } from "bun";
 import { getMatchesHandler } from "./routes/getMatches";
 import { getSummonerHandler } from "./routes/getSummoner"
-import { incrementProfileViewHandler } from "./routes/incrementView";
+import { matchupsHandler } from "./routes/aihelp/matchups"
 import { getProfileViewsHandler } from "./routes/getViews"
+import { getLiveGameHandler } from "./routes/livegame";
+import { howToWinHandler } from "./routes/aihelp/howtowin";
+import { getMultiRankHandler } from "./routes/multirank"
+import { getAssignedRolesHandler } from "./routes/getAssignedRoles"
+import { autocompleteHandler } from "./routes/autocomplete"
+
 
 
 function withCors(res: Response): Response {
@@ -42,17 +48,40 @@ serve({
       return withCors(res)
     }
 
-    if (url.pathname === "/api/profile/view" && req.method === "POST") {
-      console.log("📥 Chiamata a /api/profile/view")
-      const res = await incrementProfileViewHandler(req)
-      return withCors(res)
-    }
 
     if (url.pathname === "/api/profile/views" && req.method === "POST") {
       const res = await getProfileViewsHandler(req)
       return withCors(res)
     }
 
+    if (url.pathname === "/api/livegame" && req.method === "POST") {
+      const res = await getLiveGameHandler(req);
+      return withCors(res);
+    }
+
+    if (url.pathname === "/api/aihelp/howtowin" && req.method === "POST") {
+      const res = await howToWinHandler(req);
+      return withCors(res);
+    }
+
+    if (url.pathname === "/api/multirank" && req.method === "POST") {
+      const res = await getMultiRankHandler(req)
+      return withCors(res)
+    }
+
+    if (url.pathname === "/api/assignroles" && req.method === "POST") {
+      const res = await getAssignedRolesHandler(req)
+      return withCors(res)
+    }
+
+    if (url.pathname === "/api/aihelp/matchups" && req.method === "POST") {
+      const res = await matchupsHandler(req)
+      return withCors(res)
+    }
+
+    if (url.pathname === "/api/autocomplete" && req.method === "POST") {
+      return withCors(await autocompleteHandler(req))
+    }
 
 
 

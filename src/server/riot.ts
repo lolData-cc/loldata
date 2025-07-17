@@ -47,14 +47,14 @@ export async function getRankedDataBySummonerId(summonerId: string) {
     throw new Error("RIOT_API_KEY non definita nel .env")
   }
 
-  const response = await fetch(
-    `https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`,
-    {
-      headers: {
-        "X-Riot-Token": RIOT_API_KEY,
-      },
-    }
-  )
+  const url = `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${summonerId}`
+  console.log("📡 Chiamata API Ranked:", url)
+
+  const response = await fetch(url, {
+    headers: {
+      "X-Riot-Token": RIOT_API_KEY,
+    },
+  })
 
   if (!response.ok) {
     const text = await response.text()
@@ -63,9 +63,8 @@ export async function getRankedDataBySummonerId(summonerId: string) {
   }
 
   return await response.json()
-
-  
 }
+
 
 export async function getMatchDetails(matchId: string) {
   const res = await fetch(
@@ -99,6 +98,27 @@ export async function getMatchesWithWin(puuid: string, count = 5) {
   )
 
   return matches
+}
+
+export async function getLiveGameByPuuid(puuid: string) {
+  const RIOT_API_KEY = process.env.RIOT_API_KEY
+  if (!RIOT_API_KEY) throw new Error("Missing Riot API key")
+
+  const liveRes = await fetch(
+    `https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`,
+    {
+      headers: { "X-Riot-Token": RIOT_API_KEY },
+    }
+  )
+
+  if (!liveRes.ok) {
+    const text = await liveRes.text()
+    console.error("❌ Spectator API failed:", liveRes.status, text)
+    return null
+  }
+
+  const liveData = await liveRes.json()
+  return liveData
 }
 
 
