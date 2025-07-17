@@ -208,7 +208,6 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           <div className="text-center text-white font-bold text-xl flex flex-col items-center justify-center">
             <div>VS</div>
             <span className="uppercase font-jetbrains text-[11px]">{game?.gameType}</span>
-            <span className="uppercase font-jetbrains text-[11px]">{game?.gameDuration}</span>
           </div>
 
             <div className="text-[11px] bg-liquirice/90 w-[45%] h-[300px] p-4 overflow-y-auto rounded-md border border-white/10">
@@ -273,9 +272,9 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                   generateAiHelp()
                 }
 
-                if (value === "matchups" && !matchupAdvice) {
-                  generateMatchupAdvice()
-                }
+                // if (value === "matchups" && !matchupAdvice) {
+                //   generateMatchupAdvice()
+                // }
               }}
               className="bg-none flex flex-col h-full"
             >

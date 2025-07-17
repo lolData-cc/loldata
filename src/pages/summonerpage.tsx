@@ -109,7 +109,7 @@ export default function SummonerPage() {
       body: JSON.stringify({ name, tag }),
     })
       .then(res => res.json())
-      .then(data => setViews(data.views))
+      //.then(data => setViews(data.views))
       .catch(console.error)
 
     setLoading(false)

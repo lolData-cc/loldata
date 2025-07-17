@@ -21,7 +21,12 @@ import { Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
 // #endregion
 
-export function SearchDialog() {
+type SearchDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function SearchDialog({onOpenChange}: SearchDialogProps) {
   // #region constants
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
