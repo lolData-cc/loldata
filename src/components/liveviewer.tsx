@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { formatChampName } from "@/utils/formatchampname";
 import { formatRank } from '@/utils/rankConverter';
+import { API_BASE_URL } from "@/config"
 import  WinrateBar from "@/components/winratebar"
 
 type Participant = {
@@ -68,7 +69,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
     if (!open) return;
     const fetchGameAndChamps = async () => {
       try {
-        const gameRes = await fetch("http://localhost:3001/api/livegame", {
+        const gameRes = await fetch(`${API_BASE_URL}/api/livegame`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ puuid }),

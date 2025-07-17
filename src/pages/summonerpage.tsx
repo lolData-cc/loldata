@@ -20,6 +20,7 @@ import { UpdateButton } from "@/components/update"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
+import { API_BASE_URL } from "@/config"
 
 const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
@@ -97,13 +98,13 @@ export default function SummonerPage() {
       fetchMatches(name, tag),
     ])
 
-    await fetch("http://localhost:3001/api/profile/view", {
+    await fetch(`${API_BASE_URL}/api/summoner/view`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
     }).catch(console.error)
 
-    await fetch("http://localhost:3001/api/profile/views", {
+    await fetch(`${API_BASE_URL}/api/profile/views`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
@@ -119,7 +120,7 @@ export default function SummonerPage() {
   }
 
   async function fetchSummonerInfo(name: string, tag: string) {
-    const res = await fetch("http://localhost:3001/api/summoner", {
+    const res = await fetch(`${API_BASE_URL}/api/summoner`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),
@@ -129,7 +130,7 @@ export default function SummonerPage() {
   }
 
   async function fetchMatches(name: string, tag: string) {
-    const res = await fetch("http://localhost:3001/api/matches", {
+    const res = await fetch(`${API_BASE_URL}/api/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, tag }),

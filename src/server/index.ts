@@ -1,32 +1,34 @@
-import { serve } from "bun";
-import { getMatchesHandler } from "./routes/getMatches";
+import { serve } from "bun"
+import { join } from "path"
+import { readFile } from "fs/promises"
+
+import { getMatchesHandler } from "./routes/getMatches"
 import { getSummonerHandler } from "./routes/getSummoner"
 import { matchupsHandler } from "./routes/aihelp/matchups"
 import { getProfileViewsHandler } from "./routes/getViews"
-import { getLiveGameHandler } from "./routes/livegame";
-import { howToWinHandler } from "./routes/aihelp/howtowin";
+import { getLiveGameHandler } from "./routes/livegame"
+import { howToWinHandler } from "./routes/aihelp/howtowin"
 import { getMultiRankHandler } from "./routes/multirank"
 import { getAssignedRolesHandler } from "./routes/getAssignedRoles"
 import { autocompleteHandler } from "./routes/autocomplete"
 
-
+const distPath = join(import.meta.dir, "../dist")
 
 function withCors(res: Response): Response {
-  const headers = new Headers(res.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  return new Response(res.body, {
-    status: res.status,
-    headers,
-  });
+  const headers = new Headers(res.headers)
+  headers.set("Access-Control-Allow-Origin", "*")
+  return new Response(res.body, { status: res.status, headers })
 }
 
 serve({
-  port: 3001,
+  port: process.env.PORT || 3001,
   async fetch(req) {
     const url = new URL(req.url)
-    console.log("📎 PATHNAME:", url.pathname)
+    const pathname = url.pathname
 
-    // ✅ Gestione preflight CORS
+    console.log("📎 PATHNAME:", pathname)
+
+    // CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -35,61 +37,42 @@ serve({
           "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
         },
-      });
+      })
     }
 
-    if (url.pathname === "/api/matches" && req.method === "POST") {
-      const res = await getMatchesHandler(req);
-      return withCors(res);
+    // === ROUTE API ===
+    if (pathname === "/api/matches" && req.method === "POST") return withCors(await getMatchesHandler(req))
+    if (pathname === "/api/summoner" && req.method === "POST") return withCors(await getSummonerHandler(req))
+    if (pathname === "/api/profile/views" && req.method === "POST") return withCors(await getProfileViewsHandler(req))
+    if (pathname === "/api/livegame" && req.method === "POST") return withCors(await getLiveGameHandler(req))
+    if (pathname === "/api/aihelp/howtowin" && req.method === "POST") return withCors(await howToWinHandler(req))
+    if (pathname === "/api/multirank" && req.method === "POST") return withCors(await getMultiRankHandler(req))
+    if (pathname === "/api/assignroles" && req.method === "POST") return withCors(await getAssignedRolesHandler(req))
+    if (pathname === "/api/aihelp/matchups" && req.method === "POST") return withCors(await matchupsHandler(req))
+    if (pathname === "/api/autocomplete" && req.method === "POST") return withCors(await autocompleteHandler(req))
+
+    // === FILE STATICI ===
+    try {
+      const filePath = join(distPath, pathname === "/" ? "index.html" : pathname)
+      const file = await readFile(filePath)
+      const ext = filePath.split(".").pop()
+      const mime = {
+        html: "text/html",
+        js: "application/javascript",
+        css: "text/css",
+        png: "image/png",
+        svg: "image/svg+xml",
+      }[ext!] || "text/plain"
+
+      return new Response(file, {
+        headers: { "Content-Type": mime },
+      })
+    } catch (e) {
+      // Fallback SPA: ritorna index.html per tutte le rotte non trovate
+      const html = await readFile(join(distPath, "index.html"))
+      return new Response(html, {
+        headers: { "Content-Type": "text/html" },
+      })
     }
-
-    if (url.pathname === "/api/summoner" && req.method === "POST") {
-      const res = await getSummonerHandler(req)
-      return withCors(res)
-    }
-
-
-    if (url.pathname === "/api/profile/views" && req.method === "POST") {
-      const res = await getProfileViewsHandler(req)
-      return withCors(res)
-    }
-
-    if (url.pathname === "/api/livegame" && req.method === "POST") {
-      const res = await getLiveGameHandler(req);
-      return withCors(res);
-    }
-
-    if (url.pathname === "/api/aihelp/howtowin" && req.method === "POST") {
-      const res = await howToWinHandler(req);
-      return withCors(res);
-    }
-
-    if (url.pathname === "/api/multirank" && req.method === "POST") {
-      const res = await getMultiRankHandler(req)
-      return withCors(res)
-    }
-
-    if (url.pathname === "/api/assignroles" && req.method === "POST") {
-      const res = await getAssignedRolesHandler(req)
-      return withCors(res)
-    }
-
-    if (url.pathname === "/api/aihelp/matchups" && req.method === "POST") {
-      const res = await matchupsHandler(req)
-      return withCors(res)
-    }
-
-    if (url.pathname === "/api/autocomplete" && req.method === "POST") {
-      return withCors(await autocompleteHandler(req))
-    }
-
-
-
-    return new Response("Not found", {
-      status: 404,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
   },
-});
+})
