@@ -107,7 +107,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           })
           setRanks(rankMap)
 
-          const rolesRes = await fetch("`${API_BASE_URL}/api/assignroles", {
+          const rolesRes = await fetch(`${API_BASE_URL}/api/assignroles`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ participants: gameData.game.participants }),
