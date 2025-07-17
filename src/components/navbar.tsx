@@ -26,7 +26,7 @@ export function Navbar() {
       {/* Logo (sx) */}
       <div className="flex-shrink-0">
         <Link to="/" className="flex-shrink-0">
-          <img src="/typelogo.png" className="w-28 h-28 cursor-clicker" alt="Logo" />
+          <img src="/typelogo.png" className="w-36 h-26 cursor-clicker" alt="Logo" />
         </Link>
       </div>
 

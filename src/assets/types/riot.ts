@@ -28,11 +28,18 @@ export type MatchDetail = {
   }
 }
 
+
+
 export type MatchWithWin = {
   match: {
     metadata: { matchId: string },
     info: {
       queueId: number,
+      gameDuration: number
+      participants: Participant[]
+      gameMode: string
+      gameType: string
+      gameStartTimestamp: number
       [key: string]: any
     }
   },

@@ -9,6 +9,7 @@ import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
 import { getKdaClass } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
+import { timeAgo } from '@/utils/timeAgo';
 import { champPath } from "@/config"
 import { cn } from "@/lib/utils"
 import {
@@ -145,35 +146,27 @@ export default function SummonerPage() {
 
   return (
     <div className="">
-      <div className="flex h-screen -mt-4">
-        <div className="w-2/5 flex justify-center">
+      <div className="flex min-h-screen -mt-4">
+        <div className="w-[30%] min-w-[30%] flex justify-center">
           <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
-              <div className="flex justify-between px-12 py-3">
+              <div className="flex justify-between px-10 py-3">
                 <div className="z-0 text-[14px]">SOLO/DUO</div>
                 <div className="z-0">FLEX</div>
                 <div className="z-0">SEASON</div>
               </div>
               <Separator className="bg-[#48504E] w-[85%] mx-auto" />
 
-              <div className="flex flex-col gap-3 mx-2 mt-3 overflow-x-auto">
+              <div className="flex flex-col gap-3 mx-2 mt-3 ">
                 {topChampions.length === 0 ? (
                   Array.from({ length: 5 }).map((_, idx) => (
-                    <div key={idx} className="grid grid-cols-[170px_90px_90px] items-center px-4 py-1 animate-pulse">
-                      <div className="flex items-center gap-3">
+                    <div key={idx} className="grid  items-center px-4 py-1 animate-pulse">
+                      <div className="flex items-center gap-3 w-full">
                         <Skeleton className="w-10 h-10 rounded-full" />
-                        <div className="flex flex-col gap-0.5">
-                          <Skeleton className="w-[70px] h-2.5" />
-                          <Skeleton className="w-[60px] h-2.5" />
+                        <div className="flex flex-col gap-0.5 w-[300px]">
+                          <Skeleton className="w-[30%] h-2.5" />
+                          <Skeleton className="w-[60%] h-2.5" />
                         </div>
-                      </div>
-                      <div className="flex flex-col items-center gap-0.5">
-                        <Skeleton className="w-[40px] h-2.5" />
-                        <Skeleton className="w-[50px] h-2.5" />
-                      </div>
-                      <div className="flex flex-col items-end gap-0.5">
-                        <Skeleton className="w-[30px] h-2.5" />
-                        <Skeleton className="w-[50px] h-2.5" />
                       </div>
                     </div>
                   ))
@@ -181,7 +174,7 @@ export default function SummonerPage() {
                   topChampions.slice(0, 5).map((champ) => (
                     <div
                       key={champ.champion}
-                      className="grid grid-cols-3 items-center px-4 gap-4"
+                      className="grid grid-cols-3 items-center px-3 gap-4 w-full"
                     >
                       {/* Colonna 1: Champion info */}
                       <div className="flex items-center gap-3">
@@ -233,7 +226,8 @@ export default function SummonerPage() {
         </div>
 
         <div className="w-4/5">
-          <div className="flex justify-between items-start mt-4 px-4 ml-4">
+
+          <div className="flex justify-between items-start mt-4 px-4 w-full min-w-full max-w-full">
             {/* SEZIONE SINISTRA: nuove icone */}
             <div className="flex flex-col items-center gap-1">
               <span>CURRENT RANK</span>
@@ -260,7 +254,6 @@ export default function SummonerPage() {
                 {/* Immagine sopra */}
                 <img
                   src="/public/master.png"
-                  alt="Icona profilo"
                   className="w-32 h-32 z-10 relative"
                 />
               </div>
@@ -308,7 +301,7 @@ export default function SummonerPage() {
               <div className="relative w-40 h-40 mr-4">
                 <img
                   src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`}
-                  alt="Icona profilo"
+
                   className={cn(
                     "w-full h-full rounded-xl select-none pointer-events-none border-2",
                     summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
@@ -316,7 +309,7 @@ export default function SummonerPage() {
                   draggable={false}
                 />
                 {summonerInfo?.live && summonerInfo?.puuid && (
-                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`}/>
+                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} />
                 )}
               </div>
             </div>
@@ -381,38 +374,39 @@ export default function SummonerPage() {
               <p className="text-muted-foreground mt-4">Nessuna partita trovata.</p>
             ) : (
               <ul className="space-y-3 mt-4">
-                {filteredMatches.map(({ match, win, championName }) => {
+                {filteredMatches.map(({ match, win, championName,  }) => {
                   const queueId = match.info.queueId;
                   const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
 
                   return (
                     <li
                       key={match.metadata.matchId}
-                      className={`flex items-center gap-4 text-white p-3 rounded-md h-28 transition-colors duration-300 ${win
-                          ? "bg-gradient-to-r from-[#11382E] to-[#00D992]"
-                          : "bg-gradient-to-r from-[#420909] to-[#c93232]"
+                      className={`gap-4 text-flash p-2 rounded-md h-28 transition-colors duration-300 ${win
+                        ? "bg-gradient-to-r from-[#11382E] to-[#00D992]"
+                        : "bg-gradient-to-r from-[#420909] to-[#c93232]"
                         }`}
                     >
-                      
-                      <img
-                        src={`${champPath}/${championName}.png`}
-                        alt={championName}
-                        className="w-12 h-12 rounded-md"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-gtthin font-normal">
-                          MATCH ID: {match.metadata.matchId}
-                        </span>
-                        <span className="text-xs text-gray-300">{queueLabel}</span>
+                      <div className="flex justify-between text-[11px] uppercase text-flash/70">
+                        <span>{queueLabel}</span>
+                        <span>{timeAgo(match.info.gameStartTimestamp)}</span>
+                      </div>
+                      <div>
+                        <img
+                          src={`${champPath}/${championName}.png`}
+                          alt={championName}
+                          className="w-12 h-12 rounded-md"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-gtthin font-normal">
+                            MATCH ID: {match.metadata.matchId}
+                          </span>
+                        </div>
                       </div>
                     </li>
                   );
                 })}
-
               </ul>
             )}
-
-
           </div>
         </div>
       </div>

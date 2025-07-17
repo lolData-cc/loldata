@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Zap } from 'lucide-react'
+import { formatRank } from "@/utils/rankConverter"
 // #endregion
 
 export function SearchDialog() {
@@ -114,7 +115,7 @@ export function SearchDialog() {
                   setInput(value)
 
                   const [partialName] = value.split("#")
-                  if (partialName.length < 2) {
+                  if (partialName.length < 4) {
                     setSuggestions([])
                     return
                   }
@@ -127,7 +128,7 @@ export function SearchDialog() {
                   })
                     .then((res) => res.json())
                     .then((data) => setSuggestions(data.results))
-                    .catch((err) => console.error("❌ Autocomplete fetch:", err))
+                    .catch((err) => console.error("Autocomplete fetch:", err))
                     .finally(() => setLoadingSuggestions(false))
                 }}
                 className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20"
@@ -166,14 +167,24 @@ export function SearchDialog() {
                           setSuggestions([])
                         }}
                       >
-                        <div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-flash text-sm font-medium">{sugg.name}</span>
-                            <span className="text-flash/60 text-sm font-medium">#{sugg.tag}</span>
+                        <div className="flex justify-between gap-4 items-center">
+                          <div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-flash text-sm font-medium">{sugg.name}</span>
+                              <span className="text-flash/50 text-[11px] font-medium">#{sugg.tag}</span>
+                            </div>
+
                           </div>
-                          
+                          <div className="flex justify-between gap-2">
+                            <img
+                              src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(sugg.rank)}.png`}
+                              className="w-4 h-4 rounded-sm"
+                            />
+                            <span className="text-xs text-flash/40 font-jetbrains">{sugg.rank}</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-flash/40 font-jetbrains">{sugg.rank}</span>
+
+
                         <img
                           src={`https://cdn.loldata.cc/15.13.1/img/profileicon/${sugg.icon_id}.png`}
                           alt="icon"

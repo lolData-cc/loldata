@@ -5,6 +5,8 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
+import { formatChampName } from "@/utils/formatchampname";
+import { formatRank } from '@/utils/rankConverter';
 import  WinrateBar from "@/components/winratebar"
 
 type Participant = {
@@ -19,6 +21,8 @@ type Participant = {
 
 type LiveGame = {
   participants: Participant[]
+  gameType: string
+  gameQueueConfigId: number
 }
 
 type LiveViewerProps = {
@@ -162,7 +166,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                   >
                     <div className="flex items-center gap-2 w-[50%]">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/champion/${championMap[p.championId]}.png`}
+                        src={`https://cdn.loldata.cc/15.13.1/img/champion/${formatChampName(championMap[p.championId])}.png`}
                         className="w-9 h-9 rounded-lg"
                       />
                       <div className="flex flex-col gap-1">
@@ -178,8 +182,12 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                       <span className="ml-2 uppercase font-jetbrains">{p.riotId}</span>
                     </div>
 
-                    <div className="text-white/80 font-jetbrains text-left w-[30%]">
-                      {ranks[p.riotId]?.rank || "..."} {ranks[p.riotId]?.lp}
+                    <div className="flex gap-1 space-x-1 text-white/80 font-jetbrains text-left w-[35%]">
+                      <img
+                         src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(ranks[p.riotId]?.rank)}.png`}
+                        className="w-4 h-4 rounded-sm"
+                      />
+                      <span>{ranks[p.riotId]?.rank || "..."} {ranks[p.riotId]?.lp}</span>
                     </div>
 
                     <div className="w-[25%] pr-2">
@@ -197,8 +205,10 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
             </div>
           </div>
 
-          <div className="text-center text-white font-bold text-xl flex items-center justify-center">
-            VS
+          <div className="text-center text-white font-bold text-xl flex flex-col items-center justify-center">
+            <div>VS</div>
+            <span className="uppercase font-jetbrains text-[11px]">{game?.gameType}</span>
+            <span className="uppercase font-jetbrains text-[11px]">{game?.gameDuration}</span>
           </div>
 
             <div className="text-[11px] bg-liquirice/90 w-[45%] h-[300px] p-4 overflow-y-auto rounded-md border border-white/10">
@@ -214,7 +224,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                   >
                     <div className="flex items-center gap-1 w-[50%]">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/champion/${championMap[p.championId]}.png`}
+                        src={`https://cdn.loldata.cc/15.13.1/img/champion/${formatChampName(championMap[p.championId])}.png`}
                         className="w-9 h-9 rounded-lg"
                       />
                       <div className="flex flex-col gap-1">
@@ -232,7 +242,11 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 text-white/80 font-jetbrains text-left w-[30%]">
+                    <div className="flex gap-1 space-x-1 text-white/80 font-jetbrains text-left w-[35%]">
+                      <img
+                         src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(ranks[p.riotId]?.rank)}.png`}
+                        className="w-4 h-4 rounded-sm"
+                      />
                       <span>{ranks[p.riotId]?.rank || "..."} {ranks[p.riotId]?.lp}</span>
                     </div>
 
