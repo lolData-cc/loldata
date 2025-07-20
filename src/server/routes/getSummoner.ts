@@ -1,4 +1,22 @@
 import { supabase } from '../supabase/client'
+
+function rankToScore(tier: string, division: string, lp: number): number {
+    const tierOrder = [
+        "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM",
+        "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"
+    ]
+    const divisionOrder: Record<string, number> = {
+        "IV": 1,
+        "III": 2,
+        "II": 3,
+        "I": 4,
+    }
+
+    const base = tierOrder.indexOf(tier.toUpperCase()) * 1000
+    const divisionScore = divisionOrder[division.toUpperCase()] ?? 0
+    return base + divisionScore * 100 + lp // division pesa 100, lp è minore
+}
+
 export async function getSummonerHandler(req: Request): Promise<Response> {
     try {
         const body = await req.json()
@@ -11,9 +29,13 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
         const RIOT_API_KEY = process.env.RIOT_API_KEY
         if (!RIOT_API_KEY) throw new Error("Missing Riot API key")
 
+        // Normalizza input per fetch
+        const nameLower = name.toLowerCase()
+        const tagLower = tag.toLowerCase()
+
         // Step 1: prendi il puuid
         const accountRes = await fetch(
-            `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
+            `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${nameLower}/${tagLower}`,
             {
                 headers: {
                     "X-Riot-Token": RIOT_API_KEY,
@@ -59,9 +81,6 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
 
         const isLive = liveRes.status === 200
 
-
-
-
         const rankedRes = await fetch(
             `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
             {
@@ -80,6 +99,35 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
         const rankedData = await rankedRes.json()
         const soloQueue = rankedData.find((entry: any) => entry.queueType === "RANKED_SOLO_5x5")
 
+
+
+        let peakRank = soloQueue ? `${soloQueue.tier} ${soloQueue.rank}` : "Unranked"
+        let peakLP = soloQueue?.leaguePoints ?? 0
+
+        if (soloQueue) {
+            const { data: existingUser, error: fetchError } = await supabase
+                .from("users")
+                .select("peak_rank, peak_lp")
+                .eq("name", account.gameName)
+                .eq("tag", account.tagLine)
+                .single()
+
+            if (!fetchError && existingUser?.peak_rank) {
+                const [savedTier, savedDivision] = existingUser.peak_rank.split(" ")
+                const savedLP = existingUser.peak_lp ?? 0
+
+                const currentScore = rankToScore(soloQueue.tier, soloQueue.rank, soloQueue.leaguePoints)
+                const savedScore = rankToScore(savedTier, savedDivision, savedLP)
+
+                if (savedScore >= currentScore) {
+                    peakRank = existingUser.peak_rank
+                    peakLP = savedLP
+                }
+            }
+        }
+
+
+
         const summoner = {
             name: account.gameName,
             puuid: account.puuid,
@@ -91,16 +139,17 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
             profileIconId: summonerData.profileIconId,
             level: summonerData.summonerLevel,
             live: isLive,
+            peakRank: peakRank,
+            peakLp: peakLP,
         }
-
-
-        console.log("📦 Risposta summoner:", summoner)
 
         const { error } = await supabase.from("users").upsert({
             name: account.gameName,
             tag: account.tagLine,
             icon_id: summonerData.profileIconId,
             rank: soloQueue ? `${soloQueue.tier} ${soloQueue.rank}` : "Unranked",
+            peak_rank: peakRank,
+            peak_lp: peakLP,
             last_searched_at: new Date().toISOString(),
         }, {
             onConflict: 'name,tag',
@@ -109,6 +158,7 @@ export async function getSummonerHandler(req: Request): Promise<Response> {
         if (error) {
             console.error("❌ Errore salvataggio Supabase:", error.message)
         }
+
 
         return Response.json({ summoner, saved: true })
 

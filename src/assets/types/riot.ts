@@ -59,6 +59,8 @@ export type SummonerInfo = {
   profileIconId: number
   level: number
   live: boolean
+  peakRank?: string
+  peakLp?: number
 }
 
 export type ChampionStats = {

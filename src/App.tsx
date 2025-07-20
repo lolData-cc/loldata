@@ -8,7 +8,6 @@ function HomePage() {
 
   return (
     <div className="w-full">
-
       <div className="p-6">
         <p className="text-white text-xl">Benvenuto su LolData</p>
       </div>
