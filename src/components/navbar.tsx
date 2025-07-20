@@ -21,7 +21,7 @@ export function Navbar() {
   }, [])
 
   return (
-    <div className="flex items-center w-full py-2 px-4 justify-between h-16 border-b border-sm border-flash/20">
+    <div className="flex items-center w-full py-2 px-4 justify-between h-16">
 
       {/* Logo (sx) */}
       <div className="flex-shrink-0">
