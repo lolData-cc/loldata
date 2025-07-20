@@ -148,7 +148,7 @@ export default function SummonerPage() {
   return (
     <div className="">
       <div className="flex min-h-screen -mt-4">
-        <div className="w-[30%] min-w-[30%] flex justify-center">
+        <div className="w-2/5 min-w-[30%] flex justify-center">
           <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
               <div className="flex justify-between px-10 py-3">
@@ -239,6 +239,7 @@ export default function SummonerPage() {
                   src={getRankImage(summonerInfo?.rank)}
                   alt="Rank Icon"
                   className="w-32 h-32 z-10 relative"
+                  draggable={false}
                 />
               </div>
               <div className="flex items-center gap-2 text-sm">
@@ -254,13 +255,14 @@ export default function SummonerPage() {
 
                 {/* Immagine sopra */}
                 <img
-                  src="/public/master.png"
+                  src={getRankImage(summonerInfo?.peakRank)}
                   className="w-32 h-32 z-10 relative"
+                  draggable={false}
                 />
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#BFC5C6]">MASTER</span>
-                <span className="text-[#5B5555]">461 LP</span>
+                <span className="text-[#BFC5C6]">{summonerInfo?.peakRank}</span>
+                <span className="text-[#5B5555]">{summonerInfo?.peakLp} LP</span>
               </div>
             </div>
             <div>
@@ -271,7 +273,7 @@ export default function SummonerPage() {
             <div className="flex items-start">
               <div className="mr-4 mt-4">
                 <div
-                  className="uppercase text-2xl cursor-pointer select-none"
+                  className="uppercase text-2xl cursor-clicker select-none"
                   onClick={() => {
                     if (summonerInfo) {
                       navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
@@ -279,11 +281,11 @@ export default function SummonerPage() {
                   }}
                   title="Clicca per copiare"
                 >
-                  <div className="flex justify-end">
+                  {/* <div className="flex justify-end">
                     <Toggle className="data-[state=on]:bg-[#11382E] hover:bg-[#11382E]">
                       <Star className="text-[#01D18D]" />
                     </Toggle>
-                  </div>
+                  </div> */}
 
                   <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
                     LEVEL {summonerInfo?.level} | RANK 23.329
@@ -295,7 +297,7 @@ export default function SummonerPage() {
                 </div>
 
                 <div className="mt-2 flex justify-end">
-                  <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} />
+                  <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} className="px-5 py-2"/>
                 </div>
               </div>
 

@@ -7,7 +7,10 @@ module.exports = {
   ],
   theme: {
     extend: {
-      fontFamily:{
+      borderRadius: {
+        sm: '0.125rem',
+      },
+      fontFamily: {
         'jetbrains': ['JetBrains Mono', 'monospace'],
         'geist': ['geist', 'monospace'],
         'gtamerica': ['gtamerica', 'monospace']

@@ -21,12 +21,12 @@ export function Navbar() {
   }, [])
 
   return (
-    <div className="flex items-center w-full py-2 px-4 justify-between h-16">
+    <div className="flex items-center w-full py-2 px-4 justify-between h-16 border-b border-sm border-flash/20">
 
       {/* Logo (sx) */}
       <div className="flex-shrink-0">
         <Link to="/" className="flex-shrink-0">
-          <img src="/typelogo.png" className="w-36 h-26 cursor-clicker" alt="Logo" />
+          <img src="/typelogo.png" className="w-28 h-22 cursor-clicker" alt="Logo" />
         </Link>
       </div>
 
@@ -39,9 +39,9 @@ export function Navbar() {
       </div>
 
       {/* Search (dx) */}
-      <div className="flex-shrink-0 flex space-x-2">
+      <div className="flex-shrink-0 flex space-x-2 items-center text-[12px]">
         <SearchDialog open={open} onOpenChange={setOpen} />
-        {/* <UserDialog /> */}
+        <UserDialog />
       </div>
 
     </div>

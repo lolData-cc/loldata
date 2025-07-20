@@ -77,9 +77,9 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
 
     }} >
       <DialogTrigger asChild>
-        <Button variant="default" size="sm">
+        <div className="font-jetbrains bg-jade/10 text-jade hover:bg-jade/20 items-center py-2 h-full px-3 rounded-sm cursor-clicker">
           SEARCH A PLAYER
-        </Button>
+        </div>
       </DialogTrigger>
       <DialogContent className="w-full max-w-xl bg-transparent top-60 [&>button]:hidden flex flex-col items-center">
         <div className="w-full relative">
