@@ -13,7 +13,8 @@ module.exports = {
       fontFamily: {
         'jetbrains': ['JetBrains Mono', 'monospace'],
         'geist': ['geist', 'monospace'],
-        'gtamerica': ['gtamerica', 'monospace']
+        'gtamerica': ['gtamerica', 'monospace'],
+        'revxneue': ['revxneue', 'monospace']
       },
       colors: {
         liquirice: '#040A0C',

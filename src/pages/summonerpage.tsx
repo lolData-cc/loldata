@@ -2,8 +2,7 @@ import type { MatchWithWin, SummonerInfo, ChampionStats } from "@/assets/types/r
 import { useParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { LiveViewer } from "@/components/liveviewer"
-import { ChevronDown, Star } from "lucide-react"
-import { Toggle } from "@/components/ui/toggle"
+import { ChevronDown } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
@@ -26,11 +25,11 @@ const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
 
 export default function SummonerPage() {
-  const { slug } = useParams()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [loading, setLoading] = useState(false)
   const [onCooldown, setOnCooldown] = useState(false)
   const [selectedQueue, setSelectedQueue] = useState("RANKED SOLO / DUO")
+  const { region, slug } = useParams()
   const [name, tag] = slug?.split("-") ?? []
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
@@ -86,7 +85,19 @@ export default function SummonerPage() {
     refreshData()
   }, [name, tag])
 
+  useEffect(() => {
+    if (name && tag && region) {
+      fetchSummonerInfo(name, tag, region)
+    }
+  }, [name, tag, region])
+
   async function refreshData() {
+
+    if (!region) {
+      console.error("❌ Region mancante in refreshData")
+      return
+    }
+
     if (!name || !tag) return
 
     setLoading(true)
@@ -94,8 +105,8 @@ export default function SummonerPage() {
     setMatches([])
 
     const [summoner, matchData] = await Promise.all([
-      fetchSummonerInfo(name, tag),
-      fetchMatches(name, tag),
+      fetchSummonerInfo(name, tag, region),
+      fetchMatches(name, tag, region),
     ])
 
     await fetch(`${API_BASE_URL}/api/summoner/view`, {
@@ -119,21 +130,22 @@ export default function SummonerPage() {
     setTimeout(() => setOnCooldown(false), COOLDOWN_MS)
   }
 
-  async function fetchSummonerInfo(name: string, tag: string) {
+  async function fetchSummonerInfo(name: string, tag: string, region: string) {
     const res = await fetch(`${API_BASE_URL}/api/summoner`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag }),
+      body: JSON.stringify({ name, tag, region }),
     })
+
     const data = await res.json()
     setSummonerInfo(data.summoner as SummonerInfo)
   }
 
-  async function fetchMatches(name: string, tag: string) {
+  async function fetchMatches(name: string, tag: string, region: string) {
     const res = await fetch(`${API_BASE_URL}/api/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag }),
+      body: JSON.stringify({ name, tag, region }),
     })
     const data = await res.json()
     setMatches(data.matches || [])
@@ -297,7 +309,7 @@ export default function SummonerPage() {
                 </div>
 
                 <div className="mt-2 flex justify-end">
-                  <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} className="px-5 py-2"/>
+                  <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} className="px-5 py-2" />
                 </div>
               </div>
 
@@ -319,8 +331,7 @@ export default function SummonerPage() {
           </div>
 
           <div className="p-6 max-w-4xl mx-auto">
-            <nav className="w-full bg-[#1f1f1f] px-8 h-10 rounded-md border border-[#2B2A2B] shadow-md">
-
+            <nav className="w-full bg-[#1f1f1f] text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
               <div className="flex items-center h-full justify-between">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
@@ -377,7 +388,7 @@ export default function SummonerPage() {
               <p className="text-muted-foreground mt-4">Nessuna partita trovata.</p>
             ) : (
               <ul className="space-y-3 mt-4">
-                {filteredMatches.map(({ match, win, championName,  }) => {
+                {filteredMatches.map(({ match, win, championName, }) => {
                   const queueId = match.info.queueId;
                   const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
 

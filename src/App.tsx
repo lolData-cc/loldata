@@ -1,21 +1,72 @@
 import { Routes, Route } from "react-router-dom"
-
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
 import SummonerPage from "@/pages/summonerpage"
 
 
+
+
 function HomePage() {
+  const [text, setText] = useState("")
+  const [showSubtitle, setShowSubtitle] = useState(false)
+  const fullText = "Welcome to lolData"
 
-  return (
-    <div className="w-full">
-      <div className="p-6">
-        <p className="text-white text-xl">Benvenuto su LolData</p>
-      </div>
+  useEffect(() => {
+    let cancelled = false
+    const typeWriter = async () => {
+      for (let i = 0; i < fullText.length; i++) {
+        if (cancelled) return
+        setText((prev) => prev + fullText[i])
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      if (!cancelled) {
+        setTimeout(() => {
+          setShowSubtitle(true)
+        }, 200) 
+      }
+    }
+    typeWriter()
+    return () => { cancelled = true }
+  }, [])
 
-    </div>
+return (
+  <div className="w-full relative">
     
-  )
+    <div className="py-8 text-center">
+      <p className="text-jade text-6xl">{text}</p>
+      <p
+        className={`
+          text-flash/50 text-xl pt-2 transition-opacity duration-1000
+          ${showSubtitle ? "opacity-100" : "opacity-0"}
+        `}
+      >
+        The new frontier of League of Legends improvement <br />
+        featuring your personal AI assistant
+      </p>
+    </div>
+
+    <div className="relative w-full flex justify-center mt-12">
+      <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
+      <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
+
+      <img
+        src="/demos/learndemo.png"
+        alt=""
+        className="w-[60%] relative z-10"
+        draggable={false}
+      />
+    </div>
+  </div>
+)
+
 }
+
+
+
+
 
 export function RootLayout({
   children,

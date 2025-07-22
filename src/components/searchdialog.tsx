@@ -15,6 +15,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Zap } from 'lucide-react'
@@ -27,13 +39,15 @@ type SearchDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function SearchDialog({onOpenChange}: SearchDialogProps) {
+export function SearchDialog({ onOpenChange }: SearchDialogProps) {
   // #region constants
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const navigate = useNavigate()
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [region, setRegion] = useState("EUW")
+  const [regionPopoverOpen, setRegionPopoverOpen] = useState(false)
   // #endergion
 
   // #region functions
@@ -47,10 +61,9 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
 
     const formattedName = name.replace(/\s+/g, "")
     const formattedTag = tag.toUpperCase()
-    const region = formattedTag.toLowerCase()
     const slug = `${formattedName}-${formattedTag}`
 
-    navigate(`/summoners/${region}/${slug}`)
+    navigate(`/summoners/${region.toLowerCase()}/${slug}`)
     setOpen(false)
     setInput("")
   }
@@ -81,7 +94,7 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
           SEARCH A PLAYER
         </div>
       </DialogTrigger>
-      <DialogContent className="w-full max-w-xl bg-transparent top-60 [&>button]:hidden flex flex-col items-center">
+      <DialogContent className="w-full max-w-xl bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
         <div className="w-full relative">
           <div className="font-jetbrains bg-liquirice/90 top-60 select-none border-flash/10 border px-7 py-5 rounded-md">
             <DialogHeader >
@@ -113,36 +126,71 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
               }}
               className="space-y-4 pt-4"
             >
-              <Input
-                placeholder="Your username + #TAG"
-                value={input}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setInput(value)
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Your username + #TAG"
+                  value={input}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setInput(value)
 
-                  const [partialName] = value.split("#")
-                  if (partialName.length < 4) {
-                    setSuggestions([])
-                    return
-                  }
+                    const [partialName] = value.split("#")
+                    if (partialName.length < 4) {
+                      setSuggestions([])
+                      return
+                    }
 
-                  setLoadingSuggestions(true)
-                  fetch(`${API_BASE_URL}/api/autocomplete`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ query: partialName.trim() }),
-                  })
-                    .then((res) => res.json())
-                    .then((data) => setSuggestions(data.results))
-                    .catch((err) => console.error("Autocomplete fetch:", err))
-                    .finally(() => setLoadingSuggestions(false))
-                }}
-                className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20"
-              />
-
+                    setLoadingSuggestions(true)
+                    fetch(`${API_BASE_URL}/api/autocomplete`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        query: partialName.trim(),
+                        region: region.toUpperCase()
+                      }),
+                    })
+                      .then((res) => res.json())
+                      .then((data) => setSuggestions(data.results))
+                      .catch((err) => console.error("Autocomplete fetch:", err))
+                      .finally(() => setLoadingSuggestions(false))
+                  }}
+                  className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 w-[80%]"
+                />
+                <Popover open={regionPopoverOpen} onOpenChange={setRegionPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-[20%] justify-between bg-black/20 border border-flash/10 text-flash hover:border-flash/20"
+                    >
+                      {region}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[90px] p-0 bg-liquirice/90 border-flash/20">
+                    <Command>
+                      <CommandList>
+                        <CommandEmpty>No region found.</CommandEmpty>
+                        <CommandGroup>
+                          {["EUW", "NA", "KR"].map((r) => (
+                            <CommandItem
+                              key={r}
+                              value={r}
+                              onSelect={() => {
+                                setRegion(r)
+                                setRegionPopoverOpen(false)
+                              }}
+                            >
+                              {r}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <DialogFooter className="pt-2">
                 <Button
-                  variant="default"
                   type="submit">
                   SEARCH
                 </Button>
@@ -164,10 +212,9 @@ export function SearchDialog({onOpenChange}: SearchDialogProps) {
                         onClick={() => {
                           const formattedName = sugg.name.replace(/\s+/g, "")
                           const formattedTag = sugg.tag.toUpperCase()
-                          const region = formattedTag.toLowerCase()
                           const slug = `${formattedName}-${formattedTag}`
 
-                          navigate(`/summoners/${region}/${slug}`)
+                          navigate(`/summoners/${region.toLowerCase()}/${slug}`)
                           setOpen(false)
                           setInput("")
                           setSuggestions([])

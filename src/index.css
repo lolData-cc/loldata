@@ -47,6 +47,13 @@
   src: url("/fonts/gtamerica.ttf") format("truetype")
 }
 
+@font-face {
+  font-family: revxneue;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/revxneue.ttf") format("truetype")
+}
+
 html, body {
   @apply bg-liquirice;
 }

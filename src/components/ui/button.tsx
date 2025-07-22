@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "text-jade bg-jade/10 hover:bg-jade/20 ",
+          "text-jade bg-jade/10 hover:bg-jade/20",
         destructive:
           "text-error bg-error/10 hover:bg-error/20",
         outline:
@@ -18,7 +18,7 @@ const buttonVariants = cva(
         link: "text-flash underline-offset-4 hover:underline",
       },
       size: {
-        default: "px-4.5 py-0",
+        default: "px-5 py-2",
         sm: "rounded-sm px-3 py-1",
         icon: "h-9 w-9",
       },
