@@ -25,15 +25,20 @@ module.exports = {
       },
       animation: {
         glow: 'glowPulse 3s ease-in-out infinite',
-        blink: 'blink 1sd steps/2, start) infinite'
+        blink: 'blink 1sd steps/2, start) infinite',
+        'pulse-slow': 'pulseSlow 8s ease-in-out infinite',
       },
-        opacity: {
-  			'2': '0.02'
-  		},
+      opacity: {
+        '2': '0.02'
+      },
       keyframes: {
+        pulseSlow: {
+          '0%, 100%': { opacity: '0.05' },
+          '50%': { opacity: '0.15' },
+        },
         blink: {
-            '0%, 100%': { opacity: 1},
-            '50%': { opacity: 0 },
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0 },
         },
         glowPulse: {
           '0%, 100%': {

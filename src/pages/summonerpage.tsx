@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
 import { API_BASE_URL } from "@/config"
+import UltraTechBackground from "@/components/techdetails"
 
 const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
@@ -158,8 +159,9 @@ export default function SummonerPage() {
 
 
   return (
-    <div className="">
-      <div className="flex min-h-screen -mt-4">
+    <div className="relative z-0">
+      <UltraTechBackground/>
+      <div className="relative flex min-h-screen -mt-4 z-10">
         <div className="w-2/5 min-w-[30%] flex justify-center">
           <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
