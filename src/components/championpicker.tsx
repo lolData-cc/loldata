@@ -21,7 +21,7 @@ export function ChampionPicker({
 
   return (
     <Dialog>
-      <DialogTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-medium tracking-wide">
+      <DialogTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-medium tracking-wide font-thin">
         <span>CHAMPION</span>
       </DialogTrigger>
       <DialogContent className="bg-[#1f1f1f] max-w-[600px] rounded-xl p-6 border-none">

@@ -326,7 +326,7 @@ export default function SummonerPage() {
                   draggable={false}
                 />
                 {summonerInfo?.live && summonerInfo?.puuid && (
-                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} />
+                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} region={region!}/>
                 )}
               </div>
             </div>
@@ -334,17 +334,17 @@ export default function SummonerPage() {
 
           <div className="p-6 max-w-4xl mx-auto">
             <nav className="w-full bg-[#1f1f1f] text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
-              <div className="flex items-center h-full justify-between">
+              <div className="flex items-center h-full justify-between ">
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">RANKED SOLO / DUO</span>
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin">
+                    <span className="text-sm  tracking-wide">RANKED SOLO / DUO</span>
                     <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
                 </DropdownMenu>
 
                 <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
 
-                <div className="space-x-2 flex items-center">
+                <div className="space-x-2 flex items-center ">
                   <ChampionPicker
                     champions={allChampions}
                     onSelect={(champId) => setSelectedChampion(champId)}

@@ -29,9 +29,10 @@ type LiveGame = {
 type LiveViewerProps = {
   puuid: string
   riotId: string
+  region: string
 }
 
-export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
+export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
   const [championMap, setChampionMap] = useState<Record<number, string>>({})
   const [game, setGame] = useState<LiveGame | null>(null)
   const [open, setOpen] = useState(false)
@@ -53,7 +54,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
     if (!redTeam.length) return
     setLoadingHelp(true)
 
-    const response = await fetch("http://localhost:3001/api/aihelp/howtowin", {
+    const response = await fetch(`${API_BASE_URL}/api/aihelp/howtowin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enemyChampionIds: redTeam.map(p => p.championId) }),
@@ -72,7 +73,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
         const gameRes = await fetch(`${API_BASE_URL}/api/livegame`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ puuid }),
+          body: JSON.stringify({ puuid, region }),
         });
 
         const gameData = await (gameRes.status === 204 ? null : gameRes.json());
@@ -84,7 +85,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           const rankRes = await fetch(`${API_BASE_URL}/api/multirank`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ riotIds }),
+            body: JSON.stringify({ riotIds, region }),
           })
 
           const rankData = await rankRes.json()

@@ -32,7 +32,7 @@ function HomePage() {
 return (
   <div className="w-full relative">
     
-    <div className="py-8 text-center">
+    <div className="py-4 text-center">
       <p className="text-jade text-6xl">{text}</p>
       <p
         className={`
@@ -46,19 +46,23 @@ return (
     </div>
 
     <div className="relative w-full flex justify-center mt-12">
-      <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
-      <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/20 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
+      <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+      <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
 
       <img
         src="/demos/learndemo.png"
         alt=""
-        className="w-[60%] relative z-10"
+        className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
+        loading="lazy"
+        decoding="async"
         draggable={false}
       />
+      
     </div>
+    
   </div>
 )
 
@@ -75,7 +79,7 @@ export function RootLayout({
 }>) {
   return (
     <div
-      className="font-jetbrains antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center no-scrollbar"
+      className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center no-scrollbar"
     >
       <div className="xl:w-[65%] xl:px-0 w-full px-4 mt-0 flex flex-col items-center space-y-10">
         <Navbar />
