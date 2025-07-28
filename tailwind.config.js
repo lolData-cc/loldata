@@ -14,7 +14,8 @@ module.exports = {
         'jetbrains': ['JetBrains Mono', 'monospace'],
         'geist': ['geist', 'monospace'],
         'gtamerica': ['gtamerica', 'monospace'],
-        'revxneue': ['revxneue', 'monospace']
+        'revxneue': ['revxneue', 'monospace'],
+        'vivala': ['vivala', 'monospace']
       },
       colors: {
         liquirice: '#040A0C',
@@ -25,6 +26,9 @@ module.exports = {
       },
       animation: {
         glow: 'glowPulse 3s ease-in-out infinite',
+        glitch: 'glitch 1s infinite',
+         jerk: 'jerk 0.5s infinite',
+        'glitch-jerk': 'glitch 1s infinite, jerk 0.5s infinite',
         blink: 'blink 1sd steps/2, start) infinite',
         'pulse-slow': 'pulseSlow 8s ease-in-out infinite',
       },
@@ -32,6 +36,20 @@ module.exports = {
         '2': '0.02'
       },
       keyframes: {
+         glitch: {
+          '0%': { transform: 'translate(0)' },
+          '20%': { transform: 'translate(-2px, 2px)' },
+          '40%': { transform: 'translate(-2px, -2px)' },
+          '60%': { transform: 'translate(2px, 2px)' },
+          '80%': { transform: 'translate(2px, -2px)' },
+          '100%': { transform: 'translate(0)' },
+        },
+        jerk: {
+          '0%, 100%': { transform: 'skew(0deg)' },
+          '25%': { transform: 'skew(-1deg)' },
+          '50%': { transform: 'skew(1.5deg)' },
+          '75%': { transform: 'skew(-0.5deg)' },
+        },
         pulseSlow: {
           '0%, 100%': { opacity: '0.05' },
           '50%': { opacity: '0.15' },

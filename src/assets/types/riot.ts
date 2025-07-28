@@ -2,6 +2,8 @@
 export type Participant = {
   puuid: string
   summonerName: string
+  riotIdGameName?: string
+  riotIdTagline?: string
   championName: string
   kills: number
   deaths: number
@@ -12,6 +14,7 @@ export type Participant = {
   goldEarned: number
   teamId: number
 }
+
 
 export type MatchDetail = {
   metadata: {

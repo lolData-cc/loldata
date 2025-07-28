@@ -31,6 +31,10 @@
   }
 }
 
+html, body {
+  @apply scrollbar-hide overflow-y-scroll;
+}
+
 /* FONTS */
 
 @font-face {
@@ -52,6 +56,13 @@
   font-style: normal;
   font-weight: 500;
   src: url("/fonts/revxneue.ttf") format("truetype")
+}
+
+@font-face {
+  font-family: vivala;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/vivala.ttf") format("truetype")
 }
 
 html, body {

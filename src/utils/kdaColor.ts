@@ -6,10 +6,14 @@ export function getKdaClass(kda: string | number): string {
   const num = typeof kda === 'number' ? kda : parseFloat(kda);
   if (isNaN(num)) return '';
 
-  if (num >= 4 && num < 5) {
-    return 'text-cyan-400';
+  if (num < 2) {
+    return 'text-flash/30';
   } else if (num >= 3 && num < 4) {
     return 'text-cyan-600';
+  } else if (num >= 4 && num < 5) {
+    return 'text-cyan-400';
+  } else if (num > 5) {
+    return 'text-orange-400';
   }
 
   return '';

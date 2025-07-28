@@ -2,8 +2,8 @@ import { Routes, Route } from "react-router-dom"
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
 import SummonerPage from "@/pages/summonerpage"
-
-
+import DashboardPage from "@/pages/dashboard"
+import { Toaster } from "sonner"
 
 
 function HomePage() {
@@ -22,55 +22,48 @@ function HomePage() {
       if (!cancelled) {
         setTimeout(() => {
           setShowSubtitle(true)
-        }, 200) 
+        }, 200)
       }
     }
     typeWriter()
     return () => { cancelled = true }
   }, [])
 
-return (
-  <div className="w-full relative">
-    
-    <div className="py-4 text-center">
-      <p className="text-jade text-6xl">{text}</p>
-      <p
-        className={`
+  return (
+    <div className="w-full relative">
+
+      <div className="py-4 text-center">
+        <p className="text-jade text-6xl">{text}</p>
+        <p
+          className={`
           text-flash/50 text-xl pt-2 transition-opacity duration-1000
           ${showSubtitle ? "opacity-100" : "opacity-0"}
         `}
-      >
-        The new frontier of League of Legends improvement <br />
-        featuring your personal AI assistant
-      </p>
+        >
+          The new frontier of League of Legends improvement <br />
+          featuring your personal AI assistant
+        </p>
+      </div>
+
+      <div className="relative w-full flex justify-center mt-12">
+        <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+        <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
+        <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+        <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+
+        <img
+          src="/demos/learndemo.png"
+          alt=""
+          className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+      </div>
     </div>
-
-    <div className="relative w-full flex justify-center mt-12">
-      <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
-      <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-      <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-
-      <img
-        src="/demos/learndemo.png"
-        alt=""
-        className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-      />
-      
-    </div>
-    
-  </div>
-)
-
+  )
 }
-
-
-
-
 
 export function RootLayout({
   children,
@@ -78,25 +71,25 @@ export function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div
-      className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center no-scrollbar"
-    >
-      <div className="xl:w-[65%] xl:px-0 w-full px-4 mt-0 flex flex-col items-center space-y-10">
-        <Navbar />
-        {children}
+    <>
+      <Toaster position="top-right"  />
+      <div
+        className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center overflow-y-scroll scrollbar-hide"
+      >
+        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center space-y-10">
+          <Navbar />
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-
-
-
-
 function App() {
   return (
     <Routes>
       <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
       <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
+      <Route path="/dashboard" element={<RootLayout><DashboardPage /></RootLayout>} />
     </Routes>
   )
 }

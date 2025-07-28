@@ -1,9 +1,7 @@
-import { ChevronDown } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { SearchDialog } from "@/components/searchdialog"
 import { UserDialog } from "@/components/userdialog"
-import { Link } from "react-router-dom"
-import { useEffect, useState } from "react"
-
 export function Navbar() {
   const [open, setOpen] = useState(false)
 
