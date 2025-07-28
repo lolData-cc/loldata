@@ -8,6 +8,7 @@ import { getRankImage } from "@/utils/rankIcons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
 import { getKdaClass } from '@/utils/kdaColor'
+import { getKdaBackgroundClass } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath } from "@/config"
@@ -195,7 +196,7 @@ export default function SummonerPage() {
       <UltraTechBackground />
       <div className="relative flex min-h-screen -mt-4 z-10">
         <div className="w-2/5 min-w-[35%] flex justify-center">
-          <div className="w-[90%] bg-[#1f1f1f] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+          <div className="w-[90%] bg-[#1B1B1B] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
               <div className="flex justify-between px-10 py-3">
                 <div className="z-0 text-[14px]">SOLO/DUO</div>
@@ -279,7 +280,7 @@ export default function SummonerPage() {
             <div className="flex flex-col items-center gap-1">
               <span>CURRENT RANK</span>
               <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute w-24 h-24 bg-[#1f1f1f] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                <div className="absolute w-24 h-24 bg-[#1B1B1B] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
                 <img
                   src={getRankImage(summonerInfo?.rank)}
@@ -297,7 +298,7 @@ export default function SummonerPage() {
               <span className="text-[#E3E3E3]">HIGHEST RANK</span>
               <div className="relative w-32 h-32 flex items-center justify-center">
                 {/* Cerchio dietro */}
-                <div className="absolute w-24 h-24 bg-[#1f1f1f] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                <div className="absolute w-24 h-24 bg-[#1B1B1B] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
                 {/* Immagine sopra */}
                 <img
@@ -396,7 +397,7 @@ export default function SummonerPage() {
           </div>
 
           <div className="max-w-4xl mx-auto mt-4">
-            <nav className="w-full bg-[#1f1f1f] text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
+            <nav className="w-full bg-[#1B1B1B] text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
               <div className="flex items-center h-full justify-between ">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin">
@@ -460,125 +461,145 @@ export default function SummonerPage() {
                   const team1 = participants.filter(p => p.teamId === 100);
                   const team2 = participants.filter(p => p.teamId === 200);
                   const participant = participants.find((p) => p.puuid === summonerInfo?.puuid);
+                  const kda =
+                    participant && participant.deaths > 0
+                      ? (participant.kills + participant.assists) / participant.deaths
+                      : "Perfect";
+
 
                   return (
                     <li
                       key={match.metadata.matchId}
-                      className={`gap-4 text-flash p-2 rounded-md transition-colors duration-300 ${win
-                        ? "bg-gradient-to-r from-[#268C6A] to-[#11382E]"
-                        : "bg-gradient-to-r from-[#c93232] to-[#420909]"
-                        }`}
+                      className="gap-4 text-flash p-2 rounded-md transition-colors duration-300 bg-[#1B1B1B] relative border border-[#2B2A2B]"
                     >
-                      <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
-                        <span>{queueLabel}</span>
+                      <div
+                        className={cn(
+                          "absolute left-0 top-0 h-full w-1 rounded-l-sm",
+                          win
+                            ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
+                            : "bg-gradient-to-b from-[#c93232] to-[#420909]"
+                        )}
+                      />
+                      <div className="ml-2">
+                        <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
+                          <span>{queueLabel}</span>
 
-                        <span className="absolute left-1/2 transform -translate-x-1/2">
-                          {Math.floor(match.info.gameDuration / 60)}:
-                          {(match.info.gameDuration % 60).toString().padStart(2, "0")}
-                        </span>
+                          <span className="absolute left-1/2 transform -translate-x-1/2">
+                            {Math.floor(match.info.gameDuration / 60)}:
+                            {(match.info.gameDuration % 60).toString().padStart(2, "0")}
+                          </span>
 
-                        <span>{timeAgo(match.info.gameStartTimestamp)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <div>
-                          <div className="flex space-x-1">
-                            <img
-                              src={`${champPath}/${championName}.png`}
-                              alt={championName}
-                              className="w-12 h-12 rounded-md"
-                            />
+                          <span>{timeAgo(match.info.gameStartTimestamp)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="flex space-x-1">
+                              <img
+                                src={`${champPath}/${championName}.png`}
+                                alt={championName}
+                                className="w-12 h-12 rounded-md"
+                              />
 
-                            <span>
-                              {participant && (
-                                <div className="flex flex-col">
-                                  <img
-                                    src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
-                                    alt="Spell 1"
-                                    className="w-6 h-6 rounded-sm"
-                                  />
-                                  <img
-                                    src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
-                                    alt="Spell 2"
-                                    className="w-6 h-6 rounded-sm"
-                                  />
-                                </div>
-                              )}
-                            </span>
-                            { }
+                              <span>
+                                {participant && (
+                                  <div className="flex flex-col">
+                                    <img
+                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
+                                      alt="Spell 1"
+                                      className="w-6 h-6 rounded-sm"
+                                    />
+                                    <img
+                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
+                                      alt="Spell 2"
+                                      className="w-6 h-6 rounded-sm"
+                                    />
+                                  </div>
+                                )}
+                              </span>
+                              { }
+                            </div>
+                            {/* <Separator className=""/> */}
+                            <div className="flex flex-col mt-4">
+
+                              <div
+                                className={cn(
+                                  "text-md font-gtthin font-normal px-3 rounded-sm text-flash border-liquirice/20 border shadow-md",
+                                  getKdaBackgroundClass(kda)
+                                )}
+                              >
+                                {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                              </div>
+
+                            </div>
                           </div>
+                          <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
+                            <div>
+                              <ul className="space-y-0.5">
+                                {team1.map((p) => {
+                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
+                                  const riotName = p.riotIdGameName;
+                                  const tag = p.riotIdTagline;
+                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
 
-                          <div className="flex flex-col">
-                            <span className="text-sm font-gtthin font-normal">
-                              MATCH ID: {match.metadata.matchId}
-                            </span>
+                                  return (
+                                    <li key={p.puuid} className="flex items-center gap-2">
+                                      <img
+                                        src={`${champPath}/${p.championName}.png`}
+                                        alt={p.championName}
+                                        className="w-4 h-4 rounded-sm"
+                                      />
+                                      {riotName && tag ? (
+                                        <Link
+                                          to={`/summoners/${region}/${riotName}-${tag}`}
+                                          className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
+                                        >
+                                          {showName}
+                                        </Link>
+                                      ) : (
+                                        <span className="truncate">{showName}</span>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+
+                            </div>
+                            <div>
+                              <ul className="space-y-0.5">
+                                {team2.map((p) => {
+                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
+                                  const riotName = p.riotIdGameName;
+                                  const tag = p.riotIdTagline;
+                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
+
+                                  return (
+                                    <li key={p.puuid} className="flex items-center justify-end gap-2">
+                                      {riotName && tag ? (
+                                        <Link
+                                          to={`/summoners/${region}/${riotName}-${tag}`}
+                                          className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
+                                        >
+                                          {showName}
+                                        </Link>
+                                      ) : (
+                                        <span className="truncate text-right">{showName}</span>
+                                      )}
+                                      <img
+                                        src={`${champPath}/${p.championName}.png`}
+                                        alt={p.championName}
+                                        className="w-4 h-4 rounded-sm"
+                                      />
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+
+
+                            </div>
                           </div>
                         </div>
-                        <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
-                          <div>
-                            <ul className="space-y-0.5">
-                              {team1.map((p) => {
-                                const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                const riotName = p.riotIdGameName;
-                                const tag = p.riotIdTagline;
-                                const showName = riotName ? `${riotName}#${tag}` : p.puuid;
-
-                                return (
-                                  <li key={p.puuid} className="flex items-center gap-2">
-                                    <img
-                                      src={`${champPath}/${p.championName}.png`}
-                                      alt={p.championName}
-                                      className="w-4 h-4 rounded-sm"
-                                    />
-                                    {riotName && tag ? (
-                                      <Link
-                                        to={`/summoners/${region}/${riotName}-${tag}`}
-                                        className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
-                                      >
-                                        {showName}
-                                      </Link>
-                                    ) : (
-                                      <span className="truncate">{showName}</span>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-
-                          </div>
-                          <div>
-                            <ul className="space-y-0.5">
-                              {team2.map((p) => {
-                                const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                const riotName = p.riotIdGameName;
-                                const tag = p.riotIdTagline;
-                                const showName = riotName ? `${riotName}#${tag}` : p.puuid;
-
-                                return (
-                                  <li key={p.puuid} className="flex items-center justify-end gap-2">
-                                    {riotName && tag ? (
-                                      <Link
-                                        to={`/summoners/${region}/${riotName}-${tag}`}
-                                        className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
-                                      >
-                                        {showName}
-                                      </Link>
-                                    ) : (
-                                      <span className="truncate text-right">{showName}</span>
-                                    )}
-                                    <img
-                                      src={`${champPath}/${p.championName}.png`}
-                                      alt={p.championName}
-                                      className="w-4 h-4 rounded-sm"
-                                    />
-                                  </li>
-                                );
-                              })}
-                            </ul>
-
-
-                          </div>
-                        </div>
                       </div>
+
 
                     </li>
                   );

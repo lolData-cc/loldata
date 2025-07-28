@@ -18,3 +18,27 @@ export function getKdaClass(kda: string | number): string {
 
   return '';
 }
+
+export function getKdaBackgroundClass(kda: string | number): string {
+
+  
+  if (kda === 'Perfect') {
+    return 'bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300 animate-glow text-black';
+  }
+
+  const num = typeof kda === 'number' ? kda : parseFloat(kda);
+  if (isNaN(num)) return 'bg-neutral-800';
+
+  if (num < 2) {
+    return 'bg-red-900';
+  } else if (num >= 3 && num < 4) {
+    return 'bg-cyan-900';
+  } else if (num >= 4 && num < 5) {
+    return 'bg-cyan-700';
+  } else if (num > 5) {
+    return 'bg-orange-600';
+  }
+
+  return 'bg-neutral-700';
+}
+

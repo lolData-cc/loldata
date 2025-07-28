@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom"
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
 import SummonerPage from "@/pages/summonerpage"
 import DashboardPage from "@/pages/dashboard"
 import { Toaster } from "sonner"
@@ -74,11 +75,12 @@ export function RootLayout({
     <>
       <Toaster position="top-right"  />
       <div
-        className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center overflow-y-scroll scrollbar-hide"
+        className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
-        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center space-y-10">
-          <Navbar />
-          {children}
+        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center ">
+          <Navbar/>
+          <div className="mt-10">{children}</div>
+          <Footer className="mt-32" />
         </div>
       </div>
     </>
