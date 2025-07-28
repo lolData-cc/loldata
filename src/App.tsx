@@ -6,6 +6,11 @@ import SummonerPage from "@/pages/summonerpage"
 import DashboardPage from "@/pages/dashboard"
 import { Toaster } from "sonner"
 
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void;
+  }
+}
 
 function HomePage() {
   const [text, setText] = useState("")

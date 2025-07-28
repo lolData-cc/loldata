@@ -2,8 +2,32 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { SearchDialog } from "@/components/searchdialog"
 import { UserDialog } from "@/components/userdialog"
+
+declare const gtag: (...args: any[]) => void;
 export function Navbar() {
   const [open, setOpen] = useState(false)
+
+
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const newState = !open;
+        setOpen(newState);
+
+        if (!open) {
+          gtag('event', 'open_search_dialog', {
+            event_category: 'interaction',
+            event_label: 'Navbar Shortcut',
+          });
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   // Apre il search dialog con Ctrl + K
   useEffect(() => {
