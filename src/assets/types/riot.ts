@@ -4,6 +4,8 @@ export type Participant = {
   summonerName: string
   riotIdGameName?: string
   riotIdTagline?: string
+  summoner1Id?: number
+  summoner2Id?: number
   championName: string
   kills: number
   deaths: number

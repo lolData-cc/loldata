@@ -489,19 +489,20 @@ export default function SummonerPage() {
                             />
 
                             <span>
-                              <div className="flex flex-col ">
-                                <img
-                                  src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
-                                  alt="Spell 1"
-                                  className="w-6 h-6 rounded-sm"
-                                />
-                                <img
-                                  src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
-                                  alt="Spell 2"
-                                  className="w-6 h-6 rounded-sm"
-                                />
-
-                              </div>
+                              {participant && (
+                                <div className="flex flex-col">
+                                  <img
+                                    src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
+                                    alt="Spell 1"
+                                    className="w-6 h-6 rounded-sm"
+                                  />
+                                  <img
+                                    src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
+                                    alt="Spell 2"
+                                    className="w-6 h-6 rounded-sm"
+                                  />
+                                </div>
+                              )}
                             </span>
                             { }
                           </div>
