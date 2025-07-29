@@ -15,7 +15,7 @@ import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
 import { checkUserFlags } from "@/converters/checkUserFlags";
 import { cn } from "@/lib/utils"
-import { getPlayerBadges } from "@/utils/badges";
+// import { getPlayerBadges } from "@/utils/badges";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -588,7 +588,7 @@ export default function SummonerPage() {
                                   {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
                                 </span>
                                 <div className="ml-2">
-                                  {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
+                                  {/* {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
                                     <span
                                       key={badge.id}
                                       className="bg-[#041F1A] text-[10px] px-2 py-0.5 rounded-md shadow-sm font-geist text-jade flex items-center gap-1 border border-jade/20 space-x-0.5"
@@ -596,7 +596,7 @@ export default function SummonerPage() {
                                       {badge.icon}
                                       <span>{badge.label}</span>
                                     </span>
-                                  ))}
+                                  ))} */}
                                 </div>
 
                               </div>
