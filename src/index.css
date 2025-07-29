@@ -15,6 +15,26 @@
   }
 }
 
+@theme inline {
+  --animate-open-vertical: open-vertical 50ms ease-in-out forwards;
+  @keyframes open-vertical {
+    0% {
+      transform: scaleY(0);
+    }
+    100% {
+      transform: scaleY(1);
+    } 
+  }
+  --animate-close-vertical: close-vertical 50ms ease-in-out forwards;
+  @keyframes close-vertical {
+    0% {
+      transform: scaleY(1);
+    }
+    100% {
+      transform: scaleY(0);
+    } 
+  }
+}
 
 @layer utilities {
   .cursor-custom {

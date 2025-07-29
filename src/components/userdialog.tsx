@@ -71,14 +71,14 @@ export function UserDialog() {
 
     return (
         <Dialog>
-            <DialogTrigger className="text-flash/50 rounded px-2">
+            <DialogTrigger className="text-flash/50 rounded px-2 cursor-clicker">
                 <div className="text-flash/50 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5">
                     <span className="font-jetbrains">LOG IN</span>
                 </div>
             </DialogTrigger>
             <DialogContent className="flex flex-col text-flash font-jetbrains border border-flash/20 w-[350px]">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl">LOG IN</DialogTitle>
+                    <DialogTitle className="text-2xl cursor">LOG IN</DialogTitle>
                     <DialogDescription>
                         To access lolData <span className="underline text-jade">features</span>
                     </DialogDescription>

@@ -61,7 +61,7 @@ export function Footer({ className = "" }: FooterProps) {
                         </svg>
                     </ul>
                     <span className="text-xs w-[70%] text-flash/50 text-center">
-                        © 2025 OP.GG. loldata.cc is not affiliated with or endorsed by Riot Games. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. All game content is © Riot Games, Inc.
+                        © 2025 loldata.cc is not affiliated with or endorsed by Riot Games. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. All game content is © Riot Games, Inc.
                     </span>
                 </div>
 

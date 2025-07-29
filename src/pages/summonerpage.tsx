@@ -1,4 +1,5 @@
-import type { MatchWithWin, SummonerInfo, ChampionStats } from "@/assets/types/riot"
+import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
+
 import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
@@ -11,9 +12,10 @@ import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundClass } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { champPath } from "@/config"
+import { champPath, CDN_BASE_URL } from "@/config"
 import { checkUserFlags } from "@/converters/checkUserFlags";
 import { cn } from "@/lib/utils"
+import { getPlayerBadges } from "@/utils/badges";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,6 +26,16 @@ import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
 import { API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
+
+const itemKeys: (keyof Participant)[] = [
+  "item0",
+  "item1",
+  "item2",
+  "item3",
+  "item4",
+  "item5",
+  "item6"
+];
 
 const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
@@ -47,6 +59,7 @@ export default function SummonerPage() {
     "Ranked Flex": [440],
     "Normal": [400, 430],
   } satisfies Record<QueueType, number[]>;
+
 
   type QueueType = "Ranked Solo/Duo" | "Ranked Flex" | "Normal";
 
@@ -460,6 +473,8 @@ export default function SummonerPage() {
                   const participants = match.info.participants;
                   const team1 = participants.filter(p => p.teamId === 100);
                   const team2 = participants.filter(p => p.teamId === 200);
+                  const itemKeys: (keyof Participant)[] = ["item0", "item1", "item2", "item3", "item4", "item5"];
+
                   const participant = participants.find((p) => p.puuid === summonerInfo?.puuid);
                   const kda =
                     participant && participant.deaths > 0
@@ -492,16 +507,23 @@ export default function SummonerPage() {
                           <span>{timeAgo(match.info.gameStartTimestamp)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <div>
-                            <div className="flex space-x-1">
-                              <img
-                                src={`${champPath}/${championName}.png`}
-                                alt={championName}
-                                className="w-12 h-12 rounded-md"
-                              />
+                          <div className="mt-3">
+                            <div className="flex space-x-1.5 relative">
+                              <div className="relative w-12 h-12">
+                                <img
+                                  src={`${champPath}/${championName}.png`}
+                                  alt={championName}
+                                  className="w-12 h-12 rounded-md"
+                                />
+                                {participant?.champLevel && (
+                                  <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
+                                    {participant.champLevel}
+                                  </div>
+                                )}
+                              </div>
 
-                              <span>
-                                {participant && (
+                              {
+                                participant && (
                                   <div className="flex flex-col">
                                     <img
                                       src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
@@ -515,21 +537,69 @@ export default function SummonerPage() {
                                     />
                                   </div>
                                 )}
-                              </span>
-                              { }
+                              {participant && (
+                                <div className="flex ml-1">
+                                  <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
+                                    {itemKeys.map((key, index) => {
+                                      const itemId = participant[key];
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
+                                        >
+                                          {typeof itemId === "number" && itemId > 0 && (
+                                            <img
+                                              src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
+                                              alt={`Item ${itemId}`}
+                                              className="w-full h-full rounded-sm"
+                                            />
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {typeof participant.item6 === "number" && participant.item6 > 0 && (
+                                    <div className="flex items-center justify-center ml-1">
+                                      <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                                        <img
+                                          src={`${CDN_BASE_URL}/img/item/${participant.item6}.png`}
+                                          alt={`Trinket ${participant.item6}`}
+                                          className="w-full h-full rounded-full"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            {/* <Separator className=""/> */}
-                            <div className="flex flex-col mt-4">
+                            { }
+                            <div className="flex flex-col mt-2">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <div
+                                  className={cn(
+                                    "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm text-flash border-liquirice/20 border shadow-md",
+                                    getKdaBackgroundClass(kda)
+                                  )}
+                                >
+                                  {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                                </div>
+                                <span className="font-geist text-xs font-thin text-flash/40">
+                                  {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
+                                </span>
+                                <div className="ml-2">
+                                  {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
+                                    <span
+                                      key={badge.id}
+                                      className="bg-[#041F1A] text-[10px] px-2 py-0.5 rounded-md shadow-sm font-geist text-jade flex items-center gap-1 border border-jade/20 space-x-0.5"
+                                    >
+                                      {badge.icon}
+                                      <span>{badge.label}</span>
+                                    </span>
+                                  ))}
+                                </div>
 
-                              <div
-                                className={cn(
-                                  "text-md font-gtthin font-normal px-3 rounded-sm text-flash border-liquirice/20 border shadow-md",
-                                  getKdaBackgroundClass(kda)
-                                )}
-                              >
-                                {participant?.kills}/{participant?.deaths}/{participant?.assists}
                               </div>
-
                             </div>
                           </div>
                           <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">

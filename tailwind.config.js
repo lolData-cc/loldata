@@ -27,16 +27,16 @@ module.exports = {
       animation: {
         glow: 'glowPulse 3s ease-in-out infinite',
         glitch: 'glitch 1s infinite',
-         jerk: 'jerk 0.5s infinite',
+        jerk: 'jerk 0.5s infinite',
         'glitch-jerk': 'glitch 1s infinite, jerk 0.5s infinite',
         blink: 'blink 1sd steps/2, start) infinite',
         'pulse-slow': 'pulseSlow 8s ease-in-out infinite',
-      },
-      opacity: {
-        '2': '0.02'
+        'open-vertical': 'open-vertical 50ms ease-in-out forwards',
+        'close-vertical': 'close-vertical 50ms ease-in-out forwards',
+        'glitch-open': 'glitch-open 200ms ease-out forwards',
       },
       keyframes: {
-         glitch: {
+        glitch: {
           '0%': { transform: 'translate(0)' },
           '20%': { transform: 'translate(-2px, 2px)' },
           '40%': { transform: 'translate(-2px, -2px)' },
@@ -70,6 +70,42 @@ module.exports = {
             filter: 'brightness(1.3)',
           },
         },
+        'open-vertical': {
+          '0%': {
+            transform: 'scaleY(0)',
+          },
+          '100%': {
+            transform: 'scaleY(1)',
+          },
+        },
+        'close-vertical': {
+          '0%': {
+            transform: 'scaleY(1)',
+          },
+          '100%': {
+            transform: 'scaleY(0)',
+          },
+        },
+        'glitch-open': {
+          '0%': {
+            opacity: 0,
+            transform: 'scaleY(0.8) skew(2deg, 2deg) translateY(-10px)',
+            filter: 'brightness(0.5) contrast(2)',
+          },
+          '50%': {
+            opacity: 1,
+            transform: 'scaleY(1.05) skew(-1deg, -1deg) translateY(2px)',
+            filter: 'brightness(1.1) contrast(1.5)',
+          },
+          '100%': {
+            opacity: 1,
+            transform: 'scaleY(1) skew(0deg, 0deg) translateY(0)',
+            filter: 'none',
+          },
+        },
+      },
+      opacity: {
+        '2': '0.02',
       },
     },
     cursor: {
