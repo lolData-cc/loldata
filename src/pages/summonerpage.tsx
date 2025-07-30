@@ -9,7 +9,7 @@ import { getRankImage } from "@/utils/rankIcons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
 import { getKdaClass } from '@/utils/kdaColor'
-import { getKdaBackgroundClass } from '@/utils/kdaColor'
+import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
@@ -477,9 +477,11 @@ export default function SummonerPage() {
 
                   const participant = participants.find((p) => p.puuid === summonerInfo?.puuid);
                   const kda =
-                    participant && participant.deaths > 0
-                      ? (participant.kills + participant.assists) / participant.deaths
-                      : "Perfect";
+                    participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
+                      ? 'Perfect'
+                      : participant && participant.deaths > 0
+                        ? (participant.kills + participant.assists) / participant.deaths
+                        : 0;
 
 
                   return (
@@ -576,14 +578,20 @@ export default function SummonerPage() {
                             { }
                             <div className="flex flex-col mt-2">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <div
-                                  className={cn(
-                                    "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm text-flash border-liquirice/20 border shadow-md",
-                                    getKdaBackgroundClass(kda)
-                                  )}
-                                >
-                                  {participant?.kills}/{participant?.deaths}/{participant?.assists}
-                                </div>
+                                {(() => {
+                                  const { className, style } = getKdaBackgroundStyle(kda);
+                                  return (
+                                    <div
+                                      className={cn(
+                                        "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm border-liquirice/20 border shadow-md",
+                                        className
+                                      )}
+                                      style={style}
+                                    >
+                                      {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                                    </div>
+                                  );
+                                })()}
                                 <span className="font-geist text-xs font-thin text-flash/40">
                                   {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
                                 </span>

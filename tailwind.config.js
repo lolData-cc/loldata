@@ -20,6 +20,7 @@ module.exports = {
       colors: {
         liquirice: '#040A0C',
         flash: '#d7d8d9',
+        pine: '#148460',
         jade: '#00d992',
         error: '#ff6286',
         citrine: '#FFB615',

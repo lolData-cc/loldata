@@ -1,10 +1,22 @@
 import { Routes, Route } from "react-router-dom"
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
+import { supabase } from "@/lib/supabaseClient" // 👈 Importa PRIMA
 import { Footer } from "@/components/footer"
 import SummonerPage from "@/pages/summonerpage"
 import DashboardPage from "@/pages/dashboard"
+import LearnPage from "@/pages/learnpage"
+import LoginPage from "@/pages/loginpage"
 import { Toaster } from "sonner"
+import AuthGuard from "@/components/authguard"
+
+if (typeof window !== "undefined") {
+  // @ts-expect-error: expose supabase on window for console debugging
+window.supabase = supabase
+}
+// #region contexts
+import { AuthProvider } from "@/context/authcontext"
+//
 
 declare global {
   interface Window {
@@ -84,7 +96,7 @@ export function RootLayout({
       >
         <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center ">
           <Navbar/>
-          <div className="mt-10">{children}</div>
+          <div className="mt-10 w-full">{children}</div>
           <Footer className="mt-32" />
         </div>
       </div>
@@ -93,11 +105,22 @@ export function RootLayout({
 }
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
-      <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
-      <Route path="/dashboard" element={<RootLayout><DashboardPage /></RootLayout>} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
+        <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/learn"
+          element={
+            <AuthGuard>
+              <LearnPage />
+            </AuthGuard>
+          }
+        />
+        <Route path="/login" element={<RootLayout><LoginPage /></RootLayout>} />
+      </Routes>
+    </AuthProvider>
   )
 }
 

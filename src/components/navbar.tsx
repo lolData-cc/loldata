@@ -57,7 +57,10 @@ export function Navbar() {
         <MenuItem label="CHAMPIONS" />
         <MenuItem label="LEADERBOARD" />
         <MenuItem label="TIER LISTS" />
-        <MenuItem label="LEARN" />
+        <Link to="/learn" className="flex-shrink-0">
+          <MenuItem label="LEARN" />
+        </Link>
+        
       </div>
 
       {/* Search (dx) */}
