@@ -43,8 +43,6 @@ function getRankTierValue(rank: string): number {
             "4": "IV"
         }
         division = map[division] || "I"
-
-        division = map[division] || "I"
     }
 
     const tierIndex = tierOrder.indexOf(tier)
@@ -80,9 +78,8 @@ function getAbsoluteLp(rank: string, lp: any): number {
             "3": "III",
             "4": "IV"
         }
-        division = map[division] || "I"
-
         divisionRaw = map[divisionRaw] || "I"
+
     }
 
     const numericLp = Number(lp)
