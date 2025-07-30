@@ -36,7 +36,14 @@ function getRankTierValue(rank: string): number {
     let division = parts[1]?.toUpperCase()
 
     if (!isNaN(Number(division))) {
-        const map = { "1": "I", "2": "II", "3": "III", "4": "IV" }
+        const map: Record<string, string> = {
+            "1": "I",
+            "2": "II",
+            "3": "III",
+            "4": "IV"
+        }
+        division = map[division] || "I"
+
         division = map[division] || "I"
     }
 
@@ -67,7 +74,14 @@ function getAbsoluteLp(rank: string, lp: any): number {
     let divisionRaw = parts[1]?.toUpperCase()
 
     if (!isNaN(Number(divisionRaw))) {
-        const map = { "1": "I", "2": "II", "3": "III", "4": "IV" }
+        const map: Record<string, string> = {
+            "1": "I",
+            "2": "II",
+            "3": "III",
+            "4": "IV"
+        }
+        division = map[division] || "I"
+
         divisionRaw = map[divisionRaw] || "I"
     }
 
