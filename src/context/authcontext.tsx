@@ -6,16 +6,19 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   nametag: string | null
+  region: string | null
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   nametag: null,
+  region: null
 })
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
+  const [region, setRegion] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [nametag, setNametag] = useState<string | null>(null)
 
@@ -26,14 +29,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (newSession?.user?.id) {
       const { data, error } = await supabase
         .from("profile_players")
-        .select("nametag")
+        .select("nametag, region") // 👈 anche region ora
         .eq("profile_id", newSession.user.id)
         .single()
 
-      if (!error && data?.nametag) {
-        setNametag(data.nametag)
+      if (!error && data) {
+        setNametag(data.nametag ?? null)
+        setRegion(data.region ?? null) // 👈 salva region nello stato
       } else {
         setNametag(null)
+        setRegion(null)
       }
     } else {
       setNametag(null)
@@ -66,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, loading, nametag }}>
+    <AuthContext.Provider value={{ session, loading, nametag, region }}>
       {children}
     </AuthContext.Provider>
   )

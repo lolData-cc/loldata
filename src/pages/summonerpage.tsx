@@ -1,5 +1,5 @@
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
-
+import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
@@ -54,6 +54,7 @@ export default function SummonerPage() {
   const [summonerInfo, setSummonerInfo] = useState<SummonerInfo | null>(null)
   const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
   const [allChampions, setAllChampions] = useState<{ id: string; name: string }[]>([])
+  const navigate = useNavigate();
   const queueGroups = {
     "Ranked Solo/Duo": [420],
     "Ranked Flex": [440],
@@ -237,7 +238,6 @@ export default function SummonerPage() {
                       key={champ.champion}
                       className="grid grid-cols-3 items-center px-3 gap-4 w-full"
                     >
-                      {/* Colonna 1: Champion info */}
                       <div className="flex items-center gap-3">
                         <img
                           src={`${champPath}/${champ.champion}.png`}
@@ -487,116 +487,149 @@ export default function SummonerPage() {
                   return (
                     <li
                       key={match.metadata.matchId}
-                      className="gap-4 text-flash p-2 rounded-md transition-colors duration-300 bg-[#1B1B1B] relative border border-[#2B2A2B]"
+                      className="relative gap-4  text-flash p-2 rounded-md transition-colors duration-300 bg-[#1B1B1B] border border-[#2B2A2B]"
                     >
+                      {/* ✅ LAYER CLICCABILE */}
+                      <div
+                        onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
+                          state: {
+                            focusedPlayerPuuid: summonerInfo?.puuid
+                          }
+                        })}
+                        className="absolute inset-0 z-0 rounded-md transition-colors cursor-clicker"
+                      />
+
+                      {/* ✅ BORDO COLORATO */}
                       <div
                         className={cn(
-                          "absolute left-0 top-0 h-full w-1 rounded-l-sm",
+                          "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
                           win
                             ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
                             : "bg-gradient-to-b from-[#c93232] to-[#420909]"
                         )}
                       />
-                      <div className="ml-2">
-                        <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
-                          <span>{queueLabel}</span>
 
-                          <span className="absolute left-1/2 transform -translate-x-1/2">
-                            {Math.floor(match.info.gameDuration / 60)}:
-                            {(match.info.gameDuration % 60).toString().padStart(2, "0")}
-                          </span>
+                      {/* ✅ CONTENUTO INTERNO */}
+                      <div className="relative z-10 ml-2">
+                        <div className="ml-2">
+                          <div className="relative flex justify-between text-[11px] uppercase text-flash/70 ">
+                            {/* Sfondo cliccabile */}
+                            <div
+                              onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
+                                state: {
+                                  focusedPlayerPuuid: summonerInfo?.puuid
+                                }
+                              })}
+                              className="absolute inset-0 z-10 cursor-clicker transition-colors rounded-sm"
+                            />
 
-                          <span>{timeAgo(match.info.gameStartTimestamp)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <div className="mt-3">
-                            <div className="flex space-x-1.5 relative">
-                              <div className="relative w-12 h-12">
-                                <img
-                                  src={`${champPath}/${championName}.png`}
-                                  alt={championName}
-                                  className="w-12 h-12 rounded-md"
-                                />
-                                {participant?.champLevel && (
-                                  <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
-                                    {participant.champLevel}
-                                  </div>
-                                )}
-                              </div>
+                            {/* Testi sopra lo sfondo - con z-20 */}
+                            <span className="relative z-20">{queueLabel}</span>
+                            <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
+                              {Math.floor(match.info.gameDuration / 60)}:
+                              {(match.info.gameDuration % 60).toString().padStart(2, "0")}
+                            </span>
+                            <span className="relative z-20">{timeAgo(match.info.gameStartTimestamp)}</span>
+                          </div>
 
-                              {
-                                participant && (
-                                  <div className="flex flex-col">
+                          <div className="relative flex justify-between">
+                            <div
+                              onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
+                                state: {
+                                  focusedPlayerPuuid: summonerInfo?.puuid
+                                }
+                              })}
+                              className="absolute inset-0 z-10 rounded-md transition-colors cursor-clicker"
+                            />
+                            <div className="relative z-40 flex justify-between w-full" style={{ pointerEvents: "none" }}>
+                              <div className="mt-3">
+                                <div className="flex space-x-1.5 relative">
+                                  <div className="relative w-12 h-12">
                                     <img
-                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
-                                      alt="Spell 1"
-                                      className="w-6 h-6 rounded-sm"
+                                      src={`${champPath}/${championName}.png`}
+                                      alt={championName}
+                                      className="w-12 h-12 rounded-md"
                                     />
-                                    <img
-                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
-                                      alt="Spell 2"
-                                      className="w-6 h-6 rounded-sm"
-                                    />
-                                  </div>
-                                )}
-                              {participant && (
-                                <div className="flex ml-1">
-                                  <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
-                                    {itemKeys.map((key, index) => {
-                                      const itemId = participant[key];
-                                      return (
-                                        <div
-                                          key={index}
-                                          className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
-                                        >
-                                          {typeof itemId === "number" && itemId > 0 && (
-                                            <img
-                                              src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
-                                              alt={`Item ${itemId}`}
-                                              className="w-full h-full rounded-sm"
-                                            />
-                                          )}
-                                        </div>
-                                      );
-                                    })}
+                                    {participant?.champLevel && (
+                                      <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
+                                        {participant.champLevel}
+                                      </div>
+                                    )}
                                   </div>
 
-                                  {typeof participant.item6 === "number" && participant.item6 > 0 && (
-                                    <div className="flex items-center justify-center ml-1">
-                                      <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                                  {
+                                    participant && (
+                                      <div className="flex flex-col">
                                         <img
-                                          src={`${CDN_BASE_URL}/img/item/${participant.item6}.png`}
-                                          alt={`Trinket ${participant.item6}`}
-                                          className="w-full h-full rounded-full"
+                                          src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
+                                          alt="Spell 1"
+                                          className="w-6 h-6 rounded-sm"
+                                        />
+                                        <img
+                                          src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
+                                          alt="Spell 2"
+                                          className="w-6 h-6 rounded-sm"
                                         />
                                       </div>
+                                    )}
+                                  {participant && (
+                                    <div className="flex ml-1">
+                                      <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
+                                        {itemKeys.map((key, index) => {
+                                          const itemId = participant[key];
+                                          return (
+                                            <div
+                                              key={index}
+                                              className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
+                                            >
+                                              {typeof itemId === "number" && itemId > 0 && (
+                                                <img
+                                                  src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
+                                                  alt={`Item ${itemId}`}
+                                                  className="w-full h-full rounded-sm"
+                                                />
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {typeof participant.item6 === "number" && participant.item6 > 0 && (
+                                        <div className="flex items-center justify-center ml-1">
+                                          <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                                            <img
+                                              src={`${CDN_BASE_URL}/img/item/${participant.item6}.png`}
+                                              alt={`Trinket ${participant.item6}`}
+                                              className="w-full h-full rounded-full"
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                            { }
-                            <div className="flex flex-col mt-2">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                {(() => {
-                                  const { className, style } = getKdaBackgroundStyle(kda);
-                                  return (
-                                    <div
-                                      className={cn(
-                                        "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm border-liquirice/20 border shadow-md",
-                                        className
-                                      )}
-                                      style={style}
-                                    >
-                                      {participant?.kills}/{participant?.deaths}/{participant?.assists}
-                                    </div>
-                                  );
-                                })()}
-                                <span className="font-geist text-xs font-thin text-flash/40">
-                                  {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
-                                </span>
-                                <div className="ml-2">
-                                  {/* {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
+                                { }
+                                <div className="flex flex-col mt-2">
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    {(() => {
+                                      const { className, style } = getKdaBackgroundStyle(kda);
+                                      return (
+                                        <div
+                                          className={cn(
+                                            "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm border-liquirice/20 border shadow-md",
+                                            className
+                                          )}
+                                          style={style}
+                                        >
+                                          {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                                        </div>
+                                      );
+                                    })()}
+                                    <span className="font-geist text-xs font-thin text-flash/40">
+                                      {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
+                                    </span>
+                                    <div className="ml-2">
+                                      {/* {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
                                     <span
                                       key={badge.id}
                                       className="bg-[#041F1A] text-[10px] px-2 py-0.5 rounded-md shadow-sm font-geist text-jade flex items-center gap-1 border border-jade/20 space-x-0.5"
@@ -605,82 +638,83 @@ export default function SummonerPage() {
                                       <span>{badge.label}</span>
                                     </span>
                                   ))} */}
+                                    </div>
+
+                                  </div>
                                 </div>
-
                               </div>
-                            </div>
-                          </div>
-                          <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
-                            <div>
-                              <ul className="space-y-0.5">
-                                {team1.map((p) => {
-                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                  const riotName = p.riotIdGameName;
-                                  const tag = p.riotIdTagline;
-                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
+                              <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
+                                <div>
+                                  <ul className="space-y-0.5">
+                                    {team1.map((p) => {
+                                      const isCurrentUser = p.puuid === summonerInfo?.puuid;
+                                      const riotName = p.riotIdGameName;
+                                      const tag = p.riotIdTagline;
+                                      const showName = riotName ? `${riotName}#${tag}` : p.puuid;
 
-                                  return (
-                                    <li key={p.puuid} className="flex items-center gap-2">
-                                      <img
-                                        src={`${champPath}/${p.championName}.png`}
-                                        alt={p.championName}
-                                        className="w-4 h-4 rounded-sm"
-                                      />
-                                      {riotName && tag ? (
-                                        <Link
-                                          to={`/summoners/${region}/${riotName}-${tag}`}
-                                          className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
-                                        >
-                                          {showName}
-                                        </Link>
-                                      ) : (
-                                        <span className="truncate">{showName}</span>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
+                                      return (
+                                        <li key={p.puuid} className="flex items-center gap-2 bg">
+                                          <img
+                                            src={`${champPath}/${p.championName}.png`}
+                                            alt={p.championName}
+                                            className="w-4 h-4 rounded-sm"
+                                          />
+                                          {riotName && tag ? (
+                                            <Link
+                                              to={`/summoners/${region}/${riotName}-${tag}`}
+                                              className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
+                                            >
+                                              {showName}
+                                            </Link>
+                                          ) : (
+                                            <span className="truncate">{showName}</span>
+                                          )}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
 
-                            </div>
-                            <div>
-                              <ul className="space-y-0.5">
-                                {team2.map((p) => {
-                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                  const riotName = p.riotIdGameName;
-                                  const tag = p.riotIdTagline;
-                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
+                                </div>
+                                <div>
+                                  <ul className="space-y-0.5">
+                                    {team2.map((p) => {
+                                      const isCurrentUser = p.puuid === summonerInfo?.puuid;
+                                      const riotName = p.riotIdGameName;
+                                      const tag = p.riotIdTagline;
+                                      const showName = riotName ? `${riotName}#${tag}` : p.puuid;
 
-                                  return (
-                                    <li key={p.puuid} className="flex items-center justify-end gap-2">
-                                      {riotName && tag ? (
-                                        <Link
-                                          to={`/summoners/${region}/${riotName}-${tag}`}
-                                          className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
-                                        >
-                                          {showName}
-                                        </Link>
-                                      ) : (
-                                        <span className="truncate text-right">{showName}</span>
-                                      )}
-                                      <img
-                                        src={`${champPath}/${p.championName}.png`}
-                                        alt={p.championName}
-                                        className="w-4 h-4 rounded-sm"
-                                      />
-                                    </li>
-                                  );
-                                })}
-                              </ul>
+                                      return (
+                                        <li key={p.puuid} className="flex items-center justify-end gap-2">
+                                          {riotName && tag ? (
+                                            <Link
+                                              to={`/summoners/${region}/${riotName}-${tag}`}
+                                              className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
+                                            >
+                                              {showName}
+                                            </Link>
+                                          ) : (
+                                            <span className="truncate text-right">{showName}</span>
+                                          )}
+                                          <img
+                                            src={`${champPath}/${p.championName}.png`}
+                                            alt={p.championName}
+                                            className="w-4 h-4 rounded-sm"
+                                          />
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
 
 
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-
-
                     </li>
-                  );
+                  )
+
                 })}
               </ul>
             )}

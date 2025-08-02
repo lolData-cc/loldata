@@ -1,12 +1,13 @@
 import { Routes, Route } from "react-router-dom"
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
-import { supabase } from "@/lib/supabaseClient" // 👈 Importa PRIMA
+import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
 import SummonerPage from "@/pages/summonerpage"
 import DashboardPage from "@/pages/dashboard"
 import LearnPage from "@/pages/learnpage"
 import LoginPage from "@/pages/loginpage"
+import MatchPage from "@/pages/matchpage"
 import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
 
@@ -119,6 +120,7 @@ function App() {
           }
         />
         <Route path="/login" element={<RootLayout><LoginPage /></RootLayout>} />
+        <Route path="/matches/:matchId" element={<MatchPage />} />
       </Routes>
     </AuthProvider>
   )

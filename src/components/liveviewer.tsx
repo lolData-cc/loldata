@@ -280,7 +280,6 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
               }}
               className="bg-none flex flex-col h-full"
             >
-              {/* Tabs header */}
               <TabsList className="bg-liquirice space-x-4 font-jetbrains justify-start">
                 <TabsTrigger
                   value="statistics"
