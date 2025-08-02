@@ -92,16 +92,17 @@ export default function MatchPage() {
   const blueTeam = participants.filter((p) => p.teamId === 100)
   const redTeam = participants.filter((p) => p.teamId === 200)
 
-const getKP = (p: Participant, team: Participant[]) => {
-  const teamKills = team.reduce((sum: number, curr: Participant) => sum + curr.kills, 0)
-  return teamKills === 0 ? "0%" : `${Math.round(((p.kills + p.assists) / teamKills) * 100)}%`
-}
+  const getKP = (p: Participant, team: Participant[]) => {
+    const teamKills = team.reduce((sum: number, curr: Participant) => sum + curr.kills, 0)
+    return teamKills === 0 ? "0%" : `${Math.round(((p.kills + p.assists) / teamKills) * 100)}%`
+  }
 
   const renderItems = (p: Participant) => {
     return (
       <div className="flex flex-wrap gap-0.5">
         {Array.from({ length: 7 }, (_, i) => {
-          const id = (p as any)[`item${i}`]
+          const key = `item${i}` as keyof Participant
+          const id = p[key] as number
           return id > 0 ? (
             <img
               key={i}
