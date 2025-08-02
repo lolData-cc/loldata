@@ -98,24 +98,23 @@ export default function MatchPage() {
   }
 
   const renderItems = (p: Participant) => {
-    return (
-      <div className="flex flex-wrap gap-0.5">
-        {Array.from({ length: 7 }, (_, i) => {
-          const key = `item${i}` as keyof Participant
-          const id = p[key] as number
-          return id > 0 ? (
-            <img
-              key={i}
-              src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
-              className="w-5 h-5 rounded-sm"
-            />
-          ) : (
-            <div key={i} className="w-5 h-5 bg-black/30 rounded-sm" />
-          )
-        })}
-      </div>
-    )
-  }
+  return (
+    <div className="flex flex-wrap gap-0.5">
+      {Array.from({ length: 7 }, (_, i) => {
+        const id = (p as unknown as Record<string, number>)[`item${i}`]
+        return id > 0 ? (
+          <img
+            key={i}
+            src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+            className="w-5 h-5 rounded-sm"
+          />
+        ) : (
+          <div key={i} className="w-5 h-5 bg-black/30 rounded-sm" />
+        )
+      })}
+    </div>
+  )
+}
   return (
 
     <div className="text-flash space-y-6">
