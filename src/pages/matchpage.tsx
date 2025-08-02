@@ -284,7 +284,7 @@ export default function MatchPage() {
                     { label: "Wards Placed", key: "wardsPlaced" },
                     { label: "Wards Killed", key: "wardsKilled" },
                   ].map(({ label, key }) => {
-                    const playerValue = p[key] ?? 0
+                    const playerValue = (p as unknown as Record<string, number>)[key] ?? 0
                     const avgValue = getAverage(key, participants)
 
                     const chartData = [
