@@ -16,6 +16,7 @@ import { Footer } from "@/components/footer"
 import queueMap from "@/converters/queueMap"
 import { formatDate } from "@/converters/dateMap"
 import { useLocation } from "react-router-dom"
+import type { Participant } from "@/assets/types/riot"
 import {
   Tabs,
   TabsList,
@@ -41,11 +42,11 @@ export default function MatchPage() {
   const { region } = useAuth() // 🔁 usa il region dell’utente loggato o cambia in modo statico
   const location = useLocation()
   const focusedPlayerPuuid = location.state?.focusedPlayerPuuid as string | undefined
-  const [match, setMatch] = useState<any>(null)
+  const [match, setMatch] = useState<{ info: { participants: Participant[];[key: string]: any } } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const getAverage = (key: string, participants: any[]) => {
-    const total = participants.reduce((sum, p) => sum + (p[key] || 0), 0)
+  const getAverage = (key: string, participants: Participant[]) => {
+    const total = participants.reduce((sum: number, p: Participant) => sum + (p[key as keyof Participant] as number || 0), 0)
     return Math.round(total / participants.length)
   }
 
@@ -79,28 +80,28 @@ export default function MatchPage() {
   const participants = match.info?.participants ?? []
 
   const totalKillsBlue = participants
-    .filter((p: any) => p.teamId === 100)
-    .reduce((sum, p) => sum + p.kills, 0)
+    .filter((p: Participant) => p.teamId === 100)
+    .reduce((sum: number, p: Participant) => sum + p.kills, 0)
 
   const totalKillsRed = participants
-    .filter((p: any) => p.teamId === 200)
-    .reduce((sum, p) => sum + p.kills, 0)
+    .filter((p: Participant) => p.teamId === 200)
+    .reduce((sum: number, p: Participant) => sum + p.kills, 0)
 
   const blueWon = participants.some((p: any) => p.teamId === 100 && p.win)
   const redWon = participants.some((p: any) => p.teamId === 200 && p.win)
   const blueTeam = participants.filter((p) => p.teamId === 100)
   const redTeam = participants.filter((p) => p.teamId === 200)
 
-  const getKP = (p: any, team: any[]) => {
-    const teamKills = team.reduce((sum, curr) => sum + curr.kills, 0)
-    return teamKills === 0 ? "0%" : `${Math.round(((p.kills + p.assists) / teamKills) * 100)}%`
-  }
+const getKP = (p: Participant, team: Participant[]) => {
+  const teamKills = team.reduce((sum: number, curr: Participant) => sum + curr.kills, 0)
+  return teamKills === 0 ? "0%" : `${Math.round(((p.kills + p.assists) / teamKills) * 100)}%`
+}
 
-  const renderItems = (p: any) => {
+  const renderItems = (p: Participant) => {
     return (
       <div className="flex flex-wrap gap-0.5">
         {Array.from({ length: 7 }, (_, i) => {
-          const id = p[`item${i}`]
+          const id = (p as any)[`item${i}`]
           return id > 0 ? (
             <img
               key={i}
