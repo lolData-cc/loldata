@@ -16,15 +16,20 @@ export type Participant = {
   neutralMinionsKilled: number
   goldEarned: number
   teamId: number
-  item0: number;
-  item1: number;
-  item2: number;
-  item3: number;
-  item4: number;
-  item5: number;
-  item6: number;
-  timePlayed: number,
-  soloKills: number 
+  timePlayed: number
+  soloKills: number
+
+  // Items
+  item0: number
+  item1: number
+  item2: number
+  item3: number
+  item4: number
+  item5: number
+  item6: number
+
+  // 👇 AGGIUNGI QUESTO
+  [key: `item${number}`]: number
 }
 
 
