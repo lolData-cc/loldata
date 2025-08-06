@@ -27,9 +27,18 @@ export type Participant = {
   item4: number
   item5: number
   item6: number
-
-  // 👇 AGGIUNGI QUESTO
   [key: `item${number}`]: number
+
+  //for loldata scores
+  challenges?: {
+    killParticipation?: number
+    teamDamagePercentage?: number
+    turretTakedowns?: number
+    dragonTakedowns?: number
+    baronTakedowns?: number
+    damageTakenOnTeamPercentage?: number
+    visionScorePerMinute?: number
+  }
 }
 
 
