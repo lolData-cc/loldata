@@ -9,6 +9,8 @@ import {
 import { useEffect, useState } from "react"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { useParams } from "react-router-dom"
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
 import { useAuth } from "@/context/authcontext"
 import { cn } from "@/lib/utils"
 import { Navbar } from "@/components/navbar"
@@ -39,11 +41,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001
 
 export default function MatchPage() {
   const { matchId } = useParams()
-  const { region } = useAuth() // 🔁 usa il region dell’utente loggato o cambia in modo statico
   const location = useLocation()
+  const region = location.state?.region;
   const focusedPlayerPuuid = location.state?.focusedPlayerPuuid as string | undefined
   const [match, setMatch] = useState<{ info: { participants: Participant[];[key: string]: any } } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate();
 
   const getAverage = (key: string, participants: Participant[]) => {
     const total = participants.reduce((sum: number, p: Participant) => sum + (p[key as keyof Participant] as number || 0), 0)
@@ -52,29 +55,55 @@ export default function MatchPage() {
 
   useEffect(() => {
     async function fetchMatch() {
+      console.log("▶ Avvio fetchMatch con:", { matchId, region });
+
       try {
         const res = await fetch(`${API_BASE_URL}/api/matchinfo`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ matchId, region }),
-        })
+        });
 
-        if (!res.ok) {
-          throw new Error("Errore durante la fetch del match")
+        console.log("✅ Response ricevuta:", res);
+
+        const rawText = await res.text();
+        console.log("📦 Contenuto grezzo della risposta:", rawText);
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+          console.log("✅ JSON parsato:", data);
+        } catch (parseErr) {
+          console.error("❌ Errore nel parsing del JSON:", parseErr);
+          setError("Risposta API non valida");
+          return;
         }
 
-        const data = await res.json()
-        setMatch(data.match)
+        if (!data || typeof data !== "object" || !data.match || !data.match.info || !Array.isArray(data.match.info.participants)) {
+          console.error("❌ Dati ricevuti non validi:", data);
+          setError("Dati API incompleti");
+          return;
+        }
+
+        setMatch(data.match);
+        console.log("✅ Match settato correttamente:", data.match);
       } catch (err) {
-        console.error(err)
-        setError("Match non trovato o errore di rete.")
+        console.error("❌ Errore generale durante la fetch:", err);
+        setError("Match non trovato o errore di rete.");
       }
     }
 
-    if (matchId && region) fetchMatch()
-  }, [matchId, region])
+    if (matchId && region) {
+      fetchMatch();
+    } else {
+      console.warn("❗ matchId o region mancanti:", { matchId, region });
+      setError("Dati URL mancanti");
+    }
+  }, [matchId, region]);
+
 
   if (error) return <p className="text-red-500">{error}</p>
+  console.log("Match ricevuto:", match)
   if (!match) return null
 
   const participants = match.info?.participants ?? []
@@ -98,23 +127,23 @@ export default function MatchPage() {
   }
 
   const renderItems = (p: Participant) => {
-  return (
-    <div className="flex flex-wrap gap-0.5">
-      {Array.from({ length: 7 }, (_, i) => {
-        const id = (p as unknown as Record<string, number>)[`item${i}`]
-        return id > 0 ? (
-          <img
-            key={i}
-            src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
-            className="w-5 h-5 rounded-sm"
-          />
-        ) : (
-          <div key={i} className="w-5 h-5 bg-black/30 rounded-sm" />
-        )
-      })}
-    </div>
-  )
-}
+    return (
+      <div className="flex flex-wrap gap-0.5">
+        {Array.from({ length: 7 }, (_, i) => {
+          const id = (p as unknown as Record<string, number>)[`item${i}`]
+          return id > 0 ? (
+            <img
+              key={i}
+              src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+              className="w-5 h-5 rounded-sm"
+            />
+          ) : (
+            <div key={i} className="w-5 h-5 bg-black/30 rounded-sm" />
+          )
+        })}
+      </div>
+    )
+  }
   return (
 
     <div className="text-flash space-y-6">
@@ -137,7 +166,7 @@ export default function MatchPage() {
 
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 mt-24 font-jetbrains gap-2">
           <h1 className="text-flash/40 text-xs font-bold font-geist">
-            {formatDate(match.info?.gameStartTimestamp)}
+            {formatDate(match.info?.gameEndTimestamp)}
           </h1>
 
           <div className="flex text-3xl text-jade items-center gap-16">
@@ -156,7 +185,19 @@ export default function MatchPage() {
         </div>
       </div>
       <div className="w-[65%] mx-auto">
-        <h1 className="text-xl font-bold pb-2 mb-2 font-jetbrains uppercase text-flash/40">Scoreboard</h1>
+        <div className="flex items-center gap-3 mb-2 pb-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded hover:bg-liquirice/40 transition"
+          >
+            <div className="bg-jade/20 p-0.5 rounded-sm cursor-clicker hover:bg-jade/40">
+              <ChevronLeft className="w-5 h-5 text-jade rounded-sm" />
+            </div>
+          </button>
+          <h1 className="text-xl font-bold font-jetbrains uppercase text-flash/40">
+            Scoreboard
+          </h1>
+        </div>
         <div className="flex flex-col md:flex-row gap-6 w-full">
           <div className="flex-1 overflow-x-auto font-geist">
             <Table className="w-full table-fixed text-xs border border-[#2b2a2b]">

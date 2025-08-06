@@ -1,8 +1,9 @@
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
+import { calculateLolDataScores } from "@/utils/calculateLolDataScores";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { LiveViewer } from "@/components/liveviewer"
 import { ChevronDown } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
@@ -19,6 +20,8 @@ import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
 import { API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
+import { Error404 } from "@/components/error404";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -44,7 +48,7 @@ export default function SummonerPage() {
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [loading, setLoading] = useState(false)
   const [onCooldown, setOnCooldown] = useState(false)
-  const [selectedQueue, setSelectedQueue] = useState<QueueType>("Ranked Solo/Duo");
+  const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
   const { region, slug } = useParams()
@@ -59,10 +63,11 @@ export default function SummonerPage() {
     "Ranked Solo/Duo": [420],
     "Ranked Flex": [440],
     "Normal": [400, 430],
+    "All": [400, 420, 430, 440, 450, 700, 900, 1020],
   } satisfies Record<QueueType, number[]>;
 
 
-  type QueueType = "Ranked Solo/Duo" | "Ranked Flex" | "Normal";
+  type QueueType = "Ranked Solo/Duo" | "Ranked Flex" | "Normal" | "All";
 
 
 
@@ -79,6 +84,45 @@ export default function SummonerPage() {
     1700: "Arena",
   };
 
+
+  const duoStats = useMemo(() => {
+    if (!summonerInfo || matches.length === 0) return [];
+
+    const duosMap: Record<string, { games: number; wins: number; riotId: string }> = {};
+
+    // prendiamo al massimo le prime 20 partite
+    matches.slice(0, 20).forEach(({ match, win }) => {
+      const participants = match.info.participants;
+      const myTeamId = participants.find(p => p.puuid === summonerInfo.puuid)?.teamId;
+      const teammates = participants.filter(p => p.teamId === myTeamId && p.puuid !== summonerInfo.puuid);
+
+      teammates.forEach(teammate => {
+        const idKey = teammate.puuid;
+        if (!duosMap[idKey]) {
+          duosMap[idKey] = {
+            games: 0,
+            wins: 0,
+            riotId: teammate.riotIdGameName && teammate.riotIdTagline
+              ? `${teammate.riotIdGameName}#${teammate.riotIdTagline}`
+              : teammate.summonerName || "Unknown"
+          };
+        }
+        duosMap[idKey].games += 1;
+        if (win) duosMap[idKey].wins += 1;
+      });
+    });
+
+    // trasformiamo in array, filtriamo solo chi ha più di 1 game
+    return Object.entries(duosMap)
+      .filter(([_, data]) => data.games > 1)
+      .map(([puuid, data]) => ({
+        puuid,
+        ...data,
+        losses: data.games - data.wins,
+        winrate: Math.round((data.wins / data.games) * 100)
+      }))
+      .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
+  }, [matches, summonerInfo]);
 
   useEffect(() => {
     if (!slug) return;
@@ -103,6 +147,14 @@ export default function SummonerPage() {
       })
   }, [])
 
+  //checks if the user is coming back from matchpage and matches the y position
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("summonerScrollY");
+    if (savedScroll) {
+      window.scrollTo(0, parseInt(savedScroll, 10));
+      sessionStorage.removeItem("summonerScrollY"); //clear the y axis
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -209,8 +261,67 @@ export default function SummonerPage() {
     <div className="relative z-0">
       <UltraTechBackground />
       <div className="relative flex min-h-screen -mt-4 z-10">
-        <div className="w-2/5 min-w-[35%] flex justify-center">
-          <div className="w-[90%] bg-[#1B1B1B] h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+        <div className="w-2/5 min-w-[35%] flex flex-col gap-16 items-center">
+          <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+            <div className="relative w-full h-32 overflow-hidden mt-6">
+              {topChampions.length > 0 && (
+                <img
+                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampions[0].champion}_0.jpg`}
+                  alt={`Splash art ${topChampions[0].champion}`}
+                  className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
+                  style={{ objectPosition: "top center" }}
+                />
+              )}
+              <div className="relative z-10 px-4 py-2">
+                <span className="text-flash/70">THIS SEASON</span>
+                <div className="flex mt-14 px-3 gap-4">
+                  <div className="flex">
+                    <span className="text-2xl text-jade">
+                      {summonerInfo?.wins}
+                    </span>
+                    <span>
+                      WINS
+                    </span>
+                  </div>
+
+                  <div className="flex">
+                    <span className="text-2xl text-[#b11315]">
+                      {summonerInfo?.losses}
+                    </span>
+                    <span>
+                      LOSSES
+                    </span>
+                  </div>
+
+                  {summonerInfo && (
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const totalGames = summonerInfo.wins + summonerInfo.losses;
+                        const winrate =
+                          totalGames > 0
+                            ? Math.round((summonerInfo.wins / totalGames) * 100)
+                            : 0;
+
+                        return (
+                          <>
+                            <span
+                              className={`text-2xl ${getWinrateClass(winrate, totalGames)}`}
+                            >
+                              {winrate}%
+                            </span>
+                            <span>WINRATE</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <nav className="flex flex-col min-h-[400px]">
               <div className="flex justify-between px-10 py-3">
                 <div className="z-0 text-[14px]">SOLO/DUO</div>
@@ -269,7 +380,9 @@ export default function SummonerPage() {
                       </div>
 
                       <div className="flex flex-col items-end text-xs text-white gap-1 text-[11px] min-w-[80px]">
-                        <div className={getWinrateClass(champ.winrate)}>{champ.winrate}%</div>
+                        <div className={getWinrateClass(champ.winrate, champ.games)}>
+                          {champ.winrate}%
+                        </div>
                         <div className="text-[11px]">{champ.games} MATCHES</div>
                       </div>
                     </div>
@@ -284,16 +397,68 @@ export default function SummonerPage() {
             </nav>
 
           </div>
+
+          {duoStats.length > 0 && (
+            <div
+              className={`
+      w-[90%] bg-cement text-sm font-thin rounded-md mt-5
+      border border-[#2B2A2B] shadow-md overflow-y-auto
+    `}
+              style={{
+                maxHeight: `${(Math.min(duoStats.length, 5) * 64) + 60}px`
+              }}
+            >
+              <div className="px-4 py-2 text-flash/70">PLAYED WITH</div>
+              {/* <Separator className="bg-[#48504E] w-[85%] mx-auto" /> */}
+
+              <div className="flex flex-col gap-4 px-5 py-2">
+                {duoStats.map(duo => (
+                  <div key={duo.puuid} className="flex flex-col gap-1">
+                    {/* Riga 1: Nome e WR */}
+                    <div className="flex justify-between items-center">
+                      <span className="truncate text-white">{duo.riotId}</span>
+                      <div className="flex items-center gap-1">
+                        <span className={`text-sm ${getWinrateClass(duo.winrate, duo.games)}`}>
+                          {duo.winrate}%
+                        </span>
+                        <span className="truncate text-flash/60 text-xs">({duo.games} GAMES)</span>
+                      </div>
+
+                    </div>
+
+                    {/* Riga 2: Barra wins/losses */}
+                    <div className="w-full h-1 bg-flash/15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-jade"
+                        style={{ width: `${duo.winrate}%` }}
+                      ></div>
+                    </div>
+
+                    {/* Riga 3: WINS / LOSSES */}
+                    <div className="flex justify-between text-xs">
+                      {duo.wins > 0 && (
+                        <span className="text-jade">{duo.wins} WINS</span>
+                      )}
+                      {duo.losses > 0 && (
+                        <span className="text-[#b11315]">{duo.losses} LOSSES</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         <div className="w-4/5">
 
-          <div className="flex justify-between items-start mt-4 w-full min-w-full max-w-full ml-2">
+          <div className="flex justify-between items-start mt-4 w-full min-w-full max-w-full">
             {/* SEZIONE SINISTRA: nuove icone */}
             <div className="flex flex-col items-center gap-1">
               <span>CURRENT RANK</span>
               <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute w-24 h-24 bg-[#1B1B1B] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
                 <img
                   src={getRankImage(summonerInfo?.rank)}
@@ -311,7 +476,7 @@ export default function SummonerPage() {
               <span className="text-[#E3E3E3]">HIGHEST RANK</span>
               <div className="relative w-32 h-32 flex items-center justify-center">
                 {/* Cerchio dietro */}
-                <div className="absolute w-24 h-24 bg-[#1B1B1B] rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
 
                 {/* Immagine sopra */}
                 <img
@@ -410,14 +575,31 @@ export default function SummonerPage() {
           </div>
 
           <div className="max-w-4xl mx-auto mt-4">
-            <nav className="w-full bg-[#1B1B1B] text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
+            <nav className="w-full bg-cement text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
               <div className="flex items-center h-full justify-between ">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin">
-                    <span className="text-sm  tracking-wide">RANKED SOLO / DUO</span>
+                    <span className="text-sm tracking-wide">
+                      {selectedQueue === "All" ? "ALL QUEUES" : selectedQueue.toUpperCase()}
+                    </span>
                     <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48 text-sm">
+                    {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
+                      <DropdownMenuItem
+                        key={queue}
+                        onClick={() => setSelectedQueue(queue)}
+                        className={cn(
+                          "cursor-pointer",
+                          selectedQueue === queue ? "text-jade font-semibold" : "text-flash/70"
+                        )}
+                      >
+                        {queue}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
                 </DropdownMenu>
+
 
                 <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
 
@@ -453,7 +635,7 @@ export default function SummonerPage() {
                 {Array.from({ length: 5 }).map((_, idx) => (
                   <li
                     key={idx}
-                    className="flex items-center gap-4 p-3 rounded-md h-28 bg-[#1f1f1f]"
+                    className="flex items-center gap-4 p-3 rounded-md h-28 bg-cement border-flash/20 border"
                   >
                     <Skeleton className="w-12 h-12 rounded-md" />
                     <div className="flex flex-col gap-2 w-full">
@@ -463,8 +645,8 @@ export default function SummonerPage() {
                   </li>
                 ))}
               </ul>
-            ) : matches.length === 0 ? (
-              <p className="text-muted-foreground mt-4">Nessuna partita trovata.</p>
+            ) : filteredMatches.length === 0 ? (
+              <Error404 />
             ) : (
               <ul className="space-y-3 mt-4">
                 {filteredMatches.map(({ match, win, championName, }) => {
@@ -474,7 +656,7 @@ export default function SummonerPage() {
                   const team1 = participants.filter(p => p.teamId === 100);
                   const team2 = participants.filter(p => p.teamId === 200);
                   const itemKeys: (keyof Participant)[] = ["item0", "item1", "item2", "item3", "item4", "item5"];
-
+                  const { scores, mvpWin, mvpLose } = calculateLolDataScores(participants);
                   const participant = participants.find((p) => p.puuid === summonerInfo?.puuid);
                   const kda =
                     participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
@@ -487,16 +669,22 @@ export default function SummonerPage() {
                   return (
                     <li
                       key={match.metadata.matchId}
-                      className="relative gap-4  text-flash p-2 rounded-md transition-colors duration-300 bg-[#1B1B1B] border border-[#2B2A2B]"
+                      className="relative gap-4  text-flash p-2 rounded-md transition-colors duration-300 bg-cement border border-[#2B2A2B]"
                     >
                       {/* ✅ LAYER CLICCABILE */}
                       <div
-                        onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
-                          state: {
-                            focusedPlayerPuuid: summonerInfo?.puuid
-                          }
-                        })}
+                        onClick={() => {
+                          sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
+
+                          navigate(`/matches/${match.metadata.matchId}`, {
+                            state: {
+                              focusedPlayerPuuid: summonerInfo?.puuid,
+                              region: region
+                            }
+                          });
+                        }}
                         className="absolute inset-0 z-0 rounded-md transition-colors cursor-clicker"
+                        style={{ pointerEvents: "auto" }}
                       />
 
                       {/* ✅ BORDO COLORATO */}
@@ -515,11 +703,16 @@ export default function SummonerPage() {
                           <div className="relative flex justify-between text-[11px] uppercase text-flash/70 ">
                             {/* Sfondo cliccabile */}
                             <div
-                              onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
-                                state: {
-                                  focusedPlayerPuuid: summonerInfo?.puuid
-                                }
-                              })}
+                              onClick={() => {
+                                sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
+
+                                navigate(`/matches/${match.metadata.matchId}`, {
+                                  state: {
+                                    focusedPlayerPuuid: summonerInfo?.puuid,
+                                    region: region
+                                  }
+                                });
+                              }}
                               className="absolute inset-0 z-10 cursor-clicker transition-colors rounded-sm"
                             />
 
@@ -529,19 +722,26 @@ export default function SummonerPage() {
                               {Math.floor(match.info.gameDuration / 60)}:
                               {(match.info.gameDuration % 60).toString().padStart(2, "0")}
                             </span>
-                            <span className="relative z-20">{timeAgo(match.info.gameStartTimestamp)}</span>
+                            <span className="relative z-20">
+                              {timeAgo(match.info.gameEndTimestamp ?? match.info.gameStartTimestamp ?? match.info.gameCreation)}
+                            </span>
                           </div>
 
                           <div className="relative flex justify-between">
                             <div
-                              onClick={() => navigate(`/matches/${match.metadata.matchId}`, {
-                                state: {
-                                  focusedPlayerPuuid: summonerInfo?.puuid
-                                }
-                              })}
+                              onClick={() => {
+                                sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
+
+                                navigate(`/matches/${match.metadata.matchId}`, {
+                                  state: {
+                                    focusedPlayerPuuid: summonerInfo?.puuid,
+                                    region: region
+                                  }
+                                });
+                              }}
                               className="absolute inset-0 z-10 rounded-md transition-colors cursor-clicker"
                             />
-                            <div className="relative z-40 flex justify-between w-full" style={{ pointerEvents: "none" }}>
+                            <div className="relative z-40 flex justify-between w-full">
                               <div className="mt-3">
                                 <div className="flex space-x-1.5 relative">
                                   <div className="relative w-12 h-12">
@@ -651,18 +851,40 @@ export default function SummonerPage() {
                                       const riotName = p.riotIdGameName;
                                       const tag = p.riotIdTagline;
                                       const showName = riotName ? `${riotName}#${tag}` : p.puuid;
+                                      const isMvp = p.puuid === mvpWin;
+                                      const isAce = p.puuid === mvpLose;
+
 
                                       return (
-                                        <li key={p.puuid} className="flex items-center gap-2 bg">
-                                          <img
-                                            src={`${champPath}/${p.championName}.png`}
-                                            alt={p.championName}
-                                            className="w-4 h-4 rounded-sm"
-                                          />
+                                        <li key={p.puuid} className="flex items-center gap-2">
+                                          <div className="relative w-4 h-4">
+                                            <img
+                                              src={`${champPath}/${p.championName}.png`}
+                                              alt={p.championName}
+                                              className="w-4 h-4 rounded-sm"
+                                            />
+                                            {(isMvp || isAce) && (
+                                              <span
+                                                className={cn(
+                                                  "absolute -top-1 -right-1 text-[8px] px-0.5 rounded-sm z-10",
+                                                  isMvp && "bg-pine text-jade",
+                                                  isAce && "bg-[#3A2C45] text-[#C693F1]"
+                                                )}
+                                                style={{ lineHeight: '1', fontWeight: 600 }}
+                                              >
+                                                {isMvp ? "MVP" : "ACE"}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {/* Nome */}
                                           {riotName && tag ? (
                                             <Link
                                               to={`/summoners/${region}/${riotName}-${tag}`}
-                                              className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className={cn(
+                                                "truncate hover:underline text-flash/50",
+                                                isCurrentUser && "font-bold text-jade"
+                                              )}
                                             >
                                               {showName}
                                             </Link>
@@ -682,12 +904,16 @@ export default function SummonerPage() {
                                       const riotName = p.riotIdGameName;
                                       const tag = p.riotIdTagline;
                                       const showName = riotName ? `${riotName}#${tag}` : p.puuid;
+                                      const isMvp = p.puuid === mvpWin;
+                                      const isAce = p.puuid === mvpLose;
 
                                       return (
                                         <li key={p.puuid} className="flex items-center justify-end gap-2">
+                                          {/* Nome */}
                                           {riotName && tag ? (
                                             <Link
                                               to={`/summoners/${region}/${riotName}-${tag}`}
+                                              onClick={(e) => e.stopPropagation()}
                                               className={cn("truncate hover:underline text-flash/50", isCurrentUser && "font-bold text-jade")}
                                             >
                                               {showName}
@@ -695,11 +921,25 @@ export default function SummonerPage() {
                                           ) : (
                                             <span className="truncate text-right">{showName}</span>
                                           )}
-                                          <img
-                                            src={`${champPath}/${p.championName}.png`}
-                                            alt={p.championName}
-                                            className="w-4 h-4 rounded-sm"
-                                          />
+                                          <div className="relative w-4 h-4">
+                                            <img
+                                              src={`${champPath}/${p.championName}.png`}
+                                              alt={p.championName}
+                                              className="w-4 h-4 rounded-sm"
+                                            />
+                                            {(isMvp || isAce) && (
+                                              <span
+                                                className={cn(
+                                                  "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10", // <- a sinistra
+                                                  isMvp && "bg-pine text-jade",
+                                                  isAce && "bg-[#3A2C45] text-[#C693F1]"
+                                                )}
+                                                style={{ lineHeight: '1', fontWeight: 600 }}
+                                              >
+                                                {isMvp ? "MVP" : "ACE"}
+                                              </span>
+                                            )}
+                                          </div>
                                         </li>
                                       );
                                     })}

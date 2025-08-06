@@ -7,13 +7,15 @@ interface AuthContextType {
   loading: boolean
   nametag: string | null
   region: string | null
+  plan: string | null // ✅ aggiunto qui
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   nametag: null,
-  region: null
+  region: null,
+  plan: null // ✅ inizializzazione
 })
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -21,34 +23,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [region, setRegion] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [nametag, setNametag] = useState<string | null>(null)
+  const [plan, setPlan] = useState<string | null>(null) 
 
-  // 🔁 Setta sessione e nametag
   const setSessionAndNametag = async (newSession: Session | null) => {
     setSession(newSession)
 
     if (newSession?.user?.id) {
       const { data, error } = await supabase
         .from("profile_players")
-        .select("nametag, region") // 👈 anche region ora
+        .select("nametag, region, plan", { head: false })
         .eq("profile_id", newSession.user.id)
         .single()
 
       if (!error && data) {
-        setNametag(data.nametag ?? null)
-        setRegion(data.region ?? null) // 👈 salva region nello stato
-      } else {
-        setNametag(null)
-        setRegion(null)
-      }
+  console.log("[AuthContext] Profilo caricato:", {
+    nametag: data.nametag,
+    region: data.region,
+    plan: data.plan,
+  })
+
+  setNametag(data.nametag ?? null)
+  setRegion(data.region ?? null)
+  setPlan(data.plan ?? null)
+} else {
+  console.warn("[AuthContext] Errore caricamento profilo o nessun dato:", error)
+  setNametag(null)
+  setRegion(null)
+  setPlan(null)
+}
     } else {
       setNametag(null)
+      setRegion(null)
+      setPlan(null)
     }
 
     setLoading(false)
   }
 
   useEffect(() => {
-    // 1️⃣ Primo tentativo: getSession()
     supabase.auth.getSession()
       .then(({ data }) => {
         setSessionAndNametag(data.session)
@@ -58,7 +70,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false)
       })
 
-    // 2️⃣ Secondo: onAuthStateChange (garantito al boot)
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSessionAndNametag(session)
@@ -71,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, loading, nametag, region }}>
+    <AuthContext.Provider value={{ session, loading, nametag, region, plan }}>
       {children}
     </AuthContext.Provider>
   )

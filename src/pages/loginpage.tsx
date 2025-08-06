@@ -1,8 +1,12 @@
 
-
+// import {  PricingPlans } from "@/components/pricingplans"
 export default function LoginPage() {
     return (
-        <div>ciao</div>)
+        <div>
+            
+            
+        </div>
+    )
 }
 
 

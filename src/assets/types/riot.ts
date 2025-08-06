@@ -45,6 +45,7 @@ export type MatchDetail = {
     gameMode: string
     gameType: string
     gameStartTimestamp: number
+    gameEndTimestamp: number
   }
 }
 
@@ -60,6 +61,7 @@ export type MatchWithWin = {
       gameMode: string
       gameType: string
       gameStartTimestamp: number
+      gameEndTimestamp: number
       [key: string]: any
     }
   },

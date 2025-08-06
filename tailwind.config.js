@@ -15,12 +15,16 @@ module.exports = {
         'geist': ['geist', 'monospace'],
         'gtamerica': ['gtamerica', 'monospace'],
         'revxneue': ['revxneue', 'monospace'],
-        'vivala': ['vivala', 'monospace']
+        'vivala': ['vivala', 'monospace'],
+        'scifi': ['scifi', 'monospace'],
+        'mechano': ['mechano', 'monospace']
+      
       },
       colors: {
         liquirice: '#040A0C',
         flash: '#d7d8d9',
         pine: '#148460',
+        cement: '#0f1213',
         jade: '#00d992',
         error: '#ff6286',
         citrine: '#FFB615',
@@ -28,15 +32,20 @@ module.exports = {
       animation: {
         glow: 'glowPulse 3s ease-in-out infinite',
         glitch: 'glitch 1s infinite',
+        'rotate-outline': 'rotateOutline 2s linear infinite',
         jerk: 'jerk 0.5s infinite',
         'glitch-jerk': 'glitch 1s infinite, jerk 0.5s infinite',
         blink: 'blink 1sd steps/2, start) infinite',
+        'border-spin': 'border-spin 7s linear infinite',
         'pulse-slow': 'pulseSlow 8s ease-in-out infinite',
         'open-vertical': 'open-vertical 50ms ease-in-out forwards',
         'close-vertical': 'close-vertical 50ms ease-in-out forwards',
         'glitch-open': 'glitch-open 200ms ease-out forwards',
       },
       keyframes: {
+        'border-spin': {
+          '100%': { transform: 'rotate(-360deg)' },
+        },
         glitch: {
           '0%': { transform: 'translate(0)' },
           '20%': { transform: 'translate(-2px, 2px)' },

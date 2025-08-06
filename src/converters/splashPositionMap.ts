@@ -11,7 +11,8 @@ const splashPositionMap: Record<string, string> = {
   Maokai: "30%",
   Udyr: "0%",
   Twitch: "15%",
-  Lucian: "30%"
+  Lucian: "30%",
+  Lillia: "0%"
 }
 
 export default splashPositionMap

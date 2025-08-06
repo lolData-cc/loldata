@@ -13,10 +13,11 @@ import AuthGuard from "@/components/authguard"
 
 if (typeof window !== "undefined") {
   // @ts-expect-error: expose supabase on window for console debugging
-window.supabase = supabase
+  window.supabase = supabase
 }
 // #region contexts
 import { AuthProvider } from "@/context/authcontext"
+import { PricingPlans } from "./components/pricingplans";
 //
 
 declare global {
@@ -50,37 +51,45 @@ function HomePage() {
 
   return (
     <div className="w-full relative">
-
-      <div className="py-4 text-center">
-        <p className="text-jade text-6xl">{text}</p>
-        <p
-          className={`
+      <div className="flex flex-col space-y-32">
+        <div>
+          <div className="py-4 text-center">
+            <p className="text-jade text-6xl">{text}</p>
+            <p
+              className={`
           text-flash/50 text-xl pt-2 transition-opacity duration-1000
           ${showSubtitle ? "opacity-100" : "opacity-0"}
         `}
-        >
-          The new frontier of League of Legends improvement <br />
-          featuring your personal AI assistant
-        </p>
-      </div>
+            >
+              The new frontier of League of Legends improvement <br />
+              featuring your personal AI assistant
+            </p>
+          </div>
 
-      <div className="relative w-full flex justify-center mt-12">
-        <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-        <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
-        <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-        <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+          <div className="relative w-full flex justify-center mt-12">
+            <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+            <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
+            <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
+            <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
 
-        <img
-          src="/demos/learndemo.png"
-          alt=""
-          className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
+            <img
+              src="/demos/learndemo.png"
+              alt=""
+              className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          </div>
+        </div>
+
+
+
+        {/* <PricingPlans /> */}
       </div>
     </div>
+
   )
 }
 
@@ -91,12 +100,12 @@ export function RootLayout({
 }>) {
   return (
     <>
-      <Toaster position="top-right"  />
+      <Toaster position="top-right" />
       <div
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
         <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center ">
-          <Navbar/>
+          <Navbar />
           <div className="mt-10 w-full">{children}</div>
           <Footer className="mt-32" />
         </div>
