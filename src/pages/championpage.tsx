@@ -155,7 +155,7 @@ function RadialBottomDock({ items, open, onOpen, onConfirm }: DockProps) {
 function ReopenOverlay({ onOpen }: { onOpen: () => void }) {
   return (
     <div className="absolute inset-0 flex items-end justify-center pb-4">
-      <Button size="lg" className="min-w-[220px] bg-yellow-400 text-black hover:bg-yellow-300" onClick={onOpen}>
+      <Button className="min-w-[220px] bg-yellow-400 text-black hover:bg-yellow-300" onClick={onOpen}>
         Change Champion
       </Button>
     </div>
