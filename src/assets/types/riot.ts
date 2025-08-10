@@ -7,6 +7,7 @@ export type Participant = {
   summoner1Id?: number
   summoner2Id?: number
   championName: string
+  profileIconId: number
   kills: number
   deaths: number
   assists: number

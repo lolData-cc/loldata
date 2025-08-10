@@ -18,6 +18,8 @@ if (typeof window !== "undefined") {
 // #region contexts
 import { AuthProvider } from "@/context/authcontext"
 import { PricingPlans } from "./components/pricingplans";
+import ItemPage from "./pages/itempage";
+import ChampionPage from "./pages/championpage";
 //
 
 declare global {
@@ -128,8 +130,10 @@ function App() {
             </AuthGuard>
           }
         />
-        <Route path="/login" element={<RootLayout><LoginPage /></RootLayout>} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/matches/:matchId" element={<MatchPage />} />
+        <Route path="/champions" element={<ChampionPage />} />
+        <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
       </Routes>
     </AuthProvider>
   )

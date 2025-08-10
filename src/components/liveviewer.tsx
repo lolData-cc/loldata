@@ -9,6 +9,7 @@ import { formatChampName } from "@/utils/formatchampname";
 import { formatRank } from '@/utils/rankConverter';
 import { API_BASE_URL } from "@/config"
 import  WinrateBar from "@/components/winratebar"
+import { useNavigate } from "react-router-dom";
 
 type Participant = {
   teamId: number
@@ -41,6 +42,7 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
   const [loadingHelp, setLoadingHelp] = useState(false)
   const [selectedTab, setSelectedTab] = useState<string>("statistics")
   const [matchupAdvice, setMatchupAdvice] = useState<string | null>(null)
+  const navigate = useNavigate();
   const [orderedTeams, setOrderedTeams] = useState<{
     100: Partial<Record<"top" | "jungle" | "mid" | "bot" | "support", Participant>>,
     200: Partial<Record<"top" | "jungle" | "mid" | "bot" | "support", Participant>>,
@@ -181,7 +183,18 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
                           className="w-4 h-4 rounded-sm"
                         />
                       </div>
-                      <span className="ml-2 uppercase font-jetbrains">{p.riotId}</span>
+                      <span
+                        className="ml-2 uppercase font-jetbrains cursor-pointer hover:underline"
+                        onClick={() => {
+                          if (p.riotId) {
+                            setOpen(false);
+                            const [riotName, riotTag] = p.riotId.split("#");
+                            navigate(`/summoners/${region}/${riotName}-${riotTag}`);
+                          }
+                        }}
+                      >
+                        {p.riotId}
+                      </span>
                     </div>
 
                     <div className="flex gap-1 space-x-1 text-white/80 font-jetbrains text-left w-[35%]">
@@ -195,10 +208,6 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
                     <div className="w-[25%] pr-2">
                       <WinrateBar wins={ranks[p.riotId]?.wins || 0} losses={ranks[p.riotId]?.losses || 0} />
                     </div>
-
-
-
-
 
                   </div>
                 ) : null
@@ -239,7 +248,18 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
                         />
                       </div>
                       <div className="flex flex-col gap-1 font-jetbrains ml-2">
-                        <span className="uppercase font-jetbrains">{p.riotId}</span>
+                        <span
+                        className="ml-2 uppercase font-jetbrains cursor-clicker hover:underline"
+                        onClick={() => {
+                          if (p.riotId) {
+                            setOpen(false);
+                            const [riotName, riotTag] = p.riotId.split("#");
+                            navigate(`/summoners/${region}/${riotName}-${riotTag}`);
+                          }
+                        }}
+                      >
+                        {p.riotId}
+                      </span>
                       </div>
                     </div>
 

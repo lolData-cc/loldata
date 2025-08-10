@@ -42,7 +42,7 @@ export function Navbar() {
   }, [open, nametag, region, navigate])
 
   return (
-    <div className="flex items-center w-full py-2 px-4 justify-between h-16 z-20">
+    <div className="flex items-center w-full py-2 px-4 justify-between h-16 z-50">
       <div className="flex-shrink-0">
         <Link to="/" className="flex-shrink-0">
           <img src="/typelogo.png" className="w-24 h-22 cursor-clicker" alt="Logo" />
@@ -50,7 +50,9 @@ export function Navbar() {
       </div>
 
       <div className="flex-1 flex justify-center space-x-6 text-sm font-jetbrains">
-        <MenuItem label="CHAMPIONS" />
+         <Link to="/champions" className="flex-shrink-0">
+          <MenuItem label="CHAMPIONS" />
+        </Link>
         <MenuItem label="LEADERBOARD" />
         <MenuItem label="TIER LISTS" />
         <Link to="/learn" className="flex-shrink-0">

@@ -37,11 +37,11 @@ export function calculateLolDataScores(participants: Participant[]): LolDataResu
   // Pesi ottimizzati (più peso a KDA e kill participation)
   const w = {
     killPart: 0.25,
-    kda: 0.30,
-    dmg: 0.18,
-    obj: 0.12,
-    vision: 0.08,
-    tank: 0.07,
+    kda: 0.24,
+    dmg: 0.23,
+    obj: 0.09,
+    vision: 0.10,
+    tank: 0.09,
   };
 
   // Calcolo punteggio grezzo
