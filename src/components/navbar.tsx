@@ -60,7 +60,7 @@ export function Navbar() {
       <div className="flex-shrink-0">
         {/* mobile: toast button */}
 
-          <div className="p-1.5 text-flash/90 rounded-sm border border-flash/10">
+          <div className="p-1.5 text-flash/90 rounded-sm border border-flash/10 md:hidden">
             <Menu className="w-3 h-3 cursor-clicker "/>
           </div>
 
