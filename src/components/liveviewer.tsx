@@ -31,12 +31,18 @@ type LiveViewerProps = {
   puuid: string
   riotId: string
   region: string
+  controlledOpen?: boolean
+  onControlledOpenChange?: (open: boolean) => void
 }
 
-export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
+export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlledOpenChange }: LiveViewerProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = typeof controlledOpen === "boolean"
+  const open = isControlled ? controlledOpen! : internalOpen
+  const setOpen = isControlled ? (onControlledOpenChange as (o: boolean) => void) : setInternalOpen
+
   const [championMap, setChampionMap] = useState<Record<number, string>>({})
   const [game, setGame] = useState<LiveGame | null>(null)
-  const [open, setOpen] = useState(false)
   const [aiHelp, setAiHelp] = useState<string | null>(null)
   const [ranks, setRanks] = useState<Record<string, { rank: string; wins: number; losses: number; lp: number }>>({})
   const [loadingHelp, setLoadingHelp] = useState(false)
@@ -149,7 +155,7 @@ export function LiveViewer({ puuid, riotId, region }: LiveViewerProps) {
   const redTeam = game?.participants.filter(p => p.teamId === 200) || []
 
   return (
-    <Dialog onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className="absolute bottom-[-10px] left-28 -translate-x-1/2 bg-[#00D992] text-[#11382E] text-xs px-2 py-1 rounded-md shadow-md whitespace-nowrap">
         LIVE NOW
       </DialogTrigger>

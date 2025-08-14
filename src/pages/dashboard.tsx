@@ -36,9 +36,11 @@ export default function DashboardPage() {
  
     return (
         <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-screen flex justify-center">
-            <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center h-screen">
+            
+            <div className="">
                 <Navbar />
-                <Separator className="bg-flash/20 mt-0 w-screen" />
+                <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center h-screen">
+                    <Separator className="bg-flash/20 mt-0 w-screen" />
                 <div className="flex w-full h-full">
                     <div className="w-[20%] border-r border-flash/10 h-full">
                         <div className="text-center font-sourcecode font-extralight text-flash/30 text-[14px]">DASHBOARD</div>
@@ -47,6 +49,8 @@ export default function DashboardPage() {
                         <div onClick={handleLogout}>LOGOUT</div>
                     </div>
                 </div>
+                </div>
+                
             </div>
         </div>
  

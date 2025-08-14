@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Zap } from 'lucide-react'
+import { Search, Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
 import { API_BASE_URL } from "@/config"
 // #endregion
@@ -89,11 +89,21 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
       }
 
     }} >
-      <DialogTrigger asChild>
-        <div className="font-jetbrains bg-jade/10 text-jade hover:bg-jade/20 items-center py-2 h-full px-3 rounded-sm cursor-clicker">
-          SEARCH A PLAYER
-        </div>
-      </DialogTrigger>
+      <div className="hidden md:block">
+        <DialogTrigger asChild>
+          <div className="font-jetbrains bg-jade/10 text-jade hover:bg-jade/20 items-center py-2 h-full px-3 rounded-sm cursor-clicker">
+            SEARCH A PLAYER
+          </div>
+        </DialogTrigger>
+      </div>
+      <div className="md:hidden">
+        <DialogTrigger asChild>
+          <div className="p-1.5 bg-jade/20 text-jade rounded-sm cursor-clicker">
+            <Search className="w-3 h-3" />
+          </div>
+        </DialogTrigger>
+      </div>
+
       <DialogContent className="w-full max-w-xl bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
         <div className="w-full relative">
           <div className="font-jetbrains bg-liquirice/90 top-60 select-none border-flash/10 border px-7 py-5 rounded-md">

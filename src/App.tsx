@@ -10,6 +10,8 @@ import LoginPage from "@/pages/loginpage"
 import MatchPage from "@/pages/matchpage"
 import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
+import { LiveViewerProvider } from "./context/liveviewercontext";
+import { LiveToastOnBoot } from "@/components/livetoastonboot"
 
 if (typeof window !== "undefined") {
   // @ts-expect-error: expose supabase on window for console debugging
@@ -17,9 +19,10 @@ if (typeof window !== "undefined") {
 }
 // #region contexts
 import { AuthProvider } from "@/context/authcontext"
-import { PricingPlans } from "./components/pricingplans";
 import ItemPage from "./pages/itempage";
 import ChampionPage from "./pages/championpage";
+import { ChampionPickerProvider } from "@/context/championpickercontext";
+import ChampionDetailPage from "./pages/championdetailpage";
 //
 
 declare global {
@@ -102,7 +105,9 @@ export function RootLayout({
 }>) {
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-right" 
+      closeButton={false}
+      toastOptions={{classNames: {title:"font-jetbrains !text-flash/40 ",description:"font-geist !text-flash   ", actionButton:"!bg-jade/20 uppercase font-jetbrains", toast:"!bg-liquirice !border-flash/20"} }}/>
       <div
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
@@ -118,23 +123,37 @@ export function RootLayout({
 function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
-        <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route
-          path="/learn"
-          element={
-            <AuthGuard>
-              <LearnPage />
-            </AuthGuard>
-          }
-        />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/matches/:matchId" element={<MatchPage />} />
-        <Route path="/champions" element={<ChampionPage />} />
-        <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
-      </Routes>
+      <LiveViewerProvider>
+        <ChampionPickerProvider>
+          {/* ✅ Toaster globale, sempre presente e prima dei toast */}
+          <Toaster
+            position="top-right"
+            theme="dark"
+            richColors
+            closeButton
+          />
+
+          <LiveToastOnBoot />
+          <Routes>
+            <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
+            <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route
+              path="/learn"
+              element={
+                <AuthGuard>
+                  <LearnPage />
+                </AuthGuard>
+              }
+            />
+            <Route path="/champions/:champId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/matches/:matchId" element={<MatchPage />} />
+            <Route path="/champions" element={<ChampionPage />} />
+            <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
+          </Routes>
+        </ChampionPickerProvider>
+      </LiveViewerProvider>
     </AuthProvider>
   )
 }
