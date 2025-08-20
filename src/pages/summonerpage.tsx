@@ -47,6 +47,8 @@ const itemKeys: (keyof Participant)[] = [
 const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
 
+
+
 export default function SummonerPage() {
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [loading, setLoading] = useState(false)
@@ -58,11 +60,40 @@ export default function SummonerPage() {
   const [name, tag] = slug?.split("-") ?? []
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
-  const [summonerInfo, setSummonerInfo] = useState<SummonerInfo | null>(null)
+  const [summonerInfo, setSummonerInfo] = useState<SummonerWithAvatar | null>(null)
   const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
   const [allChampions, setAllChampions] = useState<{ id: string; name: string }[]>([])
   const [championMap, setChampionMap] = useState<Record<number, string>>({});
   const [championMapReverse, setChampionMapReverse] = useState<Record<string, number>>({});
+  const [topChampionsSeason, setTopChampionsSeason] = useState<ChampionStats[]>([]);
+  const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
+  const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
+  const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
+
+  const recentBadgeCount = useMemo(() => {
+    if (!summonerInfo?.puuid || matches.length === 0) return 0;
+
+    // prendiamo gli ultimi 10 (quelli visibili)
+    const recent = matches.slice(0, 10);
+
+    let count = 0;
+    for (const m of recent) {
+      const participants = m.match.info.participants;
+      const { mvpWin, mvpLose } = calculateLolDataScores(participants);
+      if (mvpWin === summonerInfo.puuid || mvpLose === summonerInfo.puuid) {
+        count++;
+      }
+    }
+    return count;
+  }, [matches, summonerInfo?.puuid]);
+
+  const recentBadgeLabel = useMemo<null | "GODLIKE" | "SOLOCARRY" | "CARRY">(() => {
+    if (recentBadgeCount >= 8) return "GODLIKE";
+    if (recentBadgeCount >= 5) return "SOLOCARRY";
+    if (recentBadgeCount >= 4) return "CARRY";
+    return null;
+  }, [recentBadgeCount]);
+
   const navigate = useNavigate();
   const queueGroups = {
     "Ranked Solo/Duo": [420],
@@ -74,7 +105,7 @@ export default function SummonerPage() {
 
   type QueueType = "Ranked Solo/Duo" | "Ranked Flex" | "Normal" | "All";
 
-
+  type SummonerWithAvatar = SummonerInfo & { avatar_url?: string | null }
 
 
   const queueTypeMap: Record<number, string> = {
@@ -129,6 +160,47 @@ export default function SummonerPage() {
       }))
       .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
   }, [matches, summonerInfo]);
+
+  useEffect(() => {
+    const defaultTitle = "lolData";
+
+    const baseName =
+      summonerInfo?.name
+      ?? (slug
+        ? (() => {
+          // lo slug è "name-tag": prendo tutto prima dell’ultimo "-"
+          const idx = slug.lastIndexOf("-");
+          return idx > 0 ? slug.slice(0, idx) : slug;
+        })()
+        : name);
+
+    if (baseName && baseName.trim().length > 0) {
+      document.title = `lolData - ${baseName}`;
+    } else {
+      document.title = defaultTitle;
+    }
+
+    return () => {
+      document.title = defaultTitle;
+    };
+  }, [slug, summonerInfo?.name]);
+
+  useEffect(() => {
+    if (!summonerInfo?.name || !summonerInfo?.tag) return
+    const nametag = `${summonerInfo.name}#${summonerInfo.tag}`
+
+    fetch(`${API_BASE_URL}/api/pro/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nametag }),
+    })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
+      .then(({ plan }) => {
+        const p = typeof plan === "string" ? plan.toLowerCase() : null
+        setPremiumPlan(p === "premium" || p === "elite" ? (p as "premium" | "elite") : null)
+      })
+      .catch(() => setPremiumPlan(null))
+  }, [summonerInfo?.name, summonerInfo?.tag])
 
   useEffect(() => {
     if (!slug) return;
@@ -202,6 +274,31 @@ export default function SummonerPage() {
     }
   }, [name, tag, region])
 
+  useEffect(() => {
+    if (!summonerInfo?.puuid || !region) return;
+    let cancelled = false;
+
+    (async () => {
+      const okAll = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+      const okSolo = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+      const okFlex = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+
+      if (cancelled) return;
+
+      if (!(okAll && okSolo && okFlex)) {
+        const id = setInterval(async () => {
+          if (cancelled) { clearInterval(id); return; }
+          const doneAll = topChampionsSeason.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_all");
+          const doneSolo = topChampionsSolo.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_solo");
+          const doneFlex = topChampionsFlex.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_flex");
+          if (doneAll && doneSolo && doneFlex) clearInterval(id);
+        }, 2000);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [summonerInfo?.puuid, region]);
+
   async function refreshData() {
 
     if (!region) {
@@ -214,6 +311,7 @@ export default function SummonerPage() {
     setLoading(true)
     setSummonerInfo(null)
     setMatches([])
+    setTopChampionsSeason([]);
 
     const [summoner, matchData] = await Promise.all([
       fetchSummonerInfo(name, tag, region),
@@ -263,6 +361,29 @@ export default function SummonerPage() {
     setTopChampions(data.topChampions || [])
   }
 
+  async function fetchSeasonStats(
+    puuid: string,
+    region: string,
+    queueGroup: "ranked_all" | "ranked_solo" | "ranked_flex" = "ranked_all"
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/season_stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ puuid, region, queueGroup }),
+    });
+
+    if (res.status === 200) {
+      const data = await res.json();
+      if (queueGroup === "ranked_all") setTopChampionsSeason(data.topChampions || []);
+      if (queueGroup === "ranked_solo") setTopChampionsSolo(data.topChampions || []);
+      if (queueGroup === "ranked_flex") setTopChampionsFlex(data.topChampions || []);
+      return true;
+    }
+    if (res.status === 202) return false;
+    return false;
+  }
+
+
   const filteredMatches = matches.filter((m) => {
     const matchQueueId = m.match.info.queueId;
     const selectedQueueIds = queueGroups[selectedQueue] || [];
@@ -274,6 +395,59 @@ export default function SummonerPage() {
   });
 
 
+  function StatsList({ champs }: { champs: ChampionStats[] }) {
+    const isLoading = !champs || champs.length === 0;
+    return (
+      <div className="flex flex-col gap-3 mx-2 mt-3">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="grid items-center px-4 py-1 animate-pulse">
+              <div className="flex items-center gap-3 w-full">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="flex flex-col gap-0.5 w-[300px]">
+                  <Skeleton className="w-[30%] h-2.5" />
+                  <Skeleton className="w-[60%] h-2.5" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          champs.slice(0, 5).map((champ) => (
+            <div key={champ.champion} className="grid grid-cols-3 items-center px-3 gap-4 w-full">
+              <div className="flex items-center gap-3">
+                <img src={`${champPath}/${champ.champion}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
+                <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
+                  <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
+                  <div className="text-white font-thin text-[11px]">
+                    {(() => {
+                      const num = Number(champ.csPerMin);
+                      const rounded = Math.round(num * 10) / 10;
+                      return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
+                    })()}{" "}CS/({champ.avgGold})
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap pl-20 text-[11px]">
+                <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
+                <div>
+                  {formatStat(champ.kills / champ.games)}/
+                  {formatStat(champ.deaths / champ.games)}/
+                  {formatStat(champ.assists / champ.games)}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end text-xs text-white gap-1 text-[11px] min-w-[80px]">
+                <div className={getWinrateClass(champ.winrate, champ.games)}>{champ.winrate}%</div>
+                <div className="text-[11px]">{champ.games} MATCHES</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="relative z-0">
       <UltraTechBackground />
@@ -281,10 +455,10 @@ export default function SummonerPage() {
         <div className="w-2/5 min-w-[35%] flex flex-col gap-16 items-center">
           <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
             <div className="relative w-full h-32 overflow-hidden mt-6">
-              {topChampions.length > 0 && (
+              {topChampionsSeason.length > 0 && (
                 <img
-                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampions[0].champion}_0.jpg`}
-                  alt={`Splash art ${topChampions[0].champion}`}
+                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
+                  alt={`Splash art ${topChampionsSeason[0].champion}`}
                   className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
                   style={{ objectPosition: "top center" }}
                 />
@@ -355,6 +529,33 @@ export default function SummonerPage() {
               </div>
               <TabsContent value="recentgames">
                 <RecentGamesSummary matches={matches} summonerPuuid={summonerInfo?.puuid} />
+                {/* Badge recent games */}
+
+
+                <Separator className="bg-flash/20 h1 mt-16" />
+                {recentBadgeLabel && (
+                  <div className="flex items-center justify-between px-6 py-4">
+                    <div className="text-flash/60 text-sm">
+                      LAST 10 GAMES: {recentBadgeCount} MVPS
+                    </div>
+
+                    <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
+                      {/* piccolo glow diverso per i tre livelli */}
+                      <div
+                        className={cn(
+                          "absolute inset-0 animate-glow",
+                          recentBadgeLabel === "GODLIKE" && "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
+                          recentBadgeLabel === "SOLOCARRY" && "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
+                          recentBadgeLabel === "CARRY" && "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
+                        )}
+                      />
+                      <div className="relative z-10 text-black text-sm font-semibold tracking-wide">
+                        {recentBadgeLabel}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </TabsContent>
               <TabsContent value="allgames">
                 allgames
@@ -364,81 +565,45 @@ export default function SummonerPage() {
           </div>
 
           <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
-            <nav className="flex flex-col min-h-[400px]">
-              <div className="flex justify-between px-10 py-3">
-                <div className="z-0 text-[14px]">SOLO/DUO</div>
-                <div className="z-0">FLEX</div>
-                <div className="z-0">SEASON</div>
-              </div>
-              <Separator className="bg-[#48504E] w-[85%] mx-auto" />
+            <Tabs defaultValue="season" onValueChange={(v) => {
+              if (!summonerInfo?.puuid || !region) return;
+              if (v === "solo" && topChampionsSolo.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+              if (v === "flex" && topChampionsFlex.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+              if (v === "season" && topChampionsSeason.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+            }}>
+              <nav className="flex flex-col min-h-[400px]">
+                <div className="px-3 pt-3">
+                  <TabsList className="grid grid-cols-3 w-[85%] mx-auto">
+                    <TabsTrigger value="solo" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">SOLO/DUO</TabsTrigger>
+                    <TabsTrigger value="flex" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">FLEX</TabsTrigger>
+                    <TabsTrigger value="season" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">SEASON</TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <div className="flex flex-col gap-3 mx-2 mt-3 ">
-                {topChampions.length === 0 ? (
-                  Array.from({ length: 5 }).map((_, idx) => (
-                    <div key={idx} className="grid  items-center px-4 py-1 animate-pulse">
-                      <div className="flex items-center gap-3 w-full">
-                        <Skeleton className="w-10 h-10 rounded-full" />
-                        <div className="flex flex-col gap-0.5 w-[300px]">
-                          <Skeleton className="w-[30%] h-2.5" />
-                          <Skeleton className="w-[60%] h-2.5" />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  topChampions.slice(0, 5).map((champ) => (
-                    <div
-                      key={champ.champion}
-                      className="grid grid-cols-3 items-center px-3 gap-4 w-full"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={`${champPath}/${champ.champion}.png`}
-                          alt={champ.champion}
-                          className="w-12 h-12 rounded-full"
-                        />
-                        <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
-                          <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">
-                            {champ.champion}
-                          </div>
-                          <div className="text-white font-thin text-[11px]">
-                            {(() => {
-                              const num = Number(champ.csPerMin);
-                              const rounded = Math.round(num * 10) / 10;
-                              return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
-                            })()}CS/({champ.avgGold})
-                          </div>
-                        </div>
-                      </div>
+                <Separator className="bg-[#48504E] w-[85%] mx-auto mt-2" />
 
-                      <div className="flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap pl-20 text-[11px]">
+                {/* Season (solo+flex) */}
+                <TabsContent value="season" className="m-0">
+                  <StatsList champs={topChampionsSeason} />
+                </TabsContent>
 
-                        <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
-                        <div>
-                          {formatStat(champ.kills / champ.games)}/
-                          {formatStat(champ.deaths / champ.games)}/
-                          {formatStat(champ.assists / champ.games)}
-                        </div>
-                      </div>
+                {/* Solo/Duo */}
+                <TabsContent value="solo" className="m-0">
+                  <StatsList champs={topChampionsSolo} />
+                </TabsContent>
 
-                      <div className="flex flex-col items-end text-xs text-white gap-1 text-[11px] min-w-[80px]">
-                        <div className={getWinrateClass(champ.winrate, champ.games)}>
-                          {champ.winrate}%
-                        </div>
-                        <div className="text-[11px]">{champ.games} MATCHES</div>
-                      </div>
-                    </div>
+                {/* Flex */}
+                <TabsContent value="flex" className="m-0">
+                  <StatsList champs={topChampionsFlex} />
+                </TabsContent>
 
-                  ))
-                )}
-              </div>
-
-              <div className="flex justify-center mt-auto pb-4 pt-4">
-                <ShowMoreMatches />
-              </div>
-            </nav>
-
+                <div className="flex justify-center mt-auto pb-4 pt-2">
+                  <ShowMoreMatches />
+                </div>
+              </nav>
+            </Tabs>
           </div>
+
 
           {duoStats.length > 0 && (
             <div
@@ -596,19 +761,58 @@ export default function SummonerPage() {
 
                   </p>
                   <div
-                    className={`flex justify-end cursor-clicker ${(summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16
+                    className={`flex justify-end cursor-clicker ${((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
                       ? "text-[17px]"
                       : "text-2xl"
                       }`}
                     onClick={() => {
                       if (summonerInfo) {
-                        navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`);
+                        navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
                       }
                     }}
                   >
-                    <span className="text-[#D7D8D9]">{summonerInfo?.name}</span>
-                    <span className="text-[#BCC9C6]">#{summonerInfo?.tag}</span>
+                    <span className="text-right">
+                      {/* NAME */}
+                      <span
+                        className={
+                          premiumPlan === "premium" || premiumPlan === "elite"
+                            ? "bg-clip-text text-transparent animate-glow"
+                            : "text-[#D7D8D9] animate-glow"
+                        }
+                        style={
+                          premiumPlan === "premium"
+                            ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                            : premiumPlan === "elite"
+                              ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                              : undefined
+                        }
+                      >
+                        {summonerInfo?.name}
+                      </span>
+
+                      {/* #TAG */}
+                      <span
+                        className={
+                          premiumPlan === "premium" || premiumPlan === "elite"
+                            ? "ml-0.5 bg-clip-text text-transparent animate-glow"
+                            : "ml-0.5 text-[#BCC9C6] animate-glow"
+                        }
+                        style={
+                          premiumPlan === "premium"
+                            ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                            : premiumPlan === "elite"
+                              ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                              : undefined
+                        }
+                      >
+                        #{summonerInfo?.tag}
+                      </span>
+                    </span>
                   </div>
+
+
+
+
                 </div>
 
                 {/* <div className="flex justify-end">
@@ -629,13 +833,19 @@ export default function SummonerPage() {
 
               <div className="relative w-40 h-40 mr-2">
                 <img
-                  src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`}
-
+                  src={
+                    summonerInfo?.avatar_url
+                    ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                  }
                   className={cn(
-                    "w-full h-full rounded-xl select-none pointer-events-none border-2",
+                    "w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
                     summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
                   )}
                   draggable={false}
+                  onError={(e) => {
+                    // fallback extra se l’URL custom è rotto
+                    e.currentTarget.src = `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                  }}
                 />
                 {summonerInfo?.live && summonerInfo?.puuid && (
                   <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} region={region!} />
@@ -648,8 +858,8 @@ export default function SummonerPage() {
             <nav className="w-full bg-cement text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
               <div className="flex items-center h-full justify-between ">
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin">
-                    <span className="text-sm tracking-wide">
+                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin cursor-clicker">
+                    <span className="text-sm tracking-wide cursor-clicker">
                       {selectedQueue === "All" ? "ALL QUEUES" : selectedQueue.toUpperCase()}
                     </span>
                     <ChevronDown className="h-4 w-4" />
@@ -660,7 +870,7 @@ export default function SummonerPage() {
                         key={queue}
                         onClick={() => setSelectedQueue(queue)}
                         className={cn(
-                          "cursor-pointer",
+                          "cursor-clicker uppercase font-jetbrains",
                           selectedQueue === queue ? "text-jade font-semibold" : "text-flash/70"
                         )}
                       >
@@ -744,7 +954,7 @@ export default function SummonerPage() {
                       {/* ✅ LAYER CLICCABILE */}
                       <div className="flex items-center justify-center h-full">
                         <div className="w-[95%]">
-                          
+
 
                           {/* ✅ BORDO COLORATO */}
                           <div
@@ -761,7 +971,7 @@ export default function SummonerPage() {
                             <div className="ml-2">
                               <div className="relative flex justify-between text-[11px] uppercase text-flash/70 ">
                                 {/* Sfondo cliccabile */}
-                               
+
 
                                 {/* Testi sopra lo sfondo - con z-20 */}
                                 <span className="relative z-20">{queueLabel}</span>
@@ -864,6 +1074,18 @@ export default function SummonerPage() {
                                         <span className="font-geist text-xs font-thin text-flash/40">
                                           {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
                                         </span>
+                                        {participant && (() => {
+                                          const team = participant.teamId === 100 ? team1 : team2;
+                                          const teamKills = team.reduce((sum, p) => sum + p.kills, 0);
+                                          const kp = teamKills > 0
+                                            ? Math.round(((participant.kills + participant.assists) / teamKills) * 100)
+                                            : 0;
+                                          return (
+                                            <span className="font-geist text-xs font-thin text-flash/40 pl-1.5">
+                                              {kp}% KP
+                                            </span>
+                                          );
+                                        })()}
                                         <div className="ml-2">
                                           {/* {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
                                     <span

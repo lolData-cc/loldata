@@ -35,7 +35,7 @@ export function UserDialog() {
   if (session) {
     return (
       <Button
-        className="text-flash/50 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5"
+        className="text-flash/70 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5"
         onClick={() => navigate("/dashboard")}
       >
         DASHBOARD
@@ -45,12 +45,12 @@ export function UserDialog() {
 
   return (
     <Dialog>
-      <DialogTrigger className="text-flash/50 rounded px-2 cursor-clicker">
+      <DialogTrigger className="text-flash/70 rounded px-2 cursor-clicker">
         <div className="text-flash/50 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5">
           <span className="font-jetbrains">LOG IN</span>
         </div>
       </DialogTrigger>
-      <DialogContent className="flex flex-col text-flash font-jetbrains border border-flash/20 w-[350px]">
+      <DialogContent className="flex flex-col text-flash/70 font-jetbrains border border-flash/20 w-[350px]">
         <DialogHeader>
           <DialogTitle className="text-2xl cursor">LOG IN</DialogTitle>
           <DialogDescription>

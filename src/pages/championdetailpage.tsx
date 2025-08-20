@@ -77,8 +77,6 @@ export default function ChampionDetailPage() {
   const opponentIdFromKey = (k: number) => keyToIdSafe(k)
   const opponentIcon = (k: number) =>
     `https://cdn.loldata.cc/15.13.1/img/champion/${opponentIdFromKey(k)}.png`
-  const opponentSplash = (k: number) =>
-    `https://cdn.loldata.cc/15.13.1/img/champion/${opponentIdFromKey(k)}_0.jpg`
 
   //retrieve matchup
   useEffect(() => {
@@ -142,6 +140,22 @@ export default function ChampionDetailPage() {
       .catch(() => { })
     return () => { cancelled = true }
   }, [])
+
+  //set title
+  useEffect(() => {
+    const defaultTitle = "lolData";
+
+    if (champ?.name) {
+      document.title = `lolData - ${champ.name}`;
+    } else {
+      document.title = defaultTitle;
+    }
+
+    return () => {
+      // reset quando si lascia la pagina
+      document.title = defaultTitle;
+    };
+  }, [champ?.name]);
 
   // fetch champion data
   useEffect(() => {
@@ -242,19 +256,19 @@ export default function ChampionDetailPage() {
           <div className="space-y-4 w-[90%]">
             <TabsList className="xl:-ml-12">
               <TabsTrigger value="overview">
-                <h2 className="text-lg font-semibold">OVERVIEW</h2>
+                <h2 className="text-lg">OVERVIEW</h2>
               </TabsTrigger>
               <TabsTrigger value="statistics">
-                <h2 className="text-lg font-semibold">STATISTICS</h2>
+                <h2 className="text-lg">STATISTICS</h2>
               </TabsTrigger>
               <TabsTrigger value="items">
-                <h2 className="text-lg font-semibold">ITEMS</h2>
+                <h2 className="text-lg">ITEMS</h2>
               </TabsTrigger>
               <TabsTrigger value="matchups">
-                <h2 className="text-lg font-semibold">MATCHUPS</h2>
+                <h2 className="text-lg">MATCHUPS</h2>
               </TabsTrigger>
               <TabsTrigger value="pros">
-                <h2 className="text-lg font-semibold">PROS</h2>
+                <h2 className="text-lg">PROS</h2>
               </TabsTrigger>
             </TabsList>
 
@@ -323,7 +337,7 @@ export default function ChampionDetailPage() {
                           )}
                         </div>
 
-                        
+
                       </div>
                     )
                   })()}

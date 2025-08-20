@@ -116,7 +116,7 @@ export function Navbar() {
 
 function MenuItem({ label }: { label: string }) {
   return (
-    <div className="flex items-center px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/40 hover:text-flash transition-colors duration-150">
+    <div className="flex items-center px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/70 hover:text-flash transition-colors duration-150">
       <div>{label}</div>
     </div>
   )

@@ -23,6 +23,9 @@ import ItemPage from "./pages/itempage";
 import ChampionPage from "./pages/championpage";
 import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
+import StreamersCarousel from "./components/streeamerscarousel";
+import StreamersInfiniteCarousel from "./components/streeamerscarousel";
+import { PricingPlans } from "./components/pricingplans";
 //
 
 declare global {
@@ -34,7 +37,7 @@ declare global {
 function HomePage() {
   const [text, setText] = useState("")
   const [showSubtitle, setShowSubtitle] = useState(false)
-  const fullText = "Welcome to lolData"
+  const fullText = "The future of Improvement"
 
   useEffect(() => {
     let cancelled = false
@@ -59,7 +62,7 @@ function HomePage() {
       <div className="flex flex-col space-y-32">
         <div>
           <div className="py-4 text-center">
-            <p className="text-jade text-6xl">{text}</p>
+            <p className="text-jade text-5xl">{text}</p>
             <p
               className={`
           text-flash/50 text-xl pt-2 transition-opacity duration-1000
@@ -92,6 +95,14 @@ function HomePage() {
 
 
         {/* <PricingPlans /> */}
+
+        
+        <section className="mt-8">
+          <h2 className="text-flash/60 text-xl mb-3">STREAMING PARTNERS</h2>
+          <StreamersInfiniteCarousel />
+        </section>
+
+
       </div>
     </div>
 

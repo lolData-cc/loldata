@@ -31,15 +31,27 @@ export function Footer({ className = "" }: FooterProps) {
                                 </ul>
 
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-flash/20 text-sm">
+                            <div className="flex flex-col text-sm gap-2">
+                                <span className="text-flash/20 ">
                                     RESOURCES
                                 </span>
+                                <ul className="flex flex-col gap-2 text-[13px] cursor-clicker [&>span:hover]:text-flash/80">
+                                    <span> Docs </span>
+                                    <span> Changelog </span>
+                                    <span> Support </span>
+                                </ul>
+
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-flash/20 text-sm">
+                            <div className="flex flex-col text-sm gap-2">
+                                <span className="text-flash/20 ">
                                     PRODUCT
                                 </span>
+                                <ul className="flex flex-col gap-2 text-[13px] cursor-clicker [&>span:hover]:text-flash/80">
+                                    <span> Pricing </span>
+                                    <span> Roadmap </span>
+                                    <span> Status </span>
+                                </ul>
+
                             </div>
                         </div>
                     </div>
