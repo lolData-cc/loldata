@@ -1,7 +1,7 @@
 // components/AvatarCropper.tsx
 import { useCallback, useState } from "react";
 import Cropper, { Area } from "react-easy-crop";
-import { getCroppedImg } from "@/utils/cropImage";
+
 
 type Props = {
   file: File;

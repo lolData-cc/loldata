@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { AvatarCropper } from "@/components/AvatarCropper";
+import { AvatarCropper } from "@/components/avatarcropper";
 import { Separator } from "./ui/separator";
 
 type ProfileRow = {

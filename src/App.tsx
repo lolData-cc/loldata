@@ -23,7 +23,6 @@ import ItemPage from "./pages/itempage";
 import ChampionPage from "./pages/championpage";
 import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
-import StreamersCarousel from "./components/streeamerscarousel";
 import StreamersInfiniteCarousel from "./components/streeamerscarousel";
 import { PricingPlans } from "./components/pricingplans";
 //
