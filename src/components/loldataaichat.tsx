@@ -362,7 +362,7 @@ export default function LoldataAIChat({
             Send
           </Button>
         ) : (
-          <Button onClick={handleStop} variant="secondary" className="h-[56px] px-4">
+          <Button onClick={handleStop} className="h-[56px] px-4">
             Stop
           </Button>
         )}
