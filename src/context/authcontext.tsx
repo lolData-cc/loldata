@@ -7,7 +7,8 @@ interface AuthContextType {
   loading: boolean
   nametag: string | null
   region: string | null
-  plan: string | null // ✅ aggiunto qui
+  plan: string | null
+  puuid: string | null
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,7 +16,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   nametag: null,
   region: null,
-  plan: null // ✅ inizializzazione
+  plan: null,
+  puuid: null,
 })
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -23,7 +25,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [region, setRegion] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [nametag, setNametag] = useState<string | null>(null)
-  const [plan, setPlan] = useState<string | null>(null) 
+  const [plan, setPlan] = useState<string | null>(null)
+  const [puuid, setPuuid] = useState<string | null>(null)
 
   const setSessionAndNametag = async (newSession: Session | null) => {
     setSession(newSession)
@@ -31,30 +34,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (newSession?.user?.id) {
       const { data, error } = await supabase
         .from("profile_players")
-        .select("nametag, region, plan", { head: false })
+        .select("nametag, region, plan, puuid", { head: false })
         .eq("profile_id", newSession.user.id)
         .single()
 
       if (!error && data) {
-  console.log("[AuthContext] Profilo caricato:", {
-    nametag: data.nametag,
-    region: data.region,
-    plan: data.plan,
-  })
+        console.log("[AuthContext] Profilo caricato:", {
+          nametag: data.nametag,
+          region: data.region,
+          plan: data.plan,
+          puuid: data.puuid,
+        })
 
-  setNametag(data.nametag ?? null)
-  setRegion(data.region ?? null)
-  setPlan(data.plan ?? null)
-} else {
-  console.warn("[AuthContext] Errore caricamento profilo o nessun dato:", error)
-  setNametag(null)
-  setRegion(null)
-  setPlan(null)
-}
+        setNametag(data.nametag ?? null)
+        setRegion(data.region ?? null)
+        setPlan(data.plan ?? null)
+        setPuuid(data.puuid ?? null)
+      } else {
+        console.warn("[AuthContext] Errore caricamento profilo o nessun dato:", error)
+        setNametag(null)
+        setRegion(null)
+        setPlan(null)
+        setPuuid(null)
+      }
     } else {
       setNametag(null)
       setRegion(null)
       setPlan(null)
+      setPuuid(null)
     }
 
     setLoading(false)
@@ -82,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, loading, nametag, region, plan }}>
+    <AuthContext.Provider value={{ session, loading, nametag, region, plan, puuid }}>
       {children}
     </AuthContext.Provider>
   )

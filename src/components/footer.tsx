@@ -11,7 +11,7 @@ type FooterProps = {
 export function Footer({ className = "" }: FooterProps) {
 
     return (
-        <div className={`font-jetbrains w-full h-72 ${className}`}>
+        <div className={`font-jetbrains z-50 w-full h-72 ${className}`}>
             <div className="h-full flex flex-col">
                 <div className="flex-shrink-0">
                     <Separator className="w-full bg-flash/10" />

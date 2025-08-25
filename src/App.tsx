@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, useLocation } from "react-router-dom"
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
@@ -25,6 +25,9 @@ import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
 import StreamersInfiniteCarousel from "./components/streeamerscarousel";
 import { PricingPlans } from "./components/pricingplans";
+import AuthCallback from "./auth/callback";
+import WordShiftOnScroll from "./components/features1";
+import { LearnPageFeature } from "./components/learnpagefeature";
 //
 
 declare global {
@@ -57,8 +60,21 @@ function HomePage() {
   }, [])
 
   return (
-    <div className="w-full relative">
-      <div className="flex flex-col space-y-32">
+    <div className="relative min-h-screen">
+      <div className="fixed inset-0 z-0">
+        <div className="relative w-full h-screen overflow-hidden">
+          <img
+            src="/img/sion.png"
+            alt="bg"
+            className="absolute top-20 left-0 w-full h-auto object-cover object-top -translate-y-10"
+          />
+        </div>
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-" />
+        <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
+      </div>
+
+      <div className="relative z-10">
+        <div className="flex flex-col space-y-32">
         <div>
           <div className="py-4 text-center">
             <p className="text-jade text-5xl">{text}</p>
@@ -91,21 +107,25 @@ function HomePage() {
           </div>
         </div>
 
-
+        <LearnPageFeature />
 
         {/* <PricingPlans /> */}
+        <WordShiftOnScroll
+          words={["The", "Future", "Of", "Improvement", "Arrived"]}
+          band={{ min: 0.3, max: 0.5 }}
+        />
 
-        
+
         <section className="mt-8">
-          <h2 className="text-flash/60 text-xl mb-3">STREAMING PARTNERS</h2>
           <StreamersInfiniteCarousel />
         </section>
 
 
+
+      </div>
       </div>
     </div>
-
-  )
+  );
 }
 
 export function RootLayout({
@@ -113,22 +133,35 @@ export function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { pathname } = useLocation()
+  const navbarSticky = pathname === "/"
+
   return (
     <>
-      <Toaster position="top-right" 
-      closeButton={false}
-      toastOptions={{classNames: {title:"font-jetbrains !text-flash/40 ",description:"font-geist !text-flash   ", actionButton:"!bg-jade/20 uppercase font-jetbrains", toast:"!bg-liquirice !border-flash/20"} }}/>
+      <Toaster
+        position="top-right"
+        closeButton={false}
+        toastOptions={{
+          classNames: {
+            title: "font-jetbrains !text-flash/40 ",
+            description: "font-geist !text-flash",
+            actionButton: "!bg-jade/20 uppercase font-jetbrains",
+            toast: "!bg-liquirice !border-flash/20",
+          },
+        }}
+      />
       <div
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
-        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center ">
-          <Navbar />
+        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
+          {/* 👇 sticky solo su "/" */}
+          <Navbar sticky={navbarSticky} />
           <div className="mt-10 w-full">{children}</div>
           <Footer className="mt-32" />
         </div>
       </div>
     </>
-  );
+  )
 }
 function App() {
   return (
@@ -161,6 +194,7 @@ function App() {
             <Route path="/matches/:matchId" element={<MatchPage />} />
             <Route path="/champions" element={<ChampionPage />} />
             <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </ChampionPickerProvider>
       </LiveViewerProvider>

@@ -47,12 +47,12 @@ export function UserDialog() {
     <Dialog>
       <DialogTrigger className="text-flash/70 rounded px-2 cursor-clicker">
         <div className="text-flash/50 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5">
-          <span className="font-jetbrains">LOG IN</span>
+          <span className="font-jetbrains">SIGN IN</span>
         </div>
       </DialogTrigger>
       <DialogContent className="flex flex-col text-flash/70 font-jetbrains border border-flash/20 w-[350px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl cursor">LOG IN</DialogTitle>
+          <DialogTitle className="text-2xl cursor">SIGN IN</DialogTitle>
           <DialogDescription>
             To access lolData <span className="underline text-jade">features</span>
           </DialogDescription>
@@ -71,6 +71,7 @@ export function UserDialog() {
           </div>
 
           <DialogFooter className="pt-2">
+            <DiscordButton />
             <Button
               variant="default"
               size="sm"
@@ -84,5 +85,34 @@ export function UserDialog() {
         </DialogHeader>
       </DialogContent>
     </Dialog>
+  )
+}
+
+
+
+
+function DiscordButton() {
+  async function loginWithDiscord() {
+    const redirectTo = `${window.location.origin}/auth/callback`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "discord",
+      options: {
+        scopes: "identify email",
+        redirectTo, // deve combaciare con i Redirects su Discord
+      },
+    })
+    if (error) alert("Discord login failed: " + error.message)
+    // Nessun navigate qui: ci pensa il redirect di Supabase
+  }
+
+  return (
+    <Button
+      variant="outline"
+      className="w-full rounded-sm py-2 flex items-center gap-2"
+      onClick={loginWithDiscord}
+    >
+      {/* Se vuoi, inserisci l’icona di Discord qui */}
+      Continua con Discord
+    </Button>
   )
 }

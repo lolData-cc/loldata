@@ -16,6 +16,8 @@ import {
 import { Airplay, ChevronsUp, ChevronsDown } from "lucide-react"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
+import LoldataAIChat from "@/components/loldataaichat"
+
 
 dayjs.extend(relativeTime)
 
@@ -113,7 +115,7 @@ function getLpDelta(prev: any, curr: any): number {
 }
 
 export default function LearnPage() {
-    const { nametag } = useAuth()
+    const { nametag, puuid } = useAuth()
     const [gamesList, setGamesList] = useState<any[]>([])
     const [loadingGames, setLoadingGames] = useState(true)
 
@@ -185,149 +187,160 @@ export default function LearnPage() {
                                     className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
                                 >
                                     <Airplay className="w-4 h-4 relative" />
-                                    <span>Your Goals</span>
+                                    <span>Your Goals </span>
+
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="loldata-ai"
+                                    className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
+                                >
+                                    <Airplay className="w-4 h-4 relative" />
+                                    <span>LOLDATA AI</span>
                                 </TabsTrigger>
                             </TabsList>
                         </div>
                     </div>
 
-                    <div className="w-[70%] overflow-y-scroll scrollbar-hide h-full p-6">
+                    <div className="w-[70%] h-full p-6 overflow-hidden">
 
-                        <TabsContent value="games" className="p-4">
-                            <h2 className="text-jade text-4xl mb-8">
-                                Your games
-                            </h2>
+                        <TabsContent value="games" className="p-4 -full overflow-hidden">
+                            <div className="h-full overflow-y-auto pr-2 scrollbar-hide">
+                                <h2 className="text-jade text-4xl mb-8">
+                                    Your games
+                                </h2>
 
-                            {loadingGames ? (
-                                <p className="text-flash/50">Loading tracked games...</p>
-                            ) : (
-                                sortedDays.map((day, index) => {
-                                    const todayGames = gamesByDay[day]
-                                    if (!todayGames?.length) return null
+                                {loadingGames ? (
+                                    <p className="text-flash/50">Loading tracked games...</p>
+                                ) : (
+                                    sortedDays.map((day, index) => {
+                                        const todayGames = gamesByDay[day]
+                                        if (!todayGames?.length) return null
 
-                                    const firstGame = todayGames[0]
-                                    const lastGame = todayGames[todayGames.length - 1]
+                                        const firstGame = todayGames[0]
+                                        const lastGame = todayGames[todayGames.length - 1]
 
-                                    // Trova il game precedente
-                                    const todayDate = dayjs(day)
-                                    const previousGame = [...gamesList]
-                                        .reverse()
-                                        .find(g => dayjs(g.created_at).isBefore(todayDate, "day"))
+                                        // Trova il game precedente
+                                        const todayDate = dayjs(day)
+                                        const previousGame = [...gamesList]
+                                            .reverse()
+                                            .find(g => dayjs(g.created_at).isBefore(todayDate, "day"))
 
-                                    const startAbs = previousGame
-                                        ? getAbsoluteLp(previousGame.rank, previousGame.lp)
-                                        : getAbsoluteLp(firstGame.rank, firstGame.lp)
+                                        const startAbs = previousGame
+                                            ? getAbsoluteLp(previousGame.rank, previousGame.lp)
+                                            : getAbsoluteLp(firstGame.rank, firstGame.lp)
 
-                                    const endAbs = getAbsoluteLp(lastGame.rank, lastGame.lp)
+                                        const endAbs = getAbsoluteLp(lastGame.rank, lastGame.lp)
 
-                                    const totalLp = endAbs - startAbs
+                                        const totalLp = endAbs - startAbs
 
-                                    console.log(`[DEBUG] startAbs: ${startAbs} – endAbs: ${endAbs} – delta: ${totalLp}`)
+                                        console.log(`[DEBUG] startAbs: ${startAbs} – endAbs: ${endAbs} – delta: ${totalLp}`)
 
-                                    const relative = dayjs(day).isSame(dayjs(), "day")
-                                        ? "Today"
-                                        : dayjs(day).fromNow()
+                                        const relative = dayjs(day).isSame(dayjs(), "day")
+                                            ? "Today"
+                                            : dayjs(day).fromNow()
 
-                                    return (
-                                        <div key={day} className="mb-10">
-                                            <div className="text-xl text-jade mb-2">
-                                                <span className="text-flash">{relative} </span>
-                                                <span className={`text-[16px] ${totalLp < 0 ? "text-red-400" : ""}`}>
-                                                    {totalLp >= 0 ? "+" : ""}{totalLp} LP
-                                                </span>
-                                            </div>
-                                            <div>
-
-                                            </div>
-                                            <Table className="w-[80%] uppercase">
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[15%]">CHAMPION</TableHead>
-                                                        <TableHead className="w-[15%]">LANE</TableHead>
-                                                        <TableHead className="w-[15%]">MATCHUP</TableHead>
-                                                        <TableHead className="w-[15%]">QUEUE</TableHead>
-                                                        <TableHead className="w-[10%] text-center">LP</TableHead>
-                                                        <TableHead className="w-[15%] text-center"></TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {[...todayGames].reverse().map((g) => (
-                                                        <TableRow key={g.id}>
-                                                            <TableCell>{g.champion_name}</TableCell>
-                                                            <TableCell>{g.lane}</TableCell>
-                                                            <TableCell>{g.matchup}</TableCell>
-                                                            <TableCell>{g.queue_type}</TableCell>
-                                                            <TableCell className="text-center">
-                                                                {(() => {
-                                                                    const i = gamesList.findIndex(x => x.id === g.id)
-                                                                    const prev = gamesList[i - 1]
-                                                                    const diff = prev ? getLpDelta(prev, g) : 0
-
-                                                                    const rankChange = getRankChange(prev, g)
-                                                                    const rankParts = g.rank?.split(" ") || []
-                                                                    const tier = rankParts[0]?.toLowerCase()
-                                                                    const tierInitial = tier?.[0]?.toUpperCase() || ""
-                                                                    const division = rankParts[1] || ""
-                                                                    const shortRank = `${tierInitial}${division}`
-
-                                                                    return (
-                                                                        <div
-                                                                            className={cn(
-                                                                                "inline-flex items-center justify-center gap-1 py-1 rounded-[3px] w-[80px] text-center",
-                                                                                diff > 0
-                                                                                    ? "bg-jade/20 text-jade"
-                                                                                    : diff < 0
-                                                                                        ? "bg-red-400/10 text-red-400"
-                                                                                        : "text-flash"
-                                                                            )}
-                                                                        >
-                                                                            {rankChange === "up" && tier && (
-                                                                                <>
-                                                                                    <ChevronsUp className="w-4 h-4 text-jade" />
-                                                                                    {/* <img
-                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
-                                                                                        alt={tier}
-                                                                                        className="w-4 h-4"
-                                                                                    /> */}
-                                                                                    <span className="text-jade text-sm">{shortRank}</span>
-                                                                                </>
-                                                                            )}
-                                                                            {rankChange === "down" && tier && (
-                                                                                <>
-                                                                                    <ChevronsDown className="w-4 h-4 text-red-400" />
-                                                                                    {/* <img
-                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
-                                                                                        alt={tier}
-                                                                                        className="w-4 h-4"
-                                                                                    /> */}
-                                                                                    <span className="text-red-400 text-sm">{shortRank}</span>
-                                                                                </>
-                                                                            )}
-                                                                            {!rankChange && (
-                                                                                <span>{`${diff >= 0 ? "+" : ""}${diff} LP`}</span>
-                                                                            )}
-                                                                        </div>
-                                                                    )
-                                                                })()}</TableCell>
-                                                            <TableCell></TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-
-                                            {index !== sortedDays.length - 1 && (
-                                                <div className="flex flex-col items-center my-4 mr-[90%]">
-                                                    <div className="w-3 h-3 bg-jade my-4" />
-                                                    <div className="w-3 h-3 bg-jade/80 my-2" />
-                                                    <div className="w-1 h-12 bg-jade/60 mt-4" />
-                                                    <div className="w-3 h-3 bg-jade/50" />
+                                        return (
+                                            <div key={day} className="mb-10">
+                                                <div className="text-xl text-jade mb-2">
+                                                    <span className="text-flash">{relative} </span>
+                                                    <span className={`text-[16px] ${totalLp < 0 ? "text-red-400" : ""}`}>
+                                                        {totalLp >= 0 ? "+" : ""}{totalLp} LP
+                                                    </span>
                                                 </div>
-                                            )}
+                                                <div>
 
-                                        </div>
-                                    )
-                                })
-                            )}
+                                                </div>
+                                                <Table className="w-[80%] uppercase">
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="w-[15%]">CHAMPION</TableHead>
+                                                            <TableHead className="w-[15%]">LANE</TableHead>
+                                                            <TableHead className="w-[15%]">MATCHUP</TableHead>
+                                                            <TableHead className="w-[15%]">QUEUE</TableHead>
+                                                            <TableHead className="w-[10%] text-center">LP</TableHead>
+                                                            <TableHead className="w-[15%] text-center"></TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {[...todayGames].reverse().map((g) => (
+                                                            <TableRow key={g.id}>
+                                                                <TableCell>{g.champion_name}</TableCell>
+                                                                <TableCell>{g.lane}</TableCell>
+                                                                <TableCell>{g.matchup}</TableCell>
+                                                                <TableCell>{g.queue_type}</TableCell>
+                                                                <TableCell className="text-center">
+                                                                    {(() => {
+                                                                        const i = gamesList.findIndex(x => x.id === g.id)
+                                                                        const prev = gamesList[i - 1]
+                                                                        const diff = prev ? getLpDelta(prev, g) : 0
+
+                                                                        const rankChange = getRankChange(prev, g)
+                                                                        const rankParts = g.rank?.split(" ") || []
+                                                                        const tier = rankParts[0]?.toLowerCase()
+                                                                        const tierInitial = tier?.[0]?.toUpperCase() || ""
+                                                                        const division = rankParts[1] || ""
+                                                                        const shortRank = `${tierInitial}${division}`
+
+                                                                        return (
+                                                                            <div
+                                                                                className={cn(
+                                                                                    "inline-flex items-center justify-center gap-1 py-1 rounded-[3px] w-[80px] text-center",
+                                                                                    diff > 0
+                                                                                        ? "bg-jade/20 text-jade"
+                                                                                        : diff < 0
+                                                                                            ? "bg-red-400/10 text-red-400"
+                                                                                            : "text-flash"
+                                                                                )}
+                                                                            >
+                                                                                {rankChange === "up" && tier && (
+                                                                                    <>
+                                                                                        <ChevronsUp className="w-4 h-4 text-jade" />
+                                                                                        {/* <img
+                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
+                                                                                        alt={tier}
+                                                                                        className="w-4 h-4"
+                                                                                    /> */}
+                                                                                        <span className="text-jade text-sm">{shortRank}</span>
+                                                                                    </>
+                                                                                )}
+                                                                                {rankChange === "down" && tier && (
+                                                                                    <>
+                                                                                        <ChevronsDown className="w-4 h-4 text-red-400" />
+                                                                                        {/* <img
+                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
+                                                                                        alt={tier}
+                                                                                        className="w-4 h-4"
+                                                                                    /> */}
+                                                                                        <span className="text-red-400 text-sm">{shortRank}</span>
+                                                                                    </>
+                                                                                )}
+                                                                                {!rankChange && (
+                                                                                    <span>{`${diff >= 0 ? "+" : ""}${diff} LP`}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        )
+                                                                    })()}</TableCell>
+                                                                <TableCell></TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+
+                                                {index !== sortedDays.length - 1 && (
+                                                    <div className="flex flex-col items-center my-4 mr-[90%]">
+                                                        <div className="w-3 h-3 bg-jade my-4" />
+                                                        <div className="w-3 h-3 bg-jade/80 my-2" />
+                                                        <div className="w-1 h-12 bg-jade/60 mt-4" />
+                                                        <div className="w-3 h-3 bg-jade/50" />
+                                                    </div>
+                                                )}
+
+                                            </div>
+                                        )
+                                    })
+                                )}
+                            </div>
+
                         </TabsContent>
 
                         <TabsContent value="goals">
@@ -335,6 +348,16 @@ export default function LearnPage() {
                             <div className="font-jetbrains mb-4 uppercase">Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.</div>
                             <div className="font-gtmono mb-4 uppercase">Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.</div>
                             <div className="font-vivala uppercase">Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.</div>
+                        </TabsContent>
+
+                        <TabsContent value="loldata-ai" className="p-4 h-full">
+                            <h2 className="text-jade text-4xl mb-8">LOLDATA AI</h2>
+                            <div className="h-[70vh] w-[80%]">
+                                <LoldataAIChat
+                                    apiUrl="/api/loldata-ai"
+                                    contextHint={nametag ? `User: ${nametag}` : undefined}
+                                />
+                            </div>
                         </TabsContent>
                     </div>
                 </Tabs>
