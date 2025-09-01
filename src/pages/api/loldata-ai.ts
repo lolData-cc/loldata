@@ -1,7 +1,7 @@
 // src/pages/api/loldata-ai.ts
-import type { NextApiRequest, NextApiResponse } from "next"
+// import type { NextApiRequest, NextApiResponse } from "next"
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" })
     return
@@ -17,6 +17,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const text = await upstream.text()
     res.status(upstream.status).send(text)
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Upstream error" })
+    res.status(500).json({ error: err?.message || "Upstream error" })
   }
 }
