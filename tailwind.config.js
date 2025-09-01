@@ -17,7 +17,8 @@ module.exports = {
         'revxneue': ['revxneue', 'monospace'],
         'vivala': ['vivala', 'monospace'],
         'scifi': ['scifi', 'monospace'],
-        'mechano': ['mechano', 'monospace']
+        'mechano': ['mechano', 'monospace'],
+        'proto': ['proto', 'monospace']
       
       },
       colors: {

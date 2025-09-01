@@ -129,6 +129,13 @@ html, body {
   src: url("/fonts/mechano.otf") format("opentype")
 }
 
+@font-face {
+  font-family: proto;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/proto.ttf") format("truetype")
+}
+
 html, body {
   @apply bg-liquirice;
 }

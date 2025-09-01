@@ -17,6 +17,7 @@ import { Airplay, ChevronsUp, ChevronsDown } from "lucide-react"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import LoldataAIChat from "@/components/loldataaichat"
+import Overview from "@/components/overview"
 
 
 dayjs.extend(relativeTime)
@@ -115,7 +116,7 @@ function getLpDelta(prev: any, curr: any): number {
 }
 
 export default function LearnPage() {
-    const { nametag, puuid } = useAuth()
+    const { nametag, puuid, region } = useAuth()
     const [gamesList, setGamesList] = useState<any[]>([])
     const [loadingGames, setLoadingGames] = useState(true)
 
@@ -164,7 +165,7 @@ export default function LearnPage() {
 
                 <Separator className="bg-flash/20 mt-0 w-screen" />
 
-                <Tabs defaultValue="games" className="flex w-full h-full gap-4">
+                <Tabs defaultValue="overview" className="flex w-full h-full gap-4">
                     <div className="border-r border-flash/10 h-full w-[30%] flex flex-col">
                         <div className="flex items-center gap-1.5 justify-end font-sourcecode font-extralight text-pine text-xl px-12 py-6">
                             <img src="/public/logo.png" className="w-8 h-8" alt="" />
@@ -174,6 +175,7 @@ export default function LearnPage() {
 
                         <div className="px-12 py-12 flex justify-end">
                             <TabsList className="flex flex-col gap-2 bg-transparent">
+                                
                                 <TabsTrigger
                                     value="games"
                                     className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
@@ -201,7 +203,12 @@ export default function LearnPage() {
                         </div>
                     </div>
 
-                    <div className="w-[70%] h-full p-6 overflow-hidden">
+                    <div className="w-[52.5%] h-full p-6 overflow-hidden">
+
+
+                        <TabsContent value="overview">
+                            <Overview nametag="ROT KARI#KURVE" region={region ?? null} puuid={puuid ?? null} />
+                        </TabsContent>
 
                         <TabsContent value="games" className="p-4 -full overflow-hidden">
                             <div className="h-full overflow-y-auto pr-2 scrollbar-hide">

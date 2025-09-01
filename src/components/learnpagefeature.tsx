@@ -1,18 +1,77 @@
 'use client';
 import { ChartNoAxesCombined, ChevronRight, Rocket, Sword } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+
+
+function TypingOnInView({
+  text,
+  speed = 50,
+  className = "",
+}: {
+  text: string;
+  speed?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLHeadingElement | null>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.55 });
+  const [typed, setTyped] = useState("");
+  const runId = useRef(0);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isInView) return;
+    const id = ++runId.current;
+    let i = 0;
+    setTyped("");
+
+    const step = () => {
+      if (runId.current !== id) return;
+      const ch = text.charAt(i);
+      if (!ch) {
+        timerRef.current = null;
+        return;
+      }
+      setTyped((prev) => prev + ch);
+      i += 1;
+      timerRef.current = window.setTimeout(step, speed);
+    };
+
+    timerRef.current = window.setTimeout(step, speed);
+
+    return () => {
+      runId.current++;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isInView, text, speed]);
+
+  const done = typed.length === text.length;
+
+  return (
+    <h1 ref={ref} className={className} aria-label={text}>
+      <span>{typed}</span>
+      <span className={`ml-1 inline-block w-[1ch] select-none ${done ? "opacity-0" : "opacity-100 animate-pulse"}`}>|</span>
+    </h1>
+  );
+}
+
 
 export function LearnPageFeature() {
   const lineLength = 40;
-
-  // Animation settings reused by both feature blocks
-  const viewport = { once: true, amount: 0.55 }; // trigger when ~55% of block is visible
+  const viewport = { once: true, amount: 0.55 };
   const transition = { duration: 0.6, ease: "easeOut" } as const;
 
   return (
     <div>
-      <h1 className="text-4xl text-jade/40 py-6"> Explore lolData features </h1>
+      <TypingOnInView
+        text="Explore lolData features"
+        speed={50}
+        className="text-4xl text-jade/40 py-6"
+      />
       <Separator className="relative w-screen border-t border-flash/20 right-[335px]" />
       <div className="flex justify-between px-24">
         <div className="relative w-full h-[1000px]">
@@ -26,8 +85,6 @@ export function LearnPageFeature() {
               text-flash/20
             "
           />
-
-          {/* === Primo blocco: appare quando in-view === */}
           <motion.div
             className="absolute top-24 right-full -left-3 z-10 w-full space-y-3"
             initial={{ opacity: 0, x: -24, filter: "blur(4px)" }}
@@ -67,7 +124,6 @@ export function LearnPageFeature() {
                 />
               </div>
             </div>
-
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -77,7 +133,6 @@ export function LearnPageFeature() {
             >
               Train smarter with our AI coach. It tracks your games, identifies weaknesses, and delivers daily reports with clear steps to improve.
             </motion.div>
-
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -104,8 +159,6 @@ export function LearnPageFeature() {
               </div>
             </motion.div>
           </motion.div>
-
-          {/* === Secondo blocco: appare quando in-view === */}
           <motion.div
             className="absolute top-[550px] right-full -left-3 z-10 w-full space-y-3"
             initial={{ opacity: 0, x: -24, filter: "blur(4px)" }}
@@ -144,7 +197,6 @@ export function LearnPageFeature() {
                 />
               </div>
             </div>
-
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -154,7 +206,6 @@ export function LearnPageFeature() {
             >
               Train smarter with our AI coach. It tracks your games, identifies weaknesses, and delivers daily reports with clear steps to improve.
             </motion.div>
-
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -182,8 +233,6 @@ export function LearnPageFeature() {
             </motion.div>
           </motion.div>
         </div>
-
-        {/* Linea di @ con opacità decrescente */}
         <div className="flex flex-col items-center h-[600px]">
           {Array.from({ length: lineLength }).map((_, i) => {
             const opacity = 1 - i / lineLength;
