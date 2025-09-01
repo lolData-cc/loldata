@@ -54,7 +54,6 @@ function AnimatedSection({ children }: { children: React.ReactNode }) {
 }
 
 /* Stagger: applica ritardo ai figli diretti + espone la var CSS --sd */
-/* Stagger: applica ritardo ai figli diretti + espone la var CSS --sd */
 function Stagger({
   children,
   step = 500,
@@ -69,27 +68,28 @@ function Stagger({
   return (
     <>
       {items.map((child, i) => {
-        // Dì chiaramente a TS che il child è un ReactElement con props "any"
-        if (!isValidElement<any>(child)) return child;
+        // Narrow esplicito a ReactElement<any>
+        if (!isValidElement(child)) return child;
+        const el = child as React.ReactElement<any>;
 
         const delay = `${from + i * step}ms`;
 
-        // Prepara uno style compatibile con CSSProperties + custom property
+        // style: CSSProperties + custom property --sd
         const style: React.CSSProperties & Record<string, string> = {
-          ...(child.props.style ?? {}),
+          ...(el.props?.style ?? {}),
           transitionDelay: delay,
           ["--sd"]: delay,
         };
 
         const cls =
-          (child.props.className ?? "") + " transition-all duration-700 ease-out";
+          (el.props?.className ?? "") + " transition-all duration-700 ease-out";
 
-        // Clona usando "any" sulle props aggiunte, così non si lamenta del tipo unknown
-        return cloneElement<any>(child, { style, className: cls } as any);
+        return cloneElement(el, { style, className: cls });
       })}
     </>
   );
 }
+
 
 
 
