@@ -54,34 +54,43 @@ function AnimatedSection({ children }: { children: React.ReactNode }) {
 }
 
 /* Stagger: applica ritardo ai figli diretti + espone la var CSS --sd */
+/* Stagger: applica ritardo ai figli diretti + espone la var CSS --sd */
 function Stagger({
-    children,
-    step = 500,
-    from = 0,
+  children,
+  step = 500,
+  from = 0,
 }: {
-    children: React.ReactNode;
-    step?: number;
-    from?: number;
+  children: React.ReactNode;
+  step?: number;
+  from?: number;
 }) {
-    const items = Children.toArray(children);
-    return (
-        <>
-            {items.map((child, i) => {
-                if (!isValidElement(child)) return child;
-                const delay = `${from + i * step}ms`;
-                const style = {
-                    ...(child.props as any).style,
-                    transitionDelay: delay,
-                    ['--sd' as any]: delay, // variabile riusabile dai discendenti
-                };
-                const cls =
-                    ((child.props as any).className ?? "") +
-                    " transition-all duration-700 ease-out";
-                return cloneElement(child, { style, className: cls });
-            })}
-        </>
-    );
+  const items = Children.toArray(children);
+
+  return (
+    <>
+      {items.map((child, i) => {
+        // Dì chiaramente a TS che il child è un ReactElement con props "any"
+        if (!isValidElement<any>(child)) return child;
+
+        const delay = `${from + i * step}ms`;
+
+        // Prepara uno style compatibile con CSSProperties + custom property
+        const style: React.CSSProperties & Record<string, string> = {
+          ...(child.props.style ?? {}),
+          transitionDelay: delay,
+          ["--sd"]: delay,
+        };
+
+        const cls =
+          (child.props.className ?? "") + " transition-all duration-700 ease-out";
+
+        // Clona usando "any" sulle props aggiunte, così non si lamenta del tipo unknown
+        return cloneElement<any>(child, { style, className: cls } as any);
+      })}
+    </>
+  );
 }
+
 
 
 /** Pin tra due Y fisse:
@@ -186,7 +195,7 @@ export function SearchPageFeature() {
                 {/* Immagine: before -> absolute; pin -> fixed (X congelata); after -> absolute nella stessa posizione */}
                 <img
                     ref={imgRef}
-                    src="/public/img/irelia 1.png"
+                    src="/img/irelia 1.png"
                     alt=""
                     aria-hidden="true"
                     className={`
