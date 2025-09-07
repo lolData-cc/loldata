@@ -139,3 +139,71 @@ html, body {
 html, body {
   @apply bg-liquirice;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+.mvpAceGlow {
+  --glow-blue:  #0058ff;
+  --glow-mint:  #9fffc3;
+
+  background-image:
+    radial-gradient(
+      380px 120% at -80px 50%,
+      rgba(0, 88, 255, 0.45) 0%,
+      rgba(159, 255, 195, 0.35) 30%,
+      rgba(159, 255, 195, 0.20) 60%,
+      rgba(159, 255, 195, 0.10) 80%,
+      transparent 95%
+    ),
+    linear-gradient(
+      to right,
+      rgba(0, 88, 255, 0.20) 0%,
+      rgba(159, 255, 195, 0.12) 45%,
+      rgba(159, 255, 195, 0.08) 75%,
+      transparent 95%
+    );
+
+  background-repeat: no-repeat;
+  filter: blur(8px);
+  pointer-events: none;
+
+  animation: cyberSlowWave 12s ease-in-out infinite;
+  opacity: 0.35;
+}
+
+@keyframes cyberSlowWave {
+  0%   { opacity: 0.28; }
+  25%  { opacity: 0.40; } /* primo lieve picco */
+  50%  { opacity: 0.60; } /* massimo picco, metà ciclo */
+  75%  { opacity: 0.40; }
+  100% { opacity: 0.28; }
+}
+
+@keyframes cyberPulse {
+  0%, 100% { opacity: 0.28; }
+  50%      { opacity: 0.45; } /* picco luminoso */
+}
+
+@keyframes cyberPulse {
+  0%, 100% { opacity: 0.22; }
+  50%      { opacity: 0.38; } /* respiro leggero */
+}
+
+@keyframes cyberDrift {
+  0%   { background-position: right center, right center,    0% 0; }
+  100% { background-position: right center, right center, -200% 0; }
+}
+
+/* Rispetta utenti con riduzione movimento */
+@media (prefers-reduced-motion: reduce) {
+  .mvpAceGlow { animation: none; }
+}

@@ -31,6 +31,7 @@ module.exports = {
         citrine: '#FFB615',
       },
       animation: {
+        pulseGlow: 'pulseGlow 10s ease-in-out infinite',
         glow: 'glowPulse 3s ease-in-out infinite',
         glitch: 'glitch 1s infinite',
         'rotate-outline': 'rotateOutline 2s linear infinite',
@@ -46,6 +47,10 @@ module.exports = {
       keyframes: {
         'border-spin': {
           '100%': { transform: 'rotate(-360deg)' },
+        },
+        pulseGlow: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.7' },
+          '50%': { transform: 'scale(1.15)', opacity: '0' }, // espansione più piccola
         },
         glitch: {
           '0%': { transform: 'translate(0)' },

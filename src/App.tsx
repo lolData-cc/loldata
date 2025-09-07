@@ -30,6 +30,7 @@ import WordShiftOnScroll from "./components/features1";
 import { LearnPageFeature } from "./components/learnpagefeature";
 import { SearchPageFeature } from "./components/searchpagefeature";
 import SearchDialogMock from "./components/searchdialogmock";
+import { Button } from "./components/ui/button";
 //
 
 declare global {
@@ -63,7 +64,7 @@ function HomePage() {
 
   return (
     <div className="relative min-h-screen">
-      <div className="fixed inset-0 z-0">
+      {/* <div className="fixed inset-0 z-0">
         <div className="relative w-full h-screen overflow-hidden">
           <img
             src="/img/sion.png"
@@ -73,7 +74,7 @@ function HomePage() {
         </div>
         <div className="absolute inset-0 bg-black/75 backdrop-blur-" />
         <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
-      </div>
+      </div> */}
 
       <div className="relative z-10">
         <div className="flex flex-col space-y-32">
@@ -114,8 +115,26 @@ function HomePage() {
           {/* <PricingPlans /> */}
           <SearchPageFeature />
 
+          <section className="flex items-center justify-center h-32">
+            <div
+              className="relative h-32 w-[60%] rounded-2xl bg-neutral-900
+      border border-[#00d992]/10
+      shadow-[0_0_25px_12px_rgba(0,217,146,0.25),0_0_60px_30px_rgba(0,217,146,0.02),0_0_120px_60px_rgba(0,217,146,0.02)] text-center p-4 text-flash/70 flex flex-col justify-between"
+            >
+              <span className="text-2xl font-gtamerica"> Are you with us?</span>
 
-          <section className="mt-8">
+              <div className="mb-3 space-x-4">
+                <Button className="">
+                  BECOME A MEMBER
+                </Button >
+                <Button className="border-flash/10 border text-flash/40" variant="purchase">
+                  CONTACT US
+                </Button >
+              </div>
+              </div>
+          </section>
+
+<section className="mt-8">
             <StreamersInfiniteCarousel />
           </section>
 
@@ -151,7 +170,6 @@ export function RootLayout({
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
         <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
-          {/* 👇 sticky solo su "/" */}
           <Navbar sticky={navbarSticky} />
           <div className="mt-10 w-full">{children}</div>
           <Footer className="mt-32" />
@@ -165,7 +183,6 @@ function App() {
     <AuthProvider>
       <LiveViewerProvider>
         <ChampionPickerProvider>
-          {/* ✅ Toaster globale, sempre presente e prima dei toast */}
           <Toaster
             position="top-right"
             theme="dark"

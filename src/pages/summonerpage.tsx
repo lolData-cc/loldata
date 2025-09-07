@@ -272,7 +272,6 @@ export default function SummonerPage() {
       });
   }, []);
 
-  //checks if the user is coming back from matchpage and matches the y position
   useEffect(() => {
     const savedScroll = sessionStorage.getItem("summonerScrollY");
     if (savedScroll) {
@@ -1027,6 +1026,9 @@ const filteredMatches = matches.filter((m) => {
                               : participant && participant.deaths > 0
                                 ? (participant.kills + participant.assists) / participant.deaths
                                 : 0;
+                          const isSelfMvpOrAce =
+                            !!summonerInfo?.puuid &&
+                            (summonerInfo.puuid === mvpWin || summonerInfo.puuid === mvpLose);
 
                           return (
                             <li
@@ -1036,6 +1038,15 @@ const filteredMatches = matches.filter((m) => {
                               {/* ✅ LAYER CLICCABILE */}
                               <div className="flex items-center justify-center h-full">
                                 <div className="w-[95%]">
+
+
+{isSelfMvpOrAce && (
+    <div
+      className="absolute inset-0 z-0 mvpAceGlow"
+      /* opzionale: override colori via CSS vars */
+      style={{ ['--glow-blue' as any]:'#0058ff', ['--glow-mint' as any]:'#9fffc3' }}
+    />
+  )}
 
 
                                   {/* ✅ BORDO COLORATO */}
