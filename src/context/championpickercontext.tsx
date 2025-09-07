@@ -463,7 +463,7 @@ function SheetChampionPicker({
             onChange={(e) => setQ(e.target.value)}
             className="bg-neutral-900 border-neutral-800"
           />
-          <Button variant="secondary" onClick={() => setQ("")}>
+          <Button onClick={() => setQ("")}>
             Clear
           </Button>
         </div>
