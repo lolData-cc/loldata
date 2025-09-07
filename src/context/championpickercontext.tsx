@@ -1,13 +1,34 @@
 // src/context/championPickerContext.tsx
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
+// shadcn sheet picker
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
 export type ChampItem = { id: string; label: string; image: string };
+type PickerMode = "radial" | "sheet";
 
 type Ctx = {
   openPicker: () => void;
   closePicker: () => void;
+  pickerMode: PickerMode;
+  setPickerMode: (m: PickerMode) => void;
 };
 
 const ChampionPickerCtx = createContext<Ctx | null>(null);
@@ -18,38 +39,56 @@ export function useChampionPicker() {
   return ctx;
 }
 
-export function ChampionPickerProvider({ children }: { children: React.ReactNode }) {
+// ─────────────────────────────────────────────────────────────
+// Provider
+// ─────────────────────────────────────────────────────────────
+export function ChampionPickerProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ChampItem[]>([]);
-  const [latestPatch, setLatestPatch] = useState("15.13.1"); // fallback
+  const [latestPatch, setLatestPatch] = useState("15.13.1");
+
+  const [pickerMode, setPickerMode] = useState<PickerMode>(() => {
+    if (typeof window === "undefined") return "sheet";
+    try {
+      const saved = localStorage.getItem("pickerMode");
+      return saved === "sheet" || saved === "radial" ? (saved as PickerMode) : "sheet";
+    } catch {
+      return "sheet";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("pickerMode", pickerMode);
+    } catch {}
+  }, [pickerMode]);
+
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Chiudi automaticamente quando cambia route
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
 
-  // Versions.json (DDragon)
   useEffect(() => {
     fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then(r => r.json())
-      .then((versions: string[]) => { if (versions?.length) setLatestPatch(versions[0]); })
+      .then((r) => r.json())
+      .then((versions: string[]) => {
+        if (Array.isArray(versions) && versions.length > 0) setLatestPatch(versions[0]);
+      })
       .catch(() => {});
   }, []);
 
-  // Carica champions (icone + id)
   useEffect(() => {
-    // fetch(`https://cdn.loldata.cc/${latestPatch}/data/en_US/champion.json`)
-    fetch(`https://cdn.loldata.cc/15.13.1/data/en_US/champion.json`)
-      .then(r => r.json())
+    fetch(`https://cdn.loldata.cc/${latestPatch}/data/en_US/champion.json`)
+      .then((r) => r.json())
       .then((data) => {
-        const champs = Object.values<any>(data.data ?? {});
+        const champs = Object.values<any>(data?.data ?? {});
         const sorted = champs.sort((a, b) => a.id.localeCompare(b.id));
         const list: ChampItem[] = sorted.map((c: any) => ({
           id: String(c.id),
           label: c.id,
-          image: `https://cdn.loldata.cc/15.13.1/img/champion/${c.id}.png`,
+          image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${c.id}.png`,
         }));
         setItems(list);
       })
@@ -59,38 +98,40 @@ export function ChampionPickerProvider({ children }: { children: React.ReactNode
   const openPicker = useCallback(() => setOpen(true), []);
   const closePicker = useCallback(() => setOpen(false), []);
 
-  const onConfirm = useCallback((it: ChampItem) => {
-    // chiudi e vai alla pagina del campione
-    setOpen(false);
-    navigate(`/champions/${it.id}`);
-  }, [navigate]);
+  const onConfirm = useCallback(
+    (it: ChampItem) => {
+      setOpen(false);
+      navigate(`/champions/${it.id}`);
+    },
+    [navigate]
+  );
 
-  const ctxValue = useMemo(() => ({ openPicker, closePicker }), [openPicker, closePicker]);
+  const ctxValue = useMemo(
+    () => ({ openPicker, closePicker, pickerMode, setPickerMode }),
+    [openPicker, closePicker, pickerMode]
+  );
 
   return (
     <ChampionPickerCtx.Provider value={ctxValue}>
       {children}
+
       {/* Portal: il picker è renderizzato in cima a tutto, ovunque tu sia */}
-      {typeof document !== "undefined" && createPortal(
-        <RadialChampionDock
-          open={open}
-          items={items}
-          onClose={closePicker}
-          onConfirm={onConfirm}
-        />,
-        document.body
-      )}
+      {typeof document !== "undefined" &&
+        createPortal(
+          pickerMode === "radial" ? (
+            <RadialChampionDock open={open} items={items} onClose={closePicker} onConfirm={onConfirm} />
+          ) : (
+            <SheetChampionPicker open={open} items={items} onClose={closePicker} onConfirm={onConfirm} />
+          ),
+          document.body
+        )}
     </ChampionPickerCtx.Provider>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   RadialChampionDock: usa il tuo RadialWheel adattato
-   ───────────────────────────────────────────────────────────── */
-
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+// ─────────────────────────────────────────────────────────────
+// Radial Champion Dock (TUO COMPONENTE ORIGINALE)
+// ─────────────────────────────────────────────────────────────
 
 type Pt = { x: number; y: number };
 const degToRad = (d: number) => (d * Math.PI) / 180;
@@ -100,11 +141,11 @@ const polar = (cx: number, cy: number, r: number, angleDeg: number): Pt => {
 };
 
 type LaidOut = {
-  item: ChampItem
-  ringIndex: number
-  startAngleBase: number
-  endAngleBase: number
-}
+  item: ChampItem;
+  ringIndex: number;
+  startAngleBase: number;
+  endAngleBase: number;
+};
 
 function layoutWindowedPerRing(
   items: ChampItem[],
@@ -131,7 +172,12 @@ function layoutWindowedPerRing(
   return result;
 }
 
-function RadialChampionDock({ open, items, onClose, onConfirm }: {
+function RadialChampionDock({
+  open,
+  items,
+  onClose,
+  onConfirm,
+}: {
   open: boolean;
   items: ChampItem[];
   onClose: () => void;
@@ -150,7 +196,6 @@ function RadialChampionDock({ open, items, onClose, onConfirm }: {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative h-full w-full overflow-hidden">
-
           {/* BLUR GRADIENTE: forte in basso -> nullo in alto */}
           <div
             className="pointer-events-none absolute inset-0
@@ -169,11 +214,15 @@ function RadialChampionDock({ open, items, onClose, onConfirm }: {
   );
 }
 
-
-
 function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (item: ChampItem) => void }) {
-  const width = 820, height = 820, cx = width / 2, cy = height / 2;
-  const ringCount = 3, baseInnerRadius = 126, ringGap = 6, ringThickness = 72;
+  const width = 820,
+    height = 820,
+    cx = width / 2,
+    cy = height / 2;
+  const ringCount = 3,
+    baseInnerRadius = 126,
+    ringGap = 6,
+    ringThickness = 72;
   const ringCols = [12, 18, 24];
 
   const [colOffset, setColOffset] = useState(0);
@@ -191,7 +240,8 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
         const outwardBias = (ringCount - 1 - r) * 10;
         const tileR = innerR + ringThickness / 2 + outwardBias;
         const { x, y } = polar(cx, cy, tileR, mid);
-        const basePad = 4, extraPad = (ringCount - 1 - r) * 6;
+        const basePad = 4,
+          extraPad = (ringCount - 1 - r) * 6;
         const pad = basePad + extraPad;
         const avatarSize = Math.max(22, ringThickness - pad * 2);
         out.push({ r, k, cx: x, cy: y, avatarSize, clipId: `clip-r${r}-k${k}` });
@@ -204,12 +254,12 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
   const slotItems = useMemo(() => {
     const result: (ChampItem | null)[] = [];
     if (!items.length) return result;
-    const maxCols = Math.max(...ringCols);
     const totalCols = Math.ceil(items.length / ringCount);
 
     for (const s of slots) {
       const colsVis = ringCols[s.r] ?? ringCols[ringCols.length - 1];
-      const kGlobal = (colOffset % totalCols + totalCols) % totalCols; // normalizza
+      void colsVis; // kept for clarity; no direct usage below
+      const kGlobal = ((colOffset % totalCols) + totalCols) % totalCols; // normalizza
       // k visibile nello slot s.k diventa una "colonna" globale
       const col = (kGlobal + s.k) % totalCols;
       const idx = col * ringCount + s.r;
@@ -225,30 +275,26 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
         if (!it) continue;
         const img = new Image();
         img.decoding = "async";
-        img.loading = "eager" as any;
+        (img as any).loading = "eager";
         img.src = it.image;
       }
     };
     preload(slotItems); // visibili ora
-    // anche la prossima "pagina"
-    const next = new Array(slotItems.length).fill(null);
+
     if (items.length) {
       const totalCols = Math.ceil(items.length / ringCount);
       const nextOffset = colOffset + 1;
-      const tmp = [];
+      const tmp: (ChampItem | null)[] = [];
       for (const s of slots) {
         const col = ((nextOffset % totalCols) + totalCols) % totalCols;
-        const idx = (col + s.k) % totalCols * ringCount + s.r;
+        const idx = ((col + s.k) % totalCols) * ringCount + s.r;
         tmp.push(items[idx] ?? null);
       }
       preload(tmp);
     }
   }, [slotItems, colOffset, items, ringCount, slots]);
 
-  const selectedItem = useMemo(
-    () => (selectedId ? items.find(i => i.id === selectedId) ?? null : null),
-    [selectedId, items]
-  );
+  const selectedItem = useMemo(() => (selectedId ? items.find((i) => i.id === selectedId) ?? null : null), [selectedId, items]);
 
   return (
     <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
@@ -272,7 +318,7 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
           </filter>
 
           {/* clipPath stabili per slot */}
-          {slots.map(s => (
+          {slots.map((s) => (
             <clipPath id={s.clipId} key={s.clipId}>
               <circle cx={s.cx} cy={s.cy} r={s.avatarSize / 2} />
             </clipPath>
@@ -288,8 +334,12 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
           return (
             <circle
               key={`ring-outline-${r}`}
-              cx={cx} cy={cy} r={rOuter}
-              fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={1}
+              cx={cx}
+              cy={cy}
+              r={rOuter}
+              fill="none"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth={1}
               style={{ pointerEvents: "none" }}
             />
           );
@@ -303,10 +353,17 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
           return (
             <g
               key={`slot-${s.r}-${s.k}`}
-              role="button" tabIndex={0}
-              aria-label={it?.label ?? "empty"} aria-pressed={!!isSelected}
+              role="button"
+              tabIndex={0}
+              aria-label={it?.label ?? "empty"}
+              aria-pressed={!!isSelected}
               onClick={() => it && setSelectedId(it.id)}
-              onKeyDown={(e) => { if (it && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelectedId(it.id); } }}
+              onKeyDown={(e) => {
+                if (it && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  setSelectedId(it.id);
+                }
+              }}
               className="cursor-clicker outline-none"
             >
               {/* immagine nello slot (solo src cambia) */}
@@ -319,13 +376,14 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
                   height={s.avatarSize}
                   preserveAspectRatio="xMidYMid meet"
                   clipPath={`url(#${s.clipId})`}
-                  // piccolo fade per nascondere il cambio src
                   style={{ transition: "opacity 120ms linear" }}
                 />
               )}
 
               <circle
-                cx={s.cx} cy={s.cy} r={(s.avatarSize / 2) + (isSelected ? 2 : 0)}
+                cx={s.cx}
+                cy={s.cy}
+                r={s.avatarSize / 2 + (isSelected ? 2 : 0)}
                 fill="none"
                 stroke={isSelected ? "#00d992" : "rgba(255,255,255,0.18)"}
                 strokeWidth={isSelected ? 3 : 1.5}
@@ -337,18 +395,22 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
         })}
       </svg>
 
-      {/* Controls & confirm (invariati) */}
+      {/* Controls & confirm */}
       <div className="pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3">
         <div className="flex items-center gap-2">
-          <Button aria-label="Scroll left" size="icon"
+          <Button
+            aria-label="Scroll left"
+            size="icon"
             className="h-10 w-10 rounded-full bg-neutral-800/80 hover:bg-neutral-700"
-            onClick={() => setColOffset(o => o - 1)}
+            onClick={() => setColOffset((o) => o - 1)}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <Button aria-label="Scroll right" size="icon"
+          <Button
+            aria-label="Scroll right"
+            size="icon"
             className="h-10 w-10 rounded-full bg-neutral-800/80 hover:bg-neutral-700"
-            onClick={() => setColOffset(o => o + 1)}
+            onClick={() => setColOffset((o) => o + 1)}
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
@@ -363,5 +425,71 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
         </Button>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SheetChampionPicker (shadcn ui): alternativa semplice
+// ─────────────────────────────────────────────────────────────
+function SheetChampionPicker({
+  open,
+  items,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  items: ChampItem[];
+  onClose: () => void;
+  onConfirm: (item: ChampItem) => void;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((i) => i.label.toLowerCase().includes(term));
+  }, [q, items]);
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="bottom" className="h-[70vh] bg-neutral-950 text-flash border-t border-flash/10">
+        <SheetHeader>
+          <SheetTitle className="text-flash">Choose a champion</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-4 flex items-center gap-2">
+          <Input
+            placeholder="Search champion…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="bg-neutral-900 border-neutral-800"
+          />
+          <Button variant="secondary" onClick={() => setQ("")}>
+            Clear
+          </Button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-6 gap-3 overflow-y-auto max-h-[52vh] pr-1">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onConfirm(c)}
+              className="group rounded-md border border-neutral-800 hover:border-jade/50 p-2 text-left"
+            >
+              <img
+                src={c.image}
+                alt={c.label}
+                className="h-12 w-12 rounded-md object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="mt-2 text-xs text-flash/70 group-hover:text-flash">{c.label}</div>
+            </button>
+          ))}
+          {!filtered.length && (
+            <div className="col-span-6 text-center text-sm text-flash/50 py-8">No results</div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

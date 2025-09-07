@@ -152,7 +152,6 @@ export default function ChampionDetailPage() {
     }
 
     return () => {
-      // reset quando si lascia la pagina
       document.title = defaultTitle;
     };
   }, [champ?.name]);

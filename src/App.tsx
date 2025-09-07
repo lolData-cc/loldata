@@ -31,6 +31,7 @@ import { LearnPageFeature } from "./components/learnpagefeature";
 import { SearchPageFeature } from "./components/searchpagefeature";
 import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
+import { Jax } from "./components/areyouwithus";
 //
 
 declare global {
@@ -115,28 +116,12 @@ function HomePage() {
           {/* <PricingPlans /> */}
           <SearchPageFeature />
 
-          <section className="flex items-center justify-center h-32">
-            <div
-              className="relative h-32 w-[60%] rounded-2xl bg-neutral-900
-      border border-[#00d992]/10
-      shadow-[0_0_25px_12px_rgba(0,217,146,0.25),0_0_60px_30px_rgba(0,217,146,0.02),0_0_120px_60px_rgba(0,217,146,0.02)] text-center p-4 text-flash/70 flex flex-col justify-between"
-            >
-              <span className="text-2xl font-gtamerica"> Are you with us?</span>
+          <Jax />
 
-              <div className="mb-3 space-x-4">
-                <Button className="">
-                  BECOME A MEMBER
-                </Button >
-                <Button className="border-flash/10 border text-flash/40" variant="purchase">
-                  CONTACT US
-                </Button >
-              </div>
-              </div>
-          </section>
-
-<section className="mt-8">
+          <section className="mt-8">
             <StreamersInfiniteCarousel />
           </section>
+
 
         </div>
       </div>
