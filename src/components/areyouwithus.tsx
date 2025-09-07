@@ -14,7 +14,7 @@ export const Jax = () => {
     };
 
 return (
-  <div className="relative bg-[#090909] w-screen h-[308px] right-[335px] overflow-hidden border-y border-flash/10">
+  <div className="relative bg-[#040B0D] w-screen h-[308px] right-[335px] overflow-hidden border-y border-flash/10">
     {/* Griglia */}
     <div
       className="

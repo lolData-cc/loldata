@@ -32,6 +32,7 @@ import { SearchPageFeature } from "./components/searchpagefeature";
 import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
+import { HomeYasuo } from "./components/home";
 //
 
 declare global {
@@ -80,20 +81,9 @@ function HomePage() {
       <div className="relative z-10">
         <div className="flex flex-col space-y-32">
           <div>
-            <div className="py-4 text-center">
-              <p className="text-jade text-5xl">{text}</p>
-              <p
-                className={`
-          text-flash/50 text-xl pt-2 transition-opacity duration-1000
-          ${showSubtitle ? "opacity-100" : "opacity-0"}
-        `}
-              >
-                The new frontier of League of Legends improvement <br />
-                featuring your personal AI assistant
-              </p>
-            </div>
+            <HomeYasuo />
 
-            <div className="relative w-full flex justify-center mt-12">
+            {/* <div className="relative w-full flex justify-center mt-12">
               <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
               <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
               <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
@@ -108,7 +98,7 @@ function HomePage() {
                 decoding="async"
                 draggable={false}
               />
-            </div>
+            </div> */}
           </div>
 
           <LearnPageFeature />
@@ -121,6 +111,8 @@ function HomePage() {
           <section className="mt-8">
             <StreamersInfiniteCarousel />
           </section>
+
+          
 
 
         </div>
