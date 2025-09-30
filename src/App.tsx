@@ -34,7 +34,6 @@ import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
 import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
-import { shineToast } from "@/components/ui/shine-toast"
 import PlaygroundPage from "./pages/playgroundpage";
 //
 

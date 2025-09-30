@@ -24,7 +24,12 @@ import { Error404 } from "@/components/error404";
 // ─────────────────────────────────────────────────────────────
 type Role = "TOP" | "JNG" | "MID" | "ADC" | "SUP";
 
-export type ChampItem = { id: string; label: string; image: string,  roles: Role[]; };
+export type ChampItem = {
+  id: string;
+  label: string;
+  image: string;
+  roles?: Role[]; // <-- opzionale
+};
 type PickerMode = "radial" | "sheet";
 
 type Ctx = {
