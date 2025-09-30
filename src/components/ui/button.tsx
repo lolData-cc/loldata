@@ -17,6 +17,7 @@ const buttonVariants = cva(
           "border border-input bg-none hover:text-liquirice hover:bg-flash",
         link: "text-flash underline-offset-4 hover:underline",
         purchase: "border border-input bg-none hover:text-liquirice hover:bg-flash/10 hover:text-flash/50",
+        solid: "bg-[#11382E] hover:bg-[#195848] text-jade text-sm"
       },
       size: {
         default: "px-5 py-2",

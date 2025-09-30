@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button"
 import { Search, Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
 import { API_BASE_URL } from "@/config"
+import { BorderBeam } from "./ui/border-beam"
 // #endregion
 
 type SearchDialogProps = {
@@ -52,21 +53,30 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
 
   // #region functions
   const handleSearch = () => {
-    if (!input.includes("#")) return
-    const [nameRaw, tagRaw] = input.split("#")
-    const name = nameRaw.trim()
-    const tag = tagRaw.trim()
+    let nameRaw = "";
+    let tagRaw = "";
 
-    if (!name || !tag) return
+    if (input.includes("#")) {
+      [nameRaw, tagRaw] = input.split("#");
+    } else {
+      nameRaw = input;
+      tagRaw = "EUW";
+    }
 
-    const formattedName = name.replace(/\s+/g, "")
-    const formattedTag = tag.toUpperCase()
-    const slug = `${formattedName}-${formattedTag}`
+    const name = nameRaw.trim();
+    let tag = (tagRaw || "").trim();
 
-    navigate(`/summoners/${region.toLowerCase()}/${slug}`)
-    setOpen(false)
-    setInput("")
-  }
+    if (!name) return;
+    if (!tag) tag = "EUW";
+
+    const formattedName = name.replace(/\s+/g, "");
+    const formattedTag = tag.toUpperCase();
+    const slug = `${formattedName}-${formattedTag}`;
+
+    navigate(`/summoners/${region.toLowerCase()}/${slug}`);
+    setOpen(false);
+    setInput("");
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,6 +117,7 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
       <DialogContent className="w-full max-w-xl bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
         <div className="w-full relative">
           <div className="font-jetbrains bg-liquirice/90 top-60 select-none border-flash/10 border px-7 py-5 rounded-md">
+            <BorderBeam duration={8} size={100} />
             <DialogHeader >
               <DialogTitle className=" text-flash flex justify-between items-center">
                 <div>

@@ -70,9 +70,10 @@ export function LearnPageFeature() {
       <TypingOnInView
         text="Explore lolData features"
         speed={50}
-        className="text-4xl text-jade/40 py-6"
+        className="text-3xl text-jade py-6 font-scifi"
       />
-      <Separator className="relative w-screen border-t border-flash/20 right-[335px]" />
+      <Separator className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen border-t border-flash/20" />
+
       <div className="flex justify-between px-24">
         <div className="relative w-full h-[1000px]">
           <Separator
@@ -114,7 +115,7 @@ export function LearnPageFeature() {
                 />
               </div>
               <div className="flex items-center text-flash/90 group-hover:text-flash/95 gap-1.5 group">
-                <span className="text-xl">Improve doing allthis and that</span>
+                <span className="text-xl">Let the AI Coach help you</span>
                 <ChevronRight
                   className="
                     w-4 h-4
@@ -129,7 +130,7 @@ export function LearnPageFeature() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={viewport}
               transition={{ ...transition, delay: 0.06 }}
-              className="w-[45%] ml-10 text-[15px] text-flash/75 font-geist"
+              className="w-[45%] ml-10 text-flash/75 font-geist font-extralight text-[14px]"
             >
               Train smarter with our AI coach. It tracks your games, identifies weaknesses, and delivers daily reports with clear steps to improve.
             </motion.div>
@@ -138,7 +139,7 @@ export function LearnPageFeature() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={viewport}
               transition={{ ...transition, delay: 0.12 }}
-              className="w-[45%] ml-10 text-[15px] pt-4"
+              className="w-[45%] ml-10 text-[14px] pt-4"
             >
               <div className="space-y-2 text-sm text-flash/30 uppercase font-jetbrains">
                 <Separator className="w-full bg-flash/10" />
@@ -187,7 +188,7 @@ export function LearnPageFeature() {
                 />
               </div>
               <div className="flex items-center text-flash/90 group-hover:text-flash/95 gap-1.5 group">
-                <span className="text-xl">Improve doing allthis and that</span>
+                <span className="text-xl">The AI chatbot is always ready</span>
                 <ChevronRight
                   className="
                     w-4 h-4
@@ -202,16 +203,16 @@ export function LearnPageFeature() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={viewport}
               transition={{ ...transition, delay: 0.06 }}
-              className="w-[45%] ml-10 text-[15px] text-flash/75 font-geist"
+              className="w-[45%] ml-10 text-[14px] text-flash/75 font-geist"
             >
-              Train smarter with our AI coach. It tracks your games, identifies weaknesses, and delivers daily reports with clear steps to improve.
+              Ask anything, anytime—matchups, objective timing, wave states, or item swaps. Our 24/7 AI turns your questions into clear, actionable calls.
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={viewport}
               transition={{ ...transition, delay: 0.12 }}
-              className="w-[45%] ml-10 text-[15px] pt-4"
+              className="w-[45%] ml-10 text-[1px] pt-4"
             >
               <div className="space-y-2 text-sm text-flash/30 uppercase font-jetbrains">
                 <Separator className="w-full bg-flash/10" />

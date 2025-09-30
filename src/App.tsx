@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom"
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
@@ -12,7 +12,7 @@ import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
 import { LiveViewerProvider } from "./context/liveviewercontext";
 import { LiveToastOnBoot } from "@/components/livetoastonboot"
-
+import { DotPattern } from "@/components/ui/dot-pattern"
 if (typeof window !== "undefined") {
   // @ts-expect-error: expose supabase on window for console debugging
   window.supabase = supabase
@@ -33,6 +33,9 @@ import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
 import { HomeYasuo } from "./components/home";
+import LeaderboardPage from "@/pages/leaderboardpage";
+import { shineToast } from "@/components/ui/shine-toast"
+import PlaygroundPage from "./pages/playgroundpage";
 //
 
 declare global {
@@ -41,10 +44,24 @@ declare global {
   }
 }
 
+
+
 function HomePage() {
   const [text, setText] = useState("")
   const [showSubtitle, setShowSubtitle] = useState(false)
   const fullText = "The future of Improvement"
+
+  const learnRef = useRef<HTMLDivElement | null>(null);
+
+  const handleDiscover = () => {
+    if (learnRef.current) {
+      const top = learnRef.current.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: top - 80, // 👈 offset di 80px (cambia a piacere)
+        behavior: "smooth",
+      });
+    }
+  };
 
   useEffect(() => {
     let cancelled = false
@@ -66,54 +83,20 @@ function HomePage() {
 
   return (
     <div className="relative min-h-screen">
-      {/* <div className="fixed inset-0 z-0">
-        <div className="relative w-full h-screen overflow-hidden">
-          <img
-            src="/img/sion.png"
-            alt="bg"
-            className="absolute top-20 left-0 w-full h-auto object-cover object-top -translate-y-10"
-          />
-        </div>
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-" />
-        <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" />
-      </div> */}
-
       <div className="relative z-10">
-        <div className="flex flex-col space-y-32">
+        <div className="flex flex-col space-y-16">
           <div>
-            <HomeYasuo />
-
-            {/* <div className="relative w-full flex justify-center mt-12">
-              <div className="absolute top-[20%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-              <div className="absolute top-[35%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-              <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none transform -translate-y-1/2" />
-              <div className="absolute top-[65%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-              <div className="absolute top-[80%] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-flash/40 to-transparent z-0 pointer-events-none" />
-
-              <img
-                src="/demos/learndemo.png"
-                alt=""
-                className="w-[65%] relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
-                loading="lazy"
-                decoding="async"
-                draggable={false}
-              />
-            </div> */}
+            <HomeYasuo onDiscover={handleDiscover} />
+            <div ref={learnRef} id="learn">
+              <LearnPageFeature />
+            </div>
           </div>
-
-          <LearnPageFeature />
-
-          {/* <PricingPlans /> */}
+            
           <SearchPageFeature />
-
           <Jax />
-
           <section className="mt-8">
             <StreamersInfiniteCarousel />
           </section>
-
-          
-
 
         </div>
       </div>
@@ -128,6 +111,7 @@ export function RootLayout({
 }>) {
   const { pathname } = useLocation()
   const navbarSticky = pathname === "/"
+  const contentMargin = pathname === "/" ? "mt-0" : "mt-10"
 
   return (
     <>
@@ -148,7 +132,7 @@ export function RootLayout({
       >
         <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
           <Navbar sticky={navbarSticky} />
-          <div className="mt-10 w-full">{children}</div>
+          <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />
         </div>
       </div>
@@ -157,39 +141,42 @@ export function RootLayout({
 }
 function App() {
   return (
-    <AuthProvider>
-      <LiveViewerProvider>
-        <ChampionPickerProvider>
-          <Toaster
-            position="top-right"
-            theme="dark"
-            richColors
-            closeButton
-          />
-
-          <LiveToastOnBoot />
-          <Routes>
-            <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
-            <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route
-              path="/learn"
-              element={
-                <AuthGuard>
-                  <LearnPage />
-                </AuthGuard>
-              }
+      <AuthProvider>
+        <LiveViewerProvider>
+          <ChampionPickerProvider>
+            <Toaster
+              position="top-right"
+              theme="dark"
+              richColors
+              closeButton
             />
-            <Route path="/champions/:champId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/matches/:matchId" element={<MatchPage />} />
-            <Route path="/champions" element={<ChampionPage />} />
-            <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-          </Routes>
-        </ChampionPickerProvider>
-      </LiveViewerProvider>
-    </AuthProvider>
+
+            <LiveToastOnBoot />
+            <Routes>
+              <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
+              <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route
+                path="/learn"
+                element={
+                  <AuthGuard>
+                    <LearnPage />
+                  </AuthGuard>
+                }
+              />
+              <Route path="/champions/:champId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/matches/:matchId" element={<MatchPage />} />
+              <Route path="/champions" element={<ChampionPage />} />
+              <Route path="/leaderboards" element={<RootLayout><LeaderboardPage /></RootLayout>} />
+              <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
+              <Route path="/playground" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
+            </Routes>
+          </ChampionPickerProvider>
+        </LiveViewerProvider>
+      </AuthProvider>
   )
 }
 

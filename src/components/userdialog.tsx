@@ -30,7 +30,13 @@ export function UserDialog() {
     }
   }
 
-  if (loading) return null
+if (loading) {
+  return (
+    <div className="text-flash/50 px-3 border border-flash/50 rounded-sm bg-liquirice font-jetbrains py-1.5 animate-pulse select-none text-sm">
+      <span className="opacity-70">DASHBOARD</span>
+    </div>
+  )
+}
 
   if (session) {
     return (

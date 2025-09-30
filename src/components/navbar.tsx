@@ -99,7 +99,9 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           >
             <MenuItem label="CHAMPIONS" />
           </button>
-          <MenuItem label="LEADERBOARD" />
+          <Link to="/leaderboards" className="flex-shrink-0">
+            <MenuItem label="LEADERBOARD" />
+          </Link>
           <MenuItem label="TIER LISTS" />
           <Link to="/learn" className="flex-shrink-0">
             <MenuItem label="LEARN" />

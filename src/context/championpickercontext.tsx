@@ -17,11 +17,14 @@ import { cn } from "@/lib/utils";
 // shadcn sheet picker
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { Error404 } from "@/components/error404";
 
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
-export type ChampItem = { id: string; label: string; image: string };
+type Role = "TOP" | "JNG" | "MID" | "ADC" | "SUP";
+
+export type ChampItem = { id: string; label: string; image: string,  roles: Role[]; };
 type PickerMode = "radial" | "sheet";
 
 type Ctx = {
@@ -431,6 +434,8 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
 // ─────────────────────────────────────────────────────────────
 // SheetChampionPicker (shadcn ui): alternativa semplice
 // ─────────────────────────────────────────────────────────────
+
+const ROLES: Role[] = ["TOP", "JNG", "MID", "ADC", "SUP"];
 function SheetChampionPicker({
   open,
   items,
@@ -442,20 +447,31 @@ function SheetChampionPicker({
   onClose: () => void;
   onConfirm: (item: ChampItem) => void;
 }) {
-  const [q, setQ] = useState("");
-  const filtered = useMemo(() => {
+  const [q, setQ] = React.useState("");
+  const [role, setRole] = React.useState<Role | null>(null);
+
+  const filtered = React.useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter((i) => i.label.toLowerCase().includes(term));
-  }, [q, items]);
+
+    let list = items;
+    if (role) list = list.filter((i) => i.roles?.includes(role));
+    if (term) list = list.filter((i) => i.label.toLowerCase().includes(term));
+
+    return list;
+  }, [q, role, items]);
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="h-[70vh] bg-neutral-950 text-flash border-t border-flash/10">
+      <SheetContent
+        side="right"
+        // più larga su desktop, un po' meno su mobile
+        className="w-[420px] sm:w-[460px] lg:w-[520px] bg-neutral-950 text-flash border-l border-flash/10 flex flex-col"
+      >
         <SheetHeader>
           <SheetTitle className="text-flash">Choose a champion</SheetTitle>
         </SheetHeader>
 
+        {/* barra di ricerca + clear */}
         <div className="mt-4 flex items-center gap-2">
           <Input
             placeholder="Search champion…"
@@ -463,30 +479,61 @@ function SheetChampionPicker({
             onChange={(e) => setQ(e.target.value)}
             className="bg-neutral-900 border-neutral-800"
           />
-          <Button onClick={() => setQ("")}>
-            Clear
-          </Button>
+          <Button onClick={() => setQ("")}>Clear</Button>
         </div>
 
-        <div className="mt-4 grid grid-cols-6 gap-3 overflow-y-auto max-h-[52vh] pr-1">
+        {/* tabs ruoli */}
+        <div className="mt-3 flex gap-2 flex-wrap">
+          <Button
+            variant={role === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRole(null)}
+            className="rounded-full"
+          >
+            All
+          </Button>
+          {ROLES.map((r) => (
+            <Button
+              key={r}
+              variant={role === r ? "default" : "outline"}
+              size="sm"
+              onClick={() => setRole(r)}
+              className="rounded-full"
+            >
+              {r}
+            </Button>
+          ))}
+        </div>
+
+        {/* griglia: occupa tutto lo spazio, scrollbar nascosta */}
+        <div
+          className="
+            mt-4 grid grid-cols-6 gap-3 pr-2 flex-1 overflow-y-auto
+            scrollbar-none scrollbar-hide
+          "
+        >
           {filtered.map((c) => (
             <button
               key={c.id}
               onClick={() => onConfirm(c)}
-              className="group rounded-md border border-neutral-800 hover:border-jade/50 p-2 text-left"
+              className="group rounded-md border border-neutral-800 hover:border-jade/50 p-2"
+              title={c.label}
             >
+              {/* icone più piccole */}
               <img
                 src={c.image}
                 alt={c.label}
-                className="h-12 w-12 rounded-md object-cover"
+                className="h-9 w-9 rounded-md object-cover"
                 loading="lazy"
                 decoding="async"
               />
-              <div className="mt-2 text-xs text-flash/70 group-hover:text-flash">{c.label}</div>
             </button>
           ))}
+
           {!filtered.length && (
-            <div className="col-span-6 text-center text-sm text-flash/50 py-8">No results</div>
+            <div className="col-span-6 text-center text-sm text-flash/50 py-8">
+              No results
+            </div>
           )}
         </div>
       </SheetContent>

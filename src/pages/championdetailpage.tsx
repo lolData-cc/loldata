@@ -146,7 +146,7 @@ export default function ChampionDetailPage() {
     const defaultTitle = "lolData";
 
     if (champ?.name) {
-      document.title = `lolData - ${champ.name}`;
+      document.title = `${champ.name} - lolData`;
     } else {
       document.title = defaultTitle;
     }

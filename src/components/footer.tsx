@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 // import { SearchDialog } from "@/components/searchdialog"
 // import { UserDialog } from "@/components/userdialog"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "./ui/button";
 
 type FooterProps = {
     className?: string;
@@ -47,7 +48,7 @@ export function Footer({ className = "" }: FooterProps) {
                                     PRODUCT
                                 </span>
                                 <ul className="flex flex-col gap-2 text-[13px] cursor-clicker [&>span:hover]:text-flash/80">
-                                    <span> Pricing </span>
+                                    <Link to="/pricing" className="cursor-clicker hover:text-flash/80">Pricing</Link>
                                     <span> Roadmap </span>
                                     <span> Status </span>
                                 </ul>

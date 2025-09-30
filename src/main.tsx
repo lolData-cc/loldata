@@ -6,11 +6,9 @@ import App from './App'
 import MainContext from './MainContext'
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
     <MainContext>
       <BrowserRouter>
         <App />
       </BrowserRouter>
     </MainContext>
-  </StrictMode>,
 )

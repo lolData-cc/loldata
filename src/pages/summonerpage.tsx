@@ -3,9 +3,9 @@ import { calculateLolDataScores } from "@/utils/calculateLolDataScores";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { LiveViewer } from "@/components/liveviewer"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
@@ -33,6 +33,7 @@ import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { RecentGamesSummary } from "@/components/recentgamessummary";
 import { PlayerHoverCard } from "@/components/playerhovercard";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -106,6 +107,11 @@ export default function SummonerPage() {
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
   const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
+  const [nextOffset, setNextOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const recentBadgeCount = useMemo(() => {
     if (!summonerInfo?.puuid || matches.length === 0) return 0;
@@ -158,6 +164,32 @@ export default function SummonerPage() {
   };
 
 
+  const filteredMatches = matches.filter((m) => {
+    const matchQueueId = m.match.info.queueId;
+
+    // Niente filtro queue quando è "All"
+    const isCorrectQueue =
+      selectedQueue === "All"
+        ? true
+        : (queueGroups[selectedQueue] || []).includes(matchQueueId);
+
+    const isCorrectChampion = selectedChampion ? m.championName === selectedChampion : true;
+
+    return isCorrectQueue && isCorrectChampion;
+  });
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    if (!name || !tag || !region) return;
+
+    setIsLoadingMore(true);
+    try {
+      await fetchMatches(name, tag, region, nextOffset, /* append */ true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, name, tag, region, nextOffset]);
+
   const duoStats = useMemo(() => {
     if (!summonerInfo || matches.length === 0) return [];
 
@@ -198,6 +230,30 @@ export default function SummonerPage() {
       .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
   }, [matches, summonerInfo]);
 
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onScroll() {
+      if (!listRef.current) return;
+      const items = listRef.current.querySelectorAll("li");
+      if (items.length >= 13) {
+        const thirteenth = items[12] as HTMLElement; // 0-based index
+        const rect = thirteenth.getBoundingClientRect();
+        // se il top dell’elemento è sopra la viewport, vuol dire che l’abbiamo superato
+        setShowScrollTop(rect.top < 0);
+      }
+    }
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    setNextOffset(0);
+    setHasMore(true);
+    setIsLoadingMore(false);
+  }, [name, tag, region]);
+
   useEffect(() => {
     const defaultTitle = "lolData";
 
@@ -211,7 +267,7 @@ export default function SummonerPage() {
         : name);
 
     if (baseName && baseName.trim().length > 0) {
-      document.title = `lolData - ${baseName}`;
+      document.title = `${baseName} - lolData`;
     } else {
       document.title = defaultTitle;
     }
@@ -333,6 +389,23 @@ export default function SummonerPage() {
     return () => { cancelled = true; };
   }, [summonerInfo?.puuid, region]);
 
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) loadMore();
+      },
+      { root: null, rootMargin: "200px 0px 200px 0px", threshold: 0 }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+    // riesegui quando cambia la dimensione della lista o lo stato di loading/hasMore
+  }, [loadMore, filteredMatches.length, hasMore, loading]);
+
   async function refreshData() {
 
     if (!region) {
@@ -343,13 +416,16 @@ export default function SummonerPage() {
     if (!name || !tag) return
 
     setLoading(true)
-    setSummonerInfo(null)
-    setMatches([])
+    setSummonerInfo(null);
+    setMatches([]);
     setTopChampionsSeason([]);
+    setHasMore(true);
+    setNextOffset(0);
+    setIsLoadingMore(false);
 
     const [summoner, matchData] = await Promise.all([
       fetchSummonerInfo(name, tag, region),
-      fetchMatches(name, tag, region),
+      fetchMatches(name, tag, region, 0, false),
     ])
 
     await fetch(`${API_BASE_URL}/api/summoner/view`, {
@@ -373,6 +449,20 @@ export default function SummonerPage() {
     setTimeout(() => setOnCooldown(false), COOLDOWN_MS)
   }
 
+  function LoadingSquares() {
+    return (
+      <div className="flex items-center gap-1 h-10">
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            className="w-2.5 h-2.5 bg-jade rounded-[2px] animate-pulse"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
+        ))}
+      </div>
+    );
+  }
+
   async function fetchSummonerInfo(name: string, tag: string, region: string) {
     const res = await fetch(`${API_BASE_URL}/api/summoner`, {
       method: "POST",
@@ -384,15 +474,24 @@ export default function SummonerPage() {
     setSummonerInfo(data.summoner as SummonerInfo)
   }
 
-  async function fetchMatches(name: string, tag: string, region: string) {
+  async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false) {
     const res = await fetch(`${API_BASE_URL}/api/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag, region }),
-    })
-    const data = await res.json()
-    setMatches(data.matches || [])
-    setTopChampions(data.topChampions || [])
+      body: JSON.stringify({ name, tag, region, offset, limit: 10 }),
+    });
+    const data = await res.json();
+
+    setHasMore(Boolean(data.hasMore));
+    setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
+
+    setTopChampions(data.topChampions || []);
+
+    if (append) {
+      setMatches(prev => [...prev, ...(data.matches || [])]);
+    } else {
+      setMatches(data.matches || []);
+    }
   }
 
   async function fetchSeasonStats(
@@ -418,19 +517,7 @@ export default function SummonerPage() {
   }
 
 
-const filteredMatches = matches.filter((m) => {
-  const matchQueueId = m.match.info.queueId;
 
-  // Niente filtro queue quando è "All"
-  const isCorrectQueue =
-    selectedQueue === "All"
-      ? true
-      : (queueGroups[selectedQueue] || []).includes(matchQueueId);
-
-  const isCorrectChampion = selectedChampion ? m.championName === selectedChampion : true;
-
-  return isCorrectQueue && isCorrectChampion;
-});
 
   type MatchRow = {
     match: MatchWithWin["match"];
@@ -516,7 +603,8 @@ const filteredMatches = matches.filter((m) => {
       <UltraTechBackground />
       <div className="relative flex min-h-screen -mt-4 z-10">
         <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
-          <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+          <div className="relative overflow-hidden w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
+            <BorderBeam duration={8} size={100} />
             <div className="relative w-full h-32 overflow-hidden mt-6">
               {topChampionsSeason.length > 0 && (
                 <img
@@ -984,7 +1072,7 @@ const filteredMatches = matches.filter((m) => {
             ) : filteredMatches.length === 0 ? (
               <Error404 />
             ) : (
-              <div className="space-y-1 mt-4">
+              <div ref={listRef} className="space-y-1 mt-4">
                 {[...groupedByDay.entries()].map(([dayKey, rows]) => {
                   const wins = rows.filter(r => r.win).length;
                   const losses = rows.length - wins;
@@ -1040,13 +1128,13 @@ const filteredMatches = matches.filter((m) => {
                                 <div className="w-[95%]">
 
 
-{isSelfMvpOrAce && (
-    <div
-      className="absolute inset-0 z-0 mvpAceGlow"
-      /* opzionale: override colori via CSS vars */
-      style={{ ['--glow-blue' as any]:'#0058ff', ['--glow-mint' as any]:'#9fffc3' }}
-    />
-  )}
+                                  {isSelfMvpOrAce && (
+                                    <div
+                                      className="absolute inset-0 z-0 mvpAceGlow"
+                                      /* opzionale: override colori via CSS vars */
+                                      style={{ ['--glow-blue' as any]: '#0058ff', ['--glow-mint' as any]: '#9fffc3' }}
+                                    />
+                                  )}
 
 
                                   {/* ✅ BORDO COLORATO */}
@@ -1335,11 +1423,32 @@ const filteredMatches = matches.filter((m) => {
                     </section>
                   );
                 })}
+                {/* SENTINEL per infinite scroll */}
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center">
+                  {isLoadingMore && hasMore ? (
+                    <LoadingSquares />
+                  ) : !hasMore ? (
+                    <div></div>//limit reached 
+                  ) : null}
+                </div>
               </div>
             )}
 
           </div>
         </div>
+        <button
+          aria-label="Scroll to top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className={cn(
+            "fixed bottom-8 right-8 z-50 rounded-full shadow-lg p-3 md:p-3.5",
+            "bg-jade/20 hover:bg-jade/40 active:scale-95 cursor-clicker",
+            "transition-opacity duration-300 ease-in-out",
+            showScrollTop ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+        >
+          <img src="/icons/arrowup2.svg" alt="" className="w-5 h-5" />
+        </button>
+
       </div>
     </div>
   )

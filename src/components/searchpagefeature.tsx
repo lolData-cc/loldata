@@ -142,11 +142,11 @@ export function SearchPageFeature() {
 
     /* --- RANGEs A Y FISSE --- */
     // PROFILE PAGE (già funzionante)
-    const YP_START = 2195;
-    const YP_END = 2600;
+    const YP_START = 2285;
+    const YP_END = 2800;
 
     // CHAMPION PAGE (imposta tu questi due valori)
-    const YC_START = 3090;     // <- REGOLA
+    const YC_START = 3200;     // <- REGOLA
     const YC_END = 3600;     // <- REGOLA
 
     // Offset verticale mentre sono "pin" (fixed)
@@ -185,8 +185,12 @@ export function SearchPageFeature() {
 
     return (
         <div>
-            <h1 className="text-4xl text-jade/40 py-6 text-right"> Detail page functionalities </h1>
-            <Separator className="relative w-screen border-t border-flash/20 right-[335px]" />
+            <div className="flex justify-between items-end space-x-24">
+                <img src="/public/img/katarina.png" className="w-[45%]"/>
+                <span className="text-4xl text-jade py-6 font-scifi"> Detail page functionalities </span>
+            </div>
+
+            <Separator className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen border-t border-flash/20" />
 
             {/* wrapper relativo per i freeze absolute */}
             <div ref={containerRef} className="flex justify-between px-24 relative">

@@ -22,3 +22,4 @@ export interface RiotRankedEntry {
   wins: number
   losses: number
 }
+
