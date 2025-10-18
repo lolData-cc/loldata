@@ -186,7 +186,7 @@ export function SearchPageFeature() {
     return (
         <div>
             <div className="flex justify-between items-end space-x-24">
-                <img src="/public/img/katarina.png" className="w-[45%]"/>
+                <img src="/img/katarina.png" className="w-[45%]"/>
                 <span className="text-4xl text-jade py-6 font-scifi"> Detail page functionalities </span>
             </div>
 

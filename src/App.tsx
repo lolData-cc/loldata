@@ -171,7 +171,7 @@ function App() {
               <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
-              <Route path="/playground" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
+              <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
             </Routes>
           </ChampionPickerProvider>
         </LiveViewerProvider>

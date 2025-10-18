@@ -188,7 +188,7 @@ export function LearnPageFeature() {
                 />
               </div>
               <div className="flex items-center text-flash/90 group-hover:text-flash/95 gap-1.5 group">
-                <span className="text-xl">The AI chatbot is always ready</span>
+                <span className="text-xl">The AI chatbot is always ready </span>
                 <ChevronRight
                   className="
                     w-4 h-4
