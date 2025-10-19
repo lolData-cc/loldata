@@ -864,7 +864,7 @@ function ChampionGame({ champs }: { champs: Champ[] }) {
                   }}
                   value={guess}
                   onChange={(e) => setGuess(e.target.value)}
-                  disabled={!answer || status !== "playing" || !isValidGuess}
+                  disabled={!answer || status !== "playing"}
                   autoFocus
                 />
                 {suggestions.length > 0 && status === "playing" && (
@@ -911,7 +911,7 @@ function ChampionGame({ champs }: { champs: Champ[] }) {
                   color: "#040a0c",
                   boxShadow: "0 0 5px #00d99280, 0 0 10px #00d99250, 0 0 20px #00d99230, inset 0 0 10px #00d99220",
                 }}
-                 disabled={!answer || status !== "playing"}
+                 disabled={!answer || status !== "playing" || guess.trim().length === 0}
               >
                 SCAN
               </button>
