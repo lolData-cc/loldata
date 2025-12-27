@@ -358,7 +358,7 @@ export default function SummonerPage() {
   }, [matches, summonerInfo]);
 
 
-  
+
 
   const visibleDuos = showAllDuos ? duoStats : duoStats.slice(0, 3);
 

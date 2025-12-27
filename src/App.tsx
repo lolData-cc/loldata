@@ -56,7 +56,7 @@ function HomePage() {
     if (learnRef.current) {
       const top = learnRef.current.getBoundingClientRect().top + window.scrollY;
       window.scrollTo({
-        top: top - 80, // 👈 offset di 80px (cambia a piacere)
+        top: top - 100,
         behavior: "smooth",
       });
     }
