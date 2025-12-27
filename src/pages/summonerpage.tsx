@@ -15,6 +15,12 @@ import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
 import { checkUserFlags } from "@/converters/checkUserFlags";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 // import { getPlayerBadges } from "@/utils/badges";
 import {
@@ -34,6 +40,7 @@ import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { RecentGamesSummary } from "@/components/recentgamessummary";
 import { PlayerHoverCard } from "@/components/playerhovercard";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { Button } from "@/components/ui/button";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -48,6 +55,7 @@ const itemKeys: (keyof Participant)[] = [
 const COOLDOWN_MS = 300_000
 const STORAGE_KEY = "loldata:updateTimestamp"
 
+
 function getMatchTimestamp(m: MatchWithWin["match"]["info"]) {
   return m.gameEndTimestamp ?? m.gameStartTimestamp ?? m.gameCreation;
 }
@@ -57,6 +65,8 @@ function dayKeyFromTs(ts: number) {
   // yyyy-mm-dd in local time
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+
 
 function dayLabelFromKey(key: string) {
   const [y, m, d] = key.split("-").map(Number);
@@ -112,6 +122,12 @@ export default function SummonerPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showAllDuos, setShowAllDuos] = useState(false);
+
+  const monthLabel = useMemo(() => {
+    const now = new Date();
+    return now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase();
+  }, []);
 
   const recentBadgeCount = useMemo(() => {
     if (!summonerInfo?.puuid || matches.length === 0) return 0;
@@ -137,6 +153,7 @@ export default function SummonerPage() {
     return null;
   }, [recentBadgeCount]);
 
+
   const navigate = useNavigate();
   const queueGroups = {
     "Ranked Solo/Duo": [420],
@@ -145,6 +162,12 @@ export default function SummonerPage() {
     "All": [400, 420, 430, 440, 450, 700, 900, 1020],
   } satisfies Record<QueueType, number[]>;
 
+  type DayWinrateCell = {
+    date: Date;
+    games: number;
+    wins: number;
+    winrate: number | null;
+  };
 
   type QueueType = "Ranked Solo/Duo" | "Ranked Flex" | "Normal" | "All";
 
@@ -162,6 +185,20 @@ export default function SummonerPage() {
     1020: "One for All",
     1700: "Arena",
   };
+
+  const glassDark = cn(
+    "relative overflow-hidden rounded-md",
+    "bg-black/25 backdrop-blur-lg saturate-150",
+    "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  );
+
+  const glassOverlays = (
+    <>
+      <div className="pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]
+      bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]" />
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
+    </>
+  );
 
 
   const filteredMatches = matches.filter((m) => {
@@ -189,6 +226,96 @@ export default function SummonerPage() {
       setIsLoadingMore(false);
     }
   }, [isLoadingMore, hasMore, name, tag, region, nextOffset]);
+
+  const monthlyDayStats = useMemo<DayWinrateCell[]>(() => {
+    if (!matches || matches.length === 0) return [];
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0 = gennaio
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // inizializza un record per ogni giorno del mese
+    const stats: DayWinrateCell[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      stats.push({
+        date: new Date(year, month, day),
+        games: 0,
+        wins: 0,
+        winrate: null,
+      });
+    }
+
+    // accumula stats usando TUTTE le partite del mese corrente
+    for (const m of matches) {
+      const ts = getMatchTimestamp(m.match.info);
+      if (!ts) continue;
+
+      const d = new Date(ts);
+      if (d.getFullYear() !== year || d.getMonth() !== month) continue;
+
+      const dayIndex = d.getDate() - 1; // 0-based index
+      const cell = stats[dayIndex];
+      cell.games += 1;
+      if (m.win) cell.wins += 1;
+    }
+
+    // calcola winrate
+    stats.forEach(cell => {
+      if (cell.games > 0) {
+        cell.winrate = Math.round((cell.wins / cell.games) * 100);
+      } else {
+        cell.winrate = null;
+      }
+    });
+
+    return stats;
+  }, [matches]);
+
+  const githubWeeks = useMemo(() => {
+    if (!monthlyDayStats.length) return [];
+
+    // parto dal primo giorno del mese (lo hai già calcolato così in monthlyDayStats)
+    const first = monthlyDayStats[0].date;
+    const year = first.getFullYear();
+    const month = first.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    // 0 = lunedì, 6 = domenica (così hai le righe tipo "lun→dom")
+    const weekdayOfFirst = (firstDay.getDay() + 6) % 7;
+
+    const cells: (DayWinrateCell | null)[] = [];
+
+    // celle "vuote" prima del giorno 1 del mese (per allineare alle settimane)
+    for (let i = 0; i < weekdayOfFirst; i++) {
+      cells.push(null);
+    }
+
+    // aggiungo tutti i giorni reali del mese
+    monthlyDayStats.forEach((c) => cells.push(c));
+
+    // spezzetto in colonne da 7 (settimane)
+    const weeks: (DayWinrateCell | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      weeks.push(cells.slice(i, i + 7));
+    }
+
+    return weeks;
+  }, [monthlyDayStats]);
+
+  const heatmapRows = useMemo(() => {
+    // vogliamo esattamente 3 righe
+    const rows: DayWinrateCell[][] = [[], [], []];
+
+    monthlyDayStats.forEach((cell, index) => {
+      const rowIndex = index % 3; // riempiamo per righe: 0,1,2,0,1,2...
+      rows[rowIndex].push(cell);
+    });
+
+    return rows;
+  }, [monthlyDayStats]);
+
+
 
   const duoStats = useMemo(() => {
     if (!summonerInfo || matches.length === 0) return [];
@@ -230,6 +357,10 @@ export default function SummonerPage() {
       .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
   }, [matches, summonerInfo]);
 
+
+  
+
+  const visibleDuos = showAllDuos ? duoStats : duoStats.slice(0, 3);
 
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -603,209 +734,434 @@ export default function SummonerPage() {
       <UltraTechBackground />
       <div className="relative flex min-h-screen -mt-4 z-10">
         <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
-          <div className="relative overflow-hidden w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-5 border border-[#2B2A2B] shadow-md">
-            <BorderBeam duration={8} size={100} />
-            <div className="relative w-full h-32 overflow-hidden mt-6">
-              {topChampionsSeason.length > 0 && (
-                <img
-                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
-                  alt={`Splash art ${topChampionsSeason[0].champion}`}
-                  className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
-                  style={{ objectPosition: "top center" }}
-                />
+          <div
+            className={cn(
+              "relative overflow-hidden w-[90%] h-[420px] mt-5 rounded-md text-sm font-thin",
+              "bg-black/25 backdrop-blur-lg saturate-150",
+              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+            )}
+          >
+            {/* glossy overlays */}
+            <div
+              className={cn(
+                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]"
               )}
-              <div className="relative z-10 px-4 py-2">
-                <span className="text-flash/70">THIS SEASON</span>
-                <div className="flex mt-14 px-3 gap-4">
-                  <div className="flex">
-                    <span className="text-2xl text-jade">
-                      {summonerInfo?.wins}
-                    </span>
-                    <span>
-                      WINS
-                    </span>
-                  </div>
+            />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
 
-                  <div className="flex">
-                    <span className="text-2xl text-[#b11315]">
-                      {summonerInfo?.losses}
-                    </span>
-                    <span>
-                      LOSSES
-                    </span>
-                  </div>
+            {/* beam sopra al vetro */}
+            <BorderBeam duration={8} size={100} />
 
-                  {summonerInfo && (
-                    <div className="flex items-center gap-1">
-                      {(() => {
-                        const totalGames = summonerInfo.wins + summonerInfo.losses;
-                        const winrate =
-                          totalGames > 0
-                            ? Math.round((summonerInfo.wins / totalGames) * 100)
-                            : 0;
-
-                        return (
-                          <>
-                            <span
-                              className={`text-2xl ${getWinrateClass(winrate, totalGames)}`}
-                            >
-                              {winrate}%
-                            </span>
-                            <span>WINRATE</span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                </div>
-              </div>
-            </div>
-            <Tabs defaultValue="recentgames">
-              <div className="p-3">
-                <TabsList className="flex justify-start">
-                  <TabsTrigger
-                    value="recentgames"
-                    className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                  >
-                    RECENT GAMES
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="allgames"
-                    className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                  >
-                    ALL GAMES
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="recentgames">
-                <RecentGamesSummary matches={matches} summonerPuuid={summonerInfo?.puuid} />
-                {/* Badge recent games */}
-
-
-                <Separator className="bg-flash/20 h1 mt-16" />
-                {recentBadgeLabel && (
-                  <div className="flex items-center justify-between px-6 py-4">
-                    <div className="text-flash/60 text-sm">
-                      LAST 10 GAMES: {recentBadgeCount} MVPS
-                    </div>
-
-                    <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
-                      {/* piccolo glow diverso per i tre livelli */}
-                      <div
-                        className={cn(
-                          "absolute inset-0 animate-glow",
-                          recentBadgeLabel === "GODLIKE" && "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
-                          recentBadgeLabel === "SOLOCARRY" && "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
-                          recentBadgeLabel === "CARRY" && "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
-                        )}
-                      />
-                      <div className="relative z-10 text-black text-sm font-semibold tracking-wide">
-                        {recentBadgeLabel}
-                      </div>
-                    </div>
-                  </div>
+            {/* contenuto */}
+            <div className="relative z-10">
+              <div className="relative w-full h-32 overflow-hidden mt-6">
+                {topChampionsSeason.length > 0 && (
+                  <img
+                    src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
+                    alt={`Splash art ${topChampionsSeason[0].champion}`}
+                    className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
+                    style={{ objectPosition: "top center" }}
+                  />
                 )}
 
-              </TabsContent>
-              <TabsContent value="allgames">
-                allgames
-              </TabsContent>
-            </Tabs>
+                <div className="relative z-10 px-4 py-2">
+                  <span className="text-flash/70">THIS SEASON</span>
 
-          </div>
+                  <div className="flex mt-14 px-3 gap-4">
+                    <div className="flex">
+                      <span className="text-2xl text-jade">{summonerInfo?.wins}</span>
+                      <span>WINS</span>
+                    </div>
 
-          <div className="w-[90%] bg-cement h-[420px] text-sm font-thin rounded-md mt-4 border border-[#2B2A2B] shadow-md">
-            <Tabs defaultValue="season" onValueChange={(v) => {
-              if (!summonerInfo?.puuid || !region) return;
-              if (v === "solo" && topChampionsSolo.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
-              if (v === "flex" && topChampionsFlex.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
-              if (v === "season" && topChampionsSeason.length === 0) fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
-            }}>
-              <nav className="flex flex-col min-h-[400px]">
-                <div className="px-3 pt-3">
-                  <TabsList className="grid grid-cols-3 w-[85%] mx-auto">
-                    <TabsTrigger value="solo" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">SOLO/DUO</TabsTrigger>
-                    <TabsTrigger value="flex" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">FLEX</TabsTrigger>
-                    <TabsTrigger value="season" className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20">SEASON</TabsTrigger>
+                    <div className="flex">
+                      <span className="text-2xl text-[#b11315]">{summonerInfo?.losses}</span>
+                      <span>LOSSES</span>
+                    </div>
+
+                    {summonerInfo && (
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const totalGames = summonerInfo.wins + summonerInfo.losses;
+                          const winrate =
+                            totalGames > 0 ? Math.round((summonerInfo.wins / totalGames) * 100) : 0;
+
+                          return (
+                            <>
+                              <span className={`text-2xl ${getWinrateClass(winrate, totalGames)}`}>
+                                {winrate}%
+                              </span>
+                              <span>WINRATE</span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Tabs defaultValue="recentgames">
+                <div className="p-3">
+                  <TabsList className="flex justify-start">
+                    <TabsTrigger
+                      value="recentgames"
+                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
+                    >
+                      RECENT GAMES
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="allgames"
+                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
+                    >
+                      ALL GAMES
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
-                <Separator className="bg-[#48504E] w-[85%] mx-auto mt-2" />
+                <TabsContent value="recentgames">
+                  <RecentGamesSummary matches={matches} summonerPuuid={summonerInfo?.puuid} />
 
-                {/* Season (solo+flex) */}
-                <TabsContent value="season" className="m-0">
-                  <StatsList champs={topChampionsSeason} />
+                  <Separator className="bg-white/10 mt-16" />
+
+                  {recentBadgeLabel && (
+                    <div className="flex items-center justify-between px-6 py-4">
+                      <div className="text-flash/60 text-sm">
+                        LAST 10 GAMES: {recentBadgeCount} MVPS
+                      </div>
+
+                      <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
+                        <div
+                          className={cn(
+                            "absolute inset-0 animate-glow",
+                            recentBadgeLabel === "GODLIKE" &&
+                            "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
+                            recentBadgeLabel === "SOLOCARRY" &&
+                            "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
+                            recentBadgeLabel === "CARRY" &&
+                            "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
+                          )}
+                        />
+                        <div className="relative z-10 text-black text-sm font-semibold tracking-wide">
+                          {recentBadgeLabel}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </TabsContent>
 
-                {/* Solo/Duo */}
-                <TabsContent value="solo" className="m-0">
-                  <StatsList champs={topChampionsSolo} />
-                </TabsContent>
-
-                {/* Flex */}
-                <TabsContent value="flex" className="m-0">
-                  <StatsList champs={topChampionsFlex} />
-                </TabsContent>
-
-                <div className="flex justify-center mt-auto pb-4 pt-2">
-                  <ShowMoreMatches />
-                </div>
-              </nav>
-            </Tabs>
+                <TabsContent value="allgames">allgames</TabsContent>
+              </Tabs>
+            </div>
           </div>
+
+
+          <div
+            className={cn(
+              "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
+              "bg-black/25 backdrop-blur-lg saturate-150",
+              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+            )}
+          >
+            {/* glossy overlays */}
+            <div
+              className={cn(
+                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]"
+              )}
+            />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
+
+            {/* contenuto */}
+            <div className="relative z-10">
+              <Tabs
+                defaultValue="season"
+                onValueChange={(v) => {
+                  if (!summonerInfo?.puuid || !region) return;
+                  if (v === "solo" && topChampionsSolo.length === 0)
+                    fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+                  if (v === "flex" && topChampionsFlex.length === 0)
+                    fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+                  if (v === "season" && topChampionsSeason.length === 0)
+                    fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+                }}
+              >
+                <nav className="flex flex-col min-h-[400px]">
+                  <div className="px-3 pt-3">
+                    <TabsList className="grid grid-cols-3 w-[85%] mx-auto">
+                      <TabsTrigger
+                        value="solo"
+                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
+                      >
+                        SOLO/DUO
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="flex"
+                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
+                      >
+                        FLEX
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="season"
+                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
+                      >
+                        SEASON
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {/* separator più “glass” */}
+                  <Separator className="bg-white/10 w-[85%] mx-auto mt-2" />
+
+                  {/* Season (solo+flex) */}
+                  <TabsContent value="season" className="m-0">
+                    <StatsList champs={topChampionsSeason} />
+                  </TabsContent>
+
+                  {/* Solo/Duo */}
+                  <TabsContent value="solo" className="m-0">
+                    <StatsList champs={topChampionsSolo} />
+                  </TabsContent>
+
+                  {/* Flex */}
+                  <TabsContent value="flex" className="m-0">
+                    <StatsList champs={topChampionsFlex} />
+                  </TabsContent>
+
+                  <div className="flex justify-center mt-auto pb-4 pt-2">
+                    <ShowMoreMatches />
+                  </div>
+                </nav>
+              </Tabs>
+            </div>
+          </div>
+
+          {monthlyDayStats.length > 0 && (
+            <div
+              className={cn(
+                "relative overflow-hidden w-[90%] mt-4 rounded-md text-sm font-thin",
+                "bg-black/25 backdrop-blur-lg saturate-150",
+                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              )}
+            >
+              {/* glossy overlays */}
+              <div
+                className={cn(
+                  "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]"
+                )}
+              />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
+
+              {/* contenuto */}
+              <div className="relative z-10 px-4 py-3">
+                <div className="flex items-center justify-between text-xs text-flash/70">
+                  <span>THIS MONTH</span>
+                  <span className="uppercase opacity-70">{monthLabel}</span>
+                </div>
+
+                <div className="mt-3">
+                  <TooltipProvider delayDuration={80}>
+                    {/* 3 righe fisse, ognuna è una flex-row → layout orizzontale */}
+                    <div className="flex flex-col gap-[2px]">
+                      {heatmapRows.map((row, rowIndex) => (
+                        <div key={rowIndex} className="flex gap-[2px]">
+                          {row.map((cell) => {
+                            const dayNumber = cell.date.getDate();
+                            const baseClasses =
+                              "w-3 h-3 rounded-[2px] cursor-default"; // piccoli, niente border
+
+                            // nessuna partita
+                            if (!cell.games || cell.winrate == null) {
+                              return (
+                                <Tooltip key={dayNumber}>
+                                  <TooltipTrigger asChild>
+                                    <div className={cn(baseClasses, "bg-white/5")} />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <div className="flex flex-col gap-[2px] leading-snug">
+                                      <span className="uppercase tracking-wide text-flash/60">
+                                        Day {dayNumber}
+                                      </span>
+
+                                      {/* WR visibile SOLO se ci sono game E winrate non è null */}
+                                      {cell.games > 0 && cell.winrate != null && (
+                                        <span className="font-jetbrains text-flash/70">
+                                          {cell.winrate}% WR
+                                        </span>
+                                      )}
+
+                                      <span className="text-flash/60">
+                                        {cell.games} {cell.games === 1 ? "game" : "games"}
+                                      </span>
+                                    </div>
+                                  </TooltipContent>
+
+                                </Tooltip>
+                              );
+                            }
+
+                            // t = da 0 a 1
+                            // t = da 0 a 1
+                            // t = da 0 a 1
+                            const t = Math.max(0, Math.min(1, cell.winrate / 100));
+
+                            // 🎨 LOW WR  -> #040A0D
+                            // 🎨 HIGH WR -> #00D992
+                            const start = { r: 0x04, g: 0x0A, b: 0x0D };
+                            const end = { r: 0x00, g: 0xD9, b: 0x92 };
+
+                            const r = Math.round(start.r + (end.r - start.r) * t);
+                            const g = Math.round(start.g + (end.g - start.g) * t);
+                            const b = Math.round(start.b + (end.b - start.b) * t);
+
+                            const bgColor = `rgb(${r}, ${g}, ${b})`;
+
+
+
+                            return (
+                              <Tooltip key={dayNumber}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={baseClasses}
+                                    style={{ backgroundColor: bgColor }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <div className="flex flex-col gap-[2px] leading-snug">
+                                    <span className="uppercase tracking-wide text-flash/60">
+                                      Day {dayNumber}
+                                    </span>
+
+                                    {/* WR visibile SOLO se ci sono game E winrate non è null */}
+                                    {cell.games > 0 && cell.winrate != null && (
+                                      <span className="font-jetbrains text-flash/70">
+                                        {cell.winrate}% WR
+                                      </span>
+                                    )}
+
+                                    <span className="text-flash/60">
+                                      {cell.games} {cell.games === 1 ? "game" : "games"}
+                                    </span>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipProvider>
+                </div>
+
+                <div className="flex justify-between items-center mt-3 text-[10px] text-flash/50">
+                  <span>NO GAMES</span>
+                  <span>LOW WR</span>
+                  <span>HIGH WR</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+
+
 
 
           {duoStats.length > 0 && (
             <div
-              className={`
-      w-[90%] bg-cement text-sm font-thin rounded-md mt-5
-      border border-[#2B2A2B] shadow-md overflow-y-auto
-    `}
-              style={{
-                maxHeight: `${(Math.min(duoStats.length, 5) * 64) + 60}px`
-              }}
+              className={cn(
+                "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
+                "bg-black/25 backdrop-blur-lg saturate-150",
+                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              )}
+              style={
+                showAllDuos
+                  ? undefined
+                  : {
+                    maxHeight: `${(Math.min(duoStats.length, 5) * 64) + 60}px`,
+                  }
+              }
             >
-              <div className="px-4 py-2 text-flash/70">PLAYED WITH</div>
-              {/* <Separator className="bg-[#48504E] w-[85%] mx-auto" /> */}
+              {/* glossy overlays */}
+              <div
+                className={cn(
+                  "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.045),rgba(255,255,255,0)_70%)]"
+                )}
+              />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/2 via-transparent to-black/40" />
 
-              <div className="flex flex-col gap-4 px-5 py-2">
-                {duoStats.map(duo => (
-                  <div key={duo.puuid} className="flex flex-col gap-1">
-                    {/* Riga 1: Nome e WR */}
-                    <div className="flex justify-between items-center">
-                      <span className="truncate text-white">{duo.riotId}</span>
-                      <div className="flex items-center gap-1">
-                        <span className={`text-sm ${getWinrateClass(duo.winrate, duo.games)}`}>
-                          {duo.winrate}%
-                        </span>
-                        <span className="truncate text-flash/60 text-xs">({duo.games} GAMES)</span>
+              {/* fade top/bottom (effetto scroll premium) */}
+              <div className="pointer-events-none absolute top-0 left-0 right-0 h-8 z-[2] bg-gradient-to-b from-black/45 to-transparent" />
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 z-[2] bg-gradient-to-t from-black/55 to-transparent" />
+
+              {/* contenuto */}
+              <div className="relative z-10">
+                <div className="px-4 py-2 text-flash/70">PLAYED WITH</div>
+
+                <div
+                  className={cn(
+                    showAllDuos
+                      ? "overflow-visible"
+                      : "max-h-[calc(100%-40px)] overflow-y-auto"
+                  )}
+                >
+                  <div className="flex flex-col gap-4 px-5 py-2 pb-6">
+                    {visibleDuos.map((duo) => (
+                      <div key={duo.puuid} className="flex flex-col gap-1">
+                        {/* Riga 1: Nome e WR */}
+                        <div className="flex justify-between items-center">
+                          <span className="truncate text-white">{duo.riotId}</span>
+                          <div className="flex items-center gap-1">
+                            <span className={cn("text-sm", getWinrateClass(duo.winrate, duo.games))}>
+                              {duo.winrate}%
+                            </span>
+                            <span className="truncate text-flash/60 text-xs">
+                              ({duo.games} GAMES)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Riga 2: Barra wins/losses */}
+                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-jade"
+                            style={{ width: `${duo.winrate}%` }}
+                          />
+                        </div>
+
+                        {/* Riga 3: WINS / LOSSES */}
+                        <div className="flex justify-between text-xs">
+                          {duo.wins > 0 && (
+                            <span className="text-jade">{duo.wins} WINS</span>
+                          )}
+                          {duo.losses > 0 && (
+                            <span className="text-[#b11315]">{duo.losses} LOSSES</span>
+                          )}
+                        </div>
                       </div>
-
-                    </div>
-
-                    {/* Riga 2: Barra wins/losses */}
-                    <div className="w-full h-1 bg-flash/15 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-jade"
-                        style={{ width: `${duo.winrate}%` }}
-                      ></div>
-                    </div>
-
-                    {/* Riga 3: WINS / LOSSES */}
-                    <div className="flex justify-between text-xs">
-                      {duo.wins > 0 && (
-                        <span className="text-jade">{duo.wins} WINS</span>
-                      )}
-                      {duo.losses > 0 && (
-                        <span className="text-[#b11315]">{duo.losses} LOSSES</span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {duoStats.length > 3 && (
+                  <div className="flex justify-center pb-4 pt-1">
+                    <Button
+                      type="button"
+                      onClick={() => setShowAllDuos((v) => !v)}
+                      className="text-[#00D992] bg-[#122322] hover:bg-[#11382E] rounded w-[90%] uppercase tracking-wide"
+                    >
+                      {showAllDuos ? "SHOW LESS" : "SHOW MORE"}
+                    </Button>
+                  </div>
+                )}
+
               </div>
+
             </div>
           )}
+
 
         </div>
 
@@ -879,8 +1235,7 @@ export default function SummonerPage() {
               <div className="flex flex-col pr-4" >
                 <div
                   className="uppercase select-none"
-
-                  title="Clicca per copiare"
+                  title="CLICK TO COPY"
                 >
 
                   {(isPro || isStreamer) && (
@@ -915,44 +1270,55 @@ export default function SummonerPage() {
                       }
                     }}
                   >
-                    <span className="text-right">
-                      {/* NAME */}
-                      <span
-                        className={
-                          premiumPlan === "premium" || premiumPlan === "elite"
-                            ? "bg-clip-text text-transparent animate-glow"
-                            : "text-[#D7D8D9] animate-glow"
-                        }
-                        style={
-                          premiumPlan === "premium"
-                            ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                            : premiumPlan === "elite"
-                              ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                              : undefined
-                        }
-                      >
-                        {summonerInfo?.name}
-                      </span>
+                    {/* SE NON HO I DATI → SKELETON */}
+                    {!summonerInfo ? (
+                      <div className="flex justify-end w-[180px]">
+                        <Skeleton className="h-6 w-[70%] bg-white/10" />
+                      </div>
+                    ) : (
+                      <span className="text-right">
+                        {/* NAME */}
+                        <span
+                          className={
+                            premiumPlan === "premium" || premiumPlan === "elite"
+                              ? "bg-clip-text text-transparent animate-glow"
+                              : "text-[#D7D8D9] animate-glow"
+                          }
+                          style={
+                            premiumPlan === "premium"
+                              ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                              : premiumPlan === "elite"
+                                ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                                : undefined
+                          }
+                        >
+                          {summonerInfo.name}
+                        </span>
 
-                      {/* #TAG */}
-                      <span
-                        className={
-                          premiumPlan === "premium" || premiumPlan === "elite"
-                            ? "ml-0.5 bg-clip-text text-transparent animate-glow"
-                            : "ml-0.5 text-[#BCC9C6] animate-glow"
-                        }
-                        style={
-                          premiumPlan === "premium"
-                            ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                            : premiumPlan === "elite"
-                              ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                              : undefined
-                        }
-                      >
-                        #{summonerInfo?.tag}
+                        {/* #TAG – solo quando ho i dati */}
+                        {summonerInfo.tag && (
+                          <span
+                            className={
+                              premiumPlan === "premium" || premiumPlan === "elite"
+                                ? "ml-0.5 bg-clip-text text-transparent animate-glow"
+                                : "ml-0.5 text-[#BCC9C6] animate-glow"
+                            }
+                            style={
+                              premiumPlan === "premium"
+                                ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                                : premiumPlan === "elite"
+                                  ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                                  : undefined
+                            }
+                          >
+                            #{summonerInfo.tag}
+                          </span>
+                        )}
                       </span>
-                    </span>
+                    )}
                   </div>
+
+
 
 
 
@@ -987,7 +1353,6 @@ export default function SummonerPage() {
                   )}
                   draggable={false}
                   onError={(e) => {
-                    // fallback extra se l’URL custom è rotto
                     e.currentTarget.src = `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
                   }}
                 />
@@ -999,8 +1364,16 @@ export default function SummonerPage() {
           </div>
 
           <div className="max-w-4xl mx-auto mt-4">
-            <nav className="w-full bg-cement text-flash px-8 h-8 rounded-md border border-[#2B2A2B] shadow-md font-jetbrain s">
-              <div className="flex items-center h-full justify-between ">
+            <nav
+              className={cn(
+                "relative w-full h-8 px-8 rounded-md text-flash font-jetbrains overflow-hidden",
+                // vetro scuro puro
+                "bg-black/20 backdrop-blur-lg saturate-150",
+                // edge ultra sottile solo via shadow
+                "shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+              )}
+            >
+              <div className="relative z-10 flex items-center h-full justify-between">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin cursor-clicker">
                     <span className="text-sm tracking-wide cursor-clicker">
@@ -1008,7 +1381,11 @@ export default function SummonerPage() {
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48 text-sm">
+
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-48 text-sm bg-black/40 backdrop-blur-lg border-white/10"
+                  >
                     {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
                       <DropdownMenuItem
                         key={queue}
@@ -1024,10 +1401,9 @@ export default function SummonerPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
+                <Separator orientation="vertical" className="h-4 bg-white/10" />
 
-                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
-
-                <div className="space-x-2 flex items-center ">
+                <div className="space-x-2 flex items-center">
                   <ChampionPicker
                     champions={allChampions}
                     onSelect={(champId) => setSelectedChampion(champId)}
@@ -1035,7 +1411,7 @@ export default function SummonerPage() {
                   <ChevronDown className="h-4 w-4" />
                 </div>
 
-                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
+                <Separator orientation="vertical" className="h-4 bg-white/10" />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
@@ -1044,7 +1420,7 @@ export default function SummonerPage() {
                   </DropdownMenuTrigger>
                 </DropdownMenu>
 
-                <Separator orientation="vertical" className="h-4 bg-[#48504E] " />
+                <Separator orientation="vertical" className="h-4 bg-white/10" />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
@@ -1054,17 +1430,28 @@ export default function SummonerPage() {
                 </DropdownMenu>
               </div>
             </nav>
+
+
             {loading ? (
               <ul className="space-y-3 mt-4">
                 {Array.from({ length: 10 }).map((_, idx) => (
                   <li
                     key={idx}
-                    className="flex items-center gap-4 p-3 rounded-md h-28 bg-cement border-flash/20 border"
+                    className={cn(
+                      "flex items-center gap-4 p-3 rounded-md h-28",
+                      // vetro scuro identico alle card
+                      "bg-black/22 backdrop-blur-lg saturate-150",
+                      // edge ultra sottile solo via shadow (NO alone)
+                      "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
+                    )}
                   >
-                    <Skeleton className="w-12 h-12 rounded-md" />
+                    {/* champ icon */}
+                    <Skeleton className="w-12 h-12 rounded-md bg-white/10" />
+
+                    {/* testo */}
                     <div className="flex flex-col gap-2 w-full">
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-4 w-1/2 bg-white/10" />
+                      <Skeleton className="h-4 w-1/3 bg-white/10" />
                     </div>
                   </li>
                 ))}
@@ -1121,17 +1508,29 @@ export default function SummonerPage() {
                           return (
                             <li
                               key={match.metadata.matchId}
-                              className="relative gap-4  text-flash p-2 rounded-md transition-colors duration-300 bg-cement border border-[#2B2A2B]"
+                              className={cn(
+                                "relative overflow-hidden rounded-md p-2 text-flash transition",
+                                "bg-black/18 backdrop-blur-lg saturate-150",
+                                "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
+                                "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                              )}
                             >
-                              {/* ✅ LAYER CLICCABILE */}
-                              <div className="flex items-center justify-center h-full">
+                              <div
+                                className={cn(
+                                  "pointer-events-none absolute -top-28 left-0 h-60 w-full z-[1]",
+                                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.018),rgba(255,255,255,0)_72%)]"
+                                )}
+                              />
+
+                              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
+
+                              <div className="flex items-center justify-center h-full relative z-10">
                                 <div className="w-[95%]">
 
 
                                   {isSelfMvpOrAce && (
                                     <div
                                       className="absolute inset-0 z-0 mvpAceGlow"
-                                      /* opzionale: override colori via CSS vars */
                                       style={{ ['--glow-blue' as any]: '#0058ff', ['--glow-mint' as any]: '#9fffc3' }}
                                     />
                                   )}
@@ -1237,7 +1636,7 @@ export default function SummonerPage() {
                                             </div>
                                             { }
                                             <div className="flex flex-col mt-2">
-                                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                              <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                                                 {(() => {
                                                   const { className, style } = getKdaBackgroundStyle(kda);
                                                   return (
@@ -1252,7 +1651,7 @@ export default function SummonerPage() {
                                                     </div>
                                                   );
                                                 })()}
-                                                <span className="font-geist text-xs font-thin text-flash/40">
+                                                <span className="font-geist text-xs font-thin text-flash/40 ml-1">
                                                   {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
                                                 </span>
                                                 {participant && (() => {
@@ -1262,21 +1661,12 @@ export default function SummonerPage() {
                                                     ? Math.round(((participant.kills + participant.assists) / teamKills) * 100)
                                                     : 0;
                                                   return (
-                                                    <span className="font-geist text-xs font-thin text-flash/40 pl-1.5">
+                                                    <span className="font-geist text-xs font-thin text-flash/40 pl-1">
                                                       {kp}% KP
                                                     </span>
                                                   );
                                                 })()}
                                                 <div className="ml-2">
-                                                  {/* {participant && getPlayerBadges(participant, participant.teamId === 100 ? team1 : team2).map((badge) => (
-                                    <span
-                                      key={badge.id}
-                                      className="bg-[#041F1A] text-[10px] px-2 py-0.5 rounded-md shadow-sm font-geist text-jade flex items-center gap-1 border border-jade/20 space-x-0.5"
-                                    >
-                                      {badge.icon}
-                                      <span>{badge.label}</span>
-                                    </span>
-                                  ))} */}
                                                 </div>
 
                                               </div>
