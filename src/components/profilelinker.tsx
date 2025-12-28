@@ -247,32 +247,69 @@ export function ProfilerLinker() {
 
       const nametag = `${refresh.name}#${refresh.tag}`;
 
-      // 🔧 Costruiamo il payload SENZA player_id per i nuovi utenti
-      const upsertPayload: any = {
-        profile_id: auth.user.id,
+      // payload base per insert/update
+      const payload = {
+        player_id: auth.user.id,
         puuid: refresh.puuid,
         nametag,
         region: region.toLowerCase(),
       };
 
-      // Se la row esiste già e ha un player_id valido, lo preserviamo
-      if (profile?.player_id) {
-        upsertPayload.player_id = profile.player_id;
-      }
-
-      const { error: upErr } = await supabase
+      // 1) vedo se esiste già una riga per questo profilo
+      const { data: existingRow, error: selErr } = await supabase
         .from("profile_players")
-        .upsert(upsertPayload, { onConflict: "profile_id" });
+        .select("profile_id")
+        .eq("profile_id", auth.user.id)
+        .maybeSingle<Pick<ProfileRow, "profile_id">>();
 
-      if (upErr) {
-        console.error("upsert profile_players error:", upErr.message);
+      if (selErr) {
+        console.error("select profile_players error:", selErr);
         showCyberToast({
-          title: "Save error",
-          description: "The linked profile could not be saved.",
+          title: "Load error",
+          description: "Could not check existing profile link.",
           variant: "error",
           tag: "DB",
         });
         return;
+      }
+
+      if (existingRow) {
+        // 2a) UPDATE se la riga esiste già (es. premium seedata ecc.)
+        const { error: updErr } = await supabase
+          .from("profile_players")
+          .update({
+            ...payload,
+            profile_id: auth.user.id,
+          })
+          .eq("profile_id", auth.user.id);
+
+        if (updErr) {
+          console.error("update profile_players error:", updErr);
+          showCyberToast({
+            title: "Save error",
+            description: "The linked profile could not be updated.",
+            variant: "error",
+            tag: "DB",
+          });
+          return;
+        }
+      } else {
+        // 2b) INSERT se non esiste
+        const { error: insErr } = await supabase.from("profile_players").insert({
+          profile_id: auth.user.id,
+          ...payload,
+        });
+
+        if (insErr) {
+          console.error("insert profile_players error:", insErr);
+          showCyberToast({
+            title: "Save error",
+            description: "The linked profile could not be saved.",
+            variant: "error",
+            tag: "DB",
+          });
+          return;
+        }
       }
 
       await supabase.auth.updateUser({
@@ -283,16 +320,14 @@ export function ProfilerLinker() {
         },
       });
 
-      setProfile((prev) =>
-        prev
-          ? {
-            ...prev,
-            puuid: refresh.puuid,
-            nametag,
-            region: region.toLowerCase(),
-          }
-          : prev
-      );
+      setProfile((prev) => ({
+        profile_id: prev?.profile_id ?? auth.user.id,
+        player_id: prev?.player_id ?? auth.user.id,
+        puuid: refresh.puuid,
+        nametag,
+        region: region.toLowerCase(),
+      }));
+
       setLinkedSummoner({
         nametag,
         region,
@@ -318,7 +353,6 @@ export function ProfilerLinker() {
       setVerifyingIcon(false);
     }
   }
-
 
   async function handleUnlink() {
     if (!profile) return;
@@ -351,11 +385,11 @@ export function ProfilerLinker() {
       setProfile((p) =>
         p
           ? {
-            ...p,
-            puuid: null,
-            nametag: null,
-            region: null,
-          }
+              ...p,
+              puuid: null,
+              nametag: null,
+              region: null,
+            }
           : p
       );
 
@@ -438,7 +472,9 @@ export function ProfilerLinker() {
                   <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
                   <span>
                     Linked:{" "}
-                    <span className="font-semibold">{linkedSummoner.nametag}</span>{" "}
+                    <span className="font-semibold">
+                      {linkedSummoner.nametag}
+                    </span>{" "}
                     ({linkedSummoner.region})
                   </span>
                 </div>
@@ -460,7 +496,6 @@ export function ProfilerLinker() {
           )}
         </div>
       </div>
-
 
       <Separator className="my-3 bg-flash/20" />
 
