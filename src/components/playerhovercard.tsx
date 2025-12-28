@@ -10,7 +10,7 @@ import { API_BASE_URL } from "@/config";
 
 type Props = {
   riotId: string;
-  championId: number;
+  championId?: number;
   spell1Id?: number;
   spell2Id?: number;
   isCurrentUser?: boolean;
