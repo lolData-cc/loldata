@@ -224,7 +224,6 @@ export function ProfilerLinker() {
       const data = await res.json();
       const refresh: Summoner = data.summoner;
 
-      // 1) check icon
       if (refresh.profileIconId !== 3) {
         showCyberToast({
           title: "Wrong icon",
@@ -235,7 +234,6 @@ export function ProfilerLinker() {
         return;
       }
 
-      // 2) link profile
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) {
         showCyberToast({
@@ -249,18 +247,22 @@ export function ProfilerLinker() {
 
       const nametag = `${refresh.name}#${refresh.tag}`;
 
+      // 🔧 Costruiamo il payload SENZA player_id per i nuovi utenti
+      const upsertPayload: any = {
+        profile_id: auth.user.id,
+        puuid: refresh.puuid,
+        nametag,
+        region: region.toLowerCase(),
+      };
+
+      // Se la row esiste già e ha un player_id valido, lo preserviamo
+      if (profile?.player_id) {
+        upsertPayload.player_id = profile.player_id;
+      }
+
       const { error: upErr } = await supabase
         .from("profile_players")
-        .upsert(
-          {
-            profile_id: auth.user.id,
-            player_id: profile?.player_id ?? auth.user.id,
-            puuid: refresh.puuid,
-            nametag,
-            region: region.toLowerCase(),
-          },
-          { onConflict: "profile_id" }
-        );
+        .upsert(upsertPayload, { onConflict: "profile_id" });
 
       if (upErr) {
         console.error("upsert profile_players error:", upErr.message);
@@ -295,7 +297,6 @@ export function ProfilerLinker() {
         nametag,
         region,
       });
-      setLinkedSummonerDetails(refresh);
 
       showCyberToast({
         title: "Profile linked",
@@ -317,6 +318,7 @@ export function ProfilerLinker() {
       setVerifyingIcon(false);
     }
   }
+
 
   async function handleUnlink() {
     if (!profile) return;
@@ -391,73 +393,73 @@ export function ProfilerLinker() {
   return (
     <div className="border border-flash/10 rounded-md p-4 bg-cement">
       <div className="flex justify-between gap-4 items-start">
-  {/* colonna sinistra: titolo + avatar/info */}
-  <div className="space-y-2">
-    <h4 className="text-flash/40">LOL PROFILE</h4>
+        {/* colonna sinistra: titolo + avatar/info */}
+        <div className="space-y-2">
+          <h4 className="text-flash/40">LOL PROFILE</h4>
 
-    {isLinked && linkedSummoner && linkedSummonerDetails ? (
-      // stato collegato: avatar + gamename#tag + region
-      <div className="mt-2 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl overflow-hidden border border-flash/20 bg-black/40">
-          {linkedIconUrl ? (
-            <img
-              src={linkedIconUrl}
-              alt="Summoner Icon"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[10px] text-flash/40">
-              no icon
+          {isLinked && linkedSummoner && linkedSummonerDetails ? (
+            // stato collegato: avatar + gamename#tag + region
+            <div className="mt-2 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden border border-flash/20 bg-black/40">
+                {linkedIconUrl ? (
+                  <img
+                    src={linkedIconUrl}
+                    alt="Summoner Icon"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-flash/40">
+                    no icon
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-flash text-sm font-semibold">
+                  {linkedSummonerDetails.name}
+                  <span className="text-flash/60 text-xs">
+                    #{linkedSummonerDetails.tag}
+                  </span>
+                </span>
+                <span className="text-[11px] text-flash/60">
+                  Region: {linkedSummoner.region} • Rank:{" "}
+                  {linkedSummonerDetails.rank} ({linkedSummonerDetails.lp} LP)
+                </span>
+              </div>
             </div>
+          ) : (
+            <>
+              <p className="text-flash/80 text-sm">
+                Connect your Riot ID to unlock personalized gameplay analytics.
+              </p>
+
+              {isLinked && linkedSummoner && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-jade/30 px-3 py-1 text-xs text-jade ">
+                  <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
+                  <span>
+                    Linked:{" "}
+                    <span className="font-semibold">{linkedSummoner.nametag}</span>{" "}
+                    ({linkedSummoner.region})
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        <div className="flex flex-col">
-          <span className="text-flash text-sm font-semibold">
-            {linkedSummonerDetails.name}
-            <span className="text-flash/60 text-xs">
-              #{linkedSummonerDetails.tag}
+        {/* colonna destra: status allineato alla fine */}
+        <div className="text-right">
+          {isLinked ? (
+            <span className="text-[10px] uppercase tracking-[0.15em] text-jade/80">
+              VERIFIED LINK
             </span>
-          </span>
-          <span className="text-[11px] text-flash/60">
-            Region: {linkedSummoner.region} • Rank:{" "}
-            {linkedSummonerDetails.rank} ({linkedSummonerDetails.lp} LP)
-          </span>
+          ) : (
+            <span className="text-[10px] uppercase tracking-[0.15em] text-flash/50">
+              NO PROFILE LINKED
+            </span>
+          )}
         </div>
       </div>
-    ) : (
-      <>
-        <p className="text-flash/80 text-sm">
-          Connect your Riot ID to unlock personalized gameplay analytics.
-        </p>
-
-        {isLinked && linkedSummoner && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-jade/30 px-3 py-1 text-xs text-jade ">
-            <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
-            <span>
-              Linked:{" "}
-              <span className="font-semibold">{linkedSummoner.nametag}</span>{" "}
-              ({linkedSummoner.region})
-            </span>
-          </div>
-        )}
-      </>
-    )}
-  </div>
-
-  {/* colonna destra: status allineato alla fine */}
-  <div className="text-right">
-    {isLinked ? (
-      <span className="text-[10px] uppercase tracking-[0.15em] text-jade/80">
-        VERIFIED LINK
-      </span>
-    ) : (
-      <span className="text-[10px] uppercase tracking-[0.15em] text-flash/50">
-        NO PROFILE LINKED
-      </span>
-    )}
-  </div>
-</div>
 
 
       <Separator className="my-3 bg-flash/20" />
