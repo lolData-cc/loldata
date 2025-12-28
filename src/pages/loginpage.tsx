@@ -7,22 +7,43 @@ import { supabase } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { MagicCard } from "@/components/ui/magic-card";
+import { SITE_URL } from "@/config";
+import { useNavigate } from "react-router-dom" // << aggiungi            // << necessario
 
 export default function LoginPage() {
   const [animateIn, setAnimateIn] = useState(true);
   const [discordLoading, setDiscordLoading] = useState(false);
   const { theme } = useTheme();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loggingIn, setLoggingIn] = useState(false)
+  const navigate = useNavigate()
+
+  async function handleLogin() {
+    setLoggingIn(true)
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    setLoggingIn(false)
+
+    if (error) {
+      alert("Login failed: " + error.message)
+    } else {
+      navigate("/dashboard")
+    }
+  }
 
   // OAuth Discord
   const loginWithDiscord = useCallback(async () => {
     if (discordLoading) return;
     setDiscordLoading(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${SITE_URL}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
         scopes: "identify email",
-        redirectTo, // deve combaciare con i Redirects su Discord
+        redirectTo,
       },
     });
     if (error) {
@@ -119,11 +140,33 @@ export default function LoginPage() {
               <h1 className="text-3xl select-none font-scifi">SIGN IN</h1>
 
               <div className="py-4 space-y-6">
-                <Input variant="underline" placeholder="USERNAME OR EMAIL" />
-                <Input variant="underline" placeholder="PASSWORD" />
+                <Input
+                  className="text-lg"            // << QUI
+                  variant="underline"
+                  placeholder="USERNAME OR EMAIL"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+
+                <Input
+                  className="text-lg"            // << QUI
+                  variant="underline"
+                  placeholder="PASSWORD"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
 
-              <div className="flex justify-between">
+              <div className="w-full h-12 border border-jade/40 bg-jade/20 hover:bg-jade/30 rounded-sm 
+                font-scifi text-xl cursor-clicker text-center 
+                flex items-center justify-center mt-2"
+                onClick={handleLogin}>
+                LOGIN
+              </div>
+
+              <div className="flex justify-between mt-4">
                 {/* === Discord === */}
                 <div
                   role="button"
@@ -202,7 +245,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* extra contenuto se serve */}
+              { }
             </MagicCard>
           </div>
         </div>

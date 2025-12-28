@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEffect, useState, useRef } from "react"
-import { calculateLolDataScores } from "@/utils/calculateLolDataScores";
+import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import splashPositionMap from "@/converters/splashPositionMap"
 import { useParams } from "react-router-dom"
 import { useNavigate } from "react-router-dom";

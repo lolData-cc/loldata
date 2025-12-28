@@ -133,14 +133,14 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
 
       // se sto cercando di AGGIUNGERE (non rimuovere) e ho già 5 profili -> blocco
       if (!exists && prev.length >= 5) {
-  showCyberToast({
-    title: "Limit reached",
-    description: "You can save up to 5 profiles.",
-    tag: "ERR",
-    variant: "error"
-  })
-  return prev
-}
+        showCyberToast({
+          title: "Limit reached",
+          description: "You can save up to 5 profiles.",
+          tag: "ERR",
+          variant: "error"
+        })
+        return prev
+      }
 
       let next
 
@@ -318,65 +318,64 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
 
           </div>
           <div>
-  {suggestions.length > 0 && !regionPopoverOpen && (
-    <div
-      className="absolute w-full mt-2 left-0 top-full max-h-128 overflow-y-auto flex flex-col gap-2 z-40"
-    >
-      {suggestions.map((sugg, idx) => (
-        <div
-          key={idx}
-          className="cursor-clicker h-16 bg-liquirice/90 border border-flash/10 hover:border-flash/30 text-flash px-7 py-2 rounded-md flex justify-between items-center"
-          onClick={() => {
-            const formattedName = sugg.name.replace(/\s+/g, "")
-            const formattedTag = sugg.tag.toUpperCase()
-            const slug = `${formattedName}-${formattedTag}`
+            {suggestions.length > 0 && !regionPopoverOpen && (
+              <div
+                className="absolute w-full mt-2 left-0 top-full max-h-128 overflow-y-auto flex flex-col gap-2 z-40"
+              >
+                {suggestions.map((sugg, idx) => (
+                  <div
+                    key={idx}
+                    className="cursor-clicker h-16 bg-liquirice/90 border border-flash/10 hover:border-flash/30 text-flash px-7 py-2 rounded-md flex justify-between items-center"
+                    onClick={() => {
+                      const formattedName = sugg.name.replace(/\s+/g, "")
+                      const formattedTag = sugg.tag.toUpperCase()
+                      const slug = `${formattedName}-${formattedTag}`
 
-            const targetRegion = (sugg.region || region).toLowerCase()
+                      const targetRegion = (sugg.region || region).toLowerCase()
 
-            navigate(`/summoners/${targetRegion}/${slug}`)
-            setOpen(false)
-            setInput("")
-            setSuggestions([])
-          }}
-        >
-          <div className="flex justify-between gap-4 items-center">
-            <div>
-              <div className="flex justify-between items-center">
-                <span className="text-flash text-sm font-medium">{sugg.name}</span>
-                <span className="text-flash/50 text-[11px] font-medium">#{sugg.tag}</span>
+                      navigate(`/summoners/${targetRegion}/${slug}`)
+                      setOpen(false)
+                      setInput("")
+                      setSuggestions([])
+                    }}
+                  >
+                    <div className="flex justify-between gap-4 items-center">
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-flash text-sm font-medium">{sugg.name}</span>
+                          <span className="text-flash/50 text-[11px] font-medium">#{sugg.tag}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <img
+                          src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(sugg.rank)}.png`}
+                          className="w-4 h-4 rounded-sm"
+                        />
+                        <span className="text-xs text-flash/40 font-jetbrains">
+                          {sugg.rank}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div
+                        onClick={(e) => handleToggleSaveProfile(e, sugg)}
+                        className={`relative z-10 rounded-sm p-1 cursor-pointer transition ${isProfileSaved(sugg) ? "bg-jade/20" : "hover:bg-jade/20"
+                          }`}
+                      >
+                        <Star className="h-4 w-4 text-jade" />
+                      </div>
+                      <img
+                        src={`https://cdn.loldata.cc/15.13.1/img/profileicon/${sugg.icon_id}.png`}
+                        alt="icon"
+                        className="w-8 h-8 rounded-full"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="flex justify-between gap-2">
-              <img
-                src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(sugg.rank)}.png`}
-                className="w-4 h-4 rounded-sm"
-              />
-              <span className="text-xs text-flash/40 font-jetbrains">
-                {sugg.rank}
-              </span>
-            </div>
+            )}
           </div>
-
-          <div className="flex items-center gap-4">
-            <div
-              onClick={(e) => handleToggleSaveProfile(e, sugg)}
-              className={`relative z-10 rounded-sm p-1 cursor-pointer transition ${
-                isProfileSaved(sugg) ? "bg-jade/20" : "hover:bg-jade/20"
-              }`}
-            >
-              <Star className="h-4 w-4 text-jade" />
-            </div>
-            <img
-              src={`https://cdn.loldata.cc/15.13.1/img/profileicon/${sugg.icon_id}.png`}
-              alt="icon"
-              className="w-8 h-8 rounded-full"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
 
         </div>
       </DialogContent>

@@ -1,4 +1,4 @@
-import type { Participant } from "@/assets/types/riot";
+import type { MatchWithWin, Participant } from "@/assets/types/riot";
 
 export interface LolDataResult {
   scores: Record<string, number>;
@@ -174,4 +174,90 @@ export function calculateLolDataScores(participants: Participant[]): LolDataResu
   const mvpLose = mvpForTeam(teams.loseId);
 
   return { scores, mvpWin, mvpLose };
+}
+
+export function calculatePlayerRating(
+  matches: MatchWithWin[],
+  puuid: string,
+  maxGames = 15
+): number {
+  if (!puuid || !matches.length) return 40;
+
+  const clamp = (v: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, v));
+
+  const recent = matches.slice(0, maxGames);
+
+  let games = 0;
+  let wins = 0;
+  let mvpGames = 0;
+
+  let totalKills = 0;
+  let totalDeaths = 0;
+  let totalAssists = 0;
+
+  for (const m of recent) {
+    const participants = m.match.info.participants;
+    const me = participants.find((p) => p.puuid === puuid);
+    if (!me) continue;
+
+    games++;
+    if (m.win) wins++;
+
+    totalKills += me.kills ?? 0;
+    totalDeaths += me.deaths ?? 0;
+    totalAssists += me.assists ?? 0;
+
+    // usa lo stesso algoritmo MVP che usi nelle match card
+    const { mvpWin, mvpLose } = calculateLolDataScores(participants as Participant[]);
+    if (puuid === mvpWin || puuid === mvpLose) {
+      mvpGames++;
+    }
+  }
+
+  if (games === 0) return 40;
+
+  const wr = wins / games;               // 0..1
+  const mvpRate = mvpGames / games;      // 0..1
+  const avgKills = totalKills / games;
+  const avgDeaths = totalDeaths / games;
+  const avgAssists = totalAssists / games;
+
+  const deathsSafe = avgDeaths <= 0 ? 1 : avgDeaths;
+  const rawKda = (avgKills + avgAssists) / deathsSafe;
+
+  // --- COMPONENTI DEL PUNTEGGIO ---
+
+  // Winrate deve pesare un botto
+  const winrateScore = wr * 45;          // 0..45
+
+  // MVP / ACE molto premiati
+  const mvpScore = mvpRate * 20;         // 0..20
+
+  // KDA normalizzato: 1 → 0, 4+ → 1
+  const kdaNorm = clamp((rawKda - 1) / 3, 0, 1);
+  const kdaScore = kdaNorm * 10;         // 0..10
+
+  // Molte kill = piccolo bonus
+  const killsNorm = clamp(avgKills / 12, 0, 1); // 12 kill medi ≈ cap
+  const killsScore = killsNorm * 5;      // 0..5
+
+  // Penalità morti solo se muori parecchio
+  const deathsOver = avgDeaths - 5;      // sopra 5 morti medi iniziamo a punire
+  const deathPenalty =
+    deathsOver > 0 ? clamp(deathsOver / 5, 0, 1) * 10 : 0; // max -10
+
+  // --- COMBINAZIONE FINALE ---
+  let rating =
+    40 +             // base: non scendi mai sotto 40
+    winrateScore +
+    mvpScore +
+    kdaScore +
+    killsScore -
+    deathPenalty;
+
+  if (!Number.isFinite(rating)) rating = 40;
+
+  rating = clamp(Math.round(rating), 40, 100);
+  return rating;
 }

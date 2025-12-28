@@ -1,5 +1,6 @@
 // components/profileavataruploader.tsx (estratto)
-import { useEffect, useMemo, useState } from "react";
+// components/profileavataruploader.tsx (estratto)
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -147,7 +148,7 @@ async function handleReset() {
 
         
      </div>
-     <div className="flex justify-end border-t border-flash/20 gap-4 pt-2 mt-2 -mb-2">
+     <div className="flex justify-end border-t border-flash/20 gap-3 pt-2 mt-2 -mb-2">
        <button
          type="button"
          onClick={handleReset}

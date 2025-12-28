@@ -4,3 +4,5 @@ export const API_BASE_URL =
     ? "http://localhost:3001"
     : "https://api.loldata.cc";
 export const champPath = `${CDN_BASE_URL}/img/champion`;
+export const SITE_URL =
+  import.meta.env.VITE_SITE_URL || window.location.origin;
