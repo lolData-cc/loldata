@@ -154,7 +154,7 @@ function App() {
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
               <Route
                 path="/learn"
                 element={

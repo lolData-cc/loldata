@@ -1342,10 +1342,6 @@ export default function SummonerPage() {
                   )}
               </div>
             </div>
-            <div>
-            </div>
-
-
             <div className="flex w-[55%] justify-end">
               <div className="flex flex-col pr-4">
                 <div
@@ -1371,7 +1367,9 @@ export default function SummonerPage() {
                   )}
 
                   {/* 🔹 Discord sopra il livello */}
-                  {linkedDiscord && (
+                  
+                  <div className="flex flex-col" >
+                    {linkedDiscord && (
                     <div className="flex justify-end mb-1">
                       <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
                         {linkedDiscord.discord_avatar_url && (
@@ -1390,35 +1388,119 @@ export default function SummonerPage() {
                       </div>
                     </div>
                   )}
+                    <div
+                      className="uppercase select-none"
+                      title="CLICK TO COPY"
+                    >
 
-                  <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
-                    LEVEL {summonerInfo?.level} | {region}
-                  </p>
+                      {(isPro || isStreamer) && (
+                        <div className="flex justify-end mb-2 items-center space-x-2">
+                          {isPro && (
+                            <div className="relative rounded-sm overflow-hidden px-1.5">
+                              <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
+                              <div className="relative text-black text-sm text-center z-10">PRO</div>
+                            </div>
+                          )}
 
-                  <div
-                    className={`flex justify-end cursor-clicker ${((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
-                        ? "text-[17px]"
-                        : "text-2xl"
-                      }`}
-                    onClick={() => {
-                      if (summonerInfo) {
-                        navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`);
-                      }
-                    }}
-                  >
-                    {/* blocco name + tag come ce l’hai già adesso */}
-                    {/* ... */}
+                          {isStreamer && (
+                            <div className="relative rounded-sm overflow-hidden px-1.5">
+                              <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
+                              <div className="relative text-black text-sm z-10">STREAMER</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
+                        LEVEL {summonerInfo?.level} | {region}
+
+                      </p>
+                      <div
+                        className={`flex justify-end cursor-clicker ${((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
+                          ? "text-[17px]"
+                          : "text-2xl"
+                          }`}
+                        onClick={() => {
+                          if (summonerInfo) {
+                            navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
+                          }
+                        }}
+                      >
+                        {/* SE NON HO I DATI → SKELETON */}
+                        {!summonerInfo ? (
+                          <div className="flex justify-end w-[180px]">
+                            <Skeleton className="h-6 w-[70%] bg-white/10" />
+                          </div>
+                        ) : (
+                          <span className="text-right">
+                            {/* NAME */}
+                            <span
+                              className={
+                                premiumPlan === "premium" || premiumPlan === "elite"
+                                  ? "bg-clip-text text-transparent animate-glow"
+                                  : "text-[#D7D8D9] animate-glow"
+                              }
+                              style={
+                                premiumPlan === "premium"
+                                  ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                                  : premiumPlan === "elite"
+                                    ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                                    : undefined
+                              }
+                            >
+                              {summonerInfo.name}
+                            </span>
+
+                            {/* #TAG – solo quando ho i dati */}
+                            {summonerInfo.tag && (
+                              <span
+                                className={
+                                  premiumPlan === "premium" || premiumPlan === "elite"
+                                    ? "ml-0.5 bg-clip-text text-transparent animate-glow"
+                                    : "ml-0.5 text-[#BCC9C6] animate-glow"
+                                }
+                                style={
+                                  premiumPlan === "premium"
+                                    ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                                    : premiumPlan === "elite"
+                                      ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                                      : undefined
+                                }
+                              >
+                                #{summonerInfo.tag}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex justify-end items-center gap-2">
+                        <UpdateButton
+                          onClick={refreshData}
+                          loading={loading}
+                          cooldown={onCooldown}
+                          className="px-5 py-2"
+                        />
+                      </div>
+
+
+
+
+
+
+                    </div>
+
+                    {/* <div className="flex justify-end">
+                  <span className="text-[#D7D8D9]">{summonerInfo?.}</span>
+                </div> */}
+
+
+
+
                   </div>
+
+
                 </div>
 
-                <div className="mt-2 flex justify-end items-center gap-2">
-                  <UpdateButton
-                    onClick={refreshData}
-                    loading={loading}
-                    cooldown={onCooldown}
-                    className="px-5 py-2"
-                  />
-                </div>
+
               </div>
 
 
