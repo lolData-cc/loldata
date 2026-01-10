@@ -188,7 +188,7 @@ export default function Overview({ nametag, region, puuid }: Props) {
                   contentStyle={{ background: "#111", border: "1px solid #2B2A2B" }}
                   labelStyle={{ color: "#BFC5C6" }}
                   itemStyle={{ color: "#BFC5C6" }}
-                  formatter={(v: number) => [v.toFixed(2), "KDA"]}
+                  formatter={(value) => [Number(value ?? 0).toFixed(2), "KDA"]}
                 />
                 <Bar dataKey="kda" radius={[4, 4, 0, 0]} maxBarSize={28}>
                   {(() => {
