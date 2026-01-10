@@ -13,14 +13,18 @@ import {
     TableBody,
     TableCell
 } from "@/components/ui/table"
-import { Airplay, ChevronsUp, ChevronsDown } from "lucide-react"
+import { ChevronsUp, ChevronsDown } from "lucide-react"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import LoldataAIChat from "@/components/loldataaichat"
 import Overview from "@/components/overview"
 
-
 dayjs.extend(relativeTime)
+
+const aiUrl =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000/chat/ask" // 👈 in dev parla col server AI locale
+    : "/api/loldata-ai";
 
 // Rank conversion
 const tierOrder = [
@@ -55,6 +59,7 @@ function getRankTierValue(rank: string): number {
 
     return tierIndex * 4 + (3 - divisionIndex) // più alto = rank migliore
 }
+
 function getRankChange(prev: any, curr: any): "up" | "down" | null {
     if (!prev || !curr) return null
 
@@ -65,6 +70,7 @@ function getRankChange(prev: any, curr: any): "up" | "down" | null {
     if (currVal < prevVal) return "down"
     return null
 }
+
 function getAbsoluteLp(rank: string, lp: any): number {
     if (!rank || lp === undefined || lp === null) return 0
 
@@ -166,6 +172,7 @@ export default function LearnPage() {
                 <Separator className="bg-flash/20 mt-0 w-screen" />
 
                 <Tabs defaultValue="overview" className="flex w-full h-full gap-4">
+                    {/* SIDEBAR SINISTRA (AI LEARN + TABS) */}
                     <div className="border-r border-flash/10 h-full w-[30%] flex flex-col">
                         <div className="flex items-center gap-1.5 justify-end font-sourcecode font-extralight text-pine text-xl px-12 py-6">
                             <img src="/public/logo.png" className="w-8 h-8" alt="" />
@@ -174,38 +181,42 @@ export default function LearnPage() {
                         <Separator className="bg-flash/20 w-full" />
 
                         <div className="px-12 py-12 flex justify-end">
-                            <TabsList className="flex flex-col gap-2 bg-transparent">
-                                
+                            {/* ---- TABS IN STILE DASHBOARD ---- */}
+                            <TabsList className="flex flex-col items-stretch gap-1 bg-transparent w-[40%] mt-4">
+                                <TabsTrigger
+                                    value="overview"
+                                    className="w-full justify-end px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-right text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                                >
+                                    OVERVIEW
+                                </TabsTrigger>
+
                                 <TabsTrigger
                                     value="games"
-                                    className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
+                                    className="w-full justify-end px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-right text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                                 >
-                                    <Airplay className="w-4 h-4 relative" />
-                                    <span>Your Games</span>
+                                    YOUR GAMES
                                 </TabsTrigger>
 
                                 <TabsTrigger
                                     value="goals"
-                                    className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
+                                    className="w-full justify-end px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-right text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                                 >
-                                    <Airplay className="w-4 h-4 relative" />
-                                    <span>Your Goals </span>
-
+                                    YOUR GOALS
                                 </TabsTrigger>
+
                                 <TabsTrigger
                                     value="loldata-ai"
-                                    className="flex gap-2 items-center justify-end px-4 pl-24 py-1 rounded-[4px] data-[state=active]:bg-jade/20 data-[state=active]:text-jade text-flash/30 cursor-clicker"
+                                    className="w-full justify-end px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-right text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                                 >
-                                    <Airplay className="w-4 h-4 relative" />
-                                    <span>LOLDATA AI</span>
+                                    LOLDATA AI
                                 </TabsTrigger>
                             </TabsList>
+
                         </div>
                     </div>
 
+                    {/* CONTENUTO DEI TABS */}
                     <div className="w-[52.5%] h-full p-6 overflow-hidden">
-
-
                         <TabsContent value="overview">
                             <Overview nametag="ROT KARI#KURVE" region={region ?? null} puuid={puuid ?? null} />
                         </TabsContent>
@@ -302,22 +313,12 @@ export default function LearnPage() {
                                                                                 {rankChange === "up" && tier && (
                                                                                     <>
                                                                                         <ChevronsUp className="w-4 h-4 text-jade" />
-                                                                                        {/* <img
-                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
-                                                                                        alt={tier}
-                                                                                        className="w-4 h-4"
-                                                                                    /> */}
                                                                                         <span className="text-jade text-sm">{shortRank}</span>
                                                                                     </>
                                                                                 )}
                                                                                 {rankChange === "down" && tier && (
                                                                                     <>
                                                                                         <ChevronsDown className="w-4 h-4 text-red-400" />
-                                                                                        {/* <img
-                                                                                        src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${tier}.png`}
-                                                                                        alt={tier}
-                                                                                        className="w-4 h-4"
-                                                                                    /> */}
                                                                                         <span className="text-red-400 text-sm">{shortRank}</span>
                                                                                     </>
                                                                                 )}
@@ -358,14 +359,14 @@ export default function LearnPage() {
                         </TabsContent>
 
                         <TabsContent value="loldata-ai" className="p-4 h-full">
-                            <h2 className="text-jade text-4xl mb-8">LOLDATA AI</h2>
-                            <div className="h-[70vh] w-[80%]">
-                                <LoldataAIChat
-                                    apiUrl="/api/loldata-ai"
-                                    contextHint={nametag ? `User: ${nametag}` : undefined}
-                                />
-                            </div>
-                        </TabsContent>
+  <h2 className="text-jade text-4xl mb-8">LOLDATA AI</h2>
+  <div className="h-[70vh] w-[80%]">
+    <LoldataAIChat
+      apiUrl={aiUrl}
+      contextHint={nametag ? `User: ${nametag}` : undefined}
+    />
+  </div>
+</TabsContent>
                     </div>
                 </Tabs>
             </div>

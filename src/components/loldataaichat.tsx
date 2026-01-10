@@ -44,7 +44,10 @@ type Props = {
   apiUrl?: string
 }
 
-const DEFAULT_API_URL = "https://ai.loldata.cc/chat/ask"
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === "development"
+    ? "/api/loldata-ai"
+    : "https://ai.loldata.cc/chat/ask"
 
 // Helper: scrittura “macchina da scrivere” sul solo testo
 function typeWriterEffect(text: string, onUpdate: (partial: string) => void, onDone: () => void) {
@@ -226,7 +229,7 @@ export default function LoldataAIChat({
         partial => {
           setMessages(prev => prev.map(m => (m.id === id ? { ...m, content: partial } : m)))
         },
-        () => {}
+        () => { }
       )
     } catch (err: any) {
       if (err?.name !== "AbortError") {
@@ -265,8 +268,8 @@ export default function LoldataAIChat({
       typeof p?.matchup?.winrate === "number"
         ? p!.matchup!.winrate
         : typeof p?.cohort?.winrate === "number"
-        ? p!.cohort!.winrate
-        : undefined
+          ? p!.cohort!.winrate
+          : undefined
     const games = p?.matchup?.n ?? p?.cohort?.n
 
     return (
@@ -292,11 +295,11 @@ export default function LoldataAIChat({
   }
 
   return (
-    <div className={cn("flex h-full w-full flex-col", className)}>
+    <div className={cn("flex h-full w-full flex-col ", className)}>
       {/* Chat area */}
-      <div ref={scrollRef} className="mt-4 flex-1 overflow-y-auto p-1 pr-2 scrollbar-hide">
+      <div ref={scrollRef} className="mt-4 flex-1 overflow-y-auto p-1 pr-2 scrollbar-hide ">
         {messages.length === 0 && (
-          <div className="text-sm text-flash/40 px-1 font-geist">
+          <div className="text-sm text-flash/40 px-1 font-geist ">
             You may ask something like: “What do I build on Volibear?”, “What is Rakan&apos;s winrate?”
           </div>
         )}
@@ -321,9 +324,9 @@ export default function LoldataAIChat({
                     "max-w-[80%] whitespace-pre-wrap rounded-[3px] px-4 py-3 text-sm leading-relaxed font-geist",
                     "border shadow-xl transition-transform duration-200 hover:-translate-y-[1px]",
                     m.role === "user" &&
-                      "bg-jade/15 border-jade/30 text-jade drop-shadow-[0_10px_20px_rgba(16,185,129,0.15)]",
+                    "bg-jade/15 border-jade/30 text-jade drop-shadow-[0_10px_20px_rgba(16,185,129,0.15)]",
                     m.role === "error" &&
-                      "bg-red-400/10 border-red-400/30 text-red-300 drop-shadow-[0_10px_20px_rgba(248,113,113,0.15)]"
+                    "bg-red-400/10 border-red-400/30 text-red-300 drop-shadow-[0_10px_20px_rgba(248,113,113,0.15)]"
                   )}
                 >
                   {m.content}
@@ -347,26 +350,55 @@ export default function LoldataAIChat({
         </div>
       </div>
 
-      {/* Composer */}
-      <div className="mt-4 flex items-end gap-2">
-        <Textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={effectivePlaceholder}
-          className="min-h-[56px] flex-1 resize-none bg-transparent text-flash placeholder:text-flash/30 focus-visible:ring-jade"
-        />
-        {!loading ? (
-          <Button onClick={handleSend} className="h-[56px] px-4 bg-jade/20 text-jade hover:bg-jade/30">
-            <Send className="mr-2 h-4 w-4" />
-            Send
-          </Button>
-        ) : (
-          <Button onClick={handleStop} className="h-[56px] px-4">
-            Stop
-          </Button>
-        )}
+      {/* Composer – pill compatta con testo centrato */}
+       <div className="mt-4 flex items-center gap-2">
+        <div
+          className={cn(
+            "flex w-full items-center gap-2 rounded-full px-4",
+            "bg-black/40 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.6)]",
+            "backdrop-blur-xl",
+            "h-11" // altezza fissa della pill
+          )}
+        >
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={effectivePlaceholder}
+            rows={1}
+            className={cn(
+              "flex-1 resize-none bg-transparent border-0 outline-none",
+              "text-sm leading-snug text-flash placeholder:text-flash/40",
+              // altezza e padding pensati per centrare il testo nella pill da 44px
+              "h-[24px] py-0",
+              // micro-tweak ottico se serve
+              "relative top-[1px]"
+            )}
+          />
+
+          {!loading ? (
+            <button
+              type="button"
+              onClick={handleSend}
+              className="flex h-8 w-8 items-center justify-center rounded-full
+              bg-jade/90 text-black shadow-[0_0_14px_rgba(16,185,129,0.6)] hover:bg-jade transition"
+            >
+              <Send className="h-[14px] w-[14px]" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStop}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_14px_rgba(248,113,113,0.6)] hover:bg-red-400 transition"
+            >
+              <Loader2 className="h-[14px] w-[14px] animate-spin" />
+            </button>
+          )}
+        </div>
       </div>
+
+
+
     </div>
   )
 }

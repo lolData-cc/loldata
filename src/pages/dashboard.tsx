@@ -113,7 +113,7 @@ export default function DashboardPage() {
                   onClick={handleLogout}
                   className="w-full px-3 py-1.5 rounded-sm border border-flash/20 hover:bg-flash/10 text-xs text-flash/70 cursor-clicker text-left"
                 >
-                  Logout
+                  Logout  
                 </button>
                 </TabsList>
               </div>

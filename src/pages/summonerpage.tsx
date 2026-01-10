@@ -43,6 +43,7 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
 import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
 import { supabase } from "@/lib/supabaseClient";
+import { showCyberToast } from "@/lib/toast-utils";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -504,27 +505,37 @@ export default function SummonerPage() {
   }, [slug]);
 
   useEffect(() => {
-    fetch("http://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
-      .then(res => res.json())
-      .then(data => {
-        const champs = Object.values(data.data).map((champ: any) => ({
-          id: champ.key,
-          name: champ.id,
-        }));
+  fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to load champion.json")
+      return res.json()
+    })
+    .then((data) => {
+      const champs = Object.values(data.data).map((champ: any) => ({
+        id: champ.key as string,   // "266"
+        name: champ.id as string,  // "Aatrox"
+      }))
 
-        const map: Record<number, string> = {};
-        const reverseMap: Record<string, number> = {};
+      const map: Record<number, string> = {}
+      const reverseMap: Record<string, number> = {}
 
-        champs.forEach((c) => {
-          map[c.id] = c.name;
-          reverseMap[c.name] = c.id;
-        });
+      champs.forEach((c) => {
+        const numId = Number(c.id)
+        if (!Number.isNaN(numId)) {
+          map[numId] = c.name          // 266 -> "Aatrox"
+          reverseMap[c.name] = numId   // "Aatrox" -> 266
+        }
+      })
 
-        setChampionMap(map);
-        setChampionMapReverse(reverseMap);
-        setAllChampions(champs);
-      });
-  }, []);
+      setChampionMap(map)
+      setChampionMapReverse(reverseMap)
+      setAllChampions(champs)
+    })
+    .catch((err) => {
+      console.error("Error loading champions:", err)
+    })
+}, [])
+
 
   useEffect(() => {
     const savedScroll = sessionStorage.getItem("summonerScrollY");
@@ -1342,102 +1353,104 @@ export default function SummonerPage() {
                   )}
               </div>
             </div>
-            <div className="flex w-[55%] justify-end">
-              <div className="flex flex-col pr-4">
-                <div
-                  className="uppercase select-none"
-                  title="CLICK TO COPY"
-                >
-                  {(isPro || isStreamer) && (
-                    <div className="flex justify-end mb-2 items-center space-x-2">
-                      {/* PRO / STREAMER badges come prima */}
-                      {isPro && (
-                        <div className="relative rounded-sm overflow-hidden px-1.5">
-                          <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
-                          <div className="relative text-black text-sm text-center z-10">PRO</div>
-                        </div>
-                      )}
-                      {isStreamer && (
-                        <div className="relative rounded-sm overflow-hidden px-1.5">
-                          <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
-                          <div className="relative text-black text-sm z-10">STREAMER</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+            <div
+              className={cn(
+                glassDark,
+                // da: "flex w-[55%] justify-between items-center mr-2 px-4 py-3"
+                "inline-flex items-center gap-4 mr-2 px-4 py-3 w-fit max-w-full pl-10"
+              )}
+            >
+              {glassOverlays}
 
-                  {/* 🔹 Discord sopra il livello */}
-                  
-                  <div className="flex flex-col" >
-                    {linkedDiscord && (
-                    <div className="flex justify-end mb-1">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
-                        {linkedDiscord.discord_avatar_url && (
-                          <img
-                            src={linkedDiscord.discord_avatar_url}
-                            alt="Discord avatar"
-                            className="w-4 h-4 rounded-full"
-                          />
+              <div className="relative z-10 flex justify-end items-center">
+                {/* LATO TESTO */}
+                <div className="flex flex-col pr-4">
+                  <div className="uppercase select-none">
+                    {(isPro || isStreamer) && (
+                      <div className="flex justify-end mb-2 items-center space-x-2">
+                        {isPro && (
+                          <div className="relative rounded-sm overflow-hidden px-1.5">
+                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
+                            <div className="relative text-black text-sm text-center z-10">PRO</div>
+                          </div>
                         )}
-                        <span className="text-[10px] text-flash/50 tracking-[0.18em]">
-                          DISCORD
-                        </span>
-                        <span className="text-xs text-flash/80 font-medium">
-                          {linkedDiscord.discord_username ?? "Connected user"}
-                        </span>
+
+                        {isStreamer && (
+                          <div className="relative rounded-sm overflow-hidden px-1.5">
+                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
+                            <div className="relative text-black text-sm z-10">STREAMER</div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                    <div
-                      className="uppercase select-none"
-                      title="CLICK TO COPY"
-                    >
+                    )}
 
-                      {(isPro || isStreamer) && (
-                        <div className="flex justify-end mb-2 items-center space-x-2">
-                          {isPro && (
-                            <div className="relative rounded-sm overflow-hidden px-1.5">
-                              <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
-                              <div className="relative text-black text-sm text-center z-10">PRO</div>
-                            </div>
+                    {linkedDiscord && (
+                      <div className="flex justify-end mb-1">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
+                          {linkedDiscord.discord_avatar_url && (
+                            <img
+                              src={linkedDiscord.discord_avatar_url}
+                              alt="Discord avatar"
+                              className="w-4 h-4 rounded-full"
+                            />
                           )}
-
-                          {isStreamer && (
-                            <div className="relative rounded-sm overflow-hidden px-1.5">
-                              <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
-                              <div className="relative text-black text-sm z-10">STREAMER</div>
-                            </div>
-                          )}
+                          <span className="text-[10px] text-flash/50 tracking-[0.18em]">
+                            DISCORD
+                          </span>
+                          <span className="text-xs text-flash/80 font-medium">
+                            {linkedDiscord.discord_username ?? "Connected user"}
+                          </span>
                         </div>
-                      )}
-                      <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
-                        LEVEL {summonerInfo?.level} | {region}
+                      </div>
+                    )}
 
-                      </p>
-                      <div
-                        className={`flex justify-end cursor-clicker ${((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
+                    <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
+                      LEVEL {summonerInfo?.level} | {region}
+                    </p>
+
+                    <div
+                      className={cn(
+                        "flex justify-end cursor-clicker",
+                        ((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
                           ? "text-[17px]"
                           : "text-2xl"
-                          }`}
-                        onClick={() => {
-                          if (summonerInfo) {
-                            navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
-                          }
-                        }}
-                      >
-                        {/* SE NON HO I DATI → SKELETON */}
-                        {!summonerInfo ? (
-                          <div className="flex justify-end w-[180px]">
-                            <Skeleton className="h-6 w-[70%] bg-white/10" />
-                          </div>
-                        ) : (
-                          <span className="text-right">
-                            {/* NAME */}
+                      )}
+                      title="CLICK TO COPY"
+                      onClick={() => {
+                        if (summonerInfo) {
+                          navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
+                        }
+                      }}
+                    >
+                      {!summonerInfo ? (
+                        <div className="flex justify-end w-[180px]">
+                          <Skeleton className="h-6 w-[70%] bg-white/10" />
+                        </div>
+                      ) : (
+                        <span className="text-right">
+                          <span
+                            className={
+                              premiumPlan === "premium" || premiumPlan === "elite"
+                                ? "bg-clip-text text-transparent animate-glow"
+                                : "text-[#D7D8D9] animate-glow"
+                            }
+                            style={
+                              premiumPlan === "premium"
+                                ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
+                                : premiumPlan === "elite"
+                                  ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
+                                  : undefined
+                            }
+                          >
+                            {summonerInfo.name}
+                          </span>
+
+                          {summonerInfo.tag && (
                             <span
                               className={
                                 premiumPlan === "premium" || premiumPlan === "elite"
-                                  ? "bg-clip-text text-transparent animate-glow"
-                                  : "text-[#D7D8D9] animate-glow"
+                                  ? "ml-0.5 bg-clip-text text-transparent animate-glow"
+                                  : "ml-0.5 text-[#BCC9C6] animate-glow"
                               }
                               style={
                                 premiumPlan === "premium"
@@ -1447,83 +1460,72 @@ export default function SummonerPage() {
                                     : undefined
                               }
                             >
-                              {summonerInfo.name}
+                              #{summonerInfo.tag}
                             </span>
-
-                            {/* #TAG – solo quando ho i dati */}
-                            {summonerInfo.tag && (
-                              <span
-                                className={
-                                  premiumPlan === "premium" || premiumPlan === "elite"
-                                    ? "ml-0.5 bg-clip-text text-transparent animate-glow"
-                                    : "ml-0.5 text-[#BCC9C6] animate-glow"
-                                }
-                                style={
-                                  premiumPlan === "premium"
-                                    ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                                    : premiumPlan === "elite"
-                                      ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                                      : undefined
-                                }
-                              >
-                                #{summonerInfo.tag}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-2 flex justify-end items-center gap-2">
-                        <UpdateButton
-                          onClick={refreshData}
-                          loading={loading}
-                          cooldown={onCooldown}
-                          className="px-5 py-2"
-                        />
-                      </div>
-
-
-
-
-
-
+                          )}
+                        </span>
+                      )}
                     </div>
 
-                    {/* <div className="flex justify-end">
-                  <span className="text-[#D7D8D9]">{summonerInfo?.}</span>
-                </div> */}
+                    <div className="w-[100%] h-px mt-2 bg-white/15 rounded" />
+                    <div className="mt-2 flex justify-end items-center gap-2">
+                      <Button
+                        type="button"
+                        className={cn(
+                          "px-4 py-2 font-medium uppercase tracking-wide cursor-clicker",
+                          "bg-[#1D2436] text-[#D0E3FF]",
+                          "hover:bg-[#243554] hover:border-[#60A5FA] text-[#3B82F6]"
+                        )}
+                        onClick={() =>
+                          showCyberToast({
+                            title: "Coming Soon!",
+                            description: "Profile tracking will be available soon.",
+                            tag: "TRACKING",
+                          })
+                        }
+                      >
+                        TRACK
+                      </Button>
 
-
-
-
+                      <UpdateButton
+                        onClick={refreshData}
+                        loading={loading}
+                        cooldown={onCooldown}
+                        className=" hover:bg-jade/30"
+                      />
+                    </div>
                   </div>
-
-
                 </div>
 
-
-              </div>
-
-
-              <div className="relative w-40 h-40 mr-2">
-                <img
-                  src={
-                    summonerInfo?.avatar_url
-                    ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
-                  }
-                  className={cn(
-                    "w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
-                    summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                {/* LATO AVATAR */}
+                <div className="relative w-32 h-32">
+                  <img
+                    src={
+                      summonerInfo?.avatar_url
+                      ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                    }
+                    className={cn(
+                      "w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
+                      summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                    )}
+                    draggable={false}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                    }}
+                  />
+                  {summonerInfo?.live && summonerInfo?.puuid && (
+                    <LiveViewer
+                      puuid={summonerInfo.puuid}
+                      riotId={`${summonerInfo.name}#${summonerInfo.tag}`}
+                      region={region!}
+                    />
                   )}
-                  draggable={false}
-                  onError={(e) => {
-                    e.currentTarget.src = `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
-                  }}
-                />
-                {summonerInfo?.live && summonerInfo?.puuid && (
-                  <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} region={region!} />
-                )}
+                </div>
               </div>
+
             </div>
+
           </div>
 
           <div className="max-w-4xl mx-auto mt-4">
@@ -1569,7 +1571,7 @@ export default function SummonerPage() {
                 <div className="space-x-2 flex items-center">
                   <ChampionPicker
                     champions={allChampions}
-                    onSelect={(champId) => setSelectedChampion(champId)}
+                    onSelect={(champName) => setSelectedChampion(champName)}
                   />
                   <ChevronDown className="h-4 w-4" />
                 </div>
@@ -1712,20 +1714,37 @@ export default function SummonerPage() {
                                   {/* ✅ CONTENUTO INTERNO */}
                                   <div className="relative z-10 ml-2">
                                     <div className="ml-2">
-                                      <div className="relative flex justify-between text-[11px] uppercase text-flash/70 ">
-                                        {/* Sfondo cliccabile */}
+                                      <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
+                                        <span className="relative z-20 flex items-center gap-2">
+                                          <span>{queueLabel}</span>
 
+                                          {/* WIN / LOSS badge */}
+                                          <span
+                                            className={cn(
+                                              "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
+                                              win
+                                                ? "text-[#00D992]"
+                                                : "text-[#d63336]"
+                                            )}
+                                          >
+                                            {win ? "WIN" : "LOSS"}
+                                          </span>
+                                        </span>
 
-                                        {/* Testi sopra lo sfondo - con z-20 */}
-                                        <span className="relative z-20">{queueLabel}</span>
                                         <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
                                           {Math.floor(match.info.gameDuration / 60)}:
                                           {(match.info.gameDuration % 60).toString().padStart(2, "0")}
                                         </span>
+
                                         <span className="relative z-20">
-                                          {timeAgo(match.info.gameEndTimestamp ?? match.info.gameStartTimestamp ?? match.info.gameCreation)}
+                                          {timeAgo(
+                                            match.info.gameEndTimestamp ??
+                                            match.info.gameStartTimestamp ??
+                                            match.info.gameCreation
+                                          )}
                                         </span>
                                       </div>
+
 
                                       <div className="relative flex justify-between">
                                         <div className="relative z-40 flex justify-between w-full">
@@ -1829,6 +1848,7 @@ export default function SummonerPage() {
                                                     </span>
                                                   );
                                                 })()}
+
                                                 <div className="ml-2">
                                                 </div>
 

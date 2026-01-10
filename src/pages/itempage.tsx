@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, CDN_BASE_URL } from "@/config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -279,13 +279,14 @@ export default function ItemPage() {
                                         <div className="uppercase text-flash/40 mb-1">Builds From</div>
                                         <div className="flex flex-wrap gap-2">
                                             {buildFrom.map((id: string) => (
-                                                <img
-                                                    key={id}
-                                                    src={`${CDN_BASE_URL}/img/item/${id}.png`}
-                                                    alt={`from ${id}`}
-                                                    className="w-8 h-8 rounded-sm border border-flash/20"
-                                                    title={id}
-                                                />
+                                                <Link key={id} to={`/items/${id}`}>
+                                                    <img
+                                                        src={`${CDN_BASE_URL}/img/item/${id}.png`}
+                                                        alt={`from ${id}`}
+                                                        className="w-8 h-8 rounded-sm border border-flash/20 hover:border-flash/60 transition-colors"
+                                                        title={id}
+                                                    />
+                                                </Link>
                                             ))}
                                         </div>
                                     </div>

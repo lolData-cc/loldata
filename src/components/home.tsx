@@ -243,6 +243,9 @@ export const HomeYasuo: React.FC<Props> = ({ onDiscover }) => {
             DISCOVER
           </Button>
         </div>
+
+
+        
       </div>
       <Separator className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen border-t border-flash/20" />
     </div>

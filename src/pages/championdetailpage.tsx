@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
+import { ChampionItemsTab } from "@/components/championitemstab"
 
 type ChampInfo = {
   id: string
@@ -395,6 +396,11 @@ export default function ChampionDetailPage() {
 
               </div>
             )}
+          </TabsContent>
+          <TabsContent value="items">
+            <div className="mx-auto max-w-6xl px-4 py-4">
+              <ChampionItemsTab champ={champ} patch={patch} />
+            </div>
           </TabsContent>
 
 

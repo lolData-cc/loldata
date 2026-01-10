@@ -15,9 +15,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // shadcn sheet picker
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Error404 } from "@/components/error404";
+import { BorderBeam } from "@/components/ui/border-beam";
+
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion"
+// ⚠️ se il file è in src/utils/champion-roles.ts cambia questo path
+import {
+  TOP_CHAMPIONS,
+  JNG_CHAMPIONS,
+  MID_CHAMPIONS,
+  ADC_CHAMPIONS,
+  SUP_CHAMPIONS,
+} from "@/utils/champion-roles";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -28,8 +43,8 @@ export type ChampItem = {
   id: string;
   label: string;
   image: string;
-  roles?: Role[]; // <-- opzionale
 };
+
 type PickerMode = "radial" | "sheet";
 
 type Ctx = {
@@ -87,17 +102,23 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
+  // fetch champions, senza ruoli – li useremo nello sheet
   useEffect(() => {
     fetch(`https://cdn.loldata.cc/${latestPatch}/data/en_US/champion.json`)
       .then((r) => r.json())
       .then((data) => {
         const champs = Object.values<any>(data?.data ?? {});
         const sorted = champs.sort((a, b) => a.id.localeCompare(b.id));
-        const list: ChampItem[] = sorted.map((c: any) => ({
-          id: String(c.id),
-          label: c.id,
-          image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${c.id}.png`,
-        }));
+
+        const list: ChampItem[] = sorted.map((c: any) => {
+          const id = String(c.id);
+          return {
+            id,
+            label: id,
+            image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${id}.png`,
+          };
+        });
+
         setItems(list);
       })
       .catch(console.error);
@@ -266,9 +287,8 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
 
     for (const s of slots) {
       const colsVis = ringCols[s.r] ?? ringCols[ringCols.length - 1];
-      void colsVis; // kept for clarity; no direct usage below
-      const kGlobal = ((colOffset % totalCols) + totalCols) % totalCols; // normalizza
-      // k visibile nello slot s.k diventa una "colonna" globale
+      void colsVis;
+      const kGlobal = ((colOffset % totalCols) + totalCols) % totalCols;
       const col = (kGlobal + s.k) % totalCols;
       const idx = col * ringCount + s.r;
       result.push(items[idx] ?? null);
@@ -302,7 +322,10 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
     }
   }, [slotItems, colOffset, items, ringCount, slots]);
 
-  const selectedItem = useMemo(() => (selectedId ? items.find((i) => i.id === selectedId) ?? null : null), [selectedId, items]);
+  const selectedItem = useMemo(
+    () => (selectedId ? items.find((i) => i.id === selectedId) ?? null : null),
+    [selectedId, items]
+  );
 
   return (
     <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
@@ -333,7 +356,13 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
           ))}
         </defs>
 
-        <circle cx={cx} cy={cy} r={baseInnerRadius + ringCount * (ringThickness + ringGap) + 16} fill="url(#wheel-bg)" opacity={0.95} />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={baseInnerRadius + ringCount * (ringThickness + ringGap) + 16}
+          fill="url(#wheel-bg)"
+          opacity={0.95}
+        />
 
         {/* ring outlines */}
         {Array.from({ length: ringCount }).map((_, r) => {
@@ -426,7 +455,10 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
 
         <Button
           disabled={!selectedItem}
-          className={cn("min-w-[180px] bg-jade/70 text-liquirice font-scifi hover:bg-jade/90", !selectedItem && "opacity-50")}
+          className={cn(
+            "min-w-[180px] bg-jade/70 text-liquirice font-scifi hover:bg-jade/90",
+            !selectedItem && "opacity-50"
+          )}
           onClick={() => selectedItem && onConfirm(selectedItem)}
         >
           {selectedItem ? `${selectedItem.label}` : "Confirm"}
@@ -437,10 +469,19 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
 }
 
 // ─────────────────────────────────────────────────────────────
-// SheetChampionPicker (shadcn ui): alternativa semplice
+// SheetChampionPicker (sidebar a 5 sezioni)
 // ─────────────────────────────────────────────────────────────
 
 const ROLES: Role[] = ["TOP", "JNG", "MID", "ADC", "SUP"];
+
+const ROLE_SETS: Record<Role, Set<string>> = {
+  TOP: new Set(TOP_CHAMPIONS),
+  JNG: new Set(JNG_CHAMPIONS),
+  MID: new Set(MID_CHAMPIONS),
+  ADC: new Set(ADC_CHAMPIONS),
+  SUP: new Set(SUP_CHAMPIONS),
+};
+
 function SheetChampionPicker({
   open,
   items,
@@ -453,93 +494,148 @@ function SheetChampionPicker({
   onConfirm: (item: ChampItem) => void;
 }) {
   const [q, setQ] = React.useState("");
-  const [role, setRole] = React.useState<Role | null>(null);
 
-  const filtered = React.useMemo(() => {
-    const term = q.trim().toLowerCase();
+  const term = q.trim().toLowerCase();
 
-    let list = items;
-    if (role) list = list.filter((i) => i.roles?.includes(role));
-    if (term) list = list.filter((i) => i.label.toLowerCase().includes(term));
+  const grouped = React.useMemo(() => {
+    const base: Record<Role, ChampItem[]> = {
+      TOP: [],
+      JNG: [],
+      MID: [],
+      ADC: [],
+      SUP: [],
+    };
 
-    return list;
-  }, [q, role, items]);
+    for (const role of ROLES) {
+      const set = ROLE_SETS[role];
+      base[role] = items
+        .filter((c) => {
+          const inRole = set.has(c.id);
+          const matchSearch = !term || c.label.toLowerCase().includes(term);
+          return inRole && matchSearch;
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    return base;
+  }, [items, term]);
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <SheetContent
         side="right"
-        // più larga su desktop, un po' meno su mobile
-        className="w-[420px] sm:w-[460px] lg:w-[520px] bg-neutral-950 text-flash border-l border-flash/10 flex flex-col"
+        className={cn(
+          "w-[420px] sm:w-[460px] lg:w-[520px]",
+          "h-full flex flex-col p-0",
+          "bg-liquirice/95 border-l border-flash/15 text-flash",
+          "[&>button]:hidden" // <-- nasconde la X in alto a destra
+        )}
       >
-        <SheetHeader>
-          <SheetTitle className="text-flash">Choose a champion</SheetTitle>
-        </SheetHeader>
+        <div className="relative flex-1 flex flex-col px-6 py-5 overflow-hidden">
+          <BorderBeam duration={8} size={110} />
 
-        {/* barra di ricerca + clear */}
-        <div className="mt-4 flex items-center gap-2">
-          <Input
-            placeholder="Search champion…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="bg-neutral-900 border-neutral-800"
-          />
-          <Button onClick={() => setQ("")}>Clear</Button>
-        </div>
+          {/* HEADER */}
+          {/* HEADER */}
+<div className="flex items-center justify-between mb-4">
+  <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
+    CHAMPION PICKER
+  </span>
 
-        {/* tabs ruoli */}
-        <div className="mt-3 flex gap-2 flex-wrap">
-          <Button
-            variant={role === null ? "default" : "outline"}
-            size="sm"
-            onClick={() => setRole(null)}
-            className="rounded-full"
-          >
-            All
-          </Button>
-          {ROLES.map((r) => (
-            <Button
-              key={r}
-              variant={role === r ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRole(r)}
-              className="rounded-full"
+  <button
+    type="button"
+    className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
+    onClick={() => setQ("")}
+  >
+    CLEAR
+  </button>
+</div>
+
+
+          {/* SEARCH */}
+          <div className="flex items-center gap-2 mb-4">
+            <Input
+              placeholder="Type a champion name…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
+            />
+          </div>
+
+          {/* SEZIONI PER RUOLO – ACCORDION */}
+          <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide">
+            <Accordion
+              type="multiple"
+              defaultValue={ROLES} // tutte aperte di default
+              className="space-y-3"
             >
-              {r}
-            </Button>
-          ))}
-        </div>
+              {ROLES.map((role) => {
+                const champs = grouped[role];
+                if (!champs || champs.length === 0) return null;
 
-        {/* griglia: occupa tutto lo spazio, scrollbar nascosta */}
-        <div
-          className="
-            mt-4 grid grid-cols-6 gap-3 pr-2 flex-1 overflow-y-auto
-            scrollbar-none scrollbar-hide
-          "
-        >
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => onConfirm(c)}
-              className="group rounded-md border border-neutral-800 hover:border-jade/50 p-2"
-              title={c.label}
-            >
-              {/* icone più piccole */}
-              <img
-                src={c.image}
-                alt={c.label}
-                className="h-9 w-9 rounded-md object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            </button>
-          ))}
+                const label = role === "ADC" ? "BOTTOM" : role;
 
-          {!filtered.length && (
-            <div className="col-span-6 text-center text-sm text-flash/50 py-8">
-              No results
-            </div>
-          )}
+                return (
+                  <AccordionItem
+                    key={role}
+                    value={role}
+                    className="border border-flash/10 rounded-sm px-2"
+                  >
+                    <AccordionTrigger className="flex items-center justify-between py-2 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.18em] uppercase">
+                          {label}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-flash/40">
+                        {champs.length} champion{champs.length !== 1 ? "s" : ""}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-3 pt-1">
+                      <div className="grid grid-cols-6 gap-3">
+                        {champs.map((c) => (
+                          <button
+                            key={`${role}-${c.id}`}
+                            type="button"
+                            className="flex flex-col items-center gap-1 group cursor-clicker"
+                            onClick={() => {
+                              onConfirm(c);
+                              onClose();
+                            }}
+                          >
+                            <div className="bg-jade/10 rounded-[3px] p-[2px] border border-flash/10 group-hover:border-jade/50 transition-colors">
+                              <img
+                                src={c.image}
+                                alt={c.label}
+                                title={c.label}
+                                className="w-10 h-10 rounded-[3px] object-cover transition-transform group-hover:scale-110"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            </div>
+                            <span className="text-[10px] text-flash/60 truncate max-w-[64px]">
+                              {c.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+
+            {/* nessun champ in nessun ruolo (es. search senza match) */}
+            {ROLES.every((r) => grouped[r].length === 0) && (
+              <div className="text-xs text-flash/40 text-center py-10">
+                No champion found for this search.
+              </div>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
