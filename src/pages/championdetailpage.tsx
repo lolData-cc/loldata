@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
 import { ChampionItemsTab } from "@/components/championitemstab"
+import { ChampionStats, ChampionStatsTab } from "@/components/champion-stats-tab"
 
 type ChampInfo = {
   id: string
@@ -254,21 +255,94 @@ export default function ChampionDetailPage() {
       <Tabs defaultValue="overview">
         <div className="mx-auto max-w-6xl py-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="space-y-4 w-[90%]">
-            <TabsList className="xl:-ml-12">
-              <TabsTrigger value="overview">
-                <h2 className="text-lg">OVERVIEW</h2>
+            <TabsList
+              className="
+    xl:-ml-12
+    bg-transparent
+    p-0
+    gap-2
+    flex 
+    justify-start
+  "
+            >
+              <TabsTrigger
+                value="overview"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+      data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                OVERVIEW
               </TabsTrigger>
-              <TabsTrigger value="statistics">
-                <h2 className="text-lg">STATISTICS</h2>
+
+              <TabsTrigger
+                value="statistics"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+      data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                STATISTICS
               </TabsTrigger>
-              <TabsTrigger value="items">
-                <h2 className="text-lg">ITEMS</h2>
+
+              <TabsTrigger
+                value="items"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                ITEMS
               </TabsTrigger>
-              <TabsTrigger value="matchups">
-                <h2 className="text-lg">MATCHUPS</h2>
+
+              <TabsTrigger
+                value="matchups"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                MATCHUPS
               </TabsTrigger>
-              <TabsTrigger value="pros">
-                <h2 className="text-lg">PROS</h2>
+
+              <TabsTrigger
+                value="pros"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                PROS
               </TabsTrigger>
             </TabsList>
 
@@ -306,7 +380,11 @@ export default function ChampionDetailPage() {
             </div>
           </TabsContent>
           <TabsContent value="statistics">
-            STATS
+            {Object.keys(keyToId).length === 0 ? (
+              <div className="text-neutral-400">LOADING CHAMPIONS…</div>
+            ) : (
+              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} />
+            )}
           </TabsContent>
           <TabsContent value="matchups">
             {Object.keys(keyToId).length === 0 ? (
@@ -374,8 +452,8 @@ export default function ChampionDetailPage() {
                               <span className="text-sm font-semibold text-white">{fmtPct(m.winrate)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <div className="text-[11px] text-neutral-400">{m.games} games</div>
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeClass(label)}`}>
+                              <div className="text-[12px] text-neutral-400">{m.games} games</div>
+                              <span className={`rounded-full px-2 py-0.5 text-[12px] ${badgeClass(label)}`}>
                                 {label}
                               </span>
                             </div>

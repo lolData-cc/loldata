@@ -36,6 +36,7 @@ import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
 import PlaygroundPage from "./pages/playgroundpage";
 import { NewItemsBanner } from "./components/features1 copy";
+import TotalMasteryPage from "./pages/totalmastery";
 //
 
 declare global {
@@ -177,6 +178,7 @@ function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
+              <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
             </Routes>
           </ChampionPickerProvider>
         </LiveViewerProvider>

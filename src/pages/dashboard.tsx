@@ -14,10 +14,15 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 import { DiscordLinker } from "@/components/discordlinker";
+import { useAuth } from "@/context/authcontext";
+import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { pickerMode, setPickerMode } = useChampionPicker();
+
+  // ✅ prendi isAdmin dal context
+  const { isAdmin } = useAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -80,48 +85,72 @@ export default function DashboardPage() {
           <Tabs defaultValue="profile" className="flex w-full h-full min-h-0">
             {/* 20%: sidebar */}
             <div className="w-[20%] border-r border-flash/10 h-full overflow-hidden flex flex-col">
-              {/* header + tabs blocco superiore */}
               <div>
-                <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent mt-24 w-[80%]">
+                <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent mt-32 w-[80%]">
                   <TabsTrigger
                     value="profile"
                     className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                   >
                     PROFILE
                   </TabsTrigger>
+
                   <TabsTrigger
                     value="documentation"
                     className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                   >
                     DOCUMENTATION
                   </TabsTrigger>
+
                   <TabsTrigger
                     value="billing"
                     className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                   >
                     BILLING
                   </TabsTrigger>
-                                    <TabsTrigger
+
+                  <TabsTrigger
                     value="preferences"
                     className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
                   >
                     PREFERENCES
                   </TabsTrigger>
+
+                  {/* ✅ ADMIN ONLY tabs - tra tabs e logout */}
+                  {isAdmin && (
+                    <>
+                      <Separator className="bg-flash/15 my-2" />
+
+                      <TabsTrigger
+                        value="proApplications"
+                        className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                      >
+                        PRO APPLICATIONS
+                      </TabsTrigger>
+
+                      <TabsTrigger
+                        value="streamerApplications"
+                        className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                      >
+                        STREAMER APPLICATIONS
+                      </TabsTrigger>
+                    </>
+                  )}
+
                   <Separator className="bg-flash/15 mb-3" />
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full px-3 py-1.5 rounded-sm border border-flash/20 hover:bg-flash/10 text-xs text-flash/70 cursor-clicker text-left"
-                >
-                  Logout  
-                </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-3 py-1.5 rounded-sm border border-flash/20 hover:bg-flash/10 text-xs text-flash/70 cursor-clicker text-left"
+                  >
+                    Logout
+                  </button>
                 </TabsList>
               </div>
-
             </div>
 
             {/* 70%: content scrollabile */}
-            <div className="w-[70%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide">
+            <div className="w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide">
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
                 <div className="flex flex-col gap-8 p-4 px-6">
@@ -221,9 +250,30 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </TabsContent>
+
+              {/* ✅ ADMIN TAB: PRO APPLICATIONS */}
+              {isAdmin && (
+                <TabsContent value="proApplications" className="outline-none">
+                  <div className="flex flex-col gap-6 p-4 px-6">
+                    <h3 className="text-flash/60">PRO APPLICATIONS</h3>
+                    <ProApplicationsAdminPanel />
+                  </div>
+                </TabsContent>
+              )}
+
+              {/* ✅ ADMIN TAB: STREAMER APPLICATIONS (placeholder) */}
+              {isAdmin && (
+                <TabsContent value="streamerApplications" className="outline-none">
+                  <div className="flex flex-col gap-6 p-4 px-6">
+                    <h3 className="text-flash/60">STREAMER APPLICATIONS</h3>
+                    <div className="rounded-md border border-flash/10 bg-neutral-950/60 p-4 text-sm text-flash/70">
+                      Streamer applications panel coming soon.
+                    </div>
+                  </div>
+                </TabsContent>
+              )}
             </div>
 
-            {/* opzionale: 10% restante */}
             <div className="flex-1 h-full overflow-hidden" />
           </Tabs>
         </div>

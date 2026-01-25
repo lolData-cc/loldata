@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
+import { GlassOverlays } from "@/components/ui/glass-overlays";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -1033,7 +1034,7 @@ export default function SummonerPage() {
             <div className="w-[90%] mt-4 flex gap-4 items-stretch">
               {/* SINISTRA: HEATMAP (uguale a prima come altezza) */}
               <div className={cn(glassDark, "flex-1 text-sm font-thin")}>
-                {glassOverlays}
+                <GlassOverlays />
                 <div className="relative z-10 px-4 py-3">
                   <div className="flex items-center justify-between text-xs text-flash/70">
                     <span>THIS MONTH</span>
@@ -1119,7 +1120,7 @@ export default function SummonerPage() {
 
               {/* DESTRA: PLAYER RATING (stessa altezza grazie a items-stretch) */}
               <div className={cn(glassDark, "w-52 text-sm font-thin flex-shrink-0")}>
-                {glassOverlays}
+                <GlassOverlays />
                 <div className="relative z-10 px-4 py-3 h-full flex flex-col justify-between">
                   <div>
                     <div className="text-[11px] uppercase text-flash/70 tracking-wide">
@@ -1360,7 +1361,6 @@ export default function SummonerPage() {
                 "inline-flex items-center gap-4 mr-2 px-4 py-3 w-fit max-w-full pl-10"
               )}
             >
-              {glassOverlays}
 
               <div className="relative z-10 flex justify-end items-center">
                 {/* LATO TESTO */}
