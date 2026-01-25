@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
 import { ChampionItemsTab } from "@/components/championitemstab"
-import { ChampionStats, ChampionStatsTab } from "@/components/champion-stats-tab"
+import { ChampionStats } from "@/components/champion-stats-tab"
 
 type ChampInfo = {
   id: string

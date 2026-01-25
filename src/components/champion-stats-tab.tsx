@@ -11,7 +11,7 @@ import {
     RoleMidIcon,
     RoleAdcIcon,
     RoleSupportIcon,
-} from "@/components/ui/RoleIcons"
+} from "@/components/ui/roleicons"
 
 // ✅ highlight component
 import { BorderBeam } from "./ui/border-beam"
