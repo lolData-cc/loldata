@@ -6,8 +6,7 @@
 
 @layer base {
   body {
-    @apply cursor-custom
-
+    @apply cursor-custom;
   }
   ::selection {
     background-color: #00d992;

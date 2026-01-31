@@ -204,11 +204,11 @@ module.exports = {
   		},
   		opacity: {
   			'2': '0.02'
+  		},
+  		cursor: {
+  			clicker: 'url("/cursors/clicker.svg") 16 6, auto',
+  			pointer: 'url("/cursors/base.svg") 8 8, auto'
   		}
-  	},
-  	cursor: {
-  		clicker: 'url("/cursors/clicker.svg") 16 6, auto',
-  		pointer: 'url("cursors/base.svg") 8 8, auto'
   	}
   },
   plugins: [
