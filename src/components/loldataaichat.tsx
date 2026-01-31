@@ -350,16 +350,34 @@ export default function LoldataAIChat({
         </div>
       </div>
 
-      {/* Composer – pill compatta con testo centrato */}
-       <div className="mt-4 flex items-center gap-2">
+      {/* Composer – iOS 26 Liquid Glass Style */}
+      <div className="mt-4 flex items-center gap-2">
         <div
           className={cn(
-            "flex w-full items-center gap-2 rounded-full px-4",
-            "bg-black/40 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.6)]",
-            "backdrop-blur-xl",
-            "h-11" // altezza fissa della pill
+            "relative flex w-full items-center gap-2 rounded-[22px] px-4",
+            "h-11",
+            // Liquid glass base - layered transparency
+            "bg-gradient-to-b from-white/[0.12] to-white/[0.04]",
+            // Inner glow and glass refraction effect
+            "shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.05),0_4px_24px_rgba(0,0,0,0.3),0_1px_3px_rgba(0,0,0,0.2)]",
+            // Heavy blur for liquid effect
+            "backdrop-blur-2xl backdrop-saturate-150",
+            // Subtle border with gradient-like appearance
+            "border border-white/[0.08]",
+            // Smooth transitions
+            "transition-all duration-300",
+            // Hover state - slightly more visible
+            "hover:bg-gradient-to-b hover:from-white/[0.15] hover:to-white/[0.06]",
+            "hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.35),0_2px_4px_rgba(0,0,0,0.2)]",
+            // Focus-within state
+            "focus-within:bg-gradient-to-b focus-within:from-white/[0.18] focus-within:to-white/[0.08]",
+            "focus-within:shadow-[inset_0_1px_2px_rgba(255,255,255,0.25),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.12),0_8px_40px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.25)]",
+            "focus-within:border-white/[0.15]"
           )}
         >
+          {/* Top highlight reflection */}
+          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -368,11 +386,11 @@ export default function LoldataAIChat({
             rows={1}
             className={cn(
               "flex-1 resize-none bg-transparent border-0 outline-none",
-              "text-sm leading-snug text-flash placeholder:text-flash/40",
-              // altezza e padding pensati per centrare il testo nella pill da 44px
+              "text-sm leading-snug text-flash/90 placeholder:text-flash/35",
               "h-[24px] py-0",
-              // micro-tweak ottico se serve
-              "relative top-[1px]"
+              "relative top-[1px]",
+              // Caret color
+              "caret-jade"
             )}
           />
 
@@ -380,8 +398,16 @@ export default function LoldataAIChat({
             <button
               type="button"
               onClick={handleSend}
-              className="flex h-8 w-8 items-center justify-center rounded-full
-              bg-jade/90 text-black shadow-[0_0_14px_rgba(16,185,129,0.6)] hover:bg-jade transition"
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
+                // Liquid glass button
+                "bg-gradient-to-b from-jade/80 to-jade/60",
+                "shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_2px_8px_rgba(16,185,129,0.4),0_0_0_1px_rgba(16,185,129,0.2)]",
+                "text-black/80",
+                "hover:from-jade/90 hover:to-jade/70",
+                "hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_4px_16px_rgba(16,185,129,0.5),0_0_0_1px_rgba(16,185,129,0.3)]",
+                "active:scale-95"
+              )}
             >
               <Send className="h-[14px] w-[14px]" />
             </button>
@@ -389,7 +415,14 @@ export default function LoldataAIChat({
             <button
               type="button"
               onClick={handleStop}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_14px_rgba(248,113,113,0.6)] hover:bg-red-400 transition"
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
+                "bg-gradient-to-b from-red-500/80 to-red-600/60",
+                "shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_2px_8px_rgba(248,113,113,0.4),0_0_0_1px_rgba(248,113,113,0.2)]",
+                "text-white/90",
+                "hover:from-red-500/90 hover:to-red-600/70",
+                "active:scale-95"
+              )}
             >
               <Loader2 className="h-[14px] w-[14px] animate-spin" />
             </button>
