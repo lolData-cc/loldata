@@ -17,7 +17,7 @@ import {
   RoleSupportIcon,
 } from "@/components/ui/roleicons"
 
-type RoleKey = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "SUPPORT" | null
+type RoleKey = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "SUPPORT"
 
 type ChampionTierData = {
   championKey: number
@@ -28,12 +28,6 @@ type ChampionTierData = {
   banrate: number
   games: number
   tier: "Z" | "S" | "A" | "B" | "C"
-}
-
-type TierListResponse = {
-  patch: string
-  role: string | null
-  champions: ChampionTierData[]
 }
 
 const TIERS = ["Z", "S", "A", "B", "C"] as const
@@ -54,15 +48,20 @@ const tierDescriptions: Record<string, string> = {
   C: "Below Average - Weaker picks in the current meta",
 }
 
+// Champion pools per role (most common champions)
+const ROLE_CHAMPIONS: Record<RoleKey, string[]> = {
+  TOP: ["Aatrox", "Ambessa", "Camille", "Darius", "DrMundo", "Fiora", "Gangplank", "Garen", "Gnar", "Gwen", "Illaoi", "Irelia", "Jax", "Jayce", "Kayle", "Kennen", "Kled", "Malphite", "Mordekaiser", "Nasus", "Olaf", "Ornn", "Pantheon", "Poppy", "Quinn", "Renekton", "Riven", "Rumble", "Sett", "Shen", "Singed", "Sion", "Tahm Kench", "Teemo", "Trundle", "Tryndamere", "Urgot", "Vayne", "Vladimir", "Volibear", "Warwick", "Wukong", "Yorick", "KSante"],
+  JUNGLE: ["Amumu", "BelVeth", "Briar", "Diana", "Ekko", "Elise", "Evelynn", "Fiddlesticks", "Gragas", "Graves", "Hecarim", "Ivern", "JarvanIV", "Kayn", "Khazix", "Kindred", "LeeSin", "Lillia", "Maokai", "MasterYi", "Nidalee", "Nocturne", "Nunu", "Pantheon", "Poppy", "RekSai", "Rengar", "Sejuani", "Shaco", "Shyvana", "Skarner", "Taliyah", "Udyr", "Vi", "Viego", "Volibear", "Warwick", "Wukong", "XinZhao", "Zac"],
+  MIDDLE: ["Ahri", "Akali", "Akshan", "Anivia", "Annie", "AurelionSol", "Aurora", "Azir", "Cassiopeia", "Corki", "Diana", "Ekko", "Fizz", "Galio", "Hwei", "Irelia", "Kassadin", "Katarina", "LeBlanc", "Lissandra", "Lux", "Malzahar", "Naafiri", "Neeko", "Orianna", "Qiyana", "Ryze", "Sylas", "Syndra", "TaleMasterTwisted Fate", "Talon", "TwistedFate", "Veigar", "Vex", "Viktor", "Vladimir", "Xerath", "Yasuo", "Yone", "Zed", "Zoe"],
+  BOTTOM: ["Aphelios", "Ashe", "Caitlyn", "Draven", "Ezreal", "Jhin", "Jinx", "KaiSa", "Kalista", "KogMaw", "Lucian", "MissFortune", "Nilah", "Samira", "Sivir", "Smolder", "Tristana", "Twitch", "Varus", "Vayne", "Xayah", "Zeri"],
+  SUPPORT: ["Alistar", "Bard", "Blitzcrank", "Braum", "Janna", "Karma", "Leona", "Lulu", "Lux", "Milio", "Morgana", "Nami", "Nautilus", "Poppy", "Pyke", "Rakan", "Rell", "Renata", "Senna", "Seraphine", "Sona", "Soraka", "Swain", "Taric", "Thresh", "Yuumi", "Zilean", "Zyra"],
+}
+
 function calculateTier(winrate: number, pickrate: number, games: number): "Z" | "S" | "A" | "B" | "C" {
-  // Minimum games threshold for reliable data
   if (games < 100) return "C"
   
-  // Score based on winrate and pickrate
-  // Winrate is weighted more heavily
-  const wrScore = winrate - 50 // -50 to +50 range typically
-  const prScore = Math.min(pickrate * 2, 10) // Cap pickrate contribution
-  
+  const wrScore = winrate - 50
+  const prScore = Math.min(pickrate * 2, 10)
   const totalScore = wrScore * 1.5 + prScore
   
   if (totalScore > 12) return "Z"
@@ -89,18 +88,6 @@ function RoleFilterBar({
 
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => onChange(null)}
-        className={cn(
-          "h-10 px-4 rounded-md border transition-colors font-mono text-xs uppercase tracking-wider",
-          value === null
-            ? "border-jade/50 bg-jade/10 text-jade"
-            : "border-flash/10 bg-flash/5 text-flash/50 hover:border-flash/20"
-        )}
-      >
-        All
-      </button>
       {roles.map((r) => (
         <button
           key={r.key}
@@ -126,7 +113,7 @@ function RoleFilterBar({
   )
 }
 
-function ChampionCard({ champion, patch }: { champion: ChampionTierData; patch: string }) {
+function ChampionCard({ champion }: { champion: ChampionTierData }) {
   const iconUrl = `${CDN_BASE_URL}/img/champion/${champion.championId}.png`
   const tier = tierColors[champion.tier]
 
@@ -166,7 +153,7 @@ function ChampionCard({ champion, patch }: { champion: ChampionTierData; patch: 
   )
 }
 
-function TierSection({ tier, champions, patch }: { tier: string; champions: ChampionTierData[]; patch: string }) {
+function TierSection({ tier, champions }: { tier: string; champions: ChampionTierData[] }) {
   const colors = tierColors[tier]
   
   if (champions.length === 0) return null
@@ -197,7 +184,7 @@ function TierSection({ tier, champions, patch }: { tier: string; champions: Cham
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {champions.map((champ) => (
-          <ChampionCard key={champ.championKey} champion={champ} patch={patch} />
+          <ChampionCard key={champ.championKey} champion={champ} />
         ))}
       </div>
     </div>
@@ -207,18 +194,19 @@ function TierSection({ tier, champions, patch }: { tier: string; champions: Cham
 export default function TierListPage() {
   const [patches, setPatches] = useState<string[]>([])
   const [selectedPatch, setSelectedPatch] = useState<string>("")
-  const [role, setRole] = useState<RoleKey>(null)
+  const [role, setRole] = useState<RoleKey>("MIDDLE")
   const [champions, setChampions] = useState<ChampionTierData[]>([])
   const [keyToId, setKeyToId] = useState<Record<string, { id: string; name: string }>>({})
+  const [idToKey, setIdToKey] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
 
   // Fetch available patches
   useEffect(() => {
     fetch("https://ddragon.leagueoflegends.com/api/versions.json")
       .then((r) => r.json())
       .then((versions: string[]) => {
-        // Get recent patches (last 5)
         const recentPatches = versions.slice(0, 5)
         setPatches(recentPatches)
         if (recentPatches.length > 0) {
@@ -235,44 +223,53 @@ export default function TierListPage() {
     fetch(`${CDN_BASE_URL}/data/en_US/champion.json`)
       .then((r) => r.json())
       .then((data) => {
-        const mapping: Record<string, { id: string; name: string }> = {}
+        const keyMap: Record<string, { id: string; name: string }> = {}
+        const idMap: Record<string, string> = {}
         Object.values(data.data || {}).forEach((ch: any) => {
-          mapping[ch.key] = { id: ch.id, name: ch.name }
+          keyMap[ch.key] = { id: ch.id, name: ch.name }
+          idMap[ch.id] = ch.key
         })
-        setKeyToId(mapping)
+        setKeyToId(keyMap)
+        setIdToKey(idMap)
       })
       .catch(() => {})
   }, [selectedPatch])
 
-  // Fetch tierlist data
+  // Fetch tierlist data for selected role
   useEffect(() => {
-    if (!selectedPatch || Object.keys(keyToId).length === 0) return
+    if (!selectedPatch || Object.keys(keyToId).length === 0 || Object.keys(idToKey).length === 0) return
 
     let cancelled = false
     setLoading(true)
     setError(null)
+    setChampions([])
 
-    // Fetch stats for all champions and calculate tiers
-    const fetchAllChampionStats = async () => {
+    const fetchRoleChampionStats = async () => {
       try {
-        const championKeys = Object.keys(keyToId)
-        const batchSize = 20
+        const roleChampionIds = ROLE_CHAMPIONS[role]
         const allChampions: ChampionTierData[] = []
+        
+        setProgress({ current: 0, total: roleChampionIds.length })
 
-        for (let i = 0; i < championKeys.length; i += batchSize) {
+        // Fetch in small batches with delays to avoid rate limiting
+        const batchSize = 5
+        for (let i = 0; i < roleChampionIds.length; i += batchSize) {
           if (cancelled) return
 
-          const batch = championKeys.slice(i, i + batchSize)
+          const batch = roleChampionIds.slice(i, i + batchSize)
           const batchResults = await Promise.all(
-            batch.map(async (key) => {
+            batch.map(async (champId) => {
               try {
+                const key = idToKey[champId]
+                if (!key) return null
+
                 const response = await fetch(`${API_BASE_URL}/api/champion/stats`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     championId: Number(key),
-                    patch: null, // Use latest
-                    queueId: 420, // Ranked Solo
+                    patch: null,
+                    queueId: 420,
                     role: role,
                   }),
                 })
@@ -307,11 +304,20 @@ export default function TierListPage() {
             })
           )
 
-          allChampions.push(...batchResults.filter((c): c is ChampionTierData => c !== null))
+          const validResults = batchResults.filter((c): c is ChampionTierData => c !== null)
+          allChampions.push(...validResults)
+          
+          if (!cancelled) {
+            setProgress({ current: Math.min(i + batchSize, roleChampionIds.length), total: roleChampionIds.length })
+          }
+
+          // Small delay between batches
+          if (i + batchSize < roleChampionIds.length) {
+            await new Promise(r => setTimeout(r, 100))
+          }
         }
 
         if (!cancelled) {
-          // Sort by winrate within each tier
           allChampions.sort((a, b) => {
             const tierOrder = { Z: 0, S: 1, A: 2, B: 3, C: 4 }
             if (tierOrder[a.tier] !== tierOrder[b.tier]) {
@@ -330,12 +336,12 @@ export default function TierListPage() {
       }
     }
 
-    fetchAllChampionStats()
+    fetchRoleChampionStats()
 
     return () => {
       cancelled = true
     }
-  }, [selectedPatch, keyToId, role])
+  }, [selectedPatch, keyToId, idToKey, role])
 
   const championsByTier = useMemo(() => {
     const grouped: Record<string, ChampionTierData[]> = {
@@ -353,6 +359,14 @@ export default function TierListPage() {
     return grouped
   }, [champions])
 
+  const roleLabels: Record<RoleKey, string> = {
+    TOP: "Top Lane",
+    JUNGLE: "Jungle",
+    MIDDLE: "Mid Lane",
+    BOTTOM: "Bot Lane (ADC)",
+    SUPPORT: "Support",
+  }
+
   return (
     <main className="min-h-dvh py-8">
       {/* Header */}
@@ -361,7 +375,7 @@ export default function TierListPage() {
           Champion Tier List
         </h1>
         <p className="text-flash/50 font-mono text-sm">
-          Updated tier rankings based on winrate and pickrate data from Ranked Solo Queue
+          Tier rankings based on winrate and pickrate data from Ranked Solo Queue
         </p>
       </div>
 
@@ -394,11 +408,16 @@ export default function TierListPage() {
           <RoleFilterBar value={role} onChange={setRole} />
         </div>
 
-        {loading && (
-          <div className="ml-auto text-xs font-mono text-jade animate-pulse">
-            Loading champions...
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs font-mono text-jade">
+            {roleLabels[role]}
+          </span>
+          {loading && (
+            <span className="text-xs font-mono text-flash/40 animate-pulse">
+              ({progress.current}/{progress.total})
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Error State */}
@@ -445,7 +464,6 @@ export default function TierListPage() {
               key={tier}
               tier={tier}
               champions={championsByTier[tier]}
-              patch={selectedPatch}
             />
           ))}
 
