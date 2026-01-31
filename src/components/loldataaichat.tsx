@@ -351,32 +351,71 @@ export default function LoldataAIChat({
       </div>
 
       {/* Composer – iOS 26 Liquid Glass Style */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-3">
+        {/* Send button - circular liquid glass */}
+        {!loading ? (
+          <button
+            type="button"
+            onClick={handleSend}
+            className={cn(
+              "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+              // Nearly transparent fill
+              "bg-white/[0.03]",
+              // The key: thin white ring border for glass edge effect
+              "ring-1 ring-inset ring-white/[0.15]",
+              // Subtle inner shadow for depth/recess
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+              // Backdrop blur
+              "backdrop-blur-xl",
+              // Hover - slightly brighter
+              "hover:bg-white/[0.06] hover:ring-white/[0.22]",
+              "active:scale-95"
+            )}
+          >
+            {/* Top edge highlight */}
+            <div className="pointer-events-none absolute inset-x-2 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Send className="h-4 w-4 text-white/60" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStop}
+            className={cn(
+              "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+              "bg-white/[0.03]",
+              "ring-1 ring-inset ring-white/[0.15]",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+              "backdrop-blur-xl",
+              "hover:bg-white/[0.06] hover:ring-white/[0.22]",
+              "active:scale-95"
+            )}
+          >
+            <div className="pointer-events-none absolute inset-x-2 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Loader2 className="h-4 w-4 text-white/60 animate-spin" />
+          </button>
+        )}
+
+        {/* Input pill - liquid glass */}
         <div
           className={cn(
-            "relative flex w-full items-center gap-2 rounded-[22px] px-4",
+            "relative flex flex-1 items-center rounded-full px-5",
             "h-11",
-            // Liquid glass base - layered transparency
-            "bg-gradient-to-b from-white/[0.12] to-white/[0.04]",
-            // Inner glow and glass refraction effect
-            "shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.05),0_4px_24px_rgba(0,0,0,0.3),0_1px_3px_rgba(0,0,0,0.2)]",
-            // Heavy blur for liquid effect
-            "backdrop-blur-2xl backdrop-saturate-150",
-            // Subtle border with gradient-like appearance
-            "border border-white/[0.08]",
-            // Smooth transitions
-            "transition-all duration-300",
-            // Hover state - slightly more visible
-            "hover:bg-gradient-to-b hover:from-white/[0.15] hover:to-white/[0.06]",
-            "hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.35),0_2px_4px_rgba(0,0,0,0.2)]",
-            // Focus-within state
-            "focus-within:bg-gradient-to-b focus-within:from-white/[0.18] focus-within:to-white/[0.08]",
-            "focus-within:shadow-[inset_0_1px_2px_rgba(255,255,255,0.25),inset_0_-1px_1px_rgba(0,0,0,0.1),0_0_0_1px_rgba(255,255,255,0.12),0_8px_40px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.25)]",
-            "focus-within:border-white/[0.15]"
+            // Nearly transparent - the key to liquid glass
+            "bg-white/[0.03]",
+            // Thin white ring creates the glass edge
+            "ring-1 ring-inset ring-white/[0.15]",
+            // Inner shadows for recessed/embossed look
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+            // Blur
+            "backdrop-blur-xl",
+            // Transitions
+            "transition-all duration-200",
+            // Focus state - slightly more visible ring
+            "focus-within:ring-white/[0.25] focus-within:bg-white/[0.05]"
           )}
         >
-          {/* Top highlight reflection */}
-          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          {/* Top edge highlight reflection */}
+          <div className="pointer-events-none absolute inset-x-4 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
           
           <textarea
             value={input}
@@ -386,47 +425,11 @@ export default function LoldataAIChat({
             rows={1}
             className={cn(
               "flex-1 resize-none bg-transparent border-0 outline-none",
-              "text-sm leading-snug text-flash/90 placeholder:text-flash/35",
+              "text-sm leading-snug text-white/70 placeholder:text-white/30",
               "h-[24px] py-0",
-              "relative top-[1px]",
-              // Caret color
-              "caret-jade"
+              "caret-white/50"
             )}
           />
-
-          {!loading ? (
-            <button
-              type="button"
-              onClick={handleSend}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
-                // Liquid glass button
-                "bg-gradient-to-b from-jade/80 to-jade/60",
-                "shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_2px_8px_rgba(16,185,129,0.4),0_0_0_1px_rgba(16,185,129,0.2)]",
-                "text-black/80",
-                "hover:from-jade/90 hover:to-jade/70",
-                "hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_4px_16px_rgba(16,185,129,0.5),0_0_0_1px_rgba(16,185,129,0.3)]",
-                "active:scale-95"
-              )}
-            >
-              <Send className="h-[14px] w-[14px]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStop}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
-                "bg-gradient-to-b from-red-500/80 to-red-600/60",
-                "shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_2px_8px_rgba(248,113,113,0.4),0_0_0_1px_rgba(248,113,113,0.2)]",
-                "text-white/90",
-                "hover:from-red-500/90 hover:to-red-600/70",
-                "active:scale-95"
-              )}
-            >
-              <Loader2 className="h-[14px] w-[14px] animate-spin" />
-            </button>
-          )}
         </div>
       </div>
 
