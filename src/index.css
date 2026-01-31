@@ -18,35 +18,33 @@
   }
 }
 
-@theme inline {
-  --animate-open-vertical: open-vertical 50ms ease-in-out forwards;
-  @keyframes open-vertical {
-    0% {
-      transform: scaleY(0);
-    }
-    100% {
-      transform: scaleY(1);
-    } 
+@keyframes open-vertical {
+  0% {
+    transform: scaleY(0);
   }
-  --animate-close-vertical: close-vertical 50ms ease-in-out forwards;
-  @keyframes close-vertical {
-    0% {
-      transform: scaleY(1);
-    }
-    100% {
-      transform: scaleY(0);
-    } 
+  100% {
+    transform: scaleY(1);
+  } 
+}
+
+@keyframes close-vertical {
+  0% {
+    transform: scaleY(1);
   }
-  @keyframes shine {
+  100% {
+    transform: scaleY(0);
+  } 
+}
+
+@keyframes shine {
   0% {
     background-position: 0% 0%;
-    }
+  }
   50% {
     background-position: 100% 100%;
-    }
+  }
   to {
     background-position: 0% 0%;
-    }
   }
 }
 
@@ -219,9 +217,6 @@ html, body {
     @apply appearance-none bg-transparent border-0 outline-none;
   }
 }
-
-@tailwind components;
-@tailwind utilities;
 
 @layer components {
   .all-\[unset\] {
