@@ -65,7 +65,7 @@ module.exports = {
   			'rotate-outline': 'rotateOutline 2s linear infinite',
   			jerk: 'jerk 0.5s infinite',
   			'glitch-jerk': 'glitch 1s infinite, jerk 0.5s infinite',
-  			blink: 'blink 1sd steps/2, start) infinite',
+  			blink: 'blink 1s steps(2, start) infinite',
   			'border-spin': 'border-spin 7s linear infinite',
   			'pulse-slow': 'pulseSlow 8s ease-in-out infinite',
   			'open-vertical': 'open-vertical 50ms ease-in-out forwards',
