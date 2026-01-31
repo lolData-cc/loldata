@@ -87,6 +87,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   useEffect(() => {
+    if (!supabase) {
+      console.warn("[AuthContext] Supabase not initialized - missing env vars")
+      resetProfile()
+      setLoading(false)
+      return
+    }
+
     supabase.auth
       .getSession()
       .then(({ data }) => {

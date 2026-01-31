@@ -48,6 +48,7 @@ declare global {
 
 
 function HomePage() {
+  console.log("[v0] HomePage component rendering")
   const [text, setText] = useState("")
   const [showSubtitle, setShowSubtitle] = useState(false)
   const fullText = "The future of Improvement"
@@ -145,6 +146,7 @@ export function RootLayout({
   )
 }
 function App() {
+  console.log("[v0] App component rendering")
   return (
       <AuthProvider>
         <LiveViewerProvider>
