@@ -37,6 +37,7 @@ import LeaderboardPage from "@/pages/leaderboardpage";
 import PlaygroundPage from "./pages/playgroundpage";
 import { NewItemsBanner } from "./components/features1 copy";
 import TotalMasteryPage from "./pages/totalmastery";
+import TierListPage from "./pages/tierlistpage";
 //
 
 declare global {
@@ -48,7 +49,6 @@ declare global {
 
 
 function HomePage() {
-  console.log("[v0] HomePage component rendering")
   const [text, setText] = useState("")
   const [showSubtitle, setShowSubtitle] = useState(false)
   const fullText = "The future of Improvement"
@@ -146,7 +146,6 @@ export function RootLayout({
   )
 }
 function App() {
-  console.log("[v0] App component rendering")
   return (
       <AuthProvider>
         <LiveViewerProvider>
@@ -181,6 +180,7 @@ function App() {
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
+              <Route path="/tierlist" element={<RootLayout><TierListPage /></RootLayout>}/>
             </Routes>
           </ChampionPickerProvider>
         </LiveViewerProvider>
