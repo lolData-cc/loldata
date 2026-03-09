@@ -1020,78 +1020,7 @@ export default function SummonerPage() {
               {recentDetailedStats && (
                 <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
 
-                  {/* Row 1: Rating Ring + Recent Form */}
-                  <div className="flex items-center gap-4">
-
-                    {/* Performance Rating Ring */}
-                    <div className="relative flex-shrink-0">
-                      <svg width="72" height="72" viewBox="0 0 72 72">
-                        {/* Background track */}
-                        <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
-                        {/* Score arc */}
-                        <circle
-                          cx="36" cy="36" r="30" fill="none"
-                          stroke="url(#ratingGrad)"
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          strokeDasharray={`${((recentRating - 40) / 60) * 188.5} 188.5`}
-                          transform="rotate(-90 36 36)"
-                          className="drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]"
-                        />
-                        <defs>
-                          <linearGradient id="ratingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#00d992" />
-                            <stop offset="100%" stopColor="#00d992" stopOpacity="0.4" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-lg font-bold text-jade leading-none">{ratingToTier(recentRating)}</span>
-                        <span className="text-[10px] text-flash/40 mt-0.5">{recentRating}</span>
-                      </div>
-                    </div>
-
-                    {/* Recent Form + Streak */}
-                    <div className="flex flex-col gap-2 flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-flash/40 uppercase tracking-widest">Last {recentDetailedStats.games}</span>
-                        {recentDetailedStats.streakCount >= 2 && (
-                          <span className={cn(
-                            "text-[10px] font-semibold px-1.5 py-0.5 rounded-sm",
-                            recentDetailedStats.streakType === "W"
-                              ? "bg-jade/15 text-jade"
-                              : "bg-red-500/15 text-red-400"
-                          )}>
-                            {recentDetailedStats.streakCount}{recentDetailedStats.streakType} STREAK
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Form bars */}
-                      <div className="flex gap-[3px]">
-                        {recentDetailedStats.form.map((f, i) => (
-                          <div
-                            key={i}
-                            className={cn(
-                              "flex-1 h-5 rounded-[2px] transition-all",
-                              f === "W"
-                                ? "bg-jade/70 shadow-[0_0_4px_rgba(0,217,146,0.3)]"
-                                : "bg-[#b11315]/70 shadow-[0_0_4px_rgba(177,19,21,0.2)]"
-                            )}
-                          />
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2 text-[10px]">
-                        <span className="text-jade">{recentDetailedStats.wins}W</span>
-                        <span className="text-[#b11315]">{recentDetailedStats.games - recentDetailedStats.wins}L</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator className="bg-white/6" />
-
-                  {/* Row 2: Core Stats Grid */}
+                  {/* Core Stats Grid */}
                   <div className="grid grid-cols-3 gap-x-3 gap-y-3">
                     {[
                       { label: "AVG KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}`, pct: Math.min(Number(recentDetailedStats.avgKda === "Perfect" ? 5 : recentDetailedStats.avgKda) / 5, 1), color: "jade" },
