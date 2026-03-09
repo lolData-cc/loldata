@@ -41,7 +41,7 @@ import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
-import { RecentGamesSummary } from "@/components/recentgamessummary";
+
 import { PlayerHoverCard } from "@/components/playerhovercard";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
@@ -212,6 +212,84 @@ export default function SummonerPage() {
 
   const recentRating = useMemo(() => {
     return calculatePlayerRating(matches, summonerInfo?.puuid ?? "", 15);
+  }, [matches, summonerInfo?.puuid]);
+
+  const recentDetailedStats = useMemo(() => {
+    if (!summonerInfo?.puuid || matches.length === 0)
+      return null;
+
+    const recent = matches.slice(0, 10);
+    let games = 0, wins = 0;
+    let totalKills = 0, totalDeaths = 0, totalAssists = 0;
+    let totalCS = 0, totalGold = 0, totalMinutes = 0;
+    const kpValues: number[] = [];
+    const dmgValues: number[] = [];
+    const visionValues: number[] = [];
+    const roles: string[] = [];
+    const form: ("W" | "L")[] = [];
+
+    for (const m of recent) {
+      const me = m.match.info.participants.find(p => p.puuid === summonerInfo.puuid);
+      if (!me) continue;
+
+      games++;
+      if (m.win) wins++;
+      form.push(m.win ? "W" : "L");
+
+      totalKills += me.kills;
+      totalDeaths += me.deaths;
+      totalAssists += me.assists;
+
+      const minutes = m.match.info.gameDuration / 60;
+      totalMinutes += minutes;
+      totalCS += (me.totalMinionsKilled ?? 0) + (me.neutralMinionsKilled ?? 0);
+      totalGold += me.goldEarned ?? 0;
+
+      if (me.challenges?.killParticipation != null) kpValues.push(me.challenges.killParticipation);
+      if (me.challenges?.teamDamagePercentage != null) dmgValues.push(me.challenges.teamDamagePercentage);
+      if (me.challenges?.visionScorePerMinute != null) visionValues.push(me.challenges.visionScorePerMinute);
+
+      const role = me.teamPosition || me.individualPosition || "";
+      if (role) roles.push(role);
+    }
+
+    if (games === 0) return null;
+
+    const avgKills = totalKills / games;
+    const avgDeaths = totalDeaths / games;
+    const avgAssists = totalAssists / games;
+    const avgKda = avgDeaths <= 0 ? "Perfect" : ((avgKills + avgAssists) / avgDeaths).toFixed(2);
+    const csPerMin = totalMinutes > 0 ? (totalCS / totalMinutes).toFixed(1) : "0.0";
+    const goldPerMin = totalMinutes > 0 ? Math.round(totalGold / totalMinutes) : 0;
+    const avgKP = kpValues.length > 0 ? Math.round((kpValues.reduce((a, b) => a + b, 0) / kpValues.length) * 100) : 0;
+    const avgDmg = dmgValues.length > 0 ? Math.round((dmgValues.reduce((a, b) => a + b, 0) / dmgValues.length) * 100) : 0;
+    const avgVision = visionValues.length > 0 ? (visionValues.reduce((a, b) => a + b, 0) / visionValues.length).toFixed(2) : "0.00";
+
+    // Role distribution
+    const roleCounts: Record<string, number> = {};
+    for (const r of roles) {
+      const key = r === "MIDDLE" ? "MID" : r === "BOTTOM" ? "ADC" : r === "UTILITY" ? "SUP" : r === "JUNGLE" ? "JNG" : r;
+      roleCounts[key] = (roleCounts[key] || 0) + 1;
+    }
+    const roleTotal = roles.length;
+    const roleDistribution = Object.entries(roleCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([role, count]) => ({ role, count, pct: Math.round((count / roleTotal) * 100) }));
+
+    // Current streak
+    let streakType: "W" | "L" = form[0] || "W";
+    let streakCount = 0;
+    for (const f of form) {
+      if (f === streakType) streakCount++;
+      else break;
+    }
+
+    return {
+      games, wins, form,
+      avgKills: avgKills.toFixed(1), avgDeaths: avgDeaths.toFixed(1), avgAssists: avgAssists.toFixed(1),
+      avgKda, csPerMin, goldPerMin, avgKP, avgDmg, avgVision,
+      roleDistribution, streakType, streakCount,
+    };
   }, [matches, summonerInfo?.puuid]);
 
   const navigate = useNavigate();
@@ -873,7 +951,7 @@ export default function SummonerPage() {
         <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
           <div
             className={cn(
-              "relative overflow-hidden w-[90%] h-[420px] mt-5 rounded-md text-sm font-thin",
+              "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
               "bg-black/25 backdrop-blur-lg saturate-150",
               "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
             )}
@@ -938,57 +1016,174 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              <Tabs defaultValue="recentgames">
-                <div className="p-3">
-                  <TabsList className="flex justify-start">
-                    <TabsTrigger
-                      value="recentgames"
-                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                    >
-                      RECENT GAMES
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="allgames"
-                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                    >
-                      ALL GAMES
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+              {/* ── PERFORMANCE OVERVIEW ── */}
+              {recentDetailedStats && (
+                <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
 
-                <TabsContent value="recentgames">
-                  <RecentGamesSummary matches={matches} summonerPuuid={summonerInfo?.puuid} />
+                  {/* Row 1: Rating Ring + Recent Form */}
+                  <div className="flex items-center gap-4">
 
-                  <Separator className="bg-white/10 mt-16" />
-
-                  {recentBadgeLabel && (
-                    <div className="flex items-center justify-between px-6 py-4">
-                      <div className="text-flash/60 text-sm">
-                        LAST 10 GAMES: {recentBadgeCount} MVPS
-                      </div>
-
-                      <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
-                        <div
-                          className={cn(
-                            "absolute inset-0 animate-glow",
-                            recentBadgeLabel === "GODLIKE" &&
-                            "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
-                            recentBadgeLabel === "SOLOCARRY" &&
-                            "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
-                            recentBadgeLabel === "CARRY" &&
-                            "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
-                          )}
+                    {/* Performance Rating Ring */}
+                    <div className="relative flex-shrink-0">
+                      <svg width="72" height="72" viewBox="0 0 72 72">
+                        {/* Background track */}
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                        {/* Score arc */}
+                        <circle
+                          cx="36" cy="36" r="30" fill="none"
+                          stroke="url(#ratingGrad)"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                          strokeDasharray={`${((recentRating - 40) / 60) * 188.5} 188.5`}
+                          transform="rotate(-90 36 36)"
+                          className="drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]"
                         />
-                        <div className="relative z-10 text-black text-sm font-semibold tracking-wide">
-                          {recentBadgeLabel}
-                        </div>
+                        <defs>
+                          <linearGradient id="ratingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#00d992" />
+                            <stop offset="100%" stopColor="#00d992" stopOpacity="0.4" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold text-jade leading-none">{ratingToTier(recentRating)}</span>
+                        <span className="text-[10px] text-flash/40 mt-0.5">{recentRating}</span>
                       </div>
                     </div>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="allgames">allgames</TabsContent>
-              </Tabs>
+                    {/* Recent Form + Streak */}
+                    <div className="flex flex-col gap-2 flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-flash/40 uppercase tracking-widest">Last {recentDetailedStats.games}</span>
+                        {recentDetailedStats.streakCount >= 2 && (
+                          <span className={cn(
+                            "text-[10px] font-semibold px-1.5 py-0.5 rounded-sm",
+                            recentDetailedStats.streakType === "W"
+                              ? "bg-jade/15 text-jade"
+                              : "bg-red-500/15 text-red-400"
+                          )}>
+                            {recentDetailedStats.streakCount}{recentDetailedStats.streakType} STREAK
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Form bars */}
+                      <div className="flex gap-[3px]">
+                        {recentDetailedStats.form.map((f, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "flex-1 h-5 rounded-[2px] transition-all",
+                              f === "W"
+                                ? "bg-jade/70 shadow-[0_0_4px_rgba(0,217,146,0.3)]"
+                                : "bg-[#b11315]/70 shadow-[0_0_4px_rgba(177,19,21,0.2)]"
+                            )}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2 text-[10px]">
+                        <span className="text-jade">{recentDetailedStats.wins}W</span>
+                        <span className="text-[#b11315]">{recentDetailedStats.games - recentDetailedStats.wins}L</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-white/6" />
+
+                  {/* Row 2: Core Stats Grid */}
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+                    {[
+                      { label: "AVG KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}`, pct: Math.min(Number(recentDetailedStats.avgKda === "Perfect" ? 5 : recentDetailedStats.avgKda) / 5, 1), color: "jade" },
+                      { label: "CS/MIN", value: recentDetailedStats.csPerMin, pct: Math.min(Number(recentDetailedStats.csPerMin) / 10, 1), color: "jade" },
+                      { label: "KP%", value: `${recentDetailedStats.avgKP}%`, pct: recentDetailedStats.avgKP / 100, color: "jade" },
+                      { label: "DMG SHARE", value: `${recentDetailedStats.avgDmg}%`, pct: recentDetailedStats.avgDmg / 100, color: "citrine" },
+                      { label: "GOLD/MIN", value: String(recentDetailedStats.goldPerMin), pct: Math.min(recentDetailedStats.goldPerMin / 500, 1), color: "citrine" },
+                      { label: "VISION/M", value: recentDetailedStats.avgVision, pct: Math.min(Number(recentDetailedStats.avgVision) / 2.5, 1), color: "citrine" },
+                    ].map(stat => (
+                      <div key={stat.label} className="flex flex-col gap-1">
+                        <span className="text-[9px] text-flash/35 uppercase tracking-wider">{stat.label}</span>
+                        <span className="text-sm font-semibold text-flash/90 leading-none">{stat.value}</span>
+                        {stat.sub && <span className="text-[10px] text-flash/30">{stat.sub}</span>}
+                        <div className="h-[2px] bg-white/5 rounded-full mt-0.5 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-700",
+                              stat.color === "jade" ? "bg-jade/60" : "bg-citrine/60"
+                            )}
+                            style={{ width: `${Math.round(stat.pct * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 3: Role Distribution */}
+                  {recentDetailedStats.roleDistribution.length > 0 && (
+                    <>
+                      <Separator className="bg-white/6" />
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] text-flash/35 uppercase tracking-wider">Role Distribution</span>
+                        <div className="flex h-2 rounded-full overflow-hidden gap-[1px]">
+                          {recentDetailedStats.roleDistribution.map(r => {
+                            const colors: Record<string, string> = {
+                              TOP: "bg-red-400/70", JNG: "bg-emerald-400/70", MID: "bg-blue-400/70",
+                              ADC: "bg-orange-400/70", SUP: "bg-teal-300/70", JUNGLE: "bg-emerald-400/70",
+                            };
+                            return (
+                              <div
+                                key={r.role}
+                                className={cn("h-full rounded-sm", colors[r.role] || "bg-flash/20")}
+                                style={{ width: `${r.pct}%` }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-3 flex-wrap">
+                          {recentDetailedStats.roleDistribution.map(r => {
+                            const labelColors: Record<string, string> = {
+                              TOP: "text-red-400", JNG: "text-emerald-400", MID: "text-blue-400",
+                              ADC: "text-orange-400", SUP: "text-teal-300", JUNGLE: "text-emerald-400",
+                            };
+                            return (
+                              <span key={r.role} className="text-[10px] flex items-center gap-1">
+                                <span className={labelColors[r.role] || "text-flash/40"}>{r.role}</span>
+                                <span className="text-flash/30">{r.pct}%</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Row 4: MVP Badge */}
+                  {recentBadgeLabel && (
+                    <>
+                      <Separator className="bg-white/6" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-flash/35 uppercase tracking-wider">
+                          {recentBadgeCount} MVPs in {recentDetailedStats.games} games
+                        </span>
+                        <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
+                          <div
+                            className={cn(
+                              "absolute inset-0 animate-glow",
+                              recentBadgeLabel === "GODLIKE" && "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
+                              recentBadgeLabel === "SOLOCARRY" && "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
+                              recentBadgeLabel === "CARRY" && "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
+                            )}
+                          />
+                          <div className="relative z-10 text-black text-[11px] font-semibold tracking-wide">
+                            {recentBadgeLabel}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                </div>
+              )}
             </div>
           </div>
 
