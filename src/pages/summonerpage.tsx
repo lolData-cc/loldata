@@ -1,4 +1,5 @@
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
+import { motion, AnimatePresence } from "framer-motion"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom"
@@ -36,6 +37,8 @@ import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
 import { API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
+import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
+import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { RecentGamesSummary } from "@/components/recentgamessummary";
@@ -103,7 +106,50 @@ function formatPlayedTime(totalSeconds: number) {
 }
 
 export default function SummonerPage() {
+  const { disabled: techBgDisabled } = useDisableTechBackground()
+  const { disabled: matchTransitionDisabled } = useDisableMatchTransition()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
+  const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
+  const [enteringMatchId, setEnteringMatchId] = useState<string | null>(null)
+
+  function handleEnterMatch(matchId: string) {
+    sessionStorage.setItem("summonerScrollY", String(window.scrollY));
+    if (matchTransitionDisabled) {
+      navigate(`/matches/${matchId}`, { state: { focusedPlayerPuuid: summonerInfo?.puuid, region } });
+      return;
+    }
+    setEnteringMatchId(matchId);
+    setTimeout(() => {
+      navigate(`/matches/${matchId}`, { state: { focusedPlayerPuuid: summonerInfo?.puuid, region } });
+    }, 950);
+  }
+
+  async function fetchAnalysis(matchId: string) {
+    const entry = analysisMap[matchId];
+
+    // Already fetched → just toggle open/closed
+    if (entry && !entry.loading) {
+      setAnalysisMap(prev => ({ ...prev, [matchId]: { ...prev[matchId], open: !prev[matchId].open } }));
+      return;
+    }
+
+    // Currently loading → do nothing
+    if (entry?.loading) return;
+
+    // First time → fetch and open
+    setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: true, data: null, open: true } }));
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/match/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId, region }),
+      });
+      const data = await res.json();
+      setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: false, data: data.junglePlaystyle, open: true } }));
+    } catch {
+      setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: false, data: null, open: true } }));
+    }
+  }
   const [loading, setLoading] = useState(false)
   const [onCooldown, setOnCooldown] = useState(false)
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
@@ -822,7 +868,7 @@ export default function SummonerPage() {
 
   return (
     <div className="relative z-0">
-      <UltraTechBackground />
+      {!techBgDisabled && <UltraTechBackground />}
       <div className="relative flex min-h-screen -mt-4 z-10">
         <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
           <div
@@ -1172,117 +1218,96 @@ export default function SummonerPage() {
 
 
           {duoStats.length > 0 && (
-            <div
-              className={cn(
-                "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
-                "bg-black/25 backdrop-blur-lg saturate-150",
-                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
-              )}
-              style={
-                showAllDuos
-                  ? undefined
-                  : {
-                    maxHeight: `${(Math.min(duoStats.length, 5) * 64) + 60}px`,
-                  }
-              }
-            >
-              {/* glossy overlays */}
-              <div
-                className={cn(
-                  "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
-                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.045),rgba(255,255,255,0)_70%)]"
-                )}
-              />
-              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/2 via-transparent to-black/40" />
+            <div className="relative overflow-hidden w-[90%] mt-5 rounded-md bg-black/25 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.025),rgba(255,255,255,0)_70%)]" />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.015] via-transparent to-black/30" />
 
-              {/* fade top/bottom (effetto scroll premium) */}
-              <div className="pointer-events-none absolute top-0 left-0 right-0 h-8 z-[2] bg-gradient-to-b from-black/45 to-transparent" />
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 z-[2] bg-gradient-to-t from-black/55 to-transparent" />
-
-              {/* contenuto */}
               <div className="relative z-10">
-                <div className="px-4 py-2 text-flash/70">PLAYED WITH</div>
-
-                <div
-                  className={cn(
-                    showAllDuos
-                      ? "overflow-visible"
-                      : "max-h-[calc(100%-40px)] overflow-y-auto"
-                  )}
-                >
-                  <div className="flex flex-col gap-4 px-5 py-2 pb-6">
-                    {visibleDuos.map((duo) => (
-                      <div key={duo.puuid} className="flex flex-col gap-1">
-                        {/* Riga 1: Nome e WR */}
-                        <div className="flex justify-between items-center">
-                          {/* Nome con hover card + click verso pagina summoner, come nelle match card */}
-                          {duo.riotId.includes("#") ? (
-                            <PlayerHoverCard
-                              riotId={duo.riotId}
-                              region={region!}
-                              championId={
-                                duo.lastChampionName
-                                  ? championMapReverse[duo.lastChampionName] // stesso mapping usato nelle match card
-                                  : undefined
-                              }
-                              profileIconId={duo.profileIconId ?? undefined}
-                              patch={latestPatch}
-                              isCurrentUser={duo.puuid === summonerInfo?.puuid}
-                              championMap={championMap}
-                            >
-                              <span className="truncate text-white cursor-clicker">{duo.riotId}</span>
-                            </PlayerHoverCard>
-                          ) : (
-                            // fallback se non abbiamo un vero Riot ID (tipo "Unknown")
-                            <span className="truncate text-white">{duo.riotId}</span>
-                          )}
-
-                          <div className="flex items-center gap-1">
-                            <span className={cn("text-sm", getWinrateClass(duo.winrate, duo.games))}>
-                              {duo.winrate}%
-                            </span>
-                            <span className="truncate text-flash/60 text-xs">
-                              ({duo.games} GAMES)
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Riga 2: Barra wins/losses */}
-                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-jade"
-                            style={{ width: `${duo.winrate}%` }}
-                          />
-                        </div>
-
-                        {/* Riga 3: WINS / LOSSES */}
-                        <div className="flex justify-between text-xs">
-                          {duo.wins > 0 && (
-                            <span className="text-jade">{duo.wins} WINS</span>
-                          )}
-                          {duo.losses > 0 && (
-                            <span className="text-[#b11315]">{duo.losses} LOSSES</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                {/* Header */}
+                <div className="flex items-center gap-3 px-4 pt-3 pb-2.5">
+                  <span className="text-[11px] font-mono text-flash/50 tracking-[0.2em] uppercase shrink-0">Played With</span>
+                  <div className="flex-1 h-px bg-flash/[0.08]" />
+                  <span className="text-[11px] font-mono text-flash/30">{duoStats.length}</span>
                 </div>
 
-                {duoStats.length > 3 && (
-                  <div className="flex justify-center pb-4 pt-1">
-                    <Button
-                      type="button"
-                      onClick={() => setShowAllDuos((v) => !v)}
-                      className="text-[#00D992] bg-[#122322] hover:bg-[#11382E] rounded w-[90%] uppercase tracking-wide"
-                    >
-                      {showAllDuos ? "SHOW LESS" : "SHOW MORE"}
-                    </Button>
+                {/* Column headers */}
+                <div className="px-4 pb-2 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.07]">
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest">#</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest uppercase">Player</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W — L</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">WR</span>
+                </div>
+
+                {/* Rows */}
+                {visibleDuos.map((duo, i) => (
+                  <div
+                    key={duo.puuid}
+                    className="px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] hover:bg-white/[0.02] transition-colors"
+                  >
+                    {/* Rank */}
+                    <span className="text-[10px] font-mono text-flash/30 leading-none tabular-nums">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+
+                    {/* Profile icon + name */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      {duo.profileIconId && (
+                        <img
+                          src={`${CDN_BASE_URL}/img/profileicon/${duo.profileIconId}.png`}
+                          alt=""
+                          className="w-5 h-5 rounded-sm shrink-0 opacity-80"
+                        />
+                      )}
+                      {duo.riotId.includes("#") ? (
+                        <PlayerHoverCard
+                          riotId={duo.riotId}
+                          region={region!}
+                          championId={duo.lastChampionName ? championMapReverse[duo.lastChampionName] : undefined}
+                          profileIconId={duo.profileIconId ?? undefined}
+                          patch={latestPatch}
+                          isCurrentUser={duo.puuid === summonerInfo?.puuid}
+                          championMap={championMap}
+                        >
+                          <span className="truncate text-flash/85 text-xs cursor-clicker">{duo.riotId}</span>
+                        </PlayerHoverCard>
+                      ) : (
+                        <span className="truncate text-flash/85 text-xs">{duo.riotId}</span>
+                      )}
+                    </div>
+
+                    {/* W — L */}
+                    <div className="flex items-center justify-end gap-1 font-mono text-xs tabular-nums">
+                      <span className="text-jade">{duo.wins}W</span>
+                      <span className="text-flash/30">·</span>
+                      <span className="text-[#b11315]">{duo.losses}L</span>
+                    </div>
+
+                    {/* WR + mini bar */}
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={cn("text-xs font-mono leading-none tabular-nums", getWinrateClass(duo.winrate, duo.games))}>
+                        {duo.winrate}%
+                      </span>
+                      <div className="w-full h-[3px] bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full", duo.winrate >= 50 ? "bg-jade/60" : "bg-[#b11315]/60")}
+                          style={{ width: `${duo.winrate}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
+                ))}
+
+                {/* Expand / collapse */}
+                {duoStats.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDuos(v => !v)}
+                    className="w-full py-2.5 text-[10px] font-mono text-flash/30 hover:text-flash/55 tracking-[0.2em] uppercase transition-colors cursor-clicker"
+                  >
+                    {showAllDuos ? '▲ collapse' : `▼ ${duoStats.length - 3} more`}
+                  </button>
                 )}
-
               </div>
-
             </div>
           )}
 
@@ -1621,7 +1646,7 @@ export default function SummonerPage() {
                       {/* LISTA MATCH DI QUEL GIORNO */}
                       <ul className="space-y-3">
                         {rows.map((row) => {
-                          const { match, win, championName, junglePlaystyle } = row;
+                          const { match, win, championName } = row;
 
                           const queueId = match.info.queueId;
                           const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
@@ -1637,10 +1662,11 @@ export default function SummonerPage() {
                           const playerRole = participant?.teamPosition || participant?.individualPosition;
                           const isJungler = playerRole === "JUNGLE";
 
-                          const myJungleTag =
-                            participant?.teamId === 100
-                              ? junglePlaystyle?.blue?.tag
-                              : junglePlaystyle?.red?.tag;
+                          const matchId = match.metadata.matchId;
+                          const analysisEntry = analysisMap[matchId];
+                          const myJungleTag = analysisEntry?.data
+                            ? (participant?.teamId === 100 ? analysisEntry.data.blue?.tag : analysisEntry.data.red?.tag)
+                            : null;
 
                           const kda =
                             participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
@@ -1711,9 +1737,6 @@ export default function SummonerPage() {
                                             {win ? "WIN" : "LOSS"}
                                           </span>
 
-                                          {isJungler && myJungleTag && (
-                                            <JunglePlaystyleBadge tag={myJungleTag} />
-                                          )}
                                         </span>
 
                                         <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
@@ -1950,21 +1973,55 @@ export default function SummonerPage() {
                                           </div>
                                         </div>
                                       </div>
+
+                                      {/* BADGE STRIP — only visible when analysis is open */}
+                                      {isJungler && analysisEntry?.open && (
+                                        <div className="mt-1.5 pt-1.5 border-t border-flash/[0.07] flex items-center gap-3">
+                                          <span className="text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase shrink-0">Analysis</span>
+                                          <div className="flex items-center gap-1.5">
+                                            {analysisEntry.loading ? (
+                                              <span className="h-5 flex items-center px-2 font-mono text-[9px] text-flash/25 tracking-[0.1em] animate-pulse">
+                                                loading...
+                                              </span>
+                                            ) : myJungleTag ? (
+                                              <JunglePlaystyleBadge tag={myJungleTag} />
+                                            ) : (
+                                              <span className="h-5 flex items-center px-2 font-mono text-[9px] text-flash/20 tracking-[0.1em]">
+                                                no data
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex justify-center items-center mx-auto w-[5%]">
+                                <div className="flex flex-col ml-2 w-[5%] gap-1 h-28 shrink-0 self-start">
+                                  {isJungler && (
+                                    <button
+                                      type="button"
+                                      disabled={analysisEntry?.loading}
+                                      onClick={() => fetchAnalysis(matchId)}
+                                      className={cn(
+                                        "w-full flex-1 rounded-[3px] border flex items-center justify-center gap-1.5 cursor-clicker transition font-mono",
+                                        analysisEntry?.loading
+                                          ? "bg-black/20 border-flash/10 text-flash/20 animate-pulse"
+                                          : analysisEntry?.open
+                                          ? "bg-jade/10 border-jade/30 text-jade"
+                                          : "bg-black/20 border-flash/10 text-flash/25 hover:border-flash/25 hover:text-flash/50 hover:bg-black/30"
+                                      )}
+                                    >
+                                      <span className="text-xs leading-none pointer-events-none">◈</span>
+                                      <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">SCAN</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
-                                    className="w-full mx-auto border-l border-cement/20 bg-cement hover:bg-jade/20 text-jade h-28 ml-2 rounded-[4px] flex items-center justify-center cursor-clicker"
-                                    onClick={() => {
-                                      sessionStorage.setItem("summonerScrollY", String(window.scrollY));
-                                      navigate(`/matches/${match.metadata.matchId}`, {
-                                        state: { focusedPlayerPuuid: summonerInfo?.puuid, region }
-                                      });
-                                    }}
+                                    className="w-full flex-1 rounded-[3px] border border-flash/10 bg-black/20 hover:bg-jade/10 hover:border-jade/30 text-flash/30 hover:text-jade flex items-center justify-center gap-1.5 cursor-clicker transition font-mono"
+                                    onClick={() => handleEnterMatch(match.metadata.matchId)}
                                   >
-                                    <ChevronRight className="w-5 h-5 pointer-events-none" />
+                                    <ChevronRight className="w-3.5 h-3.5 pointer-events-none" />
+                                    <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">VIEW</span>
                                   </button>
                                 </div>
                               </div>
@@ -1988,6 +2045,159 @@ export default function SummonerPage() {
 
           </div>
         </div>
+        {/* ── CYBER MATCH TRANSITION OVERLAY ── */}
+        <style>{`
+          @keyframes cyberGlitch {
+            0%,100% { transform: translate(0) skewX(0deg); opacity: 1; }
+            8%  { transform: translate(-3px, 1px) skewX(-2deg); opacity: 0.85; }
+            16% { transform: translate(3px,-1px) skewX(2deg); clip-path: inset(15% 0 40% 0); }
+            24% { transform: translate(0) skewX(0deg); opacity: 1; clip-path: none; }
+            48% { transform: translate(-2px, 2px); clip-path: inset(55% 0 8% 0); opacity:0.9; }
+            56% { transform: translate(2px,-2px); clip-path: none; opacity: 1; }
+            72% { transform: translate(-1px,0) skewX(-1deg); }
+            80% { transform: translate(0); }
+          }
+          @keyframes cyberScan {
+            0%   { transform: translateY(-100%); opacity: 0; }
+            10%  { opacity: 0.6; }
+            90%  { opacity: 0.6; }
+            100% { transform: translateY(100vh); opacity: 0; }
+          }
+          @keyframes cyberFlicker {
+            0%,100% { opacity: 1; }
+            33% { opacity: 0.4; }
+            66% { opacity: 0.85; }
+          }
+          .cyber-glitch  { animation: cyberGlitch  0.55s steps(1) infinite; }
+          .cyber-flicker { animation: cyberFlicker 0.4s linear infinite; }
+        `}</style>
+
+        <AnimatePresence>
+          {enteringMatchId && (
+            <motion.div
+              className="fixed inset-0 z-[9999] overflow-hidden pointer-events-all"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+            >
+              {/* Dark base */}
+              <motion.div
+                className="absolute inset-0 bg-[#020a06]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.96 }}
+                transition={{ duration: 0.1 }}
+              />
+
+              {/* Horizontal scan lines — staggered sweep */}
+              {Array.from({ length: 18 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute left-0 right-0 h-px"
+                  style={{ top: `${(i / 18) * 100}%`, background: i % 3 === 0 ? 'rgba(0,217,146,0.25)' : 'rgba(0,217,146,0.08)' }}
+                  initial={{ scaleX: 0, opacity: 0, transformOrigin: 'left' }}
+                  animate={{ scaleX: [0, 1, 1, 0], opacity: [0, 1, 0.5, 0] }}
+                  transition={{ duration: 0.5, delay: i * 0.025, ease: 'easeOut' }}
+                />
+              ))}
+
+              {/* Fast moving bright sweep line */}
+              <motion.div
+                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-jade to-transparent"
+                initial={{ top: '-2px' }}
+                animate={{ top: '100vh' }}
+                transition={{ duration: 0.55, ease: 'easeIn', delay: 0.05 }}
+              />
+              <motion.div
+                className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-jade/40 to-transparent"
+                initial={{ top: '-1px' }}
+                animate={{ top: '100vh' }}
+                transition={{ duration: 0.55, ease: 'easeIn', delay: 0.1 }}
+              />
+
+              {/* Corner brackets */}
+              {[
+                { corner: 'top-10 left-10',     border: 'border-t-2 border-l-2', origin: '-translate-x-4 -translate-y-4' },
+                { corner: 'top-10 right-10',    border: 'border-t-2 border-r-2', origin: 'translate-x-4 -translate-y-4' },
+                { corner: 'bottom-10 left-10',  border: 'border-b-2 border-l-2', origin: '-translate-x-4 translate-y-4' },
+                { corner: 'bottom-10 right-10', border: 'border-b-2 border-r-2', origin: 'translate-x-4 translate-y-4' },
+              ].map(({ corner, border, origin }, i) => (
+                <motion.div
+                  key={i}
+                  className={`absolute ${corner} w-14 h-14 ${border} border-jade/70`}
+                  initial={{ opacity: 0, transform: origin }}
+                  animate={{ opacity: 1, transform: 'translate(0,0)' }}
+                  transition={{ duration: 0.2, delay: 0.08 + i * 0.03, ease: 'easeOut' }}
+                />
+              ))}
+
+              {/* Side readouts */}
+              {['SYS://MATCH_LOAD', 'AUTH: OK', `PID: ${enteringMatchId.slice(-6)}`].map((txt, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute left-12 font-mono text-[9px] text-jade/30 tracking-[0.2em]"
+                  style={{ top: `${20 + i * 5}%` }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: 0.2 + i * 0.06 }}
+                >
+                  {txt}
+                </motion.div>
+              ))}
+
+              {/* Center HUD */}
+              <motion.div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-5"
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.15 }}
+              >
+                {/* ◈ icon */}
+                <motion.div
+                  className="text-jade text-4xl font-mono cyber-flicker"
+                  animate={{ rotate: [0, 180, 360] }}
+                  transition={{ duration: 0.9, ease: 'easeInOut' }}
+                >
+                  ◈
+                </motion.div>
+
+                {/* Title */}
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="font-mono text-base tracking-[0.35em] uppercase text-jade cyber-glitch">
+                    Entering Match
+                  </span>
+                  <span className="font-mono text-[10px] tracking-[0.2em] text-jade/30">
+                    {enteringMatchId}
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-64 h-[2px] bg-jade/10 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-jade rounded-full"
+                    initial={{ width: '0%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 0.85, ease: 'easeInOut', delay: 0.1 }}
+                  />
+                </div>
+
+                {/* Status text */}
+                <motion.span
+                  className="font-mono text-[9px] text-jade/30 tracking-[0.25em] uppercase cyber-flicker"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  Loading match data...
+                </motion.span>
+              </motion.div>
+
+              {/* Vignette */}
+              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.7)_100%)]" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button
           aria-label="Scroll to top"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}

@@ -17,6 +17,8 @@ import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
 import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
 import { BorderBeamPreference } from "@/components/borderbeampreference";
+import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
+import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -179,6 +181,8 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <h3 className="text-flash/60">ANIMATIONS</h3>
                     <BorderBeamPreference />
+                    <TechBackgroundPreference />
+                    <MatchTransitionPreference />
                   </div>
 
                   <div className="space-y-3">

@@ -1,5 +1,7 @@
 export const UI_PREFS_KEYS = {
   disableBorderBeams: "lolData:disableBorderBeams",
+  disableTechBackground: "lolData:disableTechBackground",
+  disableMatchTransition: "lolData:disableMatchTransition",
 } as const;
 
 function safeWindow() {
@@ -17,5 +19,33 @@ export function setDisableBorderBeams(value: boolean) {
   if (!w) return;
 
   w.localStorage.setItem(UI_PREFS_KEYS.disableBorderBeams, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getDisableTechBackground(): boolean {
+  const w = safeWindow();
+  if (!w) return false;
+  return w.localStorage.getItem(UI_PREFS_KEYS.disableTechBackground) === "1";
+}
+
+export function setDisableTechBackground(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.disableTechBackground, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getDisableMatchTransition(): boolean {
+  const w = safeWindow();
+  if (!w) return false;
+  return w.localStorage.getItem(UI_PREFS_KEYS.disableMatchTransition) === "1";
+}
+
+export function setDisableMatchTransition(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.disableMatchTransition, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

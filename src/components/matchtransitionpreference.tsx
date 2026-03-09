@@ -1,18 +1,18 @@
-import { useDisableBorderBeams } from "@/hooks/useDisableBorderBeams";
+import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition";
 import { CyberToggle } from "@/components/cybertoggle";
 
-export function BorderBeamPreference() {
-  const { disabled, setDisabled } = useDisableBorderBeams();
+export function MatchTransitionPreference() {
+  const { disabled, setDisabled } = useDisableMatchTransition();
 
   return (
     <div className="border border-flash/10 rounded-md p-4 bg-cement">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h4 className="text-flash/40 font-mono text-xs tracking-[0.12em] uppercase">
-            Border Beam
+            Match Transition
           </h4>
           <span className="text-flash/80 text-sm">
-            Animated border effect (disable to improve performance).
+            Cyber animation when entering a match detail view.
           </span>
         </div>
 

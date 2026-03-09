@@ -1,18 +1,18 @@
-import { useDisableBorderBeams } from "@/hooks/useDisableBorderBeams";
+import { useDisableTechBackground } from "@/hooks/useDisableTechBackground";
 import { CyberToggle } from "@/components/cybertoggle";
 
-export function BorderBeamPreference() {
-  const { disabled, setDisabled } = useDisableBorderBeams();
+export function TechBackgroundPreference() {
+  const { disabled, setDisabled } = useDisableTechBackground();
 
   return (
     <div className="border border-flash/10 rounded-md p-4 bg-cement">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h4 className="text-flash/40 font-mono text-xs tracking-[0.12em] uppercase">
-            Border Beam
+            Tech Background
           </h4>
           <span className="text-flash/80 text-sm">
-            Animated border effect (disable to improve performance).
+            Animated tech background on the summoner page.
           </span>
         </div>
 
