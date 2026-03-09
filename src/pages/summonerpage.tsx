@@ -1017,102 +1017,162 @@ export default function SummonerPage() {
               </div>
 
               {/* ── PERFORMANCE OVERVIEW ── */}
-              {recentDetailedStats && (
-                <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
-
-                  {/* Core Stats Grid */}
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-3">
-                    {[
-                      { label: "AVG KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}`, pct: Math.min(Number(recentDetailedStats.avgKda === "Perfect" ? 5 : recentDetailedStats.avgKda) / 5, 1), color: "jade" },
-                      { label: "CS/MIN", value: recentDetailedStats.csPerMin, pct: Math.min(Number(recentDetailedStats.csPerMin) / 10, 1), color: "jade" },
-                      { label: "KP%", value: `${recentDetailedStats.avgKP}%`, pct: recentDetailedStats.avgKP / 100, color: "jade" },
-                      { label: "DMG SHARE", value: `${recentDetailedStats.avgDmg}%`, pct: recentDetailedStats.avgDmg / 100, color: "citrine" },
-                      { label: "GOLD/MIN", value: String(recentDetailedStats.goldPerMin), pct: Math.min(recentDetailedStats.goldPerMin / 500, 1), color: "citrine" },
-                      { label: "VISION/M", value: recentDetailedStats.avgVision, pct: Math.min(Number(recentDetailedStats.avgVision) / 2.5, 1), color: "citrine" },
-                    ].map(stat => (
-                      <div key={stat.label} className="flex flex-col gap-1">
-                        <span className="text-[9px] text-flash/35 uppercase tracking-wider">{stat.label}</span>
-                        <span className="text-sm font-semibold text-flash/90 leading-none">{stat.value}</span>
-                        {stat.sub && <span className="text-[10px] text-flash/30">{stat.sub}</span>}
-                        <div className="h-[2px] bg-white/5 rounded-full mt-0.5 overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full transition-all duration-700",
-                              stat.color === "jade" ? "bg-jade/60" : "bg-citrine/60"
-                            )}
-                            style={{ width: `${Math.round(stat.pct * 100)}%` }}
-                          />
+              {!recentDetailedStats && (
+                <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
+                  <div className="flex items-start gap-1">
+                    {/* Radar skeleton */}
+                    <div className="shrink-0 -ml-2 flex items-center justify-center" style={{ width: 190, height: 190 }}>
+                      <div className="w-[130px] h-[130px] rounded-full border border-white/[0.06]" />
+                    </div>
+                    {/* Stats skeleton */}
+                    <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
+                          <Skeleton className="w-[40px] h-3" />
+                          <Skeleton className="w-[50px] h-4" />
                         </div>
-                      </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Footer skeleton */}
+                  <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="w-[45px] h-3" />
                     ))}
                   </div>
-
-                  {/* Row 3: Role Distribution */}
-                  {recentDetailedStats.roleDistribution.length > 0 && (
-                    <>
-                      <Separator className="bg-white/6" />
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[9px] text-flash/35 uppercase tracking-wider">Role Distribution</span>
-                        <div className="flex h-2 rounded-full overflow-hidden gap-[1px]">
-                          {recentDetailedStats.roleDistribution.map(r => {
-                            const colors: Record<string, string> = {
-                              TOP: "bg-red-400/70", JNG: "bg-emerald-400/70", MID: "bg-blue-400/70",
-                              ADC: "bg-orange-400/70", SUP: "bg-teal-300/70", JUNGLE: "bg-emerald-400/70",
-                            };
-                            return (
-                              <div
-                                key={r.role}
-                                className={cn("h-full rounded-sm", colors[r.role] || "bg-flash/20")}
-                                style={{ width: `${r.pct}%` }}
-                              />
-                            );
-                          })}
-                        </div>
-                        <div className="flex gap-3 flex-wrap">
-                          {recentDetailedStats.roleDistribution.map(r => {
-                            const labelColors: Record<string, string> = {
-                              TOP: "text-red-400", JNG: "text-emerald-400", MID: "text-blue-400",
-                              ADC: "text-orange-400", SUP: "text-teal-300", JUNGLE: "text-emerald-400",
-                            };
-                            return (
-                              <span key={r.role} className="text-[10px] flex items-center gap-1">
-                                <span className={labelColors[r.role] || "text-flash/40"}>{r.role}</span>
-                                <span className="text-flash/30">{r.pct}%</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Row 4: MVP Badge */}
-                  {recentBadgeLabel && (
-                    <>
-                      <Separator className="bg-white/6" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-flash/35 uppercase tracking-wider">
-                          {recentBadgeCount} MVPs in {recentDetailedStats.games} games
-                        </span>
-                        <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
-                          <div
-                            className={cn(
-                              "absolute inset-0 animate-glow",
-                              recentBadgeLabel === "GODLIKE" && "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
-                              recentBadgeLabel === "SOLOCARRY" && "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
-                              recentBadgeLabel === "CARRY" && "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
-                            )}
-                          />
-                          <div className="relative z-10 text-black text-[11px] font-semibold tracking-wide">
-                            {recentBadgeLabel}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
                 </div>
               )}
+              {recentDetailedStats && (() => {
+                const radarStats = [
+                  { label: "KDA", pct: Math.min(Number(recentDetailedStats.avgKda === "Perfect" ? 5 : recentDetailedStats.avgKda) / 5, 1) },
+                  { label: "CS", pct: Math.min(Number(recentDetailedStats.csPerMin) / 10, 1) },
+                  { label: "KP", pct: recentDetailedStats.avgKP / 100 },
+                  { label: "DMG", pct: recentDetailedStats.avgDmg / 40 },
+                  { label: "GOLD", pct: Math.min(recentDetailedStats.goldPerMin / 500, 1) },
+                  { label: "VIS", pct: Math.min(Number(recentDetailedStats.avgVision) / 2.5, 1) },
+                ];
+                const cx = 110, cy = 110, maxR = 82;
+                const angles = radarStats.map((_, i) => (i * Math.PI * 2) / 6 - Math.PI / 2);
+                const pt = (a: number, r: number) => [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
+                const hex = (r: number) => angles.map(a => pt(a, r).join(",")).join(" ");
+                const dataHex = radarStats.map((s, i) => pt(angles[i], Math.max(s.pct, 0.08) * maxR).join(",")).join(" ");
+
+                const tooltipLabels = ["Avg KDA", "CS per Min", "Kill Participation", "Damage Share", "Gold per Min", "Vision per Min"];
+                const tooltipValues = [
+                  recentDetailedStats.avgKda,
+                  recentDetailedStats.csPerMin,
+                  `${recentDetailedStats.avgKP}%`,
+                  `${recentDetailedStats.avgDmg}%`,
+                  String(recentDetailedStats.goldPerMin),
+                  recentDetailedStats.avgVision,
+                ];
+
+                return (
+                  <div className="px-3 pt-2 pb-4 font-jetbrains">
+                    <div className="flex items-start gap-1">
+
+                      {/* Radar chart — left */}
+                      <TooltipProvider delayDuration={0}>
+                        <div className="shrink-0 -ml-2 relative">
+                          <svg width="190" height="190" viewBox="0 0 220 220">
+                            {/* Grid hexagons */}
+                            {[0.25, 0.5, 0.75, 1].map(s => (
+                              <polygon key={s} points={hex(maxR * s)} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+                            ))}
+                            {/* Axis lines */}
+                            {angles.map((a, i) => {
+                              const [ex, ey] = pt(a, maxR);
+                              return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />;
+                            })}
+                            {/* Data fill */}
+                            <polygon points={dataHex} fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.5)" strokeWidth="1.5" strokeLinejoin="round" />
+                            {/* Inner glow fill */}
+                            <polygon points={dataHex} fill="url(#radarGlow)" />
+                            {/* Data dots with tooltips */}
+                            {radarStats.map((s, i) => {
+                              const [dx, dy] = pt(angles[i], Math.max(s.pct, 0.08) * maxR);
+                              return (
+                                <Tooltip key={i}>
+                                  <TooltipTrigger asChild>
+                                    <g className="cursor-pointer">
+                                      <circle cx={dx} cy={dy} r="10" fill="transparent" />
+                                      <circle cx={dx} cy={dy} r="5" fill="#00d992" fillOpacity="0.12" />
+                                      <circle cx={dx} cy={dy} r="2.5" fill="#00d992" fillOpacity="0.9" />
+                                    </g>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="font-jetbrains">
+                                    <span className="text-jade font-semibold">{tooltipValues[i]}</span>
+                                    <span className="text-flash/50 ml-1.5">{tooltipLabels[i]}</span>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                            {/* Labels */}
+                            {radarStats.map((s, i) => {
+                              const [lx, ly] = pt(angles[i], maxR + 16);
+                              return (
+                                <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
+                                  className="fill-flash/30 text-[9px] font-jetbrains uppercase tracking-wider"
+                                >{s.label}</text>
+                              );
+                            })}
+                            <defs>
+                              <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#00d992" stopOpacity="0.12" />
+                                <stop offset="100%" stopColor="#00d992" stopOpacity="0" />
+                              </radialGradient>
+                            </defs>
+                          </svg>
+                        </div>
+                      </TooltipProvider>
+
+                      {/* Stats panel — right */}
+                      <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                        {[
+                          { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
+                          { label: "CS/MIN", value: recentDetailedStats.csPerMin },
+                          { label: "KP", value: `${recentDetailedStats.avgKP}%` },
+                          { label: "DMG", value: `${recentDetailedStats.avgDmg}%` },
+                          { label: "GOLD/M", value: String(recentDetailedStats.goldPerMin) },
+                          { label: "VIS/M", value: recentDetailedStats.avgVision },
+                        ].map(s => (
+                          <div key={s.label} className="flex items-baseline justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
+                            <span className="text-[10px] text-flash/35 uppercase tracking-wider">{s.label}</span>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
+                              {s.sub && <span className="text-[10px] text-flash/25">{s.sub}</span>}
+                            </div>
+                          </div>
+                        ))}
+
+                      </div>
+
+                    </div>
+
+                    {/* Full-width footer rows */}
+                    {recentDetailedStats.roleDistribution.length > 0 && (
+                      <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                        {recentDetailedStats.roleDistribution.map((r, i) => (
+                          <span key={r.role} className="text-[11px] tabular-nums">
+                            <span className={i === 0 ? "text-jade" : "text-flash/40"}>{r.role}</span>
+                            <span className="text-flash/20 ml-1">{r.pct}%</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {recentBadgeLabel && (
+                      <div className="flex items-center justify-between px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                        <span className="text-[10px] text-flash/25">{recentBadgeCount}/{recentDetailedStats.games} MVP</span>
+                        <span className="text-[11px] font-bold text-jade tracking-widest drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]">
+                          {recentBadgeLabel}
+                        </span>
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
