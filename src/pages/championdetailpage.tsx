@@ -2,7 +2,7 @@
 
 // src/pages/champion-detail-page.tsx
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
@@ -62,8 +62,12 @@ function badgeClass(label: Badge): string {
 
 const fmtPct = (x: number) => `${x.toFixed(2)}%`
 
+const validTabs = ["overview", "statistics", "items", "matchups", "pros"] as const
+
 export default function ChampionDetailPage() {
-  const { champId } = useParams<{ champId: string }>()
+  const { champId, tab } = useParams<{ champId: string; tab?: string }>()
+  const navigate = useNavigate()
+  const activeTab = validTabs.includes(tab as any) ? tab! : "overview"
   const [patch, setPatch] = useState("15.13.1")
   const [champ, setChamp] = useState<ChampInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -255,7 +259,7 @@ export default function ChampionDetailPage() {
       </div>
 
       {/* Body */}
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={(v) => navigate(`/champions/${champId}/${v}`, { replace: true })}>
         <div className="mx-auto max-w-6xl py-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="space-y-4 w-[90%]">
             <TabsList

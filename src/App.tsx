@@ -159,7 +159,7 @@ function App() {
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
-              <Route path="/dashboard" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
+              <Route path="/dashboard/:tab?" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
               <Route
                 path="/learn"
                 element={
@@ -168,7 +168,7 @@ function App() {
                   </AuthGuard>
                 }
               />
-              <Route path="/champions/:champId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
+              <Route path="/champions/:champId/:tab?" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/matches/:matchId" element={<MatchPage />} />
               <Route path="/champions" element={<ChampionPage />} />

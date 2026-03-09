@@ -91,7 +91,29 @@
   }
 
   .no-scrollbar::-webkit-scrollbar {
-    display: none;            
+    display: none;
+  }
+
+  .cyber-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 217, 146, 0.25) transparent;
+  }
+
+  .cyber-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .cyber-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .cyber-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(0, 217, 146, 0.4), rgba(0, 217, 146, 0.1));
+    border-radius: 0;
+  }
+
+  .cyber-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(0, 217, 146, 0.6), rgba(0, 217, 146, 0.2));
   }
 }
 
