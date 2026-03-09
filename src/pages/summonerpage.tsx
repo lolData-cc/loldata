@@ -41,7 +41,7 @@ import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
-import { RecentGamesSummary } from "@/components/recentgamessummary";
+
 import { PlayerHoverCard } from "@/components/playerhovercard";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
@@ -212,6 +212,84 @@ export default function SummonerPage() {
 
   const recentRating = useMemo(() => {
     return calculatePlayerRating(matches, summonerInfo?.puuid ?? "", 15);
+  }, [matches, summonerInfo?.puuid]);
+
+  const recentDetailedStats = useMemo(() => {
+    if (!summonerInfo?.puuid || matches.length === 0)
+      return null;
+
+    const recent = matches.slice(0, 10);
+    let games = 0, wins = 0;
+    let totalKills = 0, totalDeaths = 0, totalAssists = 0;
+    let totalCS = 0, totalGold = 0, totalMinutes = 0;
+    const kpValues: number[] = [];
+    const dmgValues: number[] = [];
+    const visionValues: number[] = [];
+    const roles: string[] = [];
+    const form: ("W" | "L")[] = [];
+
+    for (const m of recent) {
+      const me = m.match.info.participants.find(p => p.puuid === summonerInfo.puuid);
+      if (!me) continue;
+
+      games++;
+      if (m.win) wins++;
+      form.push(m.win ? "W" : "L");
+
+      totalKills += me.kills;
+      totalDeaths += me.deaths;
+      totalAssists += me.assists;
+
+      const minutes = m.match.info.gameDuration / 60;
+      totalMinutes += minutes;
+      totalCS += (me.totalMinionsKilled ?? 0) + (me.neutralMinionsKilled ?? 0);
+      totalGold += me.goldEarned ?? 0;
+
+      if (me.challenges?.killParticipation != null) kpValues.push(me.challenges.killParticipation);
+      if (me.challenges?.teamDamagePercentage != null) dmgValues.push(me.challenges.teamDamagePercentage);
+      if (me.challenges?.visionScorePerMinute != null) visionValues.push(me.challenges.visionScorePerMinute);
+
+      const role = me.teamPosition || me.individualPosition || "";
+      if (role) roles.push(role);
+    }
+
+    if (games === 0) return null;
+
+    const avgKills = totalKills / games;
+    const avgDeaths = totalDeaths / games;
+    const avgAssists = totalAssists / games;
+    const avgKda = avgDeaths <= 0 ? "Perfect" : ((avgKills + avgAssists) / avgDeaths).toFixed(2);
+    const csPerMin = totalMinutes > 0 ? (totalCS / totalMinutes).toFixed(1) : "0.0";
+    const goldPerMin = totalMinutes > 0 ? Math.round(totalGold / totalMinutes) : 0;
+    const avgKP = kpValues.length > 0 ? Math.round((kpValues.reduce((a, b) => a + b, 0) / kpValues.length) * 100) : 0;
+    const avgDmg = dmgValues.length > 0 ? Math.round((dmgValues.reduce((a, b) => a + b, 0) / dmgValues.length) * 100) : 0;
+    const avgVision = visionValues.length > 0 ? (visionValues.reduce((a, b) => a + b, 0) / visionValues.length).toFixed(2) : "0.00";
+
+    // Role distribution
+    const roleCounts: Record<string, number> = {};
+    for (const r of roles) {
+      const key = r === "MIDDLE" ? "MID" : r === "BOTTOM" ? "ADC" : r === "UTILITY" ? "SUP" : r === "JUNGLE" ? "JNG" : r;
+      roleCounts[key] = (roleCounts[key] || 0) + 1;
+    }
+    const roleTotal = roles.length;
+    const roleDistribution = Object.entries(roleCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([role, count]) => ({ role, count, pct: Math.round((count / roleTotal) * 100) }));
+
+    // Current streak
+    let streakType: "W" | "L" = form[0] || "W";
+    let streakCount = 0;
+    for (const f of form) {
+      if (f === streakType) streakCount++;
+      else break;
+    }
+
+    return {
+      games, wins, form,
+      avgKills: avgKills.toFixed(1), avgDeaths: avgDeaths.toFixed(1), avgAssists: avgAssists.toFixed(1),
+      avgKda, csPerMin, goldPerMin, avgKP, avgDmg, avgVision,
+      roleDistribution, streakType, streakCount,
+    };
   }, [matches, summonerInfo?.puuid]);
 
   const navigate = useNavigate();
@@ -873,7 +951,7 @@ export default function SummonerPage() {
         <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
           <div
             className={cn(
-              "relative overflow-hidden w-[90%] h-[420px] mt-5 rounded-md text-sm font-thin",
+              "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
               "bg-black/25 backdrop-blur-lg saturate-150",
               "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
             )}
@@ -938,57 +1016,163 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              <Tabs defaultValue="recentgames">
-                <div className="p-3">
-                  <TabsList className="flex justify-start">
-                    <TabsTrigger
-                      value="recentgames"
-                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                    >
-                      RECENT GAMES
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="allgames"
-                      className="font-thin font-jetbrains text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/20 rounded-sm px-2 py0.5"
-                    >
-                      ALL GAMES
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-
-                <TabsContent value="recentgames">
-                  <RecentGamesSummary matches={matches} summonerPuuid={summonerInfo?.puuid} />
-
-                  <Separator className="bg-white/10 mt-16" />
-
-                  {recentBadgeLabel && (
-                    <div className="flex items-center justify-between px-6 py-4">
-                      <div className="text-flash/60 text-sm">
-                        LAST 10 GAMES: {recentBadgeCount} MVPS
-                      </div>
-
-                      <div className="relative rounded-sm overflow-hidden px-2 py-0.5">
-                        <div
-                          className={cn(
-                            "absolute inset-0 animate-glow",
-                            recentBadgeLabel === "GODLIKE" &&
-                            "bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400",
-                            recentBadgeLabel === "SOLOCARRY" &&
-                            "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300",
-                            recentBadgeLabel === "CARRY" &&
-                            "bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400"
-                          )}
-                        />
-                        <div className="relative z-10 text-black text-sm font-semibold tracking-wide">
-                          {recentBadgeLabel}
-                        </div>
-                      </div>
+              {/* ── PERFORMANCE OVERVIEW ── */}
+              {!recentDetailedStats && (
+                <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
+                  <div className="flex items-start gap-1">
+                    {/* Radar skeleton */}
+                    <div className="shrink-0 -ml-2 flex items-center justify-center" style={{ width: 190, height: 190 }}>
+                      <div className="w-[130px] h-[130px] rounded-full border border-white/[0.06]" />
                     </div>
-                  )}
-                </TabsContent>
+                    {/* Stats skeleton */}
+                    <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
+                          <Skeleton className="w-[40px] h-3" />
+                          <Skeleton className="w-[50px] h-4" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Footer skeleton */}
+                  <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="w-[45px] h-3" />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {recentDetailedStats && (() => {
+                const radarStats = [
+                  { label: "KDA", pct: Math.min(Number(recentDetailedStats.avgKda === "Perfect" ? 5 : recentDetailedStats.avgKda) / 5, 1) },
+                  { label: "CS", pct: Math.min(Number(recentDetailedStats.csPerMin) / 10, 1) },
+                  { label: "KP", pct: recentDetailedStats.avgKP / 100 },
+                  { label: "DMG", pct: recentDetailedStats.avgDmg / 40 },
+                  { label: "GOLD", pct: Math.min(recentDetailedStats.goldPerMin / 500, 1) },
+                  { label: "VIS", pct: Math.min(Number(recentDetailedStats.avgVision) / 2.5, 1) },
+                ];
+                const cx = 110, cy = 110, maxR = 82;
+                const angles = radarStats.map((_, i) => (i * Math.PI * 2) / 6 - Math.PI / 2);
+                const pt = (a: number, r: number) => [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
+                const hex = (r: number) => angles.map(a => pt(a, r).join(",")).join(" ");
+                const dataHex = radarStats.map((s, i) => pt(angles[i], Math.max(s.pct, 0.08) * maxR).join(",")).join(" ");
 
-                <TabsContent value="allgames">allgames</TabsContent>
-              </Tabs>
+                const tooltipLabels = ["Avg KDA", "CS per Min", "Kill Participation", "Damage Share", "Gold per Min", "Vision per Min"];
+                const tooltipValues = [
+                  recentDetailedStats.avgKda,
+                  recentDetailedStats.csPerMin,
+                  `${recentDetailedStats.avgKP}%`,
+                  `${recentDetailedStats.avgDmg}%`,
+                  String(recentDetailedStats.goldPerMin),
+                  recentDetailedStats.avgVision,
+                ];
+
+                return (
+                  <div className="px-3 pt-2 pb-4 font-jetbrains">
+                    <div className="flex items-start gap-1">
+
+                      {/* Radar chart — left */}
+                      <TooltipProvider delayDuration={0}>
+                        <div className="shrink-0 -ml-2 relative">
+                          <svg width="190" height="190" viewBox="0 0 220 220">
+                            {/* Grid hexagons */}
+                            {[0.25, 0.5, 0.75, 1].map(s => (
+                              <polygon key={s} points={hex(maxR * s)} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+                            ))}
+                            {/* Axis lines */}
+                            {angles.map((a, i) => {
+                              const [ex, ey] = pt(a, maxR);
+                              return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />;
+                            })}
+                            {/* Data fill */}
+                            <polygon points={dataHex} fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.5)" strokeWidth="1.5" strokeLinejoin="round" />
+                            {/* Inner glow fill */}
+                            <polygon points={dataHex} fill="url(#radarGlow)" />
+                            {/* Data dots with tooltips */}
+                            {radarStats.map((s, i) => {
+                              const [dx, dy] = pt(angles[i], Math.max(s.pct, 0.08) * maxR);
+                              return (
+                                <Tooltip key={i}>
+                                  <TooltipTrigger asChild>
+                                    <g className="cursor-pointer">
+                                      <circle cx={dx} cy={dy} r="10" fill="transparent" />
+                                      <circle cx={dx} cy={dy} r="5" fill="#00d992" fillOpacity="0.12" />
+                                      <circle cx={dx} cy={dy} r="2.5" fill="#00d992" fillOpacity="0.9" />
+                                    </g>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="font-jetbrains">
+                                    <span className="text-jade font-semibold">{tooltipValues[i]}</span>
+                                    <span className="text-flash/50 ml-1.5">{tooltipLabels[i]}</span>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                            {/* Labels */}
+                            {radarStats.map((s, i) => {
+                              const [lx, ly] = pt(angles[i], maxR + 16);
+                              return (
+                                <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
+                                  className="fill-flash/30 text-[9px] font-jetbrains uppercase tracking-wider"
+                                >{s.label}</text>
+                              );
+                            })}
+                            <defs>
+                              <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#00d992" stopOpacity="0.12" />
+                                <stop offset="100%" stopColor="#00d992" stopOpacity="0" />
+                              </radialGradient>
+                            </defs>
+                          </svg>
+                        </div>
+                      </TooltipProvider>
+
+                      {/* Stats panel — right */}
+                      <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                        {[
+                          { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
+                          { label: "CS/MIN", value: recentDetailedStats.csPerMin },
+                          { label: "KP", value: `${recentDetailedStats.avgKP}%` },
+                          { label: "DMG", value: `${recentDetailedStats.avgDmg}%` },
+                          { label: "GOLD/M", value: String(recentDetailedStats.goldPerMin) },
+                          { label: "VIS/M", value: recentDetailedStats.avgVision },
+                        ].map(s => (
+                          <div key={s.label} className="flex items-baseline justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
+                            <span className="text-[10px] text-flash/35 uppercase tracking-wider">{s.label}</span>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
+                              {s.sub && <span className="text-[10px] text-flash/25">{s.sub}</span>}
+                            </div>
+                          </div>
+                        ))}
+
+                      </div>
+
+                    </div>
+
+                    {/* Full-width footer rows */}
+                    {recentDetailedStats.roleDistribution.length > 0 && (
+                      <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                        {recentDetailedStats.roleDistribution.map((r, i) => (
+                          <span key={r.role} className="text-[11px] tabular-nums">
+                            <span className={i === 0 ? "text-jade" : "text-flash/40"}>{r.role}</span>
+                            <span className="text-flash/20 ml-1">{r.pct}%</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {recentBadgeLabel && (
+                      <div className="flex items-center justify-between px-1 pt-2 mt-1 border-t border-white/[0.06]">
+                        <span className="text-[10px] text-flash/25">{recentBadgeCount}/{recentDetailedStats.games} MVP</span>
+                        <span className="text-[11px] font-bold text-jade tracking-widest drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]">
+                          {recentBadgeLabel}
+                        </span>
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -2198,18 +2382,59 @@ export default function SummonerPage() {
           )}
         </AnimatePresence>
 
-        <button
-          aria-label="Scroll to top"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        {/* Cyber scroll-to-top */}
+        <div
           className={cn(
-            "fixed bottom-8 right-8 z-50 rounded-full shadow-lg p-3 md:p-3.5",
-            "bg-jade/20 hover:bg-jade/40 active:scale-95 cursor-clicker",
-            "transition-opacity duration-300 ease-in-out",
-            showScrollTop ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
+            "transition-all duration-300 ease-in-out",
+            showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
           )}
         >
-          <img src="/icons/arrowup2.svg" alt="" className="w-5 h-5" />
-        </button>
+          {/* Diamond button */}
+          <button
+            aria-label="Scroll to top"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="group relative w-11 h-11 cursor-clicker"
+          >
+            {/* Rotated square track */}
+            <span className={cn(
+              "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
+              "bg-black/60 border-jade/40",
+              "group-hover:border-jade/80 group-hover:bg-jade/10",
+              "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
+              "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
+            )}>
+              {/* Scanlines inside diamond */}
+              <span
+                className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
+                style={{
+                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)"
+                }}
+              />
+            </span>
+
+            {/* Inner content — counter-rotated to stay upright */}
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
+              {/* Up chevron */}
+              <svg
+                viewBox="0 0 10 6"
+                className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="1,5 5,1 9,5" />
+              </svg>
+            </span>
+          </button>
+
+          {/* Label below */}
+          <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">
+            TOP
+          </span>
+        </div>
 
       </div>
     </div>
