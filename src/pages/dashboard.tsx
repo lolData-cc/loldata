@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Navbar } from "@/components/navbar";
@@ -23,10 +23,14 @@ import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
   const { pickerMode, setPickerMode } = useChampionPicker();
 
   // ✅ prendi isAdmin dal context
   const { isAdmin } = useAuth();
+
+  const validTabs = ["profile", "documentation", "billing", "preferences", "proApplications", "streamerApplications"];
+  const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -86,7 +90,7 @@ export default function DashboardPage() {
       {/* riga 2: contenuto */}
       <div className="w-full min-h-0">
         <div className="xl:w-[65%] w-full mx-auto px-4 h-full min-h-0">
-          <Tabs defaultValue="profile" className="flex w-full h-full min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex w-full h-full min-h-0">
             {/* 20%: sidebar */}
             <div className="w-[20%] border-r border-flash/10 h-full overflow-hidden flex flex-col">
               <div>
@@ -198,32 +202,41 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="flex justify-end border-t border-flash/20 gap-3 pt-2 mt-3 -mb-2">
-                        <button
-                          type="button"
-                          onClick={() => setPickerMode("sheet")}
-                          className={cn(
-                            "px-3 py-1 rounded-sm border text-sm cursor-clicker",
-                            pickerMode === "sheet"
-                              ? "border-jade/40 text-jade hover:bg-jade/10"
-                              : "border-flash/20 text-flash/80 hover:bg-flash/10 hover:border-flash/40"
-                          )}
-                        >
-                          SHEET
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setPickerMode("radial")}
-                          className={cn(
-                            "px-3 py-1 rounded-sm border text-sm cursor-clicker",
-                            pickerMode === "radial"
-                              ? "border-jade/40 text-jade hover:bg-jade/10"
-                              : "border-flash/20 text-flash/80 hover:bg-flash/10 hover:border-flash/40"
-                          )}
-                        >
-                          RADIAL
-                        </button>
+                      <div className="flex justify-end border-t border-flash/20 pt-3 mt-3 -mb-2">
+                        <div className="relative flex rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
+                          {/* Sliding indicator */}
+                          <div
+                            className={cn(
+                              "absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-[2px]",
+                              "bg-jade/15 border border-jade/30",
+                              "transition-all duration-300 ease-out",
+                              "shadow-[0_0_8px_rgba(0,217,146,0.1)]",
+                              pickerMode === "sheet" ? "left-[3px]" : "left-[calc(50%)]"
+                            )}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setPickerMode("sheet")}
+                            className={cn(
+                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                              "transition-colors duration-300",
+                              pickerMode === "sheet" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                            )}
+                          >
+                            Sheet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPickerMode("radial")}
+                            className={cn(
+                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                              "transition-colors duration-300",
+                              pickerMode === "radial" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                            )}
+                          >
+                            Radial
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

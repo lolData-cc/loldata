@@ -24,8 +24,10 @@ export function setDisableBorderBeams(value: boolean) {
 
 export function getDisableTechBackground(): boolean {
   const w = safeWindow();
-  if (!w) return false;
-  return w.localStorage.getItem(UI_PREFS_KEYS.disableTechBackground) === "1";
+  if (!w) return true; // default: tech bg disabled for new users
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.disableTechBackground);
+  if (val === null) return true; // first visit: disabled by default
+  return val === "1";
 }
 
 export function setDisableTechBackground(value: boolean) {

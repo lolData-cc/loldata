@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL } from "@/config"
+import { API_BASE_URL, CDN_BASE_URL, champPath, itemPath } from "@/config"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
 
 import {
@@ -13,8 +14,13 @@ import {
   RoleSupportIcon,
 } from "@/components/ui/roleicons"
 
-// ✅ highlight component
 import { BorderBeam } from "./ui/border-beam"
+import { ChampionPicker } from "@/components/championpicker"
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -70,6 +76,11 @@ type StatsPayload = {
 }
 
 type RoleKey = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "SUPPORT"
+type OpponentEntry = {
+  championId: number; name: string; role: RoleKey | null
+  itemId: number | null; itemName: string | null
+}
+type LegendaryItem = { id: number; name: string }
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS (anti-crash)
@@ -100,54 +111,531 @@ function TechCard({
 // ROLE FILTER BAR (bigger icons + optional BorderBeam)
 // ─────────────────────────────────────────────────────────────
 
-function RoleFilterBar({
-  value,
-  onChange,
-  suggestedRole,
+const ROLES: { key: RoleKey; label: string; Icon: React.FC<{ className?: string }> }[] = [
+  { key: "TOP", label: "Top", Icon: RoleTopIcon },
+  { key: "JUNGLE", label: "Jungle", Icon: RoleJungleIcon },
+  { key: "MIDDLE", label: "Mid", Icon: RoleMidIcon },
+  { key: "BOTTOM", label: "ADC", Icon: RoleAdcIcon },
+  { key: "SUPPORT", label: "Sup", Icon: RoleSupportIcon },
+]
+
+function OpponentPentagonDialog({
+  opponents,
+  champions,
+  onSetOpponent,
+  onClearOpponent,
+  selectedRole,
+  legendaryItems,
+  onSetItem,
+  onClearItem,
 }: {
-  value: RoleKey | null
-  onChange: (v: RoleKey | null) => void
-  suggestedRole?: RoleKey | null
+  opponents: OpponentEntry[]
+  champions: { id: string; name: string }[]
+  onSetOpponent: (role: RoleKey, champName: string) => void
+  onClearOpponent: (role: RoleKey) => void
+  selectedRole: RoleKey | null
+  legendaryItems: LegendaryItem[]
+  onSetItem: (role: RoleKey, itemId: number, itemName: string) => void
+  onClearItem: (role: RoleKey) => void
 }) {
-  const roles: { key: RoleKey; label: string; Icon: React.FC<{ className?: string }> }[] = [
-    { key: "TOP", label: "Top", Icon: RoleTopIcon },
-    { key: "JUNGLE", label: "Jungle", Icon: RoleJungleIcon },
-    { key: "MIDDLE", label: "Mid", Icon: RoleMidIcon },
-    { key: "BOTTOM", label: "ADC", Icon: RoleAdcIcon },
-    { key: "SUPPORT", label: "Support", Icon: RoleSupportIcon },
-  ]
+  const [open, setOpen] = useState(false)
+  const [activeSlot, setActiveSlot] = useState<RoleKey | null>(null)
+  const [activeItemSlot, setActiveItemSlot] = useState<RoleKey | null>(null)
+  const [search, setSearch] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const slotMap = useMemo(() => {
+    const m: Partial<Record<RoleKey, OpponentEntry>> = {}
+    for (const o of opponents) if (o.role) m[o.role] = o
+    return m
+  }, [opponents])
+
+  const trimmed = search.trim().toLowerCase()
+  const filteredChamps = useMemo(() => {
+    if (trimmed.length < 2) return []
+    return champions.filter(
+      (c) => c.name.toLowerCase().includes(trimmed) || c.id.toLowerCase().includes(trimmed)
+    )
+  }, [champions, trimmed])
+
+  const filteredItems = useMemo(() => {
+    if (trimmed.length < 2) return legendaryItems
+    return legendaryItems.filter((it) => it.name.toLowerCase().includes(trimmed))
+  }, [legendaryItems, trimmed])
+
+  useEffect(() => {
+    if (activeSlot || activeItemSlot) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [activeSlot, activeItemSlot])
+
+  useEffect(() => {
+    if (!open) { setActiveSlot(null); setActiveItemSlot(null); setSearch("") }
+    else if (selectedRole && !slotMap[selectedRole]) setActiveSlot(selectedRole)
+  }, [open, selectedRole, slotMap])
+
+  const handleSelect = (champName: string) => {
+    if (!activeSlot) return
+    onSetOpponent(activeSlot, champName)
+    setActiveSlot(null)
+    setSearch("")
+  }
+
+  const handleItemSelect = (item: LegendaryItem) => {
+    if (!activeItemSlot) return
+    onSetItem(activeItemSlot, item.id, item.name)
+    setActiveItemSlot(null)
+    setSearch("")
+  }
+
+  const DELAYS = [0.05, 0.13, 0.21, 0.29, 0.37]
+
+  const slotCard = (roleIdx: number) => {
+    const r = ROLES[roleIdx]
+    const opp = slotMap[r.key]
+    const isActive = activeSlot === r.key
+
+    return (
+      <div
+        key={r.key}
+        style={{ opacity: 0, animation: `pentSlotIn 0.45s ease-out ${DELAYS[roleIdx]}s forwards` }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (opp) return
+            setActiveSlot(isActive ? null : r.key)
+            setSearch("")
+          }}
+          className={cn(
+            "w-[148px] rounded-md border p-3 transition-all cursor-clicker",
+            isActive
+              ? "border-jade/50 bg-jade/10"
+              : opp
+                ? "border-[#00D992]/30 bg-[#00D992]/[0.04]"
+                : "border-white/[0.06] bg-white/[0.02] hover:border-[#00D992]/30 hover:bg-white/[0.03]"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <r.Icon className={cn("w-4 h-4", opp ? "text-[#00D992]" : "text-[#E8EEF2]/30")} />
+            <span className={cn(
+              "text-[9px] font-jetbrains uppercase tracking-[0.15em]",
+              opp ? "text-[#00D992]" : "text-[#E8EEF2]/25"
+            )}>
+              {r.label}
+            </span>
+          </div>
+
+          <div className="border-t border-white/[0.06] pt-2">
+            {opp ? (
+              <div className="flex items-center gap-2">
+                <img
+                  src={`${champPath}/${opp.name}.png`}
+                  alt={opp.name}
+                  className="w-6 h-6 rounded-sm"
+                />
+                <span className="text-[10px] font-jetbrains text-flash/80 truncate flex-1 text-left">
+                  {opp.name}
+                </span>
+                <span
+                  onClick={(e) => { e.stopPropagation(); onClearOpponent(r.key) }}
+                  className="text-[#E8EEF2]/20 hover:text-[#E8EEF2] text-xs cursor-clicker transition-colors"
+                >
+                  ✕
+                </span>
+              </div>
+            ) : (
+              <span className={cn(
+                "text-[10px] font-jetbrains uppercase tracking-[0.15em]",
+                isActive ? "text-jade" : "text-[#E8EEF2]/20"
+              )}>
+                + Add
+              </span>
+            )}
+          </div>
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <TechCard className="px-3 py-2">
-      <div className="flex items-center justify-between">
-        <div className="text-[#E8EEF2]/30 text-[9px] font-mono uppercase tracking-[0.2em]">
-          Role filter
-        </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(
+        "h-10 px-3 rounded-md border cursor-clicker",
+        "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
+        "text-[10px] font-mono uppercase tracking-wider flex items-center gap-2",
+        opponents.length > 0
+          ? "border-[#00D992]/50 text-[#00D992]"
+          : "border-[#00D992]/15 text-[#E8EEF2]/50 hover:text-[#E8EEF2]/80"
+      )}>
+        <span>VS</span>
+        {opponents.length > 0 && (
+          <div className="flex -space-x-1">
+            {opponents.map((o) => (
+              <div key={o.championId} className="relative">
+                <img
+                  src={`${champPath}/${o.name}.png`}
+                  alt={o.name}
+                  className="w-5 h-5 rounded-sm ring-1 ring-black"
+                />
+                {o.itemId && (
+                  <img
+                    src={`${itemPath}/${o.itemId}.png`}
+                    alt={o.itemName ?? ""}
+                    className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm ring-1 ring-black"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogTrigger>
 
+      {/* Fullscreen overlay with floating pentagram slots */}
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-50 overflow-hidden"
+          onClick={() => setOpen(false)}
+        >
+          {/* Dim backdrop + CRT scan lines */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,217,146,0.018) 2px, rgba(0,217,146,0.018) 4px)',
+            }}
+          />
+
+          <style>{`
+            @keyframes pentSlotIn {
+              0%   { opacity: 0; transform: translate(-50%, -50%) scaleY(0); }
+              60%  { opacity: 1; transform: translate(-50%, -50%) scaleY(1.04); }
+              100% { opacity: 1; transform: translate(-50%, -50%) scaleY(1); }
+            }
+            @keyframes searchPanelIn {
+              0%   { opacity: 0; transform: translate(-50%, 8px); }
+              100% { opacity: 1; transform: translate(-50%, 0); }
+            }
+          `}</style>
+
+          {/* Pentagon slots — 5 floating cards */}
+          {ROLES.map((r, i) => {
+            const opp = slotMap[r.key]
+            const isActive = activeSlot === r.key
+            // Pentagon vertices — tight
+            const pos = [
+              { top: "26%", left: "50%" },   // TOP
+              { top: "42%", left: "35%" },   // JNG
+              { top: "42%", left: "65%" },   // MID
+              { top: "60%", left: "38%" },   // ADC
+              { top: "60%", left: "62%" },   // SUP
+            ][i]
+
+            return (
+              <div
+                key={r.key}
+                className="absolute"
+                style={{
+                  top: pos.top,
+                  left: pos.left,
+                  opacity: 0,
+                  animation: `pentSlotIn 0.35s ease-out ${0.04 + i * 0.07}s forwards`,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (opp) return
+                    setActiveSlot(isActive ? null : r.key)
+                    setActiveItemSlot(null)
+                    setSearch("")
+                  }}
+                  className={cn(
+                    "relative overflow-hidden w-[220px] rounded-md border p-5 transition-all",
+                    "bg-black/80 backdrop-blur-xl",
+                    isActive
+                      ? "border-jade/50 shadow-[0_0_12px_rgba(0,217,146,0.15)] cursor-clicker"
+                      : opp
+                        ? "border-[#00D992]/30 shadow-[0_0_8px_rgba(0,217,146,0.06)] cursor-clicker"
+                        : "border-white/15 shadow-[0_0_8px_rgba(255,255,255,0.03)] hover:border-white/25 cursor-clicker"
+                  )}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <r.Icon className={cn("w-6 h-6", opp ? "text-[#00D992]" : "text-[#E8EEF2]/25")} />
+                    <span className={cn(
+                      "text-[12px] font-jetbrains uppercase tracking-[0.18em]",
+                      opp ? "text-[#00D992]" : "text-[#E8EEF2]/20"
+                    )}>
+                      {r.label}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-white/[0.06] pt-3">
+                    {opp ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={`${champPath}/${opp.name}.png`}
+                            alt={opp.name}
+                            className="w-8 h-8 rounded-sm"
+                          />
+                          <span className="text-[13px] font-jetbrains text-flash/80 truncate flex-1 text-left">
+                            {opp.name}
+                          </span>
+                          <span
+                            onClick={(e) => { e.stopPropagation(); onClearOpponent(r.key) }}
+                            className="text-[#E8EEF2]/20 hover:text-[#E8EEF2] text-sm cursor-clicker transition-colors"
+                          >
+                            ✕
+                          </span>
+                        </div>
+                        {/* Item row */}
+                        <div className="flex items-center gap-2 pl-1 mt-1">
+                          {opp.itemId ? (
+                            <>
+                              <img
+                                src={`${itemPath}/${opp.itemId}.png`}
+                                alt={opp.itemName ?? ""}
+                                className="w-5 h-5 rounded-sm"
+                              />
+                              <span className="text-[10px] font-jetbrains text-flash/50 truncate flex-1 text-left">
+                                {opp.itemName}
+                              </span>
+                              <span
+                                onClick={(e) => { e.stopPropagation(); onClearItem(r.key) }}
+                                className="text-[#E8EEF2]/15 hover:text-[#E8EEF2] text-[10px] cursor-clicker transition-colors"
+                              >
+                                ✕
+                              </span>
+                            </>
+                          ) : (
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setActiveItemSlot(activeItemSlot === r.key ? null : r.key)
+                                setActiveSlot(null)
+                                setSearch("")
+                              }}
+                              className="group/item flex items-center gap-2 cursor-clicker"
+                            >
+                              {/* Diamond icon */}
+                              <span className={cn(
+                                "relative w-4 h-4 flex items-center justify-center transition-all duration-200",
+                              )}>
+                                <span className={cn(
+                                  "absolute w-[10px] h-[10px] rotate-45 rounded-[2px] border transition-all duration-200",
+                                  activeItemSlot === r.key
+                                    ? "border-jade/80 bg-jade/15 shadow-[0_0_8px_rgba(0,217,146,0.3)]"
+                                    : "border-jade/30 bg-transparent group-hover/item:border-jade/50 group-hover/item:bg-jade/5"
+                                )} />
+                                <span className={cn(
+                                  "relative text-[8px] font-bold transition-colors duration-200",
+                                  activeItemSlot === r.key
+                                    ? "text-jade"
+                                    : "text-jade/40 group-hover/item:text-jade/70"
+                                )}>+</span>
+                              </span>
+                              <span className={cn(
+                                "text-[9px] font-jetbrains uppercase tracking-[0.12em] transition-colors duration-200",
+                                activeItemSlot === r.key
+                                  ? "text-jade"
+                                  : "text-jade/35 group-hover/item:text-jade/60"
+                              )}>
+                                Item
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className={cn(
+                        "text-[12px] font-jetbrains uppercase tracking-[0.15em]",
+                        isActive ? "text-jade" : "text-[#E8EEF2]/15"
+                      )}>
+                        + Add
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </div>
+            )
+          })}
+
+          {/* Floating search panel — champion or item mode */}
+          {(activeSlot || activeItemSlot) && (
+            <div
+              className="absolute left-1/2 bottom-[8%] w-[420px]"
+              style={{ animation: "searchPanelIn 0.25s ease-out forwards" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={cn(
+                "rounded-md border border-jade/20 p-4",
+                "bg-black/70 backdrop-blur-xl",
+                "shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]"
+              )}>
+                <div className="relative mb-3">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder={activeItemSlot
+                      ? `Search item for ${ROLES.find((rl) => rl.key === activeItemSlot)?.label ?? ""}...`
+                      : `Search champion for ${ROLES.find((rl) => rl.key === activeSlot)?.label ?? ""}...`
+                    }
+                    className={cn(
+                      "w-full bg-white/[0.03] border border-white/[0.06] rounded-sm",
+                      "px-3 py-2 text-[13px] font-jetbrains text-flash placeholder:text-flash/20",
+                      "focus:outline-none focus:border-jade/30 transition-colors"
+                    )}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <div className={cn(
+                    "absolute bottom-0 left-0 h-[1px] bg-jade/50 transition-all duration-300",
+                    search.length > 0 ? "w-full" : "w-0"
+                  )} />
+                </div>
+
+                {activeItemSlot ? (
+                  /* Item search grid */
+                  <div className="max-h-[200px] overflow-y-auto overscroll-none cyber-scrollbar">
+                    {filteredItems.length === 0 ? (
+                      <div className="text-center py-3">
+                        <span className="text-[10px] font-jetbrains text-flash/20 uppercase tracking-[0.2em]">
+                          No match
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-5 gap-2">
+                        {filteredItems.map((it) => (
+                          <button
+                            key={it.id}
+                            type="button"
+                            className={cn(
+                              "group flex flex-col items-center gap-1 py-2 px-1 rounded-sm cursor-clicker",
+                              "bg-white/[0.02] border border-transparent",
+                              "hover:bg-jade/10 hover:border-jade/20 transition-all duration-150"
+                            )}
+                            onClick={() => handleItemSelect(it)}
+                          >
+                            <img
+                              src={`${itemPath}/${it.id}.png`}
+                              alt={it.name}
+                              className="w-8 h-8 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
+                            />
+                            <span className="text-[7px] font-jetbrains text-flash/35 group-hover:text-jade/80 truncate max-w-[70px] transition-colors text-center leading-tight">
+                              {it.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Champion search grid */
+                  <div className="max-h-[160px] overflow-y-auto overscroll-none cyber-scrollbar">
+                    {trimmed.length < 2 ? (
+                      <div className="text-center py-3">
+                        <span className="text-[10px] font-jetbrains text-flash/20 uppercase tracking-[0.2em]">
+                          min. 2 characters
+                        </span>
+                      </div>
+                    ) : filteredChamps.length === 0 ? (
+                      <div className="text-center py-3">
+                        <span className="text-[10px] font-jetbrains text-flash/20 uppercase tracking-[0.2em]">
+                          No match
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-7 gap-2">
+                        {filteredChamps.map((champ) => (
+                          <button
+                            key={champ.id}
+                            type="button"
+                            className={cn(
+                              "group flex flex-col items-center gap-1.5 py-2 px-1 rounded-sm cursor-clicker",
+                              "bg-white/[0.02] border border-transparent",
+                              "hover:bg-jade/10 hover:border-jade/20 transition-all duration-150"
+                            )}
+                            onClick={() => handleSelect(champ.name)}
+                          >
+                            <img
+                              src={`${champPath}/${champ.name}.png`}
+                              alt={champ.name}
+                              className="w-10 h-10 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
+                            />
+                            <span className="text-[8px] font-jetbrains text-flash/35 group-hover:text-jade/80 truncate max-w-[50px] transition-colors">
+                              {champ.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>,
+      document.body)}
+    </Dialog>
+  )
+}
+
+function FilterBar({
+  role,
+  onRoleChange,
+  suggestedRole,
+  tier,
+  onTierChange,
+  opponents,
+  champions,
+  onSetOpponent,
+  onClearOpponent,
+  legendaryItems,
+  onSetItem,
+  onClearItem,
+}: {
+  role: RoleKey | null
+  onRoleChange: (v: RoleKey | null) => void
+  suggestedRole?: RoleKey | null
+  tier: TierKey | null
+  onTierChange: (v: TierKey | null) => void
+  opponents: OpponentEntry[]
+  champions: { id: string; name: string }[]
+  onSetOpponent: (role: RoleKey, champName: string) => void
+  onClearOpponent: (role: RoleKey) => void
+  legendaryItems: LegendaryItem[]
+  onSetItem: (role: RoleKey, itemId: number, itemName: string) => void
+  onClearItem: (role: RoleKey) => void
+}) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999]">
+      <div className="bg-liquirice/90 backdrop-blur-xl border border-[#1A1A1A] rounded-full px-4 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,217,146,0.06)]">
         <div className="flex items-center gap-2">
+          {/* Role filter */}
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => onRoleChange(null)}
             className={cn(
-              "h-10 px-3 rounded-md border border-[#00D992]/15 bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
+              "h-10 px-3 rounded-full border transition-colors cursor-clicker",
+              "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
               "text-[10px] font-mono uppercase tracking-wider",
-              value === null ? "text-[#00D992] border-[#00D992]/50" : "text-[#E8EEF2]/50"
+              role === null ? "text-[#00D992] border-[#00D992]/50" : "border-[#00D992]/15 text-[#E8EEF2]/50"
             )}
             title="All roles"
-            aria-pressed={value === null}
+            aria-pressed={role === null}
           >
             All
           </button>
 
-          {roles.map((r) => {
-            const active = value === r.key
-            const beam = value === null && suggestedRole === r.key
+          {ROLES.map((r) => {
+            const active = role === r.key
+            const beam = role === null && suggestedRole === r.key
 
             return (
               <div
                 key={r.key}
                 className={cn(
-                  "relative h-10 w-10 rounded-md overflow-hidden",
+                  "relative h-10 w-10 rounded-full overflow-hidden",
                   active ? "border border-[#00D992]/70" : "border border-[#00D992]/15",
                   "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors"
                 )}
@@ -157,11 +645,11 @@ function RoleFilterBar({
 
                 <button
                   type="button"
-                  onClick={() => onChange(r.key)}
+                  onClick={() => onRoleChange(r.key)}
                   aria-pressed={active}
                   className={cn(
                     "relative z-10 h-full w-full flex items-center justify-center",
-                    "bg-transparent"
+                    "bg-transparent cursor-clicker"
                   )}
                 >
                   <r.Icon className={cn("h-6 w-6", active ? "text-[#00D992]" : "text-[#E8EEF2]/55")} />
@@ -169,9 +657,30 @@ function RoleFilterBar({
               </div>
             )
           })}
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+
+          {/* Rank filter */}
+          <RankFilterButton value={tier} onChange={onTierChange} />
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+
+          {/* Opponent pentagon dialog */}
+          <OpponentPentagonDialog
+            opponents={opponents}
+            champions={champions}
+            onSetOpponent={onSetOpponent}
+            onClearOpponent={onClearOpponent}
+            selectedRole={role}
+            legendaryItems={legendaryItems}
+            onSetItem={onSetItem}
+            onClearItem={onClearItem}
+          />
         </div>
       </div>
-    </TechCard>
+    </div>
   )
 }
 
@@ -264,6 +773,133 @@ function SkeletonMatchupRow() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// RANK FILTER (dialog)
+// ─────────────────────────────────────────────────────────────
+
+type TierKey = "IRON" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" |
+  "EMERALD" | "DIAMOND" | "MASTER" | "GRANDMASTER" | "CHALLENGER"
+
+const TIERS: { key: TierKey; label: string }[] = [
+  { key: "IRON", label: "Iron" },
+  { key: "BRONZE", label: "Bronze" },
+  { key: "SILVER", label: "Silver" },
+  { key: "GOLD", label: "Gold" },
+  { key: "PLATINUM", label: "Platinum" },
+  { key: "EMERALD", label: "Emerald" },
+  { key: "DIAMOND", label: "Diamond" },
+  { key: "MASTER", label: "Master" },
+  { key: "GRANDMASTER", label: "Grandmaster" },
+  { key: "CHALLENGER", label: "Challenger" },
+]
+
+const miniRankIcon = (tier: string) =>
+  `https://cdn.loldata.cc/15.13.1/img/miniranks/${tier.toLowerCase()}.png`
+
+function RankFilterButton({
+  value,
+  onChange,
+}: {
+  value: TierKey | null
+  onChange: (v: TierKey | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        className={cn(
+          "flex items-center gap-2 h-10 px-3 rounded-md border cursor-clicker",
+          "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
+          "text-[10px] font-mono uppercase tracking-wider",
+          value ? "border-[#00D992]/50 text-[#00D992]" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+        )}
+      >
+        {value ? (
+          <>
+            <img src={miniRankIcon(value)} alt={value} className="w-4 h-4" />
+            <span>{value}</span>
+          </>
+        ) : (
+          <span>All Ranks</span>
+        )}
+      </DialogTrigger>
+
+      <DialogContent className="w-full max-w-[400px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
+        <div className="w-full relative">
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-md",
+              "bg-black/60 backdrop-blur-xl saturate-150",
+              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]"
+            )}
+          >
+            <BorderBeam duration={8} size={120} />
+
+            <div className="relative z-10 px-5 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade rounded-full" />
+                  <span className="text-[11px] font-jetbrains text-flash/50 tracking-[0.2em] uppercase">
+                    Rank Filter
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    "text-[9px] font-jetbrains uppercase tracking-[0.2em] cursor-clicker",
+                    "px-2 py-0.5 border border-white/[0.06] rounded-sm",
+                    "text-flash/30 hover:text-jade hover:border-jade/30 hover:bg-jade/5",
+                    "transition-all duration-150"
+                  )}
+                  onClick={() => { onChange(null); setOpen(false) }}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="grid grid-cols-5 gap-2">
+                {TIERS.map((t) => {
+                  const active = value === t.key
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => { onChange(t.key); setOpen(false) }}
+                      className={cn(
+                        "group flex flex-col items-center gap-1.5 py-3 px-1 rounded-sm cursor-clicker",
+                        "border transition-all duration-150",
+                        active
+                          ? "bg-jade/10 border-jade/30"
+                          : "bg-white/[0.02] border-transparent hover:bg-jade/10 hover:border-jade/20"
+                      )}
+                    >
+                      <img
+                        src={miniRankIcon(t.key)}
+                        alt={t.label}
+                        className={cn(
+                          "w-7 h-7 object-contain transition-opacity",
+                          active ? "opacity-100" : "opacity-50 group-hover:opacity-80"
+                        )}
+                      />
+                      <span className={cn(
+                        "text-[8px] font-jetbrains uppercase tracking-[0.15em] transition-colors",
+                        active ? "text-jade" : "text-flash/35 group-hover:text-jade/70"
+                      )}>
+                        {t.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────
 
@@ -280,15 +916,80 @@ export function ChampionStats({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [role, setRole] = useState<RoleKey | null>(null)
+  const [tier, setTier] = useState<TierKey | null>(null)
+  const [opponents, setOpponents] = useState<OpponentEntry[]>([])
 
-  // ✅ suggestedRole arrives from the same single API call
-  const suggestedRole = (stats?.meta?.role as RoleKey | null) ?? null
+  const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
+  const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
 
   const champIdFromKey = (k: number) => keyToId[String(k)] || String(k)
   const champIconFromKey = (k: number) =>
     `https://cdn2.loldata.cc/16.1.1/img/champion/${champIdFromKey(k)}.png`
 
-  // ✅ SINGLE call: refetch only when role changes (that's intentional)
+  const championList = useMemo(() =>
+    Object.entries(keyToId).map(([, id]) => ({ id, name: id })), [keyToId])
+
+  const idToKey = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const [key, id] of Object.entries(keyToId)) map[id] = Number(key)
+    return map
+  }, [keyToId])
+
+  // Item metadata for the item picker
+  const [itemsMeta, setItemsMeta] = useState<Record<string, { name: string; into?: string[]; gold?: { total: number; purchasable: boolean }; maps?: Record<string, boolean> }>>({})
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${CDN_BASE_URL}/data/en_US/item.json`)
+      .then((r) => r.json())
+      .then((json: any) => {
+        if (cancelled) return
+        const map: typeof itemsMeta = {}
+        for (const [id, item] of Object.entries<any>(json.data || {})) {
+          map[id] = { name: item.name, into: item.into, gold: item.gold, maps: item.maps }
+        }
+        setItemsMeta(map)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  const legendaryItems: LegendaryItem[] = useMemo(() => {
+    const all = Object.entries(itemsMeta)
+      .filter(([, m]) => (!m.into || m.into.length === 0) && m.gold?.purchasable !== false && (m.gold?.total ?? 0) >= 2000 && m.maps?.["11"] !== false)
+      .map(([id, m]) => ({ id: Number(id), name: m.name }))
+      .sort((a, b) => a.id - b.id)
+    const seen = new Set<string>()
+    return all.filter((it) => {
+      if (seen.has(it.name)) return false
+      seen.add(it.name)
+      return true
+    }).sort((a, b) => a.name.localeCompare(b.name))
+  }, [itemsMeta])
+
+  const setOpponentForRole = (role: RoleKey, champName: string) => {
+    const key = idToKey[champName]
+    if (!key) return
+    setOpponents((prev) => [
+      ...prev.filter((o) => o.role !== role && o.championId !== key),
+      { championId: key, name: champName, role, itemId: null, itemName: null },
+    ])
+  }
+
+  const clearOpponentRole = (role: RoleKey) => {
+    setOpponents((prev) => prev.filter((o) => o.role !== role))
+  }
+
+  const setItemForRole = (role: RoleKey, itemId: number, itemName: string) => {
+    setOpponents((prev) => prev.map((o) => o.role === role ? { ...o, itemId, itemName } : o))
+  }
+
+  const clearItemForRole = (role: RoleKey) => {
+    setOpponents((prev) => prev.map((o) => o.role === role ? { ...o, itemId: null, itemName: null } : o))
+  }
+
+  const opponentsKey = JSON.stringify(opponents)
+
+  // Refetch when any filter changes
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -301,7 +1002,11 @@ export function ChampionStats({
         championId: Number(champ.key),
         patch: null,
         queueId: 420,
-        role: role,
+        role: role === "SUPPORT" ? "UTILITY" : role,
+        tier: tier,
+        opponents: opponents.length > 0
+          ? opponents.map((o) => ({ championId: o.championId, role: o.role === "SUPPORT" ? "UTILITY" : o.role, ...(o.itemId ? { itemId: o.itemId } : {}) }))
+          : null,
       }),
     })
       .then((r) => {
@@ -321,13 +1026,23 @@ export function ChampionStats({
     return () => {
       cancelled = true
     }
-  }, [champ.key, role])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [champ.key, role, tier, opponentsKey])
+
+  const floatingBar = (
+    <FilterBar
+      role={role} onRoleChange={setRole} suggestedRole={suggestedRole}
+      tier={tier} onTierChange={setTier}
+      opponents={opponents} champions={championList}
+      onSetOpponent={setOpponentForRole} onClearOpponent={clearOpponentRole}
+      legendaryItems={legendaryItems} onSetItem={setItemForRole} onClearItem={clearItemForRole}
+    />
+  )
 
   if (loading) {
     return (
-      <div className="w-full space-y-3">
-        <RoleFilterBar value={role} onChange={setRole} suggestedRole={suggestedRole} />
-
+      <div className="w-full space-y-3 pb-20">
+        {floatingBar}
         {/* WINRATE / KDA / ECONOMY skeletons */}
         <div className="grid grid-cols-3 gap-3">
           {/* Winrate skeleton */}
@@ -493,8 +1208,8 @@ export function ChampionStats({
 
   if (error) {
     return (
-      <div className="w-full space-y-3">
-        <RoleFilterBar value={role} onChange={setRole} suggestedRole={suggestedRole} />
+      <div className="w-full space-y-3 pb-20">
+        {floatingBar}
         <div className="px-6 text-red-400">Error: {error}</div>
       </div>
     )
@@ -502,8 +1217,8 @@ export function ChampionStats({
 
   if (!stats) {
     return (
-      <div className="w-full space-y-3">
-        <RoleFilterBar value={role} onChange={setRole} suggestedRole={suggestedRole} />
+      <div className="w-full space-y-3 pb-20">
+        {floatingBar}
         <div className="px-6 text-neutral-400">NO STATS AVAILABLE.</div>
       </div>
     )
@@ -525,12 +1240,12 @@ export function ChampionStats({
 
   if (noGames) {
     return (
-      <div className="w-full space-y-3">
-        <RoleFilterBar value={role} onChange={setRole} suggestedRole={suggestedRole} />
+      <div className="w-full space-y-3 pb-20">
+        {floatingBar}
         <TechCard className="p-6">
           <div className="text-[#E8EEF2] font-mono text-sm">NO GAMES FOR THIS FILTER.</div>
           <div className="text-[#E8EEF2]/30 font-mono text-[10px] mt-2">
-            Try another role or remove the filter.
+            Try another role, rank, or adjust opponents.
           </div>
         </TechCard>
       </div>
@@ -610,13 +1325,15 @@ export function ChampionStats({
   ]
 
   return (
-    <div className="w-full space-y-3">
-      <RoleFilterBar value={role} onChange={setRole} suggestedRole={suggestedRole} />
+    <div className="w-full space-y-3 pb-20">
+      {floatingBar}
 
       {/* WINRATE / KDA / ECONOMY */}
       <div className="grid grid-cols-3 gap-3">
         <TechCard className="p-5">
-          <SectionHeader title="Winrate" subtitle={role ? `Filtered: ${role}` : undefined} />
+          <SectionHeader title="Winrate" subtitle={
+            [role, tier, opponents.length > 0 ? `VS ${opponents.map((o) => o.name + (o.role ? ` ${o.role}` : '')).join(', ')}` : null].filter(Boolean).join(' · ') || undefined
+          } />
           <div className="text-center">
             <div className="text-[#00D992] text-3xl font-mono font-bold tabular-nums">
               {pct(coreStats.winrate, 2)}
