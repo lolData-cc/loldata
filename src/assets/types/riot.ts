@@ -19,6 +19,8 @@ export type Participant = {
   teamId: number
   timePlayed: number
   soloKills: number
+  teamPosition?: "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY" | "";
+  individualPosition?: "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY" | "";
 
   // Items
   item0: number
@@ -77,6 +79,7 @@ export type MatchWithWin = {
   },
   win: boolean,
   championName: string
+  junglePlaystyle?: MatchJunglePlaystyleResult | null;
 }
 
 
@@ -107,3 +110,22 @@ export type ChampionStats = {
   avgKda: string | number
   csPerMin: string
 }
+
+export type JunglePlaystyleTag =
+  | "played_for_topside"
+  | "played_for_botside"
+  | "played_for_both"
+  | null;
+
+export type JungleTeamPlaystyleResult = {
+  participantId: number;
+  teamId: number;
+  tag: JunglePlaystyleTag;
+  topsideCount: number;
+  botsideCount: number;
+};
+
+export type MatchJunglePlaystyleResult = {
+  blue: JungleTeamPlaystyleResult | null;
+  red: JungleTeamPlaystyleResult | null;
+};

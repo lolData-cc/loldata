@@ -1,11 +1,14 @@
+'use client';
+
 // src/pages/champion-detail-page.tsx
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
-import { ChampionItemsTab } from "@/components/championitemstab"
 import { ChampionStats } from "@/components/champion-stats-tab"
+import { ChampionItemsTab } from "@/components/championitemstab";
+import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
 
 type ChampInfo = {
   id: string
@@ -223,7 +226,7 @@ export default function ChampionDetailPage() {
       {/* Hero */}
       <div className="relative h-[340px] w-full overflow-hidden rounded-xl -mt-6">
         <img
-          src={splashUrl}
+          src={splashUrl || "/placeholder.svg"}
           alt={`${champ.name} splash`}
           className="h-full w-full object-cover object-[center_-40px]"
           loading="eager"
@@ -233,7 +236,7 @@ export default function ChampionDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-4 flex items-center gap-4">
           <img
-            src={iconUrl}
+            src={iconUrl || "/placeholder.svg"}
             alt={`${champ.name} icon`}
             className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
           />
@@ -386,97 +389,15 @@ export default function ChampionDetailPage() {
               <ChampionStats champ={champ} patch={patch} keyToId={keyToId} />
             )}
           </TabsContent>
-          <TabsContent value="matchups">
+<TabsContent value="matchups">
             {Object.keys(keyToId).length === 0 ? (
               <div className="text-neutral-400">LOADING CHAMPIONS…</div>
-            ) : matchupsLoading ? (
-              <div className="text-neutral-300">LOADING MATCHUPS…</div>
-            ) : matchupsError ? (
-              <div className="text-red-400">Error: {matchupsError}</div>
-            ) : matchups.length === 0 ? (
-              <div className="text-neutral-400">NO AVAILABLE MATCHUP INFO.</div>
             ) : (
-              <div className="flex gap-8">
-                <div className="w-[70%]">
-                  {(() => {
-                    const sel = matchups.find(m => String(m.opponent_key) === selectedOpponent) || matchups[0]
-                    if (!sel) return null
-
-                    return (
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                        <div className="lg:col-span-1 rounded-lg border border-white/10 bg-neutral-900/50 p-4">
-                          <h3 className="text-base font-semibold">Tips</h3>
-                          {sel.tips ? (
-                            <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-neutral-200">
-                              {sel.tips.split("\n").map((line, i) => <li key={i}>{line}</li>)}
-                            </ul>
-                          ) : (
-                            <div className="mt-2 text-sm text-neutral-400">Nessun tip disponibile.</div>
-                          )}
-                        </div>
-
-
-                      </div>
-                    )
-                  })()}
-                </div>
-                <div className="w-[30%]">
-                  <div className="flex flex-col gap-2 overflow-x-auto pb-2 -mx-2 px-2">
-                    {matchups.map(m => {
-                      const oppKeyStr = String(m.opponent_key)
-                      const oppId = opponentIdFromKey(m.opponent_key)
-                      const label = badgeFromWR(m.winrate)
-                      return (
-                        <button
-                          key={oppKeyStr}
-                          onClick={() => setSelectedOpponent(oppKeyStr)}
-                          className={[
-                            "flex items-center gap-3 rounded-md border px-3 py-2 shrink-0",
-                            selectedOpponent === oppKeyStr
-                              ? "bg-white/10 border-white/20"
-                              : "bg-neutral-900/50 border-white/10 hover:bg-white/5"
-                          ].join(" ")}
-                          title={oppId}
-                        >
-                          <img
-                            src={opponentIcon(m.opponent_key)}
-                            alt={`${oppId} icon`}
-                            className="h-8 w-8 rounded object-cover ring-1 ring-white/10"
-                            loading="lazy"
-                            decoding="async"
-                            draggable={false}
-                          />
-                          <div className="w-full">
-                            <div className="flex justify-between">
-                              <div className="text-sm font-medium text-white">{oppId}</div>
-                              <span className="text-sm font-semibold text-white">{fmtPct(m.winrate)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <div className="text-[12px] text-neutral-400">{m.games} games</div>
-                              <span className={`rounded-full px-2 py-0.5 text-[12px] ${badgeClass(label)}`}>
-                                {label}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="ml-auto flex items-center gap-2">
-
-
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                {/* Lista orizzontale di “tab” per ogni opponent */}
-
-
-
-
-              </div>
+              <ChampionMatchupsTab champ={champ} patch={patch} keyToId={keyToId} />
             )}
           </TabsContent>
           <TabsContent value="items">
-            <div className="mx-auto max-w-6xl px-4 py-4">
+            <div className="">
               <ChampionItemsTab champ={champ} patch={patch} />
             </div>
           </TabsContent>

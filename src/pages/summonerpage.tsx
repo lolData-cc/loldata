@@ -14,6 +14,7 @@ import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
+import { JunglePlaystyleBadge } from "@/components/jungleplaystylebadge";
 import { checkUserFlags } from "@/converters/checkUserFlags";
 import {
   Tooltip,
@@ -506,36 +507,36 @@ export default function SummonerPage() {
   }, [slug]);
 
   useEffect(() => {
-  fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to load champion.json")
-      return res.json()
-    })
-    .then((data) => {
-      const champs = Object.values(data.data).map((champ: any) => ({
-        id: champ.key as string,   // "266"
-        name: champ.id as string,  // "Aatrox"
-      }))
-
-      const map: Record<number, string> = {}
-      const reverseMap: Record<string, number> = {}
-
-      champs.forEach((c) => {
-        const numId = Number(c.id)
-        if (!Number.isNaN(numId)) {
-          map[numId] = c.name          // 266 -> "Aatrox"
-          reverseMap[c.name] = numId   // "Aatrox" -> 266
-        }
+    fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load champion.json")
+        return res.json()
       })
+      .then((data) => {
+        const champs = Object.values(data.data).map((champ: any) => ({
+          id: champ.key as string,   // "266"
+          name: champ.id as string,  // "Aatrox"
+        }))
 
-      setChampionMap(map)
-      setChampionMapReverse(reverseMap)
-      setAllChampions(champs)
-    })
-    .catch((err) => {
-      console.error("Error loading champions:", err)
-    })
-}, [])
+        const map: Record<number, string> = {}
+        const reverseMap: Record<string, number> = {}
+
+        champs.forEach((c) => {
+          const numId = Number(c.id)
+          if (!Number.isNaN(numId)) {
+            map[numId] = c.name          // 266 -> "Aatrox"
+            reverseMap[c.name] = numId   // "Aatrox" -> 266
+          }
+        })
+
+        setChampionMap(map)
+        setChampionMapReverse(reverseMap)
+        setAllChampions(champs)
+      })
+      .catch((err) => {
+        console.error("Error loading champions:", err)
+      })
+  }, [])
 
 
   useEffect(() => {
@@ -744,11 +745,7 @@ export default function SummonerPage() {
 
 
 
-  type MatchRow = {
-    match: MatchWithWin["match"];
-    win: boolean;
-    championName: string;
-  };
+  type MatchRow = MatchWithWin;
 
   const groupedByDay = useMemo(() => {
     // garantiamo l'ordinamento decrescente per timestamp
@@ -1354,12 +1351,8 @@ export default function SummonerPage() {
                   )}
               </div>
             </div>
-            <div
-              className={cn(
-                glassDark,
-                // da: "flex w-[55%] justify-between items-center mr-2 px-4 py-3"
-                "inline-flex items-center gap-4 mr-2 px-4 py-3 w-fit max-w-full pl-10"
-              )}
+            <div className="flex items-end justify-end"
+
             >
 
               <div className="relative z-10 flex justify-end items-center">
@@ -1387,13 +1380,6 @@ export default function SummonerPage() {
                     {linkedDiscord && (
                       <div className="flex justify-end mb-1">
                         <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
-                          {linkedDiscord.discord_avatar_url && (
-                            <img
-                              src={linkedDiscord.discord_avatar_url}
-                              alt="Discord avatar"
-                              className="w-4 h-4 rounded-full"
-                            />
-                          )}
                           <span className="text-[10px] text-flash/50 tracking-[0.18em]">
                             DISCORD
                           </span>
@@ -1469,23 +1455,7 @@ export default function SummonerPage() {
 
                     <div className="w-[100%] h-px mt-2 bg-white/15 rounded" />
                     <div className="mt-2 flex justify-end items-center gap-2">
-                      <Button
-                        type="button"
-                        className={cn(
-                          "px-4 py-2 font-medium uppercase tracking-wide cursor-clicker",
-                          "bg-[#1D2436] text-[#D0E3FF]",
-                          "hover:bg-[#243554] hover:border-[#60A5FA] text-[#3B82F6]"
-                        )}
-                        onClick={() =>
-                          showCyberToast({
-                            title: "Coming Soon!",
-                            description: "Profile tracking will be available soon.",
-                            tag: "TRACKING",
-                          })
-                        }
-                      >
-                        TRACK
-                      </Button>
+
 
                       <UpdateButton
                         onClick={refreshData}
@@ -1650,25 +1620,39 @@ export default function SummonerPage() {
 
                       {/* LISTA MATCH DI QUEL GIORNO */}
                       <ul className="space-y-3">
-                        {rows.map(({ match, win, championName }) => {
-                          // === tuo codice esistente per una singola card ===
+                        {rows.map((row) => {
+                          const { match, win, championName, junglePlaystyle } = row;
+
                           const queueId = match.info.queueId;
                           const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
                           const participants = match.info.participants;
+
                           const team1 = participants.filter(p => p.teamId === 100);
                           const team2 = participants.filter(p => p.teamId === 200);
                           const itemKeys: (keyof Participant)[] = ["item0", "item1", "item2", "item3", "item4", "item5"];
                           const { scores, mvpWin, mvpLose } = calculateLolDataScores(participants);
+
                           const participant = participants.find((p) => p.puuid === summonerInfo?.puuid);
+
+                          const playerRole = participant?.teamPosition || participant?.individualPosition;
+                          const isJungler = playerRole === "JUNGLE";
+
+                          const myJungleTag =
+                            participant?.teamId === 100
+                              ? junglePlaystyle?.blue?.tag
+                              : junglePlaystyle?.red?.tag;
+
                           const kda =
                             participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
-                              ? 'Perfect'
+                              ? "Perfect"
                               : participant && participant.deaths > 0
                                 ? (participant.kills + participant.assists) / participant.deaths
                                 : 0;
+
                           const isSelfMvpOrAce =
                             !!summonerInfo?.puuid &&
                             (summonerInfo.puuid === mvpWin || summonerInfo.puuid === mvpLose);
+
 
                           return (
                             <li
@@ -1718,17 +1702,18 @@ export default function SummonerPage() {
                                         <span className="relative z-20 flex items-center gap-2">
                                           <span>{queueLabel}</span>
 
-                                          {/* WIN / LOSS badge */}
                                           <span
                                             className={cn(
                                               "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
-                                              win
-                                                ? "text-[#00D992]"
-                                                : "text-[#d63336]"
+                                              win ? "text-[#00D992]" : "text-[#d63336]"
                                             )}
                                           >
                                             {win ? "WIN" : "LOSS"}
                                           </span>
+
+                                          {isJungler && myJungleTag && (
+                                            <JunglePlaystyleBadge tag={myJungleTag} />
+                                          )}
                                         </span>
 
                                         <span className="absolute left-1/2 transform -translate-x-1/2 z-20">

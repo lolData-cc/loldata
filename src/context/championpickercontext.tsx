@@ -83,7 +83,7 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem("pickerMode", pickerMode);
-    } catch {}
+    } catch { }
   }, [pickerMode]);
 
   const navigate = useNavigate();
@@ -99,7 +99,7 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
       .then((versions: string[]) => {
         if (Array.isArray(versions) && versions.length > 0) setLatestPatch(versions[0]);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // fetch champions, senza ruoli – li useremo nello sheet
@@ -541,19 +541,19 @@ function SheetChampionPicker({
 
           {/* HEADER */}
           {/* HEADER */}
-<div className="flex items-center justify-between mb-4">
-  <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
-    CHAMPION PICKER
-  </span>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
+              CHAMPION PICKER
+            </span>
 
-  <button
-    type="button"
-    className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
-    onClick={() => setQ("")}
-  >
-    CLEAR
-  </button>
-</div>
+            <button
+              type="button"
+              className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
+              onClick={() => setQ("")}
+            >
+              CLEAR
+            </button>
+          </div>
 
 
           {/* SEARCH */}

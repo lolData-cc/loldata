@@ -96,7 +96,7 @@ function HomePage() {
           <SearchPageFeature />
           <Jax />
 
-          <NewItemsBanner />
+          {/* <NewItemsBanner /> */}
 
           <section className="mt-8">
             <StreamersInfiniteCarousel />

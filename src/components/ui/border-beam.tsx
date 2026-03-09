@@ -1,52 +1,25 @@
-import { motion, MotionStyle, Transition } from "motion/react"
-
-import { cn } from "@/lib/utils"
+import { motion, MotionStyle, Transition } from "motion/react";
+import { cn } from "@/lib/utils";
+import { getDisableBorderBeams } from "@/lib/uiPrefs"; // 👈 aggiungi
 
 interface BorderBeamProps {
+  size?: number;
+  duration?: number;
+  delay?: number;
+  colorFrom?: string;
+  colorTo?: string;
+  transition?: Transition;
+  className?: string;
+  style?: React.CSSProperties;
+  reverse?: boolean;
+  initialOffset?: number;
+  borderWidth?: number;
+
   /**
-   * The size of the border beam.
+   * Se vuoi poter bypassare la preferenza globale in casi particolari.
+   * Default: true (rispetta la preferenza globale).
    */
-  size?: number
-  /**
-   * The duration of the border beam.
-   */
-  duration?: number
-  /**
-   * The delay of the border beam.
-   */
-  delay?: number
-  /**
-   * The color of the border beam from.
-   */
-  colorFrom?: string
-  /**
-   * The color of the border beam to.
-   */
-  colorTo?: string
-  /**
-   * The motion transition of the border beam.
-   */
-  transition?: Transition
-  /**
-   * The class name of the border beam.
-   */
-  className?: string
-  /**
-   * The style of the border beam.
-   */
-  style?: React.CSSProperties
-  /**
-   * Whether to reverse the animation direction.
-   */
-  reverse?: boolean
-  /**
-   * The initial offset position (0-100).
-   */
-  initialOffset?: number
-  /**
-   * The border width of the beam.
-   */
-  borderWidth?: number
+  respectGlobalPreference?: boolean;
 }
 
 export const BorderBeam = ({
@@ -61,7 +34,11 @@ export const BorderBeam = ({
   reverse = false,
   initialOffset = 0,
   borderWidth = 1,
+  respectGlobalPreference = true,
 }: BorderBeamProps) => {
+  // 👇 se disabilitato globalmente, non renderizza niente
+  if (respectGlobalPreference && getDisableBorderBeams()) return null;
+
   return (
     <div
       className="pointer-events-none absolute inset-0 rounded-[inherit] border-2 border-transparent [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)] [mask-composite:intersect] [mask-clip:padding-box,border-box]"
@@ -101,5 +78,5 @@ export const BorderBeam = ({
         }}
       />
     </div>
-  )
-}
+  );
+};

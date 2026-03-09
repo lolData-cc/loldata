@@ -106,6 +106,9 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           <Link to="/learn" className="flex-shrink-0">
             <MenuItem label="LEARN" />
           </Link>
+          <Link to="/explorer" className="flex-shrink-0">
+            <MenuItem label="EXPLORER" />
+          </Link>
         </div>
 
         {/* DX */}

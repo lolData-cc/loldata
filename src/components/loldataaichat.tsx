@@ -158,7 +158,7 @@ export default function LoldataAIChat({
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const effectivePlaceholder = useMemo(
-    () => placeholder || "Ask LOLDATA AI… (Invio invia, Shift+Invio va a capo)",
+    () => placeholder || "Ask lolData Ai...",
     [placeholder]
   )
 
@@ -350,16 +350,73 @@ export default function LoldataAIChat({
         </div>
       </div>
 
-      {/* Composer – pill compatta con testo centrato */}
-       <div className="mt-4 flex items-center gap-2">
+      {/* Composer – iOS 26 Liquid Glass Style */}
+      <div className="mt-4 flex items-center gap-3">
+        {/* Send button - circular liquid glass */}
+        {!loading ? (
+          <button
+            type="button"
+            onClick={handleSend}
+            className={cn(
+              "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+              // Nearly transparent fill
+              "bg-white/[0.03]",
+              // The key: thin white ring border for glass edge effect
+              "ring-1 ring-inset ring-white/[0.15]",
+              // Subtle inner shadow for depth/recess
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+              // Backdrop blur
+              "backdrop-blur-xl",
+              // Hover - slightly brighter
+              "hover:bg-white/[0.06] hover:ring-white/[0.22]",
+              "active:scale-95"
+            )}
+          >
+            {/* Top edge highlight */}
+            <div className="pointer-events-none absolute inset-x-2 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Send className="h-4 w-4 text-white/60" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStop}
+            className={cn(
+              "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+              "bg-white/[0.03]",
+              "ring-1 ring-inset ring-white/[0.15]",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+              "backdrop-blur-xl",
+              "hover:bg-white/[0.06] hover:ring-white/[0.22]",
+              "active:scale-95"
+            )}
+          >
+            <div className="pointer-events-none absolute inset-x-2 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Loader2 className="h-4 w-4 text-white/60 animate-spin" />
+          </button>
+        )}
+
+        {/* Input pill - liquid glass */}
         <div
           className={cn(
-            "flex w-full items-center gap-2 rounded-full px-4",
-            "bg-black/40 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.6)]",
+            "relative flex flex-1 items-center rounded-full px-5",
+            "h-11",
+            // Nearly transparent - the key to liquid glass
+            "bg-white/[0.03]",
+            // Thin white ring creates the glass edge
+            "ring-1 ring-inset ring-white/[0.15]",
+            // Inner shadows for recessed/embossed look
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_2px_rgba(0,0,0,0.15)]",
+            // Blur
             "backdrop-blur-xl",
-            "h-11" // altezza fissa della pill
+            // Transitions
+            "transition-all duration-200",
+            // Focus state - slightly more visible ring
+            "focus-within:ring-white/[0.25] focus-within:bg-white/[0.05]"
           )}
         >
+          {/* Top edge highlight reflection */}
+          <div className="pointer-events-none absolute inset-x-4 top-[1px] h-px rounded-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+          
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -368,32 +425,11 @@ export default function LoldataAIChat({
             rows={1}
             className={cn(
               "flex-1 resize-none bg-transparent border-0 outline-none",
-              "text-sm leading-snug text-flash placeholder:text-flash/40",
-              // altezza e padding pensati per centrare il testo nella pill da 44px
+              "text-sm leading-snug text-white/70 placeholder:text-white/30",
               "h-[24px] py-0",
-              // micro-tweak ottico se serve
-              "relative top-[1px]"
+              "caret-white/50"
             )}
           />
-
-          {!loading ? (
-            <button
-              type="button"
-              onClick={handleSend}
-              className="flex h-8 w-8 items-center justify-center rounded-full
-              bg-jade/90 text-black shadow-[0_0_14px_rgba(16,185,129,0.6)] hover:bg-jade transition"
-            >
-              <Send className="h-[14px] w-[14px]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStop}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_14px_rgba(248,113,113,0.6)] hover:bg-red-400 transition"
-            >
-              <Loader2 className="h-[14px] w-[14px] animate-spin" />
-            </button>
-          )}
         </div>
       </div>
 

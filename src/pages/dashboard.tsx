@@ -16,6 +16,8 @@ import {
 import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
 import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
+import { BorderBeamPreference } from "@/components/borderbeampreference";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -174,48 +176,56 @@ export default function DashboardPage() {
               {/* PREFERENCES TAB */}
               <TabsContent value="preferences" className="outline-none">
                 <div className="flex flex-col gap-6 p-4 px-6">
-                  <p className="text-xs text-flash/50">
-                    Current champion picker mode:{" "}
-                    <span className="font-semibold">{pickerMode}</span>
-                  </p>
+                  <div className="space-y-3">
+                    <h3 className="text-flash/60">ANIMATIONS</h3>
+                    <BorderBeamPreference />
+                  </div>
 
                   <div className="space-y-3">
                     <h3 className="text-flash/60">CHAMPION PICKER</h3>
-                    <div className="flex items-center justify-between rounded-md border border-flash/10 bg-neutral-950/60 p-4">
-                      <div className="space-y-1">
-                        <Label className="text-flash">Champion picker UI</Label>
-                        <p className="text-xs text-flash/50">
-                          Choose between Sheet (shadcn) and Radial dock.
-                        </p>
+
+                    <div className="border border-flash/10 rounded-md p-4 bg-cement">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h4 className="text-flash/40">Champion picker UI</h4>
+                          <span className="text-flash/80 text-sm">
+                            Choose between Sheet (shadcn) and Radial dock.
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex justify-end border-t border-flash/20 gap-3 pt-2 mt-3 -mb-2">
                         <button
                           type="button"
                           onClick={() => setPickerMode("sheet")}
-                          className={`px-3 py-1.5 rounded border ${
+                          className={cn(
+                            "px-3 py-1 rounded-sm border text-sm cursor-clicker",
                             pickerMode === "sheet"
-                              ? "bg-jade text-liquirice border-jade"
-                              : "bg-transparent text-flash/80 border-flash/20 hover:border-flash/40"
-                          }`}
+                              ? "border-jade/40 text-jade hover:bg-jade/10"
+                              : "border-flash/20 text-flash/80 hover:bg-flash/10 hover:border-flash/40"
+                          )}
                         >
-                          Sheet
+                          SHEET
                         </button>
+
                         <button
                           type="button"
                           onClick={() => setPickerMode("radial")}
-                          className={`px-3 py-1.5 rounded border ${
+                          className={cn(
+                            "px-3 py-1 rounded-sm border text-sm cursor-clicker",
                             pickerMode === "radial"
-                              ? "bg-jade text-liquirice border-jade"
-                              : "bg-transparent text-flash/80 border-flash/20 hover:border-flash/40"
-                          }`}
+                              ? "border-jade/40 text-jade hover:bg-jade/10"
+                              : "border-flash/20 text-flash/80 hover:bg-flash/10 hover:border-flash/40"
+                          )}
                         >
-                          Radial
+                          RADIAL
                         </button>
                       </div>
                     </div>
                   </div>
+
                 </div>
+
               </TabsContent>
 
               {/* DOCUMENTATION TAB */}
