@@ -35,7 +35,6 @@ import { Jax } from "./components/areyouwithus";
 import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
 import PlaygroundPage from "./pages/playgroundpage";
-import { NewItemsBanner } from "./components/features1 copy";
 import TotalMasteryPage from "./pages/totalmastery";
 //
 
