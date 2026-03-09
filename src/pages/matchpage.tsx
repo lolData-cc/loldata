@@ -1,26 +1,13 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import splashPositionMap from "@/converters/splashPositionMap"
-import { useParams } from "react-router-dom"
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
-import { useAuth } from "@/context/authcontext"
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import queueMap from "@/converters/queueMap"
 import { formatDate } from "@/converters/dateMap"
-import { useLocation } from "react-router-dom"
 import type { Participant } from "@/assets/types/riot"
-import { Link } from "react-router-dom";
 import {
   Tabs,
   TabsList,
@@ -36,11 +23,27 @@ import {
   ResponsiveContainer,
   LabelList
 } from "recharts"
-import { styleText } from "util"
-import BuildTimeline from "@/components/buildtimeline";
-
+import { KillMap } from "@/components/killmap";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"
+
+// ── Glass card reusable classes ─────────────────────────────────────
+const glassCard = cn(
+  "relative overflow-hidden rounded-md",
+  "bg-black/25 backdrop-blur-lg saturate-150",
+  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+);
+
+
+// ── Section Header ──────────────────────────────────────────────────
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-3 text-lg font-bold font-jetbrains uppercase text-flash/40 mb-4 mt-10">
+      <span className="text-jade/40 text-sm">◈</span>
+      {children}
+    </h2>
+  );
+}
 
 export default function MatchPage() {
   const { matchId } = useParams()
@@ -52,7 +55,6 @@ export default function MatchPage() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate();
 
-
   const getAverage = (key: string, participants: Participant[]) => {
     const total = participants.reduce((sum: number, p: Participant) => sum + (p[key as keyof Participant] as number || 0), 0)
     return Math.round(total / participants.length)
@@ -60,8 +62,6 @@ export default function MatchPage() {
 
   useEffect(() => {
     async function fetchMatch() {
-      console.log("▶ Avvio fetchMatch con:", { matchId, region });
-
       try {
         const [res, resTimeline] = await Promise.all([
           fetch(`${API_BASE_URL}/api/matchinfo`, {
@@ -78,30 +78,22 @@ export default function MatchPage() {
         const timelineData = await resTimeline.json();
         setTimeline(timelineData.timeline);
 
-        console.log("✅ Response ricevuta:", res);
-
         const rawText = await res.text();
-
         let data;
         try {
           data = JSON.parse(rawText);
-          console.log("✅ JSON parsato:", data);
-        } catch (parseErr) {
-          console.error("❌ Errore nel parsing del JSON:", parseErr);
+        } catch {
           setError("Risposta API non valida");
           return;
         }
 
         if (!data || typeof data !== "object" || !data.match || !data.match.info || !Array.isArray(data.match.info.participants)) {
-          console.error("❌ Dati ricevuti non validi:", data);
           setError("Dati API incompleti");
           return;
         }
 
         setMatch(data.match);
-        console.log("✅ Match settato correttamente:", data.match);
-      } catch (err) {
-        console.error("❌ Errore generale durante la fetch:", err);
+      } catch {
         setError("Match non trovato o errore di rete.");
       }
     }
@@ -109,14 +101,15 @@ export default function MatchPage() {
     if (matchId && region) {
       fetchMatch();
     } else {
-      console.warn("❗ matchId o region mancanti:", { matchId, region });
       setError("Dati URL mancanti");
     }
   }, [matchId, region]);
 
-
-  if (error) return <p className="text-red-500">{error}</p>
-  console.log("Match ricevuto:", match)
+  if (error) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <span className="font-mono text-[11px] tracking-[0.2em] text-error/70 uppercase">{error}</span>
+    </div>
+  )
   if (!match) return null
 
   const participants = match.info?.participants ?? []
@@ -136,341 +129,420 @@ export default function MatchPage() {
   const blueTeam = participants.filter((p) => p.teamId === 100)
   const redTeam = participants.filter((p) => p.teamId === 200)
 
+  const gameDuration = match.info?.gameDuration ?? 0;
+  const durationStr = `${Math.floor(gameDuration / 60)}:${(gameDuration % 60).toString().padStart(2, "0")}`;
+
   const getKP = (p: Participant, team: Participant[]) => {
     const teamKills = team.reduce((sum: number, curr: Participant) => sum + curr.kills, 0)
     return teamKills === 0 ? "0%" : `${Math.round(((p.kills + p.assists) / teamKills) * 100)}%`
   }
 
-  const renderItems = (p: Participant) => {
-    return (
-      <div className="flex flex-wrap gap-0.5">
-        {Array.from({ length: 7 }, (_, i) => {
-          const id = (p as unknown as Record<string, number>)[`item${i}`]
-          return id > 0 ? (
-            <img
-              key={i}
-              src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
-              className="w-5 h-5 rounded-sm"
-            />
-          ) : (
-            <div key={i} className="w-5 h-5 bg-cement rounded-sm" />
-          )
-        })}
-      </div>
-    )
-  }
-  return (
+  const renderItems = (p: Participant) => (
+    <div className="flex gap-0.5">
+      {Array.from({ length: 7 }, (_, i) => {
+        const id = (p as unknown as Record<string, number>)[`item${i}`]
+        return id > 0 ? (
+          <img
+            key={i}
+            src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+            className="w-5 h-5 rounded-[3px] ring-1 ring-white/10"
+          />
+        ) : (
+          <div key={i} className="w-5 h-5 rounded-[3px] bg-white/[0.03] ring-1 ring-white/[0.06]" />
+        )
+      })}
+    </div>
+  )
 
-    <div className="text-flash space-y-6">
-      <div className="relative w-full h-[400px]">
+  // ── Player row for scoreboard ─────────────────────────────────────
+  function PlayerRow({ p, team, side }: { p: Participant; team: Participant[]; side: "blue" | "red" }) {
+    const isMvp = p.puuid === mvpWin;
+    const isAce = p.puuid === mvpLose;
+    const isFocused = p.puuid === focusedPlayerPuuid;
+    const teamColor = side === "blue" ? "text-cyan-300/90" : "text-rose-300/90";
+    const deaths = p.deaths;
+    const kda = deaths === 0 ? "Perfect" : ((p.kills + p.assists) / deaths).toFixed(1);
+
+    return (
+      <div className={cn(
+        "flex items-center gap-3 px-3 py-2 transition-all",
+        "border-b border-white/[0.04] last:border-b-0",
+        "hover:bg-white/[0.02]",
+        isFocused && "bg-jade/[0.04]"
+      )}>
+        {/* Champion + spells */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="relative w-8 h-8">
+            <img
+              src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
+              className="w-8 h-8 rounded-[4px] ring-1 ring-white/10"
+            />
+            {(isMvp || isAce) && (
+              <span
+                className={cn(
+                  "absolute -top-1 -right-1 text-[7px] px-0.5 rounded-sm z-10 font-mono font-bold",
+                  isMvp && "bg-pine text-jade",
+                  isAce && "bg-[#3A2C45] text-[#C693F1]"
+                )}
+                style={{ lineHeight: '1' }}
+              >
+                {isMvp ? "MVP" : "ACE"}
+              </span>
+            )}
+            {p.champLevel && (
+              <span className="absolute -bottom-0.5 -right-0.5 text-[8px] bg-black/90 text-flash/50 rounded px-0.5 leading-none font-mono">
+                {p.champLevel}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4 rounded-[2px]" />
+            <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4 rounded-[2px]" />
+          </div>
+        </div>
+
+        {/* Name */}
+        <div className="w-[110px] min-w-0 shrink-0">
+          {p.riotIdGameName && p.riotIdTagline ? (
+            <Link
+              to={`/summoners/${region}/${p.riotIdGameName}-${p.riotIdTagline}`}
+              className={cn(
+                "block truncate text-[11px] font-mono tracking-wide hover:underline cursor-clicker",
+                isFocused ? "text-jade font-bold" : teamColor
+              )}
+              onClick={(e) => {
+                sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
+                e.stopPropagation();
+              }}
+            >
+              {p.riotIdGameName}
+            </Link>
+          ) : (
+            <span className="block truncate text-[11px] font-mono text-flash/40">{p.riotIdGameName ?? "Unknown"}</span>
+          )}
+        </div>
+
+        {/* KDA */}
+        <div className="w-[70px] shrink-0 text-center">
+          <span className="text-[11px] font-mono text-flash/70">
+            {p.kills}/{p.deaths}/{p.assists}
+          </span>
+          <div className="text-[9px] font-mono text-flash/25 tracking-wider">
+            {kda} KDA
+          </div>
+        </div>
+
+        {/* Items */}
+        <div className="flex-1 min-w-0">
+          {renderItems(p)}
+        </div>
+
+        {/* Gold */}
+        <div className="w-[55px] shrink-0 text-right">
+          <span className="text-[10px] font-mono text-citrine/60">{(p.goldEarned / 1000).toFixed(1)}k</span>
+        </div>
+
+        {/* KP */}
+        <div className="w-[40px] shrink-0 text-right">
+          <span className="text-[10px] font-mono text-flash/35">{getKP(p, team)}</span>
+        </div>
+
+        {/* CS */}
+        <div className="w-[45px] shrink-0 text-right">
+          <span className="text-[10px] font-mono text-flash/35">
+            {(p.totalMinionsKilled ?? 0) + (p.neutralMinionsKilled ?? 0)} cs
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-flash">
+
+      {/* ═══════════════════════════════════════════════════════════════
+          HERO BANNER
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="relative w-full h-[380px] overflow-hidden">
+        {/* Splash art */}
         {mvpPlayer && (
           <img
             src={`https://cdn.loldata.cc/15.13.1/img/champion/${mvpPlayer.championName}_0.jpg`}
-            alt={`Splash art of ${mvpPlayer.championName}`}
-            className="absolute inset-0 w-full h-full object-cover rounded-md shadow-lg"
+            alt={mvpPlayer.championName}
+            className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[mvpPlayer.championName] || "15%"}` }}
+            draggable={false}
           />
         )}
 
-        <div className="absolute inset-0 bg-liquirice/60 rounded-md"></div>
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-liquirice/70" />
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 mt-24 font-jetbrains gap-2">
-          <h1 className="text-flash/40 text-xs font-bold font-geist">
-            {formatDate(match.info?.gameEndTimestamp)}
-          </h1>
+        {/* Scanlines */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.04] z-[2]"
+          style={{
+            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px)",
+          }}
+        />
 
-          <div className="flex text-3xl text-jade items-center gap-16">
-            <span className={cn(blueWon ? "" : "text-pine/80")}>BLUE TEAM</span>
-            <span className="text-6xl">{totalKillsBlue}:{totalKillsRed}</span>
-            <span className={cn(redWon ? "" : "text-pine/80")}>RED TEAM</span>
-          </div>
-          <h1 className="text-jade text-sm font-bold uppercase"> {queueMap[match.info?.queueId] || "Unknown Queue"} </h1>
+        {/* Vignette */}
+        <div className="absolute inset-0 pointer-events-none z-[3] bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(4,10,12,0.8)_100%)]" />
 
-        </div>
+        {/* Bottom fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-[3] bg-gradient-to-t from-liquirice to-transparent" />
 
-        <div className="relative z-10 w-full bg-liquirice/80 rounded-md">
+        {/* Navbar */}
+        <div className="relative z-10 w-full">
           <div className="w-[65%] mx-auto">
             <Navbar />
           </div>
         </div>
+
+        {/* Center content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 mt-12 gap-3">
+          {/* Queue + date */}
+          <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.2em] uppercase text-flash/25">
+            <span>{queueMap[match.info?.queueId] || "Unknown Queue"}</span>
+            <span className="text-jade/20">◈</span>
+            <span>{formatDate(match.info?.gameEndTimestamp)}</span>
+            <span className="text-jade/20">◈</span>
+            <span>{durationStr}</span>
+          </div>
+
+          {/* Score */}
+          <div className="flex items-center gap-8">
+            <span className={cn(
+              "font-mono text-sm tracking-[0.15em] uppercase",
+              blueWon ? "text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" : "text-cyan-300/30"
+            )}>
+              Blue Side
+            </span>
+
+            <div className="flex items-center gap-4">
+              <span className={cn(
+                "text-5xl font-mono tabular-nums",
+                blueWon ? "text-cyan-300 drop-shadow-[0_0_12px_rgba(34,211,238,0.3)]" : "text-cyan-300/40"
+              )}>
+                {totalKillsBlue}
+              </span>
+              <span className="text-flash/10 font-mono text-2xl">/</span>
+              <span className={cn(
+                "text-5xl font-mono tabular-nums",
+                redWon ? "text-rose-300 drop-shadow-[0_0_12px_rgba(251,113,133,0.3)]" : "text-rose-300/40"
+              )}>
+                {totalKillsRed}
+              </span>
+            </div>
+
+            <span className={cn(
+              "font-mono text-sm tracking-[0.15em] uppercase",
+              redWon ? "text-rose-300 drop-shadow-[0_0_10px_rgba(251,113,133,0.4)]" : "text-rose-300/30"
+            )}>
+              Red Side
+            </span>
+          </div>
+
+          {/* Match ID */}
+          <span className="font-mono text-[9px] tracking-[0.15em] text-flash/10 uppercase mt-1">
+            {matchId}
+          </span>
+        </div>
       </div>
-      <div className="w-[65%] mx-auto">
-        <div className="flex items-center gap-3 mb-2 pb-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="rounded hover:bg-liquirice/40 transition"
-          >
-            <div className="bg-jade/20 p-0.5 rounded-sm cursor-clicker hover:bg-jade/40">
-              <ChevronLeft className="w-5 h-5 text-jade rounded-sm" />
-            </div>
-          </button>
-          <h1 className="text-xl font-bold font-jetbrains uppercase text-flash/40">
-            Scoreboard
-          </h1>
-        </div>
-        <div className="flex flex-col md:flex-row gap-6 w-full">
-          <div className="flex-1 overflow-x-auto font-geist">
-            <Table className="w-full table-fixed text-xs border border-[#2b2a2b]">
-              <TableHeader className="bg-[#1b1b1b] text-flash/50 uppercase font-jetbrains ">
-                <TableRow>
-                  <TableHead className="w-[30%] border-none">Player</TableHead>
-                  <TableHead className="w-[15%] border-none">KDA</TableHead>
-                  <TableHead className="w-[30%] border-none">Items</TableHead>
-                  <TableHead className="w-[10%] border-none">Gold</TableHead>
-                  <TableHead className="w-[10%] border-none">KP%</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {blueTeam.map((p) => (
-                  <TableRow key={p.puuid} className="bg-[#121212]">
-                    <TableCell className="flex items-center gap-2 border-none">
-                      <div className="relative w-6 h-6">
-                        <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
-                          className="w-6 h-6 rounded-sm"
-                        />
-                        {(p.puuid === mvpWin || p.puuid === mvpLose) && (
-                          <span
-                            className={cn(
-                              "absolute -top-1 -right-1 text-[8px] px-0.5 rounded-sm z-10",
-                              p.puuid === mvpWin && "bg-pine text-jade",
-                              p.puuid === mvpLose && "bg-[#3A2C45] text-[#C693F1]"
-                            )}
-                            style={{ lineHeight: '1', fontWeight: 600 }}
-                          >
-                            {p.puuid === mvpWin ? "MVP" : "ACE"}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        {p.riotIdGameName && p.riotIdTagline ? (
-                          <Link
-                            to={`/summoners/${region}/${p.riotIdGameName}-${p.riotIdTagline}`}
-                            className={cn(
-                              "hover:underline text-flash/50",
-                              p.puuid === focusedPlayerPuuid ? "text-jade font-bold" : ""
-                            )}
-                            onClick={(e) => {
-                              sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
-                              e.stopPropagation();
-                            }}
-                          >
-                            {p.riotIdGameName}
-                          </Link>
-                        ) : (
-                          <span>{p.riotIdGameName ?? "Unknown"}</span>
-                        )}
-                        <div className="flex gap-1 mt-1">
-                          <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4" />
-                          <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="border-none">{p.kills}/{p.deaths}/{p.assists}</TableCell>
-                    <TableCell className="border-none">{renderItems(p)}</TableCell>
-                    <TableCell className="text-center border-none">{p.goldEarned}</TableCell>
-                    <TableCell className="text-center border-none">{getKP(p, blueTeam)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex-1 overflow-x-auto">
-            <Table className="w-full table-fixed text-xs  text-right font-geist">
-              <TableHeader className="bg-[#1b1b1b] text-flash/50 font-jetbrains uppercase">
-                <TableRow>
-                  <TableHead className="p-2 w-[10%] border-none">KP%</TableHead>
-                  <TableHead className="w-[10%] border-none">GOLD</TableHead>
-                  <TableHead className="w-[30%] border-none">Items</TableHead>
-                  <TableHead className="w-[15%] border-none">KDA</TableHead>
-                  <TableHead className="w-[30%] border-none text-right pr-4">PLAYER</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {redTeam.map((p) => (
-                  <TableRow key={p.puuid} className="bg-[#121212]">
-                    <TableCell className="text-center border-none">{getKP(p, redTeam)}</TableCell>
-                    <TableCell className="text-center border-none">{p.goldEarned}</TableCell>
-                    <TableCell className="border-none">{renderItems(p)}</TableCell>
-                    <TableCell className="text-center border-none">{p.kills}/{p.deaths}/{p.assists}</TableCell>
-                    <TableCell className="flex items-center gap-2 justify-end border-none">
-                      <div className="text-right">
-                        {p.riotIdGameName && p.riotIdTagline ? (
-                          <Link
-                            to={`/summoners/${region}/${p.riotIdGameName}-${p.riotIdTagline}`}
-                            className={cn(
-                              "hover:underline text-flash/50",
-                              p.puuid === focusedPlayerPuuid ? "text-jade font-bold" : ""
-                            )}
-                            onClick={(e) => {
-                              sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
-                              e.stopPropagation();
-                            }}
-                          >
-                            {p.riotIdGameName}
-                          </Link>
-                        ) : (
-                          <span>{p.riotIdGameName ?? "Unknown"}</span>
-                        )}
-                        <div className="flex gap-1 justify-end mt-1">
-                          <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4" />
-                          <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="relative w-6 h-6">
-                        <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
-                          className="w-6 h-6 rounded-sm"
-                        />
-                        {(p.puuid === mvpWin || p.puuid === mvpLose) && (
-                          <span
-                            className={cn(
-                              "absolute -top-1 -right-1 text-[8px] px-0.5 rounded-sm z-10",
-                              p.puuid === mvpWin && "bg-pine text-jade",
-                              p.puuid === mvpLose && "bg-[#3A2C45] text-[#C693F1]"
-                            )}
-                            style={{ lineHeight: '1', fontWeight: 600 }}
-                          >
-                            {p.puuid === mvpWin ? "MVP" : "ACE"}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
 
-        {/* STATISTICS */}
-        <h1 className="text-xl font-bold pb-2 mb-2 font-jetbrains uppercase text-flash/40 mt-8">Statistics</h1>
-        <Tabs defaultValue={focusedPlayerPuuid || participants[0]?.puuid} className="w-full">
-          <div className="flex min-h-[300px] space-x-4"> {/* ⬅️ imposta altezza minima */}
-            {/* BLUE SIDE: TabsTrigger */}
-            <TabsList className="flex flex-col gap-1 w-[20%] p-2 rounded-md h-full border-flash/20 border bg-[#121212] font-jetbrains">
-              {participants.map((p) => (
-                <TabsTrigger
-                  key={p.puuid}
-                  value={p.puuid}
-                  className="flex items-center gap-2 text-left text-flash/50 px-3 py-2 rounded hover:bg-[#1B1B1B] data-[state=active]:bg-[#1B1B1B] data-[state=active]:text-flash w-full justify-start"
-                >
-                  <img
-                    src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
-                    className="w-6 h-6 rounded-sm"
-                  />
-                  <span
-                    className={cn(
-                      p.puuid === focusedPlayerPuuid ? "text-jade font-bold" : ""
-                    )}
-                  >
-                    {p.riotIdGameName ?? "Unknown"}
-                  </span>
-                </TabsTrigger>
+      {/* ═══════════════════════════════════════════════════════════════
+          PAGE CONTENT
+          ═══════════════════════════════════════════════════════════ */}
+      {/* Back button — sticky, left of content */}
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-1/2 left-4 -translate-y-1/2 z-50 group w-9 h-9 cursor-clicker"
+      >
+        <span className={cn(
+          "absolute inset-0 rotate-45 rounded-[3px] border transition-all duration-300",
+          "bg-black/60 border-jade/30",
+          "group-hover:border-jade/70 group-hover:bg-jade/10",
+          "group-hover:shadow-[0_0_14px_rgba(0,217,146,0.25)]",
+          "shadow-[0_0_6px_rgba(0,217,146,0.1)]"
+        )} />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <svg viewBox="0 0 10 10" className="w-3.5 h-3.5 text-jade transition-transform duration-300 group-hover:-translate-x-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="7,1 3,5 7,9" />
+          </svg>
+        </span>
+      </button>
+
+      <div className="w-[65%] mx-auto -mt-6 relative z-20">
+
+        {/* ── SCOREBOARD ──────────────────────────────────────────── */}
+        <SectionHeader>Scoreboard</SectionHeader>
+
+        <div className={glassCard}>
+          <div className="relative z-10 flex">
+            {/* Blue team — left half */}
+            <div className="flex-1 border-r border-white/[0.04]">
+              {/* Accent bar */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 z-10 bg-gradient-to-b from-cyan-400/80 to-cyan-400/10 rounded-l-md" />
+
+              {/* Header */}
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+                <span className="text-cyan-400/50 text-[10px]">◈</span>
+                <span className={cn(
+                  "font-mono text-[10px] tracking-[0.15em] uppercase",
+                  blueWon ? "text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]" : "text-cyan-300/50"
+                )}>
+                  Blue Side
+                </span>
+                {blueWon && (
+                  <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase ml-1">Win</span>
+                )}
+              </div>
+
+              {/* Players */}
+              {blueTeam.map((p) => (
+                <PlayerRow key={p.puuid} p={p} team={blueTeam} side="blue" />
               ))}
-            </TabsList>
+            </div>
 
-            {/* RED SIDE: TabsContent */}
-            <div className="w-[70%] p-4 rounded-md h-full">
-              {participants.map((p) => (
-                <TabsContent key={p.puuid} value={p.puuid} className="font-geist uppercase">
-                  {[
-                    { label: "Damage Dealt", key: "totalDamageDealtToChampions" },
-                    { label: "Damage Taken", key: "totalDamageTaken" },
-                    { label: "Heal", key: "totalHeal" },
-                    { label: "Damage to Objectives", key: "damageDealtToObjectives" },
-                    { label: "Vision Score", key: "visionScore" },
-                    { label: "Wards Placed", key: "wardsPlaced" },
-                    { label: "Wards Killed", key: "wardsKilled" },
-                  ].map(({ label, key }) => {
-                    const playerValue = (p as unknown as Record<string, number>)[key] ?? 0
-                    const avgValue = getAverage(key, participants)
+            {/* Red team — right half */}
+            <div className="flex-1">
+              {/* Accent bar */}
+              <div className="absolute right-0 top-0 bottom-0 w-1 z-10 bg-gradient-to-b from-rose-400/80 to-rose-400/10 rounded-r-md" />
 
-                    const chartData = [
-                      {
-                        name: label,
-                        Player: playerValue,
-                        Average: avgValue
-                      }
-                    ]
+              {/* Header */}
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+                <span className="text-rose-400/50 text-[10px]">◈</span>
+                <span className={cn(
+                  "font-mono text-[10px] tracking-[0.15em] uppercase",
+                  redWon ? "text-rose-300 drop-shadow-[0_0_8px_rgba(251,113,133,0.3)]" : "text-rose-300/50"
+                )}>
+                  Red Side
+                </span>
+                {redWon && (
+                  <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase ml-1">Win</span>
+                )}
+              </div>
 
+              {/* Players */}
+              {redTeam.map((p) => (
+                <PlayerRow key={p.puuid} p={p} team={redTeam} side="red" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── STATISTICS ──────────────────────────────────────────── */}
+        <SectionHeader>Statistics</SectionHeader>
+
+        <Tabs defaultValue={focusedPlayerPuuid || participants[0]?.puuid} className="w-full">
+          <div className="flex gap-3 min-h-[320px]">
+
+            {/* Player sidebar */}
+            <div className={cn(glassCard, "w-[22%] shrink-0")}>
+              <div className="relative z-10 p-1.5">
+                <TabsList className="flex flex-col gap-0.5 w-full h-auto bg-transparent">
+                  {participants.map((p) => {
+                    const isBlue = p.teamId === 100;
                     return (
-                      <div key={key} className="mb-4">
-                        <p className="text-white text-xs font-medium mb-1">{label}</p>
-                        <ResponsiveContainer width="100%" height={19}>
-                          <BarChart
-                            layout="vertical"
-                            data={chartData}
-                            margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
-                            barGap={8}
-                          >
-                            <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" hide />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#0f0f0f",
-                                border: "1px solid #333",
-                                borderRadius: "4px",
-                                padding: "8px",
-                                fontFamily: "Geist, sans-serif",
-                                fontSize: "12px",
-                                color: "#ffffff",
-                                zIndex: 9999,
-                              }}
-                              wrapperStyle={{ zIndex: 9999 }}
-                              cursor={{ fill: "transparent" }}
-                            />
-                            <Bar dataKey="Player" fill="#00d992" barSize={8} radius={[0, 8, 8, 0]} stackId="a">
-                              <LabelList className="font-geist" dataKey="Player" position="right" fill="#fff" fontSize={12} />
-                            </Bar>
-                            <Bar dataKey="Average" fill="#148460" barSize={8} radius={[0, 8, 8, 0]} stackId="b">
-                              <LabelList className="font-geist" dataKey="Average" position="right" fill="#fff" fontSize={12} />
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )
+                      <TabsTrigger
+                        key={p.puuid}
+                        value={p.puuid}
+                        className={cn(
+                          "flex items-center gap-2 text-left px-2 py-1.5 rounded-[4px] w-full justify-start transition-all cursor-clicker",
+                          "font-mono text-[10px] tracking-wide",
+                          "text-flash/35 hover:text-flash/60 hover:bg-white/[0.03]",
+                          "data-[state=active]:bg-white/[0.06] data-[state=active]:text-flash/90",
+                          "data-[state=active]:shadow-[inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        )}
+                      >
+                        <img
+                          src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
+                          className="w-6 h-6 rounded-[3px] ring-1 ring-white/10 shrink-0"
+                        />
+                        <span className={cn(
+                          "truncate",
+                          p.puuid === focusedPlayerPuuid && "text-jade font-bold"
+                        )}>
+                          {p.riotIdGameName ?? "Unknown"}
+                        </span>
+                        <span className={cn(
+                          "ml-auto text-[8px] opacity-40 shrink-0",
+                          isBlue ? "text-cyan-300" : "text-rose-300"
+                        )}>
+                          ◈
+                        </span>
+                      </TabsTrigger>
+                    );
                   })}
-                </TabsContent>
-              ))}
+                </TabsList>
+              </div>
+            </div>
+
+            {/* Stats content */}
+            <div className={cn(glassCard, "flex-1")}>
+                <div className="relative z-10 p-5">
+                {participants.map((p) => (
+                  <TabsContent key={p.puuid} value={p.puuid} className="mt-0">
+                    <div className="space-y-3">
+                      {[
+                        { label: "Damage Dealt", key: "totalDamageDealtToChampions" },
+                        { label: "Damage Taken", key: "totalDamageTaken" },
+                        { label: "Heal", key: "totalHeal" },
+                        { label: "Damage to Objectives", key: "damageDealtToObjectives" },
+                        { label: "Vision Score", key: "visionScore" },
+                        { label: "Wards Placed", key: "wardsPlaced" },
+                        { label: "Wards Killed", key: "wardsKilled" },
+                      ].map(({ label, key }) => {
+                        const playerValue = (p as unknown as Record<string, number>)[key] ?? 0
+                        const avgValue = getAverage(key, participants)
+
+                        return (
+                          <div key={key}>
+                            <div className="flex items-baseline justify-between mb-1">
+                              <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-flash/30">{label}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono text-[10px] text-pine/60">{avgValue} avg</span>
+                                <span className="font-mono text-[11px] text-jade tabular-nums">{playerValue.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <ResponsiveContainer width="100%" height={16}>
+                              <BarChart
+                                layout="vertical"
+                                data={[{ name: label, Player: playerValue, Average: avgValue }]}
+                                margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                barGap={4}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" hide />
+                                <Bar dataKey="Player" fill="rgba(0,217,146,0.5)" barSize={6} radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="Average" fill="rgba(20,132,96,0.3)" barSize={6} radius={[0, 4, 4, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.06]">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-jade/50" />
+                        <span className="font-mono text-[9px] tracking-[0.15em] text-flash/25 uppercase">Player</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-pine/40" />
+                        <span className="font-mono text-[9px] tracking-[0.15em] text-flash/25 uppercase">Avg</span>
+                      </div>
+                    </div>
+                  </TabsContent>
+                ))}
+              </div>
             </div>
           </div>
         </Tabs>
 
-        {/* BUILD & RUNES */}
-        <h1 className="text-xl font-bold pb-2 mb-2 font-jetbrains uppercase text-flash/40 mt-8">Build & Runes</h1>
-        <Tabs defaultValue={focusedPlayerPuuid || participants[0]?.puuid} className="w-full">
-          <div className="flex min-h-[300px] space-x-4">
-            <TabsList className="flex flex-col gap-1 w-[20%] p-2 rounded-md h-full border-flash/20 border bg-[#121212] font-jetbrains">
-              {participants.map((p) => (
-                <TabsTrigger
-                  key={p.puuid}
-                  value={p.puuid}
-                  className="flex items-center gap-2 text-left text-flash/50 px-3 py-2 rounded hover:bg-[#1B1B1B] data-[state=active]:bg-[#1B1B1B] data-[state=active]:text-flash w-full justify-start"
-                >
-                  <img
-                    src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
-                    className="w-6 h-6 rounded-sm"
-                  />
-                  <span className={cn(p.puuid === focusedPlayerPuuid ? "text-jade font-bold" : "")}>
-                    {p.riotIdGameName ?? "Unknown"}
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <div className="w-[70%] p-4 rounded-md h-full">
-              {participants.map((p, i) => (
-                <TabsContent key={p.puuid} value={p.puuid} className="font-geist">
-                  <BuildTimeline participantId={i + 1} timeline={timeline} />
-                </TabsContent>
-              ))}
-            </div>
-          </div>
-        </Tabs>
-
-
-
+        {/* ── MATCH EVENTS ────────────────────────────────────────── */}
+        {timeline && <KillMap timeline={timeline} participants={participants} />}
 
         <Footer className="mt-24" />
       </div>

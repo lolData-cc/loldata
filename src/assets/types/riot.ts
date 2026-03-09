@@ -117,12 +117,22 @@ export type JunglePlaystyleTag =
   | "played_for_both"
   | null;
 
+export type JungleStartingCamp =
+  | "blue"
+  | "red"
+  | "gromp"
+  | "wolves"
+  | "raptors"
+  | "krugs"
+  | null;
+
 export type JungleTeamPlaystyleResult = {
   participantId: number;
   teamId: number;
   tag: JunglePlaystyleTag;
   topsideCount: number;
   botsideCount: number;
+  startingCamp: JungleStartingCamp;
 };
 
 export type MatchJunglePlaystyleResult = {

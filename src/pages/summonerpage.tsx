@@ -15,7 +15,7 @@ import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
-import { JunglePlaystyleBadge } from "@/components/jungleplaystylebadge";
+import { JunglePlaystyleBadge, JungleStartingCampBadge } from "@/components/jungleplaystylebadge";
 import { checkUserFlags } from "@/converters/checkUserFlags";
 import {
   Tooltip,
@@ -1848,9 +1848,11 @@ export default function SummonerPage() {
 
                           const matchId = match.metadata.matchId;
                           const analysisEntry = analysisMap[matchId];
-                          const myJungleTag = analysisEntry?.data
-                            ? (participant?.teamId === 100 ? analysisEntry.data.blue?.tag : analysisEntry.data.red?.tag)
+                          const myTeamAnalysis = analysisEntry?.data
+                            ? (participant?.teamId === 100 ? analysisEntry.data.blue : analysisEntry.data.red)
                             : null;
+                          const myJungleTag = myTeamAnalysis?.tag ?? null;
+                          const myStartingCamp = myTeamAnalysis?.startingCamp ?? null;
 
                           const kda =
                             participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
@@ -2167,8 +2169,11 @@ export default function SummonerPage() {
                                               <span className="h-5 flex items-center px-2 font-mono text-[9px] text-flash/25 tracking-[0.1em] animate-pulse">
                                                 loading...
                                               </span>
-                                            ) : myJungleTag ? (
-                                              <JunglePlaystyleBadge tag={myJungleTag} />
+                                            ) : (myJungleTag || myStartingCamp) ? (
+                                              <>
+                                                {myStartingCamp && <JungleStartingCampBadge camp={myStartingCamp} />}
+                                                {myJungleTag && <JunglePlaystyleBadge tag={myJungleTag} topsideCount={myTeamAnalysis?.topsideCount} botsideCount={myTeamAnalysis?.botsideCount} />}
+                                              </>
                                             ) : (
                                               <span className="h-5 flex items-center px-2 font-mono text-[9px] text-flash/20 tracking-[0.1em]">
                                                 no data

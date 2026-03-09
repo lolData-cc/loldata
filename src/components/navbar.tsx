@@ -82,8 +82,12 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           <div className="p-1.5 text-flash/90 rounded-sm border border-flash/10 md:hidden">
             <Menu className="w-3 h-3 cursor-clicker" />
           </div>
-          <Link to="/" className="hidden md:block cursor-clicker">
-            <img src="/typelogo.png" className="w-24 h-22" alt="Logo" />
+          <Link to="/" className="hidden md:block cursor-clicker group">
+            <span className="font-mono text-[15px] tracking-[0.18em] select-none">
+              <span className="text-flash/30 group-hover:text-flash/50 transition-colors">lol</span>
+              <span className="text-jade/40 text-[10px] mx-[3px] group-hover:text-jade/70 transition-colors">◈</span>
+              <span className="text-flash/90 group-hover:text-jade transition-colors group-hover:drop-shadow-[0_0_8px_rgba(0,217,146,0.3)]">data</span>
+            </span>
           </Link>
         </div>
 
@@ -113,8 +117,12 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
 
         {/* DX */}
         <div className="flex-shrink-0 flex items-center">
-          <Link to="/" className="md:hidden">
-            <img src="/typelogo.png" className="w-24 h-22 cursor-clicker" alt="Logo" />
+          <Link to="/" className="md:hidden cursor-clicker">
+            <span className="font-mono text-[15px] tracking-[0.18em] select-none">
+              <span className="text-flash/30">lol</span>
+              <span className="text-jade/40 text-[10px] mx-[3px]">◈</span>
+              <span className="text-flash/90">data</span>
+            </span>
           </Link>
           <div className="hidden md:flex space-x-2 items-center text-[12px]">
             <SearchDialog open={open} onOpenChange={setOpen} />
