@@ -14,13 +14,16 @@ export function JunglePlaystyleBadge({ tag }: Props) {
   if (!label) return null;
 
   return (
-    <span
+    <div
       className={cn(
-        "px-1.5 py-[1px] rounded-sm text-[10px] uppercase border font-medium tracking-wide",
+        "h-5 flex items-center gap-1.5 pl-2 pr-2.5",
+        "font-mono text-[9px] uppercase tracking-[0.1em]",
+        "border-l-2 bg-black/30",
         getJunglePlaystyleTagClasses(tag)
       )}
     >
-      {label}
-    </span>
+      <span className="opacity-40 text-[8px] leading-none">◈</span>
+      <span>{label}</span>
+    </div>
   );
 }
