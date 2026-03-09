@@ -9,7 +9,16 @@ export interface Participant {
   totalMinionsKilled: number
   neutralMinionsKilled: number
   goldEarned: number
-  // ... altri se ti servono
+
+  challenges?: {
+    killParticipation?: number;
+    teamDamagePercentage?: number;
+    turretTakedowns?: number;
+    dragonTakedowns?: number;
+    baronTakedowns?: number;
+    damageTakenOnTeamPercentage?: number;
+    visionScorePerMinute?: number;
+  };
 }
 
 export interface MatchInfo {

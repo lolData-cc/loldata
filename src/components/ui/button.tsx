@@ -10,15 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "text-jade bg-jade/10 hover:bg-jade/20 ",
+          "text-jade bg-jade/10 hover:bg-jade/20",
         destructive:
           "text-error bg-error/10 hover:bg-error/20",
         outline:
           "border border-input bg-none hover:text-liquirice hover:bg-flash",
         link: "text-flash underline-offset-4 hover:underline",
+        purchase: "border border-input bg-none hover:text-liquirice hover:bg-flash/10 hover:text-flash/50",
+        solid: "bg-[#11382E] hover:bg-[#195848] text-jade text-sm"
       },
       size: {
-        default: "px-4.5 py-0",
+        default: "px-5 py-2",
         sm: "rounded-sm px-3 py-1",
         icon: "h-9 w-9",
       },

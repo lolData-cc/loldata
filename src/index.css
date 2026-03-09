@@ -7,16 +7,80 @@
 @layer base {
   body {
     @apply cursor-custom
-    
+
   }
   ::selection {
     background-color: #00d992;
     color: #060F11
   }
+  .theme {
+    --animate-shine: shine var(--duration) infinite linear
+  }
 }
 
+@theme inline {
+  --animate-open-vertical: open-vertical 50ms ease-in-out forwards;
+  @keyframes open-vertical {
+    0% {
+      transform: scaleY(0);
+    }
+    100% {
+      transform: scaleY(1);
+    } 
+  }
+  --animate-close-vertical: close-vertical 50ms ease-in-out forwards;
+  @keyframes close-vertical {
+    0% {
+      transform: scaleY(1);
+    }
+    100% {
+      transform: scaleY(0);
+    } 
+  }
+  @keyframes shine {
+  0% {
+    background-position: 0% 0%;
+    }
+  50% {
+    background-position: 100% 100%;
+    }
+  to {
+    background-position: 0% 0%;
+    }
+  }
+}
 
 @layer utilities {
+  .purchase-wrapper {
+    @apply relative bg-gradient-to-b from-[#1f1f1f] to-[#171717] rounded-md overflow-hidden;
+  }
+
+  .purchase-wrapper::before {
+    background: conic-gradient(
+      rgba(17, 56, 46, 0.8) 0deg,
+      rgba(0, 217, 136, 0.8) 0deg,
+      transparent 160deg
+    );
+
+    @apply absolute h-[150%] w-[150%] left-[-25%] top-[-25%] content-[''] animate-border-spin;
+  }
+
+  .purchase-content {
+    @apply absolute w-[calc(100%-2px)] h-[calc(100%-2px)] bg-gradient-to-b top-[1px] left-[1px] from-[#1f1f1f] to-[#171717] rounded-md;
+  }
+
+  .purchase-wrapper-inactive {
+    @apply relative bg-gradient-to-b from-[#1f1f1f] to-[#171717] rounded-md overflow-hidden;
+  }
+
+  .purchase-wrapper-inactive::before {
+
+    @apply absolute h-[150%] w-[150%] left-[-25%] top-[-25%] content-[''] animate-border-spin;
+  }
+
+  .purchase-content-inactive {
+    @apply absolute w-[calc(100%-2px)] h-[calc(100%-2px)] bg-gradient-to-b top-[1px] left-[1px] from-[#1f1f1f] to-[#171717] rounded-md;
+  }
   .cursor-custom {
     cursor: url('/cursors/base.svg') 8 8, auto;
   }
@@ -29,6 +93,10 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;            
   }
+}
+
+html, body {
+  @apply scrollbar-hide overflow-y-scroll;
 }
 
 /* FONTS */
@@ -47,6 +115,229 @@
   src: url("/fonts/gtamerica.ttf") format("truetype")
 }
 
+@font-face {
+  font-family: revxneue;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/revxneue.ttf") format("truetype")
+}
+
+@font-face {
+  font-family: vivala;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/vivala.ttf") format("truetype")
+}
+
+@font-face {
+  font-family: scifi;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/scifi.ttf") format("truetype")
+}
+
+@font-face {
+  font-family: mechano;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/mechano.otf") format("opentype")
+}
+
+@font-face {
+  font-family: proto;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/proto.ttf") format("truetype")
+}
+
 html, body {
   @apply bg-liquirice;
 }
+
+.mvpAceGlow {
+  --glow-blue:  #0058ff;
+  --glow-mint:  #9fffc3;
+
+  background-image:
+    radial-gradient(
+      380px 120% at -80px 50%,
+      rgba(0, 88, 255, 0.45) 0%,
+      rgba(159, 255, 195, 0.35) 30%,
+      rgba(159, 255, 195, 0.20) 60%,
+      rgba(159, 255, 195, 0.10) 80%,
+      transparent 95%
+    ),
+    linear-gradient(
+      to right,
+      rgba(0, 88, 255, 0.20) 0%,
+      rgba(159, 255, 195, 0.12) 45%,
+      rgba(159, 255, 195, 0.08) 75%,
+      transparent 95%
+    );
+
+  background-repeat: no-repeat;
+  filter: blur(8px);
+  pointer-events: none;
+
+  animation: cyberSlowWave 12s ease-in-out infinite;
+  opacity: 0.35;
+}
+
+@keyframes cyberSlowWave {
+  0%   { opacity: 0.28; }
+  25%  { opacity: 0.40; } /* primo lieve picco */
+  50%  { opacity: 0.60; } /* massimo picco, metà ciclo */
+  75%  { opacity: 0.40; }
+  100% { opacity: 0.28; }
+}
+
+@keyframes cyberPulse {
+  0%, 100% { opacity: 0.28; }
+  50%      { opacity: 0.45; } /* picco luminoso */
+}
+
+@keyframes cyberPulse {
+  0%, 100% { opacity: 0.22; }
+  50%      { opacity: 0.38; } /* respiro leggero */
+}
+
+@keyframes cyberDrift {
+  0%   { background-position: right center, right center,    0% 0; }
+  100% { background-position: right center, right center, -200% 0; }
+}
+
+/* Rispetta utenti con riduzione movimento */
+@media (prefers-reduced-motion: reduce) {
+  .mvpAceGlow { animation: none; }
+}
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
+
+::view-transition-old(root), ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+

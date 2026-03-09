@@ -9,6 +9,7 @@ import { formatChampName } from "@/utils/formatchampname";
 import { formatRank } from '@/utils/rankConverter';
 import { API_BASE_URL } from "@/config"
 import  WinrateBar from "@/components/winratebar"
+import { useNavigate } from "react-router-dom";
 
 type Participant = {
   teamId: number
@@ -29,17 +30,25 @@ type LiveGame = {
 type LiveViewerProps = {
   puuid: string
   riotId: string
+  region: string
+  controlledOpen?: boolean
+  onControlledOpenChange?: (open: boolean) => void
 }
 
-export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
+export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlledOpenChange }: LiveViewerProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = typeof controlledOpen === "boolean"
+  const open = isControlled ? controlledOpen! : internalOpen
+  const setOpen = isControlled ? (onControlledOpenChange as (o: boolean) => void) : setInternalOpen
+
   const [championMap, setChampionMap] = useState<Record<number, string>>({})
   const [game, setGame] = useState<LiveGame | null>(null)
-  const [open, setOpen] = useState(false)
   const [aiHelp, setAiHelp] = useState<string | null>(null)
   const [ranks, setRanks] = useState<Record<string, { rank: string; wins: number; losses: number; lp: number }>>({})
   const [loadingHelp, setLoadingHelp] = useState(false)
   const [selectedTab, setSelectedTab] = useState<string>("statistics")
   const [matchupAdvice, setMatchupAdvice] = useState<string | null>(null)
+  const navigate = useNavigate();
   const [orderedTeams, setOrderedTeams] = useState<{
     100: Partial<Record<"top" | "jungle" | "mid" | "bot" | "support", Participant>>,
     200: Partial<Record<"top" | "jungle" | "mid" | "bot" | "support", Participant>>,
@@ -53,7 +62,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
     if (!redTeam.length) return
     setLoadingHelp(true)
 
-    const response = await fetch("http://localhost:3001/api/aihelp/howtowin", {
+    const response = await fetch(`${API_BASE_URL}/api/aihelp/howtowin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enemyChampionIds: redTeam.map(p => p.championId) }),
@@ -72,7 +81,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
         const gameRes = await fetch(`${API_BASE_URL}/api/livegame`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ puuid }),
+          body: JSON.stringify({ puuid, region }),
         });
 
         const gameData = await (gameRes.status === 204 ? null : gameRes.json());
@@ -84,7 +93,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
           const rankRes = await fetch(`${API_BASE_URL}/api/multirank`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ riotIds }),
+            body: JSON.stringify({ riotIds, region }),
           })
 
           const rankData = await rankRes.json()
@@ -146,7 +155,7 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
   const redTeam = game?.participants.filter(p => p.teamId === 200) || []
 
   return (
-    <Dialog onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className="absolute bottom-[-10px] left-28 -translate-x-1/2 bg-[#00D992] text-[#11382E] text-xs px-2 py-1 rounded-md shadow-md whitespace-nowrap">
         LIVE NOW
       </DialogTrigger>
@@ -180,7 +189,18 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                           className="w-4 h-4 rounded-sm"
                         />
                       </div>
-                      <span className="ml-2 uppercase font-jetbrains">{p.riotId}</span>
+                      <span
+                        className="ml-2 uppercase font-jetbrains cursor-pointer hover:underline"
+                        onClick={() => {
+                          if (p.riotId) {
+                            setOpen(false);
+                            const [riotName, riotTag] = p.riotId.split("#");
+                            navigate(`/summoners/${region}/${riotName}-${riotTag}`);
+                          }
+                        }}
+                      >
+                        {p.riotId}
+                      </span>
                     </div>
 
                     <div className="flex gap-1 space-x-1 text-white/80 font-jetbrains text-left w-[35%]">
@@ -194,10 +214,6 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                     <div className="w-[25%] pr-2">
                       <WinrateBar wins={ranks[p.riotId]?.wins || 0} losses={ranks[p.riotId]?.losses || 0} />
                     </div>
-
-
-
-
 
                   </div>
                 ) : null
@@ -238,7 +254,18 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
                         />
                       </div>
                       <div className="flex flex-col gap-1 font-jetbrains ml-2">
-                        <span className="uppercase font-jetbrains">{p.riotId}</span>
+                        <span
+                        className="ml-2 uppercase font-jetbrains cursor-clicker hover:underline"
+                        onClick={() => {
+                          if (p.riotId) {
+                            setOpen(false);
+                            const [riotName, riotTag] = p.riotId.split("#");
+                            navigate(`/summoners/${region}/${riotName}-${riotTag}`);
+                          }
+                        }}
+                      >
+                        {p.riotId}
+                      </span>
                       </div>
                     </div>
 
@@ -279,7 +306,6 @@ export function LiveViewer({ puuid, riotId }: LiveViewerProps) {
               }}
               className="bg-none flex flex-col h-full"
             >
-              {/* Tabs header */}
               <TabsList className="bg-liquirice space-x-4 font-jetbrains justify-start">
                 <TabsTrigger
                   value="statistics"

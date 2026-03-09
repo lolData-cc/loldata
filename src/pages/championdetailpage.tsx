@@ -1,0 +1,411 @@
+'use client';
+
+// src/pages/champion-detail-page.tsx
+import { useEffect, useMemo, useState } from "react"
+import { useParams } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { API_BASE_URL } from "@/config"
+import { ChampionStats } from "@/components/champion-stats-tab"
+import { ChampionItemsTab } from "@/components/championitemstab";
+import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
+
+type ChampInfo = {
+  id: string
+  key: string
+  name: string
+  title: string
+  tags: string[]
+  lore?: string
+  image: { full: string }
+  stats?: Record<string, number>
+}
+
+type Matchup = {
+  opponent_key: number
+  games: number
+  winrate: number
+  tips?: string | null
+}
+
+type Badge =
+  | "EASY"
+  | "GOOD"
+  | "EVEN"
+  | "HARD"
+  | "VERY HARD"
+  | "IMPOSSIBLE"
+  | "OK" // fallback per range non specificati
+
+function badgeFromWR(wr: number): Badge {
+  if (wr > 54) return "EASY"
+  if (wr > 52) return "GOOD"
+  // NB: mi hai chiesto 50.01–50.09; è un range molto stretto: ok così
+  if (wr >= 50 && wr <= 50.09) return "EVEN"
+  if (wr < 50 && wr > 48) return "HARD"
+  if (wr < 48 && wr > 46) return "VERY HARD"
+  if (wr < 46) return "IMPOSSIBLE"
+  return "OK"
+}
+
+function badgeClass(label: Badge): string {
+  switch (label) {
+    case "EASY": return "bg-emerald-600/20 text-emerald-300 ring-1 ring-emerald-500/30"
+    case "GOOD": return "bg-green-600/20 text-green-300 ring-1 ring-green-500/30"
+    case "EVEN": return "bg-zinc-600/20 text-zinc-300 ring-1 ring-zinc-500/30"
+    case "HARD": return "bg-orange-600/20 text-orange-300 ring-1 ring-orange-500/30"
+    case "VERY HARD": return "bg-red-600/20 text-red-300 ring-1 ring-red-500/30"
+    case "IMPOSSIBLE": return "bg-red-800/30 text-red-300 ring-1 ring-red-700/40"
+    default: return "bg-neutral-600/20 text-neutral-300 ring-1 ring-neutral-500/30"
+  }
+}
+
+const fmtPct = (x: number) => `${x.toFixed(2)}%`
+
+export default function ChampionDetailPage() {
+  const { champId } = useParams<{ champId: string }>()
+  const [patch, setPatch] = useState("15.13.1")
+  const [champ, setChamp] = useState<ChampInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [matchups, setMatchups] = useState<Matchup[]>([])
+  const [matchupsLoading, setMatchupsLoading] = useState(false)
+  const [matchupsError, setMatchupsError] = useState<string | null>(null)
+  const [selectedOpponent, setSelectedOpponent] = useState<string | null>(null)
+
+  const [keyToId, setKeyToId] = useState<Record<string, string>>({})
+
+  const keyToIdSafe = (k: number | string) => keyToId[String(k)] || String(k)
+
+  // helpers immagini ora accettano key e risolvono id
+  const opponentIdFromKey = (k: number) => keyToIdSafe(k)
+  const opponentIcon = (k: number) =>
+    `https://cdn.loldata.cc/15.13.1/img/champion/${opponentIdFromKey(k)}.png`
+
+  //retrieve matchup
+  useEffect(() => {
+    let cancelled = false
+    // elenco completo champion per costruire le mappe
+    fetch(`https://cdn.loldata.cc/${patch}/data/en_US/champion.json`)
+      .then(r => r.json())
+      .then((all) => {
+        if (cancelled) return
+        const k2i: Record<string, string> = {}
+        Object.values(all.data || {}).forEach((ch: any) => {
+          // ch.key è "122", ch.id è "Darius"
+          k2i[ch.key] = ch.id
+        })
+        setKeyToId(k2i)
+      })
+      .catch(() => { })
+    return () => { cancelled = true }
+  }, [patch])
+
+  useEffect(() => {
+    if (!champId || !champ) return
+    let cancelled = false
+    setMatchupsLoading(true)
+    setMatchupsError(null)
+
+    const champKeyNum = Number(champ.key)   // <- usa la key del champ corrente
+
+    fetch(`${API_BASE_URL}/api/champion/matchups`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ champKey: champKeyNum }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to load matchups")
+        return r.json()
+      })
+      .then((data: { matchups: Matchup[] }) => {
+        if (cancelled) return
+        setMatchups(data.matchups || [])
+        setSelectedOpponent(
+          data.matchups?.[0] ? String(data.matchups[0].opponent_key) : null
+        )
+      })
+      .catch((e: any) => setMatchupsError(e?.message ?? "Errore caricamento matchups"))
+      .finally(() => !cancelled && setMatchupsLoading(false))
+
+    return () => { cancelled = true }
+  }, [champId, champ])
+
+  // latest patch
+  useEffect(() => {
+    let cancelled = false
+    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+      .then(r => r.json())
+      .then((versions: string[]) => {
+        if (!cancelled && Array.isArray(versions) && versions.length) {
+          setPatch(versions[0])
+        }
+      })
+      .catch(() => { })
+    return () => { cancelled = true }
+  }, [])
+
+  //set title
+  useEffect(() => {
+    const defaultTitle = "lolData";
+
+    if (champ?.name) {
+      document.title = `${champ.name} - lolData`;
+    } else {
+      document.title = defaultTitle;
+    }
+
+    return () => {
+      document.title = defaultTitle;
+    };
+  }, [champ?.name]);
+
+  // fetch champion data
+  useEffect(() => {
+    if (!champId) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    fetch(`https://cdn.loldata.cc/15.13.1/data/en_US/champion/${champId}.json`)
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to load champion")
+        return r.json()
+      })
+      .then((data) => {
+        if (cancelled) return
+        // DDragon single-champion schema: { data: { [id]: ChampInfo } }
+        const key = Object.keys(data?.data ?? {})[0]
+        const c = key ? data.data[key] as ChampInfo : null
+        setChamp(c)
+      })
+      .catch((e: any) => setError(e?.message ?? "Error"))
+      .finally(() => !cancelled && setLoading(false))
+
+    return () => { cancelled = true }
+  }, [champId, patch])
+
+  const splashUrl = useMemo(() => {
+    if (!champId) return ""
+    // splash
+    return `https://cdn.loldata.cc/15.13.1/img/champion/${champId}_0.jpg`
+  }, [champId])
+
+  const iconUrl = useMemo(() => {
+    if (!champ) return ""
+    return `https://cdn.loldata.cc/15.13.1/img/champion/${champ.image.full}`
+  }, [champ])
+
+  if (!champId) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <p className="text-neutral-300">Champion non specificato.</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <p className="text-neutral-300">Loading {champId}…</p>
+      </div>
+    )
+  }
+
+  if (error || !champ) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <p className="text-red-400">Errore: {error ?? "Champion non trovato."}</p>
+      </div>
+    )
+  }
+
+  return (
+    <main className="min-h-dvh">
+      {/* Hero */}
+      <div className="relative h-[340px] w-full overflow-hidden rounded-xl -mt-6">
+        <img
+          src={splashUrl || "/placeholder.svg"}
+          alt={`${champ.name} splash`}
+          className="h-full w-full object-cover object-[center_-40px]"
+          loading="eager"
+          decoding="async"
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute bottom-4 left-4 flex items-center gap-4">
+          <img
+            src={iconUrl || "/placeholder.svg"}
+            alt={`${champ.name} icon`}
+            className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
+          />
+          <div>
+            <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
+            <p className="text-sm text-white/70">{champ.title}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {champ.tags?.map(t => (
+                <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <Tabs defaultValue="overview">
+        <div className="mx-auto max-w-6xl py-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="space-y-4 w-[90%]">
+            <TabsList
+              className="
+    xl:-ml-12
+    bg-transparent
+    p-0
+    gap-2
+    flex 
+    justify-start
+  "
+            >
+              <TabsTrigger
+                value="overview"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+      data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                OVERVIEW
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="statistics"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+      data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                STATISTICS
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="items"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                ITEMS
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="matchups"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                MATCHUPS
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="pros"
+                className="
+      px-3 py-2
+      text-[12px] tracking-[0.18em] uppercase
+      text-neutral-300/70
+      border border-transparent
+      hover:border-white/20 hover:bg-white/5
+     data-[state=active]:text-jade
+      data-[state=active]:bg-jade/10
+      data-[state=active]:border-jade
+    "
+              >
+                PROS
+              </TabsTrigger>
+            </TabsList>
+
+
+          </div>
+
+
+        </div>
+        <div className="space-y-4">
+          <TabsContent value="overview">
+            <div className="flex space-x-12">
+              <div className="w-[80%]">
+                <h3 className="text-base font-semibold">Introduction</h3>
+                <p className="text-sm text-neutral-300 leading-relaxed pt-2">
+                  {champ.lore || "No lore available."}
+                </p>
+              </div>
+              <div className="w-[50%]">
+                <h3 className="text-base font-semibold">Base Stats</h3>
+                <div className="rounded-lg border border-white/10 bg-neutral-900/50 p-4 text-sm text-neutral-200 mt-2">
+                  {champ.stats ? (
+                    <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      {Object.entries(champ.stats).map(([k, v]) => (
+                        <li key={k} className="flex justify-between uppercase">
+                          <span className="text-neutral-400">{k}</span>
+                          <span className="font-medium text-white">{v}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-neutral-400">N/A</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+          <TabsContent value="statistics">
+            {Object.keys(keyToId).length === 0 ? (
+              <div className="text-neutral-400">LOADING CHAMPIONS…</div>
+            ) : (
+              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} />
+            )}
+          </TabsContent>
+<TabsContent value="matchups">
+            {Object.keys(keyToId).length === 0 ? (
+              <div className="text-neutral-400">LOADING CHAMPIONS…</div>
+            ) : (
+              <ChampionMatchupsTab champ={champ} patch={patch} keyToId={keyToId} />
+            )}
+          </TabsContent>
+          <TabsContent value="items">
+            <div className="">
+              <ChampionItemsTab champ={champ} patch={patch} />
+            </div>
+          </TabsContent>
+
+
+        </div>
+      </Tabs>
+
+    </main>
+  )
+}

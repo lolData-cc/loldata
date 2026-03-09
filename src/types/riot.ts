@@ -22,3 +22,22 @@ export interface RiotRankedEntry {
   wins: number
   losses: number
 }
+
+export type JunglePlaystyleTag =
+  | "played_for_topside"
+  | "played_for_botside"
+  | "played_for_both"
+  | null;
+
+export type JungleTeamPlaystyleResult = {
+  participantId: number;
+  teamId: number;
+  tag: JunglePlaystyleTag;
+  topsideCount: number;
+  botsideCount: number;
+};
+
+export type MatchJunglePlaystyleResult = {
+  blue: JungleTeamPlaystyleResult | null;
+  red: JungleTeamPlaystyleResult | null;
+};
