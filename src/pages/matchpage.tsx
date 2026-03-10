@@ -24,8 +24,7 @@ import {
   LabelList
 } from "recharts"
 import { KillMap } from "@/components/killmap";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"
+import { API_BASE_URL } from "@/config";
 
 // ── Platform ID → backend region key ────────────────────────────────
 const PLATFORM_TO_REGION: Record<string, string> = {
