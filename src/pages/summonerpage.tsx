@@ -758,25 +758,47 @@ export default function SummonerPage() {
     setNextOffset(0);
     setIsLoadingMore(false);
 
-    const [summoner, matchData] = await Promise.all([
-      fetchSummonerInfo(name, tag, region),
-      fetchMatches(name, tag, region, 0, false),
-    ])
+    try {
+      const found = await fetchSummonerInfo(name, tag, region)
 
-    await fetch(`${API_BASE_URL}/api/summoner/view`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag }),
-    }).catch(console.error)
+      if (!found) {
+        navigate("/404", {
+          state: {
+            message: "Summoner not found",
+            subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
+          },
+          replace: true,
+        })
+        return
+      }
 
-    await fetch(`${API_BASE_URL}/api/profile/views`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag }),
-    })
-      .then(res => res.json())
-      //.then(data => setViews(data.views))
-      .catch(console.error)
+      await fetchMatches(name, tag, region, 0, false)
+
+      await fetch(`${API_BASE_URL}/api/summoner/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, tag }),
+      }).catch(console.error)
+
+      await fetch(`${API_BASE_URL}/api/profile/views`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, tag }),
+      })
+        .then(res => res.json())
+        //.then(data => setViews(data.views))
+        .catch(console.error)
+    } catch (err) {
+      console.error("❌ Error loading summoner data:", err)
+      navigate("/404", {
+        state: {
+          message: "Summoner not found",
+          subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
+        },
+        replace: true,
+      })
+      return
+    }
 
     setLoading(false)
     localStorage.setItem(STORAGE_KEY, Date.now().toString())
@@ -813,15 +835,24 @@ export default function SummonerPage() {
   }
 
 
-  async function fetchSummonerInfo(name: string, tag: string, region: string) {
-    const res = await fetch(`${API_BASE_URL}/api/summoner`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag, region }),
-    })
+  async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/summoner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, tag, region }),
+      })
 
-    const data = await res.json()
-    setSummonerInfo(data.summoner as SummonerInfo)
+      if (!res.ok) return false
+
+      const data = await res.json()
+      if (!data.summoner) return false
+
+      setSummonerInfo(data.summoner as SummonerInfo)
+      return true
+    } catch {
+      return false
+    }
   }
 
   async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false) {

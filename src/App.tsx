@@ -8,6 +8,7 @@ import DashboardPage from "@/pages/dashboard"
 import LearnPage from "@/pages/learnpage"
 import LoginPage from "@/pages/loginpage"
 import MatchPage from "@/pages/matchpage"
+import NotFoundPage from "@/pages/notfoundpage"
 import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
 import { LiveViewerProvider } from "./context/liveviewercontext";
@@ -178,6 +179,7 @@ function App() {
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>
         </LiveViewerProvider>
