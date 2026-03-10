@@ -48,8 +48,16 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
       }
     }
 
+    function handleOpenSearch() {
+      setOpen(true)
+    }
+
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener("open-search-dialog", handleOpenSearch)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("open-search-dialog", handleOpenSearch)
+    }
   }, [open, nametag, region, navigate, openPicker])
 
   // 👇 listener per scroll, solo se sticky
@@ -93,7 +101,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
         </div>
 
         {/* CENTRO */}
-        <div className="hidden md:flex flex-1 justify-center space-x-6 text-sm font-jetbrains">
+        <div className="hidden md:flex flex-1 justify-center space-x-1 lg:space-x-6 text-sm font-jetbrains">
           <button
             type="button"
             className="flex-shrink-0"
@@ -147,7 +155,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
 
 function MenuItem({ label }: { label: string }) {
   return (
-    <div className="flex items-center px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/70 hover:text-flash transition-colors duration-150">
+    <div className="flex items-center px-1.5 lg:px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/70 hover:text-flash transition-colors duration-150">
       <div>{label}</div>
     </div>
   )

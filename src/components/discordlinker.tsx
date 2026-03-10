@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
-import { Separator } from "@/components/ui/separator";
 
 type ProfileRow = {
   profile_id: string;
@@ -26,8 +25,9 @@ export function DiscordLinker() {
   const [linking, setLinking] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [connectingOAuth, setConnectingOAuth] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
 
-  // ===== INIT: user + profile_players =====
+  // ===== INIT: user + profile_players + avatar sync =====
   useEffect(() => {
     (async () => {
       try {
@@ -52,6 +52,29 @@ export function DiscordLinker() {
         }
 
         if (data) setProfile(data);
+
+        // ── Auto-sync Discord avatar from identity if it changed ──
+        // The Discord identity in auth.user.identities gets refreshed on login,
+        // so if the user changed their Discord avatar, the identity has the fresh URL
+        // while profile_players still has the stale one.
+        if (data?.discord_id) {
+          const freshInfo = extractDiscordFromUser(auth.user);
+          if (freshInfo?.avatarUrl && freshInfo.avatarUrl !== data.discord_avatar_url) {
+            // Silently update DB + metadata with the fresh avatar URL
+            await supabase
+              .from("profile_players")
+              .update({ discord_avatar_url: freshInfo.avatarUrl })
+              .eq("profile_id", auth.user.id);
+
+            await supabase.auth.updateUser({
+              data: { discord_avatar_url: freshInfo.avatarUrl },
+            });
+
+            setProfile((prev) =>
+              prev ? { ...prev, discord_avatar_url: freshInfo.avatarUrl } : prev
+            );
+          }
+        }
       } catch (err) {
         console.error("DiscordLinker init error:", err);
       } finally {
@@ -366,130 +389,123 @@ export function DiscordLinker() {
 
   // ===== UI =====
   return (
-    <div className="border border-flash/10 rounded-md p-4 bg-cement">
-      {/* Header + stato */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3 justify-between">
-          <h4 className="text-flash/40">DISCORD PROFILE</h4>
+    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden h-[180px]">
+      {/* Left accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
+      {/* Scanlines */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
+      {/* HUD bracket corners */}
+      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+      {/* Bottom gradient line */}
+      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
-          {loadingState ? (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-flash/40">
-              LOADING…
-            </span>
-          ) : isLinked ? (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-jade/80">
-              CONNECTED
-            </span>
-          ) : discordFromIdentity ? (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-citrine/80">
-              READY TO LINK
-            </span>
-          ) : (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-flash/50">
-              NOT CONNECTED
-            </span>
-          )}
-        </div>
+      <div className="relative z-[2] px-4 py-3 pl-5">
+        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DISCORD ::</p>
 
-        {isLinked && effectiveDiscord ? (
-          // ✅ UI quando Discord è collegato: avatar + username
-          <div className="mt-2 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-flash/20 bg-black/40">
-              {effectiveDiscord.avatarUrl ? (
+        <div className="flex gap-4 items-center">
+          {/* Discord avatar — same size/position as the Avatar card */}
+          {isLinked && effectiveDiscord && (
+            <div className="w-20 h-20 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+              {effectiveDiscord.avatarUrl && !avatarBroken ? (
                 <img
                   src={effectiveDiscord.avatarUrl}
                   alt="Discord avatar"
                   className="w-full h-full object-cover"
+                  onError={() => setAvatarBroken(true)}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-[10px] text-flash/40">
-                  no avatar
+                <div className="w-full h-full flex items-center justify-center text-[9px] text-flash/30 font-mono">
+                  N/A
                 </div>
               )}
             </div>
+          )}
 
-            <div className="flex flex-col">
-              <span className="text-flash text-sm font-semibold">
-                {effectiveDiscord.username ?? "Discord user"}
-              </span>
-              <span className="text-[11px] text-flash/60">
-                Connected via Discord
-              </span>
+          <div className="flex-1 min-w-0">
+            {/* Title + status row */}
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-flash/80 text-sm font-medium">◈ DISCORD PROFILE</h4>
+              {loadingState ? (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">LOADING…</span>
+              ) : isLinked ? (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-jade/60 font-mono">◈ CONNECTED</span>
+              ) : discordFromIdentity ? (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-citrine/60 font-mono">READY TO LINK</span>
+              ) : (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">NOT CONNECTED</span>
+              )}
             </div>
-          </div>
-        ) : (
-          // 🧩 Stati NON collegati: testo + pill come prima
-          <>
-            <p className="text-flash/80 text-sm">
-              Connect your Discord account to unlock lolData integrations.
-            </p>
 
-            {!loadingState && (
+            {/* Description */}
+            {isLinked && effectiveDiscord ? (
+              <span className="text-flash/40 text-xs mt-1 block">
+                Connected as <span className="text-flash/70">{effectiveDiscord.username ?? "Discord user"}</span>
+              </span>
+            ) : (
               <>
-                {discordFromIdentity ? (
-                  <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-citrine/40 px-3 py-1 text-xs text-citrine">
+                <span className="text-flash/40 text-xs mt-1 block">
+                  Connect your Discord account to unlock lolData integrations.
+                </span>
+                {!loadingState && discordFromIdentity && (
+                  <div className="mt-1.5 inline-flex items-center gap-2 rounded-[2px] border border-citrine/20 px-3 py-1 text-[10px] text-citrine font-mono">
                     <span className="w-2 h-2 rounded-full bg-citrine animate-pulse" />
                     <span>
-                      Detected Discord account{" "}
-                      <span className="font-semibold">
-                        {discordFromIdentity.username ?? "Discord user"}
-                      </span>{" "}
-                      – ready to link.
+                      Detected <span className="font-semibold">{discordFromIdentity.username ?? "Discord user"}</span> – ready to link.
                     </span>
                   </div>
-                ) : (
-                  <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-flash/20 px-3 py-1 text-xs text-flash/60">
+                )}
+                {!loadingState && !discordFromIdentity && (
+                  <div className="mt-1.5 inline-flex items-center gap-2 rounded-[2px] border border-flash/10 px-3 py-1 text-[10px] text-flash/40 font-mono">
                     <span className="w-2 h-2 rounded-full bg-flash/40" />
                     <span>No Discord account linked.</span>
                   </div>
                 )}
               </>
             )}
-          </>
-        )}
-      </div>
 
-      <Separator className="mt-4 bg-flash/15" />
+            {/* Separator */}
+            <div className="my-2 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-      {/* Disclaimer + pulsanti azione */}
-      <div className="mt-3 flex items-center justify-between gap-4">
-        <p className="text-[11px] text-flash/45">
-          We never see your Discord password. Authorization is handled securely
-          by Discord via OAuth.
-        </p>
-
-        {!loadingState && (
-          <div className="flex gap-2">
-            {isLinked ? (
-              <button
-                type="button"
-                onClick={handleUnlinkDiscord}
-                disabled={disconnecting}
-                className="px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-sm disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center"
-              >
-                {disconnecting ? "Unlinking…" : "UNLINK DISCORD"}
-              </button>
-            ) : discordFromIdentity ? (
-              <button
-                type="button"
-                onClick={handleLinkDiscord}
-                disabled={linking}
-                className="px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-sm disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center"
-              >
-                {linking ? "Linking…" : "LINK DISCORD"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleConnectDiscordOAuth}
-                disabled={connectingOAuth}
-                className="px-3 py-1 rounded-sm border border-flash/20 hover:bg-flash/10 text-xs cursor-clicker disabled:opacity-60 disabled:pointer-events-none"
-              >
-                {connectingOAuth ? "Opening Discord…" : "Connect Discord"}
-              </button>
-            )}
+            {/* Action buttons */}
+            <div className="flex justify-end gap-3">
+              {!loadingState && (
+                <>
+                  {isLinked ? (
+                    <button
+                      type="button"
+                      onClick={handleUnlinkDiscord}
+                      disabled={disconnecting}
+                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                    >
+                      {disconnecting ? "UNLINKING…" : "UNLINK"}
+                    </button>
+                  ) : discordFromIdentity ? (
+                    <button
+                      type="button"
+                      onClick={handleLinkDiscord}
+                      disabled={linking}
+                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                    >
+                      {linking ? "LINKING…" : "◈ LINK"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleConnectDiscordOAuth}
+                      disabled={connectingOAuth}
+                      className="px-3 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                    >
+                      {connectingOAuth ? "CONNECTING…" : "CONNECT DISCORD"}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

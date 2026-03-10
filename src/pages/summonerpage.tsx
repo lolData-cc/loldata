@@ -940,7 +940,7 @@ export default function SummonerPage() {
           ))
         ) : (
           champs.slice(0, 5).map((champ) => (
-            <div key={champ.champion} className="grid grid-cols-3 items-center px-3 gap-4 w-full">
+            <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
               <div className="flex items-center gap-3">
                 <img src={`${champPath}/${champ.champion}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
                 <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
@@ -955,7 +955,8 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap pl-20 text-[11px]">
+              {/* Center KDA column — visible only at xl+ */}
+              <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
                 <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
                 <div>
                   {formatStat(champ.kills / champ.games)}/
@@ -964,9 +965,38 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-end text-xs text-white gap-1 text-[11px] min-w-[80px]">
-                <div className={getWinrateClass(champ.winrate, champ.games)}>{champ.winrate}%</div>
-                <div className="text-[11px]">{champ.games} MATCHES</div>
+              <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
+                {/* KDA with tooltip — visible only below xl */}
+                <div className="xl:hidden">
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                {/* Winrate with tooltip for matches — visible below xl */}
+                <div className="xl:hidden">
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {champ.games} matches
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                {/* Winrate + matches text — visible at xl+ */}
+                <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
               </div>
             </div>
           ))

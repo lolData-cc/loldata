@@ -19,6 +19,8 @@ import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-a
 import { BorderBeamPreference } from "@/components/borderbeampreference";
 import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
 import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
+import { AccountDeletion } from "@/components/accountdeletion";
+import { DocumentationGuide } from "@/components/documentationguide";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -129,21 +131,11 @@ export default function DashboardPage() {
             <div className="w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide">
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
-                <div className="flex flex-col gap-8 p-4 px-6">
-                  <div className="space-y-3">
-                    <h3 className="text-flash/60">PROFILE AVATAR</h3>
-                    <PremiumAvatarUploader />
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-flash/60">LEAGUE OF LEGENDS</h3>
-                    <ProfilerLinker />
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-flash/60">DISCORD</h3>
-                    <DiscordLinker />
-                  </div>
+                <div className="flex flex-col gap-6 p-4 px-6">
+                  <PremiumAvatarUploader />
+                  <DiscordLinker />
+                  <ProfilerLinker />
+                  <AccountDeletion />
                 </div>
               </TabsContent>
 
@@ -215,19 +207,7 @@ export default function DashboardPage() {
 
               {/* DOCUMENTATION TAB */}
               <TabsContent value="documentation" className="outline-none">
-                <div className="flex flex-col gap-6 p-4 px-6">
-                  <div className="space-y-2">
-                    <h3 className="text-flash/60">DOCUMENTATION</h3>
-                    <div className="rounded-md border border-flash/10 bg-neutral-950/60 p-4 text-sm text-flash/70">
-                      <p className="mb-1">Docs coming soon.</p>
-                      <p className="text-xs text-flash/50">
-                        Here you&apos;ll find guides on how LolData tracks your
-                        games, how to interpret dashboards, and how to get the
-                        most out of your analytics.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <DocumentationGuide />
               </TabsContent>
 
               {/* BILLING TAB */}

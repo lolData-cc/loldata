@@ -43,9 +43,8 @@ type SearchDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function SearchDialog({ onOpenChange }: SearchDialogProps) {
+export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   // #region constants
-  const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const navigate = useNavigate()
   const [suggestions, setSuggestions] = useState<any[]>([])
@@ -79,21 +78,9 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
     const slug = `${formattedName}-${formattedTag}`;
 
     navigate(`/summoners/${region.toLowerCase()}/${slug}`);
-    setOpen(false);
+    onOpenChange(false);
     setInput("");
   };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setOpen(true)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
 
   // Save profiles 
   useEffect(() => {
@@ -185,12 +172,11 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
   // #endregion
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen)
+      onOpenChange(isOpen)
       if (!isOpen) {
         setInput("")
         setSuggestions([])
       }
-
     }} >
       <div className="hidden md:block">
         <DialogTrigger asChild>
@@ -334,7 +320,7 @@ export function SearchDialog({ onOpenChange }: SearchDialogProps) {
                       const targetRegion = (sugg.region || region).toLowerCase()
 
                       navigate(`/summoners/${targetRegion}/${slug}`)
-                      setOpen(false)
+                      onOpenChange(false)
                       setInput("")
                       setSuggestions([])
                     }}

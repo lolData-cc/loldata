@@ -11,7 +11,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { API_BASE_URL } from "@/config";
 import {
@@ -58,6 +57,7 @@ export function ProfilerLinker() {
   const [tag, setTag] = useState("");
   const [region, setRegion] = useState<LolRegion>("EUW");
 
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [step, setStep] = useState<"preview" | "verifyIcon">("preview");
@@ -77,54 +77,58 @@ export function ProfilerLinker() {
 
   useEffect(() => {
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth?.user) return;
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth?.user) return;
 
-      const { data, error } = await supabase
-        .from("profile_players")
-        .select("profile_id, player_id, puuid, nametag, region")
-        .eq("profile_id", auth.user.id)
-        .maybeSingle<ProfileRow>();
+        const { data, error } = await supabase
+          .from("profile_players")
+          .select("profile_id, player_id, puuid, nametag, region")
+          .eq("profile_id", auth.user.id)
+          .maybeSingle<ProfileRow>();
 
-      if (error) {
-        console.warn("profile_players load error:", error.message);
-        return;
-      }
+        if (error) {
+          console.warn("profile_players load error:", error.message);
+          return;
+        }
 
-      if (data) {
-        setProfile(data);
+        if (data) {
+          setProfile(data);
 
-        if (data.puuid && data.nametag && data.region) {
-          const upperRegion = (data.region ?? "").toUpperCase();
-          setLinkedSummoner({
-            nametag: data.nametag,
-            region: upperRegion,
-          });
+          if (data.puuid && data.nametag && data.region) {
+            const upperRegion = (data.region ?? "").toUpperCase();
+            setLinkedSummoner({
+              nametag: data.nametag,
+              region: upperRegion,
+            });
 
-          // fetch dettagli summoner per mostrare avatar + nome
-          const [summName, summTag] = data.nametag.split("#");
-          if (summName && summTag) {
-            try {
-              const res = await fetch(GET_SUMMONER_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: summName,
-                  tag: summTag,
-                  region: upperRegion as LolRegion,
-                }),
-              });
+            // fetch dettagli summoner per mostrare avatar + nome
+            const [summName, summTag] = data.nametag.split("#");
+            if (summName && summTag) {
+              try {
+                const res = await fetch(GET_SUMMONER_URL, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: summName,
+                    tag: summTag,
+                    region: upperRegion as LolRegion,
+                  }),
+                });
 
-              if (res.ok) {
-                const json = await res.json();
-                const summ: Summoner = json.summoner;
-                setLinkedSummonerDetails(summ);
+                if (res.ok) {
+                  const json = await res.json();
+                  const summ: Summoner = json.summoner;
+                  setLinkedSummonerDetails(summ);
+                }
+              } catch (err) {
+                console.warn("Failed to fetch linked summoner details:", err);
               }
-            } catch (err) {
-              console.warn("Failed to fetch linked summoner details:", err);
             }
           }
         }
+      } finally {
+        setInitialLoading(false);
       }
     })();
   }, []);
@@ -425,161 +429,174 @@ export function ProfilerLinker() {
       `${PROFILE_ICON_BASE}/${linkedSummonerDetails.profileIconId}.png`);
 
   return (
-    <div className="border border-flash/10 rounded-md p-4 bg-cement">
-      <div className="flex justify-between gap-4 items-start">
-        {/* colonna sinistra: titolo + avatar/info */}
-        <div className="space-y-2">
-          <h4 className="text-flash/40">LOL PROFILE</h4>
+    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
+      {/* Left accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
+      {/* Scanlines */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
+      {/* HUD bracket corners */}
+      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+      {/* Bottom gradient line */}
+      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
-          {isLinked && linkedSummoner && linkedSummonerDetails ? (
-            // stato collegato: avatar + gamename#tag + region
-            <div className="mt-2 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden border border-flash/20 bg-black/40">
-                {linkedIconUrl ? (
-                  <img
-                    src={linkedIconUrl}
-                    alt="Summoner Icon"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] text-flash/40">
-                    no icon
-                  </div>
-                )}
-              </div>
+      <div className="relative z-[2] px-4 py-3 pl-5">
+        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: LEAGUE PROFILE ::</p>
 
-              <div className="flex flex-col">
-                <span className="text-flash text-sm font-semibold">
-                  {linkedSummonerDetails.name}
-                  <span className="text-flash/60 text-xs">
-                    #{linkedSummonerDetails.tag}
-                  </span>
-                </span>
-                <span className="text-[11px] text-flash/60">
-                  Region: {linkedSummoner.region} • Rank:{" "}
-                  {linkedSummonerDetails.rank} ({linkedSummonerDetails.lp} LP)
-                </span>
-              </div>
+        {initialLoading ? (
+          /* ── Stable loading skeleton ── */
+          <div className="space-y-3">
+            <h4 className="text-flash/80 text-sm font-medium">◈ LOL PROFILE</h4>
+            <div className="space-y-1.5">
+              <div className="h-3.5 w-32 rounded-[2px] bg-flash/5 animate-pulse" />
+              <div className="h-3 w-48 rounded-[2px] bg-flash/5 animate-pulse" />
             </div>
-          ) : (
-            <>
-              <p className="text-flash/80 text-sm">
-                Connect your Riot ID to unlock personalized gameplay analytics.
-              </p>
+          </div>
+        ) : (
+          /* ── Loaded content ── */
+          <>
+            <div className="flex justify-between gap-4 items-start">
+              <div className="space-y-2">
+                <h4 className="text-flash/80 text-sm font-medium">◈ LOL PROFILE</h4>
 
-              {isLinked && linkedSummoner && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-jade/30 px-3 py-1 text-xs text-jade ">
-                  <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
-                  <span>
-                    Linked:{" "}
-                    <span className="font-semibold">
-                      {linkedSummoner.nametag}
-                    </span>{" "}
-                    ({linkedSummoner.region})
+              {isLinked && linkedSummoner && linkedSummonerDetails ? (
+                // stato collegato: gamename#tag + region + rank
+                <div className="mt-2 flex flex-col">
+                  <span className="text-flash text-sm font-semibold">
+                    {linkedSummonerDetails.name}
+                    <span className="text-flash/60 text-xs">
+                      #{linkedSummonerDetails.tag}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-flash/60">
+                    Region: {linkedSummoner.region} • Rank:{" "}
+                    {linkedSummonerDetails.rank} ({linkedSummonerDetails.lp} LP)
                   </span>
                 </div>
+              ) : (
+                <>
+                  <p className="text-flash/40 text-xs">
+                    Connect your Riot ID to unlock personalized gameplay analytics.
+                  </p>
+
+                  {isLinked && linkedSummoner && (
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-[2px] border border-jade/20 px-3 py-1 text-[10px] text-jade font-mono">
+                      <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
+                      <span>
+                        Linked:{" "}
+                        <span className="font-semibold">
+                          {linkedSummoner.nametag}
+                        </span>{" "}
+                        ({linkedSummoner.region})
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* colonna destra: status allineato alla fine */}
-        <div className="text-right">
-          {isLinked ? (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-jade/80">
-              VERIFIED LINK
-            </span>
-          ) : (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-flash/50">
-              NO PROFILE LINKED
-            </span>
-          )}
-        </div>
-      </div>
-
-      <Separator className="my-3 bg-flash/20" />
-
-      <form onSubmit={handleSearch} className="space-y-3">
-        <div className="grid grid-cols-[2fr,1fr,1fr] gap-3 items-end">
-          <div className="space-y-1">
-            <Label className="text-xs text-flash/60">Riot ID</Label>
-            <div className="flex items-center gap-1 rounded-md border border-flash/15 bg-black/40 px-3 py-1.5">
-              <input
-                type="text"
-                placeholder="SummonerName"
-                value={name}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  if (value.includes("#")) {
-                    const [rawName, rawTag = ""] = value.split("#");
-
-                    setName(rawName.trim());
-                    setTag(rawTag.trim());
-
-                    tagInputRef.current?.focus();
-                  } else {
-                    setName(value);
-                  }
-                }}
-                className="bg-transparent text-sm text-flash flex-1 outline-none"
-              />
-              <span className="text-flash/40 text-xs">#</span>
-              <input
-                type="text"
-                placeholder="TAG"
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-                ref={tagInputRef}
-                className="bg-transparent text-sm text-flash w-16 outline-none"
-              />
+            {/* colonna destra: status allineato alla fine */}
+            <div className="text-right">
+              {isLinked ? (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-jade/60 font-mono">
+                  ◈ VERIFIED
+                </span>
+              ) : (
+                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">
+                  UNLINKED
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs text-flash/60">Region</Label>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value as LolRegion)}
-              className="w-full rounded-md border border-flash/15 bg-black/40 px-3 py-1.5 text-sm text-flash outline-none cursor-clicker"
-            >
-              <option value="EUW">EUW</option>
-              <option value="NA">NA</option>
-              <option value="KR">KR</option>
-            </select>
-          </div>
+            <div className="my-2 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-          <div className="flex justify-end gap-3">
-            {isLinked && (
-              <button
-                type="button"
-                onClick={handleUnlink}
-                className="px-2 py-1 rounded-sm cursor-clicker border border-flash/20 hover:bg-flash/10 text-sm text-flash disabled:opacity-60 disabled:pointer-events-none"
-              >
-                UNLINK
-              </button>
-            )}
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="grid grid-cols-[2fr,1fr,1fr] gap-3 items-end">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-flash/30 font-mono tracking-[0.15em] uppercase">Riot ID</Label>
+                <div className="flex items-center gap-1 rounded-[2px] border border-flash/10 bg-black/40 px-3 py-1.5">
+                  <input
+                    type="text"
+                    placeholder="SummonerName"
+                    value={name}
+                    onChange={(e) => {
+                      const value = e.target.value;
 
-            <button
-              type="submit"
-              disabled={loadingSearch}
-              className="px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-sm disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center"
-            >
-              <span className="relative inline-flex items-center justify-center w-full">
-                <span className={loadingSearch ? "opacity-0" : "opacity-100"}>
-                  {isLinked ? "RE-LINK" : "LINK PROFILE"}
-                </span>
+                      if (value.includes("#")) {
+                        const [rawName, rawTag = ""] = value.split("#");
 
-                {loadingSearch && (
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <LoadingDots />
-                  </span>
+                        setName(rawName.trim());
+                        setTag(rawTag.trim());
+
+                        tagInputRef.current?.focus();
+                      } else {
+                        setName(value);
+                      }
+                    }}
+                    className="bg-transparent text-sm text-flash flex-1 outline-none"
+                  />
+                  <span className="text-jade/40 text-xs font-mono">#</span>
+                  <input
+                    type="text"
+                    placeholder="TAG"
+                    value={tag}
+                    onChange={(e) => setTag(e.target.value)}
+                    ref={tagInputRef}
+                    className="bg-transparent text-sm text-flash w-16 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] text-flash/30 font-mono tracking-[0.15em] uppercase">Region</Label>
+                <select
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value as LolRegion)}
+                  className="w-full rounded-[2px] border border-flash/10 bg-black/40 px-3 py-1.5 text-sm text-flash outline-none cursor-clicker"
+                >
+                  <option value="EUW">EUW</option>
+                  <option value="NA">NA</option>
+                  <option value="KR">KR</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                {isLinked && (
+                  <button
+                    type="button"
+                    onClick={handleUnlink}
+                    className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                  >
+                    UNLINK
+                  </button>
                 )}
-              </span>
-            </button>
-          </div>
-        </div>
-      </form>
+
+                <button
+                  type="submit"
+                  disabled={loadingSearch}
+                  className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center transition-colors"
+                >
+                  <span className="relative inline-flex items-center justify-center w-full">
+                    <span className={loadingSearch ? "opacity-0" : "opacity-100"}>
+                      {isLinked ? "RE-LINK" : "◈ LINK"}
+                    </span>
+
+                    {loadingSearch && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <LoadingDots />
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+          </>
+        )}
+      </div>
 
       <Dialog
         open={dialogOpen}

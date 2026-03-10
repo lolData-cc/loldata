@@ -61,7 +61,7 @@ export function UserDialog() {
     return (
       <button
         type="button"
-        className="text-flash/70 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5 text-sm cursor-pointer transition-colors"
+        className="text-flash/70 px-3 border border-flash/50 hover:bg-flash/10 rounded-sm bg-liquirice font-jetbrains py-1.5 text-sm cursor-clicker transition-colors"
         onClick={() => navigate("/dashboard")}
       >
         DASHBOARD
