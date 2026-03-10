@@ -7,6 +7,8 @@ type ShowCyberToastOptions = {
   tag?: string
   variant?: "status" | "error"
   duration?: number
+  action?: { label: string; onClick: () => void }
+  closeButton?: boolean
 }
 
 export function showCyberToast({
@@ -15,13 +17,20 @@ export function showCyberToast({
   tag,
   variant = "status",
   duration = 3000,
+  action,
+  closeButton = false,
 }: ShowCyberToastOptions) {
-  toast.custom(() => (
-    <CyberToast
-      title={title}
-      description={description}
-      tag={tag}
-      variant={variant}
-    />
-  ), { duration })
+  toast.custom(
+    (id) => (
+      <CyberToast
+        title={title}
+        description={description}
+        tag={tag}
+        variant={variant}
+        action={action}
+        onDismiss={closeButton ? () => toast.dismiss(id) : undefined}
+      />
+    ),
+    { duration },
+  )
 }

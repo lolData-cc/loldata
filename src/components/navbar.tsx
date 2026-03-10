@@ -6,7 +6,7 @@ import { UserDialog } from "@/components/userdialog"
 import { useAuth } from "@/context/authcontext"
 import { useChampionPicker } from "@/context/championpickercontext"
 import { Menu } from "lucide-react"
-import { toast } from "sonner"
+import { showCyberToast } from "@/lib/toast-utils"
 
 declare const gtag: (...args: any[]) => void;
 
@@ -114,7 +114,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           <button
             type="button"
             className="flex-shrink-0"
-            onClick={() => toast("Coming soon!", { description: "Explorer is currently under development." })}
+            onClick={() => showCyberToast({ title: "Coming soon!", description: "Explorer is currently under development.", tag: "DEV", variant: "status" })}
           >
             <MenuItem label="EXPLORER" />
           </button>

@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "sonner";
+import { showCyberToast } from "@/lib/toast-utils";
 import { Separator } from "@/components/ui/separator";
 import { Navbar } from "@/components/navbar";
 import { PremiumAvatarUploader } from "@/components/profileavataruploader";
@@ -35,44 +35,12 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
 
-    toast.custom(
-      () => (
-        <div className="relative" style={{ perspective: "1000px" }}>
-          <div
-            className="relative bg-[#040A0C] text-[#00d992] font-mono shadow-lg rounded-md px-6 py-4 w-[320px] 
-                   border border-[#00d992]/30 backdrop-blur-sm transform-gpu transition-transform duration-300
-                   before:absolute before:top-0 before:left-0 before:w-3 before:h-3 before:border-t-2 before:border-l-2 before:border-[#00d992]
-                   after:absolute after:top-0 after:right-0 after:border-t-2 after:border-r-2 after:border-[#00d992]"
-            style={{
-              transformStyle: "preserve-3d",
-              transform: "rotateY(-25deg) translateZ(20px)",
-              boxShadow:
-                "0 0 20px rgba(0, 217, 146, 0.3), inset 0 1px 0 rgba(0, 217, 146, 0.1)",
-            }}
-          >
-            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#00d992]" />
-            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#00d992]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00d992]/5 to-transparent animate-pulse" />
-
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-[#00d992] mb-1">
-                  LOGOUT COMPLETE
-                </p>
-                <p className="text-xs text-[#00d992]/60">
-                  Session terminated successfully
-                </p>
-              </div>
-              <div className="flex-shrink-0 flex items-center gap-1">
-                <div className="w-2 h-2 bg-[#00d992] rounded-full animate-pulse" />
-                <span className="text-xs text-[#00d992]/80">SYS</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-      { duration: 3000 }
-    );
+    showCyberToast({
+      title: "Logout complete",
+      description: "Session terminated successfully",
+      tag: "SYS",
+      variant: "status",
+    });
 
     navigate("/");
   };

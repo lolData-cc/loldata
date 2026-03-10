@@ -37,6 +37,8 @@ import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
 import PlaygroundPage from "./pages/playgroundpage";
 import TotalMasteryPage from "./pages/totalmastery";
+import PrivacyPolicyPage from "@/pages/privacypolicypage";
+import TermsOfServicePage from "@/pages/termsofservicepage";
 //
 
 declare global {
@@ -117,6 +119,13 @@ export function RootLayout({
   const { pathname } = useLocation()
   const navbarSticky = pathname === "/"
   const contentMargin = pathname === "/" ? "mt-0" : "mt-10"
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top on route change
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }, [pathname])
 
   return (
     <>
@@ -133,6 +142,7 @@ export function RootLayout({
         }}
       />
       <div
+        ref={scrollRef}
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
         <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
@@ -179,6 +189,8 @@ function App() {
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
+              <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
+              <Route path="/terms" element={<RootLayout><TermsOfServicePage /></RootLayout>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>

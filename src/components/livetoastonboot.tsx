@@ -1,8 +1,8 @@
 // components/LiveToastOnBoot.tsx
 import { useEffect, useRef } from "react"
-import { toast } from "sonner"
 import { useAuth } from "@/context/authcontext"
 import { useLiveViewer } from "@/context/liveviewercontext"
+import { showCyberToast } from "@/lib/toast-utils"
 import { API_BASE_URL } from "@/config"
 
 const STORAGE_KEY = "loldata:lastLiveGameId"
@@ -53,14 +53,17 @@ export function LiveToastOnBoot() {
         if (String(last) === String(gameId)) return
         sessionStorage.setItem(STORAGE_KEY, String(gameId))
 
-        // 4) Sonner toast + CTA
-        toast("ooks like you are playing. Check out the game here.", {
+        // 4) Cyber toast + CTA
+        showCyberToast({
+          title: "Looks like you are playing!",
           description: `${name}#${tag} • ${region.toUpperCase()}`,
+          tag: "LIVE",
+          variant: "status",
+          duration: 100000,
           action: {
             label: "Open Live Viewer",
             onClick: () => openWith({ puuid, riotId: `${name}#${tag}`, region }),
           },
-          duration: 100000,
           closeButton: true,
         })
       } catch (e) {
