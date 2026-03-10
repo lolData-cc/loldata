@@ -27,6 +27,24 @@ import { KillMap } from "@/components/killmap";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"
 
+// ── Platform ID → backend region key ────────────────────────────────
+const PLATFORM_TO_REGION: Record<string, string> = {
+  EUW1: "euw", EUW: "euw",
+  NA1: "na",   NA: "na",
+  KR: "kr",
+  JP1: "jp",
+  BR1: "br",
+  LA1: "la1",  LA2: "la2",
+  OC1: "oc",
+  TR1: "tr",   RU: "ru",
+  PH2: "ph",   SG2: "sg",   TH2: "th",   TW2: "tw",   VN2: "vn",
+};
+
+function extractRegionFromMatchId(matchId: string): string | undefined {
+  const platform = matchId.split("_")[0]?.toUpperCase();
+  return platform ? PLATFORM_TO_REGION[platform] : undefined;
+}
+
 // ── Glass card reusable classes ─────────────────────────────────────
 const glassCard = cn(
   "relative overflow-hidden rounded-md",
@@ -48,7 +66,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 export default function MatchPage() {
   const { matchId } = useParams()
   const location = useLocation()
-  const region = location.state?.region;
+  const region = location.state?.region || (matchId ? extractRegionFromMatchId(matchId) : undefined);
   const focusedPlayerPuuid = location.state?.focusedPlayerPuuid as string | undefined
   const [match, setMatch] = useState<{ info: { participants: Participant[];[key: string]: any } } | null>(null)
   const [timeline, setTimeline] = useState<any>(null)
