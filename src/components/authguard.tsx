@@ -14,7 +14,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [loading, session, navigate])
 
-  if (loading) return null
+  if (loading || !session) return null
 
   return <>{children}</>
 }
