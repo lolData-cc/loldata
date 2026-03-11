@@ -108,50 +108,28 @@ export function PremiumAvatarUploader() {
 
   return (
     <>
-      <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden h-[180px]">
+      <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
         {/* Left accent bar */}
         <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-
-        {/* Scanlines overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)",
-          }}
-        />
-
+        {/* Scanlines */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
         {/* HUD bracket corners */}
-        <div className="absolute top-0 left-0 w-3 h-3 z-[3]">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" />
-          <div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" />
-        </div>
-        <div className="absolute top-0 right-0 w-3 h-3 z-[3]">
-          <div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" />
-          <div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" />
-        </div>
-        <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]">
-          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" />
-          <div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" />
-        </div>
-        <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]">
-          <div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" />
-          <div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" />
-        </div>
-
+        <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+        <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+        <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+        <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
         {/* Bottom gradient line */}
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
-        {/* Content */}
         <div className="relative z-[2] px-4 py-3 pl-5">
-          <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">
+          <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-3">
             :: AVATAR ::
           </p>
 
-          <div className="flex gap-4 items-center">
-            {/* Avatar preview — hidden while loading */}
+          <div className="flex gap-4 items-start">
+            {/* Avatar preview */}
             {avatarUrl !== undefined && (
-              <div className="w-20 h-20 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+              <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -162,37 +140,36 @@ export function PremiumAvatarUploader() {
               </div>
             )}
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 space-y-1">
+              <h4 className="text-flash/80 text-sm font-medium">
+                {isPremium ? "◈ Customize Your Avatar" : "◈ Upgrade to Customize"}
+              </h4>
+              <p className="text-flash/40 text-xs">
+                {isPremium
+                  ? "Upload a custom image to make your profile truly yours."
+                  : "Unlock avatar customization with a Premium plan."}
+              </p>
+            </div>
+
+            {/* Status badge */}
+            <div className="text-right shrink-0">
               {isPremium ? (
-                <div>
-                  <h4 className="text-flash/80 text-sm font-medium tracking-wide">
-                    ◈ Customize Your Avatar
-                  </h4>
-                  <span className="text-flash/40 text-xs mt-1 block">
-                    Upload a custom image to make your profile truly yours.
-                  </span>
-                </div>
+                <span className="text-[9px] uppercase tracking-[0.2em] text-jade/60 font-mono">◈ PREMIUM</span>
               ) : (
-                <div>
-                  <h4 className="text-flash/80 text-sm font-medium tracking-wide">
-                    ◈ Upgrade to Customize
-                  </h4>
-                  <span className="text-flash/40 text-xs mt-1 block">
-                    Unlock avatar customization with a Premium plan.
-                  </span>
-                </div>
+                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">FREE</span>
               )}
+            </div>
+          </div>
 
-              {/* Separator */}
-              <div className="my-2 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+          <div className="my-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-              <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={handleReset}
-              className="px-3 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker transition-colors"
               disabled={uploading || !avatarUrl}
               title={avatarUrl ? "Reset to Riot avatar" : "No custom avatar"}
+              className="px-2 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker transition-colors disabled:opacity-40 disabled:pointer-events-none"
             >
               RESET
             </button>
@@ -200,7 +177,7 @@ export function PremiumAvatarUploader() {
             {isPremium ? (
               <label
                 className={cn(
-                  "px-3 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors inline-flex items-center gap-1",
+                  "px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors inline-flex items-center gap-1",
                   uploading && "opacity-60 pointer-events-none"
                 )}
               >
@@ -235,8 +212,6 @@ export function PremiumAvatarUploader() {
                 PREMIUM REQUIRED
               </span>
             )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

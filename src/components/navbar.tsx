@@ -6,7 +6,6 @@ import { UserDialog } from "@/components/userdialog"
 import { useAuth } from "@/context/authcontext"
 import { useChampionPicker } from "@/context/championpickercontext"
 import { Menu } from "lucide-react"
-import { showCyberToast } from "@/lib/toast-utils"
 
 declare const gtag: (...args: any[]) => void;
 
@@ -42,10 +41,6 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           navigate(`/summoners/${region}/${slug}`)
         }
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-        e.preventDefault()
-        openPicker()
-      }
     }
 
     function handleOpenSearch() {
@@ -58,7 +53,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("open-search-dialog", handleOpenSearch)
     }
-  }, [open, nametag, region, navigate, openPicker])
+  }, [open, nametag, region, navigate])
 
   // 👇 listener per scroll, solo se sticky
   useEffect(() => {
@@ -119,13 +114,6 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           <Link to="/learn" className="flex-shrink-0">
             <MenuItem label="LEARN" />
           </Link>
-          <button
-            type="button"
-            className="flex-shrink-0"
-            onClick={() => showCyberToast({ title: "Coming soon!", description: "Explorer is currently under development.", tag: "DEV", variant: "status" })}
-          >
-            <MenuItem label="EXPLORER" />
-          </button>
         </div>
 
         {/* DX */}

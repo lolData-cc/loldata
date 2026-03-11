@@ -15,7 +15,9 @@ import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
 import { champPath, CDN_BASE_URL } from "@/config"
-import { JunglePlaystyleBadge, JungleStartingCampBadge } from "@/components/jungleplaystylebadge";
+import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
+import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
+import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
 import { checkUserFlags } from "@/converters/checkUserFlags";
 import {
   Tooltip,
@@ -167,6 +169,7 @@ export default function SummonerPage() {
   const [topChampionsSeason, setTopChampionsSeason] = useState<ChampionStats[]>([]);
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
+  const [seasonStatsTab, setSeasonStatsTab] = useState("season");
   const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -330,13 +333,6 @@ export default function SummonerPage() {
     "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
   );
 
-  const glassOverlays = (
-    <>
-      <div className="pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]
-      bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]" />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
-    </>
-  );
 
 
   const filteredMatches = matches.filter((m) => {
@@ -1245,20 +1241,14 @@ export default function SummonerPage() {
               "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
             )}
           >
-            {/* glossy overlays */}
-            <div
-              className={cn(
-                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
-                "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]"
-              )}
-            />
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
+            <GlassOverlays />
 
             {/* contenuto */}
             <div className="relative z-10">
               <Tabs
-                defaultValue="season"
+                value={seasonStatsTab}
                 onValueChange={(v) => {
+                  setSeasonStatsTab(v);
                   if (!summonerInfo?.puuid || !region) return;
                   if (v === "solo" && topChampionsSolo.length === 0)
                     fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
@@ -1270,24 +1260,24 @@ export default function SummonerPage() {
               >
                 <nav className="flex flex-col min-h-[400px]">
                   <div className="px-3 pt-3">
-                    <TabsList className="grid grid-cols-3 w-[85%] mx-auto">
+                    <TabsList className="grid grid-cols-3 w-[90%] mx-auto bg-transparent gap-1.5 h-auto p-0">
+                      <TabsTrigger
+                        value="season"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
+                      >
+                        SEASON
+                      </TabsTrigger>
                       <TabsTrigger
                         value="solo"
-                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
                       >
                         SOLO/DUO
                       </TabsTrigger>
                       <TabsTrigger
                         value="flex"
-                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
                       >
                         FLEX
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="season"
-                        className="font-thin text-flash/70 data-[state=active]:text-jade data-[state=active]:bg-jade/20"
-                      >
-                        SEASON
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -1295,20 +1285,51 @@ export default function SummonerPage() {
                   {/* separator più “glass” */}
                   <Separator className="bg-white/10 w-[85%] mx-auto mt-2" />
 
-                  {/* Season (solo+flex) */}
-                  <TabsContent value="season" className="m-0">
-                    <StatsList champs={topChampionsSeason} />
-                  </TabsContent>
+                  <div className="relative overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      {seasonStatsTab === "season" && (
+                        <TabsContent value="season" className="m-0" forceMount asChild>
+                          <motion.div
+                            key="season"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                          >
+                            <StatsList champs={topChampionsSeason} />
+                          </motion.div>
+                        </TabsContent>
+                      )}
 
-                  {/* Solo/Duo */}
-                  <TabsContent value="solo" className="m-0">
-                    <StatsList champs={topChampionsSolo} />
-                  </TabsContent>
+                      {seasonStatsTab === "solo" && (
+                        <TabsContent value="solo" className="m-0" forceMount asChild>
+                          <motion.div
+                            key="solo"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                          >
+                            <StatsList champs={topChampionsSolo} />
+                          </motion.div>
+                        </TabsContent>
+                      )}
 
-                  {/* Flex */}
-                  <TabsContent value="flex" className="m-0">
-                    <StatsList champs={topChampionsFlex} />
-                  </TabsContent>
+                      {seasonStatsTab === "flex" && (
+                        <TabsContent value="flex" className="m-0" forceMount asChild>
+                          <motion.div
+                            key="flex"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                          >
+                            <StatsList champs={topChampionsFlex} />
+                          </motion.div>
+                        </TabsContent>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   <div className="flex justify-center mt-auto pb-4 pt-2">
                     <ShowMoreMatches />
@@ -1319,10 +1340,9 @@ export default function SummonerPage() {
           </div>
 
           {monthlyDayStats.length > 0 && (
-            <div className="w-[90%] mt-4 flex gap-4 items-stretch">
+            <div className="w-[90%] mt-4 flex flex-col xl:flex-row gap-4 xl:items-stretch">
               {/* SINISTRA: HEATMAP (uguale a prima come altezza) */}
               <div className={cn(glassDark, "flex-1 text-sm font-thin")}>
-                <GlassOverlays />
                 <div className="relative z-10 px-4 py-3">
                   <div className="flex items-center justify-between text-xs text-flash/70">
                     <span>THIS MONTH</span>
@@ -1407,8 +1427,7 @@ export default function SummonerPage() {
               </div>
 
               {/* DESTRA: PLAYER RATING (stessa altezza grazie a items-stretch) */}
-              <div className={cn(glassDark, "w-52 text-sm font-thin flex-shrink-0")}>
-                <GlassOverlays />
+              <div className={cn(glassDark, "w-full xl:w-52 text-sm font-thin xl:flex-shrink-0")}>
                 <div className="relative z-10 px-4 py-3 h-full flex flex-col justify-between">
                   <div>
                     <div className="text-[11px] uppercase text-flash/70 tracking-wide">
@@ -1726,6 +1745,13 @@ export default function SummonerPage() {
                     <div className="w-[100%] h-px mt-2 bg-white/15 rounded" />
                     <div className="mt-2 flex justify-end items-center gap-2">
 
+                      {summonerInfo?.puuid && region && (
+                        <PlayerAnalysisDialog
+                          puuid={summonerInfo.puuid}
+                          region={region}
+                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                        />
+                      )}
 
                       <UpdateButton
                         onClick={refreshData}
@@ -1914,6 +1940,7 @@ export default function SummonerPage() {
                             : null;
                           const myJungleTag = myTeamAnalysis?.tag ?? null;
                           const myStartingCamp = myTeamAnalysis?.startingCamp ?? null;
+                          const myInvade = myTeamAnalysis?.invade ?? null;
 
                           const kda =
                             participant && participant.deaths === 0 && (participant.kills + participant.assists) > 0
@@ -2018,8 +2045,8 @@ export default function SummonerPage() {
                                                 )}
                                               </div>
 
-                                              {
-                                                participant && (
+                                              {participant && (
+                                                <>
                                                   <div className="flex flex-col">
                                                     <img
                                                       src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
@@ -2032,7 +2059,58 @@ export default function SummonerPage() {
                                                       className="w-6 h-6 rounded-sm"
                                                     />
                                                   </div>
-                                                )}
+                                                  {participant.perks?.styles && participant.perks.styles.length >= 2 && (
+                                                    <div className="grid grid-rows-2 gap-0.5">
+                                                      {(() => {
+                                                        const keystoneId = participant.perks!.styles[0]?.selections?.[0]?.perk;
+                                                        const keystoneSrc = keystoneId ? getKeystoneIcon(keystoneId) : null;
+                                                        const keystoneName = keystoneId ? getKeystoneName(keystoneId) : null;
+                                                        return (
+                                                          <TooltipProvider delayDuration={150}>
+                                                            <Tooltip>
+                                                              <TooltipTrigger asChild>
+                                                                <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                                                                  {keystoneSrc && (
+                                                                    <img src={keystoneSrc} alt={keystoneName ?? "Keystone"} className="w-5 h-5 rounded-full" />
+                                                                  )}
+                                                                </div>
+                                                              </TooltipTrigger>
+                                                              {keystoneName && (
+                                                                <TooltipContent side="top" className="text-xs">
+                                                                  {keystoneName}
+                                                                </TooltipContent>
+                                                              )}
+                                                            </Tooltip>
+                                                          </TooltipProvider>
+                                                        );
+                                                      })()}
+                                                      {(() => {
+                                                        const subStyleId = participant.perks!.styles[1]?.style;
+                                                        const subStyleSrc = subStyleId ? getStyleIcon(subStyleId) : null;
+                                                        const subStyleName = subStyleId ? getStyleName(subStyleId) : null;
+                                                        return (
+                                                          <TooltipProvider delayDuration={150}>
+                                                            <Tooltip>
+                                                              <TooltipTrigger asChild>
+                                                                <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                                                                  {subStyleSrc && (
+                                                                    <img src={subStyleSrc} alt={subStyleName ?? "Secondary"} className="w-5 h-5 rounded-full opacity-70" />
+                                                                  )}
+                                                                </div>
+                                                              </TooltipTrigger>
+                                                              {subStyleName && (
+                                                                <TooltipContent side="top" className="text-xs">
+                                                                  {subStyleName}
+                                                                </TooltipContent>
+                                                              )}
+                                                            </Tooltip>
+                                                          </TooltipProvider>
+                                                        );
+                                                      })()}
+                                                    </div>
+                                                  )}
+                                                </>
+                                              )}
                                               {participant && (
                                                 <div className="flex ml-1">
                                                   <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
@@ -2230,9 +2308,10 @@ export default function SummonerPage() {
                                               <span className="h-5 flex items-center px-2 font-mono text-[9px] text-flash/25 tracking-[0.1em] animate-pulse">
                                                 loading...
                                               </span>
-                                            ) : (myJungleTag || myStartingCamp) ? (
+                                            ) : (myJungleTag || myStartingCamp || myInvade === "invade") ? (
                                               <>
                                                 {myStartingCamp && <JungleStartingCampBadge camp={myStartingCamp} />}
+                                                {myInvade && <JungleInvadeBadge invade={myInvade} />}
                                                 {myJungleTag && <JunglePlaystyleBadge tag={myJungleTag} topsideCount={myTeamAnalysis?.topsideCount} botsideCount={myTeamAnalysis?.botsideCount} />}
                                               </>
                                             ) : (

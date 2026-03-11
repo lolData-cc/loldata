@@ -67,28 +67,28 @@ export default function DashboardPage() {
                 <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent mt-32 w-[80%]">
                   <TabsTrigger
                     value="profile"
-                    className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PROFILE
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="documentation"
-                    className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     DOCUMENTATION
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="billing"
-                    className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     BILLING
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="preferences"
-                    className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PREFERENCES
                   </TabsTrigger>
@@ -100,14 +100,14 @@ export default function DashboardPage() {
 
                       <TabsTrigger
                         value="proApplications"
-                        className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         PRO APPLICATIONS
                       </TabsTrigger>
 
                       <TabsTrigger
                         value="streamerApplications"
-                        className="w-full justify-start px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-jade border border-transparent hover:border-flash/20 rounded-sm cursor-clicker"
+                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         STREAMER APPLICATIONS
                       </TabsTrigger>
@@ -119,9 +119,9 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full px-3 py-1.5 rounded-sm border border-flash/20 hover:bg-flash/10 text-xs text-flash/70 cursor-clicker text-left"
+                    className="w-full px-3 py-1.5 rounded-none font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/40 hover:text-red-400/80 hover:bg-red-400/5 cursor-clicker text-left transition-colors"
                   >
-                    Logout
+                    LOGOUT
                   </button>
                 </TabsList>
               </div>
@@ -143,59 +143,71 @@ export default function DashboardPage() {
               <TabsContent value="preferences" className="outline-none">
                 <div className="flex flex-col gap-6 p-4 px-6">
                   <div className="space-y-3">
-                    <h3 className="text-flash/60">ANIMATIONS</h3>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: ANIMATIONS ::</p>
                     <BorderBeamPreference />
                     <TechBackgroundPreference />
                     <MatchTransitionPreference />
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="text-flash/60">CHAMPION PICKER</h3>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: CHAMPION PICKER ::</p>
 
-                    <div className="border border-flash/10 rounded-md p-4 bg-cement">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h4 className="text-flash/40">Champion picker UI</h4>
-                          <span className="text-flash/80 text-sm">
-                            Choose between Sheet (shadcn) and Radial dock.
-                          </span>
+                    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
+                      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
+                      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
+                      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+                      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+                      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
+
+                      <div className="relative z-[2] px-4 py-3 pl-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">Champion Picker UI</h4>
+                            <span className="text-flash/80 text-sm">
+                              Choose between Sheet (shadcn) and Radial dock.
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex justify-end border-t border-flash/20 pt-3 mt-3 -mb-2">
-                        <div className="relative flex rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
-                          {/* Sliding indicator */}
-                          <div
-                            className={cn(
-                              "absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-[2px]",
-                              "bg-jade/15 border border-jade/30",
-                              "transition-all duration-300 ease-out",
-                              "shadow-[0_0_8px_rgba(0,217,146,0.1)]",
-                              pickerMode === "sheet" ? "left-[3px]" : "left-[calc(50%)]"
-                            )}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setPickerMode("sheet")}
-                            className={cn(
-                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
-                              "transition-colors duration-300",
-                              pickerMode === "sheet" ? "text-jade" : "text-flash/40 hover:text-flash/60"
-                            )}
-                          >
-                            Sheet
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPickerMode("radial")}
-                            className={cn(
-                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
-                              "transition-colors duration-300",
-                              pickerMode === "radial" ? "text-jade" : "text-flash/40 hover:text-flash/60"
-                            )}
-                          >
-                            Radial
-                          </button>
+                        <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+
+                        <div className="flex justify-end pt-3">
+                          <div className="relative flex rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
+                            {/* Sliding indicator */}
+                            <div
+                              className={cn(
+                                "absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-[2px]",
+                                "bg-jade/15 border border-jade/30",
+                                "transition-all duration-300 ease-out",
+                                "shadow-[0_0_8px_rgba(0,217,146,0.1)]",
+                                pickerMode === "sheet" ? "left-[3px]" : "left-[calc(50%)]"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setPickerMode("sheet")}
+                              className={cn(
+                                "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                                "transition-colors duration-300",
+                                pickerMode === "sheet" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                              )}
+                            >
+                              Sheet
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPickerMode("radial")}
+                              className={cn(
+                                "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                                "transition-colors duration-300",
+                                pickerMode === "radial" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                              )}
+                            >
+                              Radial
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -1,10 +1,12 @@
-import type { JunglePlaystyleTag, JungleStartingCamp } from "@/assets/types/riot";
+import type { JunglePlaystyleTag, JungleStartingCamp, JungleInvade } from "@/assets/types/riot";
 import { cn } from "@/lib/utils";
 import {
   getReadableJunglePlaystyleTag,
   getJunglePlaystyleTagClasses,
   getReadableStartingCamp,
   getStartingCampClasses,
+  getReadableInvade,
+  getInvadeClasses,
 } from "@/utils/junglePlaystyle";
 import {
   Tooltip,
@@ -70,6 +72,29 @@ export function JungleStartingCampBadge({ camp }: StartingCampProps) {
         "font-mono text-[9px] uppercase tracking-[0.1em]",
         "border-l-2 bg-black/30",
         getStartingCampClasses(camp)
+      )}
+    >
+      <span className="opacity-40 text-[8px] leading-none">◈</span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+type InvadeProps = {
+  invade: JungleInvade;
+};
+
+export function JungleInvadeBadge({ invade }: InvadeProps) {
+  const label = getReadableInvade(invade);
+  if (!label) return null;
+
+  return (
+    <div
+      className={cn(
+        "h-5 flex items-center gap-1.5 pl-2 pr-2.5",
+        "font-mono text-[9px] uppercase tracking-[0.1em]",
+        "border-l-2 bg-black/30",
+        getInvadeClasses(invade)
       )}
     >
       <span className="opacity-40 text-[8px] leading-none">◈</span>

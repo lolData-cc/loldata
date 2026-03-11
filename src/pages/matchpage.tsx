@@ -19,12 +19,19 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   LabelList
 } from "recharts"
 import { KillMap } from "@/components/killmap";
 import { API_BASE_URL } from "@/config";
+import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip"
 
 // ── Platform ID → backend region key ────────────────────────────────
 const PLATFORM_TO_REGION: Record<string, string> = {
@@ -216,6 +223,52 @@ export default function MatchPage() {
             <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4 rounded-[2px]" />
             <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4 rounded-[2px]" />
           </div>
+          {p.perks?.styles && p.perks.styles.length >= 2 && (
+            <div className="flex flex-col gap-0.5">
+              {(() => {
+                const keystoneId = p.perks!.styles[0]?.selections?.[0]?.perk;
+                const keystoneSrc = keystoneId ? getKeystoneIcon(keystoneId) : null;
+                const keystoneName = keystoneId ? getKeystoneName(keystoneId) : null;
+                return (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-4 h-4 rounded-full bg-black/60 flex items-center justify-center">
+                          {keystoneSrc && <img src={keystoneSrc} alt={keystoneName ?? "Keystone"} className="w-3.5 h-3.5 rounded-full" />}
+                        </div>
+                      </TooltipTrigger>
+                      {keystoneName && (
+                        <TooltipContent side="top" className="text-xs">
+                          {keystoneName}
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })()}
+              {(() => {
+                const subStyleId = p.perks!.styles[1]?.style;
+                const subStyleSrc = subStyleId ? getStyleIcon(subStyleId) : null;
+                const subStyleName = subStyleId ? getStyleName(subStyleId) : null;
+                return (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-4 h-4 rounded-full bg-black/60 flex items-center justify-center">
+                          {subStyleSrc && <img src={subStyleSrc} alt={subStyleName ?? "Secondary"} className="w-3.5 h-3.5 rounded-full opacity-70" />}
+                        </div>
+                      </TooltipTrigger>
+                      {subStyleName && (
+                        <TooltipContent side="top" className="text-xs">
+                          {subStyleName}
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Name */}

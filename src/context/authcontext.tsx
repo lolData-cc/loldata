@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // evita che risposte lente sovrascrivano uno stato più recente
   const requestIdRef = useRef(0)
+  const currentUserIdRef = useRef<string | null>(null)
 
   const resetProfile = () => {
     setNametag(null)
@@ -43,11 +44,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const setSessionAndProfile = async (newSession: Session | null) => {
+    const newUserId = newSession?.user?.id ?? null
+
+    // Same user — just refresh the session object, skip the DB re-fetch
+    if (newUserId && newUserId === currentUserIdRef.current) {
+      setSession(newSession)
+      return
+    }
+
+    currentUserIdRef.current = newUserId
     const requestId = ++requestIdRef.current
 
     setSession(newSession)
 
-    if (!newSession?.user?.id) {
+    if (!newUserId) {
       resetProfile()
       setLoading(false)
       return
