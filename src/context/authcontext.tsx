@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data, error } = await supabase
       .from("profile_players")
       .select("nametag, region, plan, puuid, is_admin", { head: false })
-      .eq("profile_id", newSession.user.id)
+      .eq("profile_id", newUserId)
       .single()
 
     // se nel frattempo è arrivata una richiesta più nuova, ignora questa risposta
