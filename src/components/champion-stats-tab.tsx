@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { API_BASE_URL, CDN_BASE_URL, champPath, itemPath } from "@/config"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
+import { Globe } from "lucide-react"
 
 import {
   RoleTopIcon,
@@ -580,7 +581,122 @@ function OpponentPentagonDialog({
   )
 }
 
+const FILTER_REGIONS: { key: string; label: string }[] = [
+  { key: "euw1", label: "EUW" },
+  { key: "na1",  label: "NA" },
+  { key: "kr",   label: "KR" },
+  { key: "jp1",  label: "JP" },
+  { key: "br1",  label: "BR" },
+  { key: "oc1",  label: "OCE" },
+  { key: "tr1",  label: "TR" },
+  { key: "ru",   label: "RU" },
+]
+
+function PatchFilterButton({ value, onChange, patches }: { value: string | null; onChange: (v: string | null) => void; patches: string[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "h-10 px-3 rounded-full border transition-colors cursor-clicker",
+            "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
+            "text-[10px] font-mono uppercase tracking-wider",
+            value ? "text-[#00D992] border-[#00D992]/50" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+          )}
+        >
+          {value ?? "Latest"}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="bg-liquirice border border-[#1A1A1A] p-4 max-w-[260px] rounded-xl">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-[#E8EEF2]/40 mb-3">Patch</p>
+        <div className="max-h-[240px] overflow-y-auto scrollbar-hide space-y-1">
+          <button
+            type="button"
+            onClick={() => { onChange(null); setOpen(false) }}
+            className={cn(
+              "w-full text-left px-3 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker",
+              value === null ? "text-[#00D992] bg-[#00D992]/10" : "text-[#E8EEF2]/50 hover:bg-white/5"
+            )}
+          >
+            Latest
+          </button>
+          {patches.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { onChange(p); setOpen(false) }}
+              className={cn(
+                "w-full text-left px-3 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker",
+                value === p ? "text-[#00D992] bg-[#00D992]/10" : "text-[#E8EEF2]/50 hover:bg-white/5"
+              )}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RegionFilterButton({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const [open, setOpen] = useState(false)
+  const regionLabel = value ? FILTER_REGIONS.find((r) => r.key === value)?.label ?? value : null
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "h-10 rounded-full border transition-colors cursor-clicker flex items-center justify-center",
+            "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
+            "text-[10px] font-mono uppercase tracking-wider",
+            value ? "text-[#00D992] border-[#00D992]/50 px-3" : "border-[#00D992]/15 text-[#E8EEF2]/50 w-10"
+          )}
+        >
+          {regionLabel ?? <Globe className="h-4 w-4" />}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="bg-liquirice border border-[#1A1A1A] p-4 max-w-[280px] rounded-xl">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-[#E8EEF2]/40 mb-3">Region</p>
+        <div className="grid grid-cols-4 gap-2">
+          <button
+            type="button"
+            onClick={() => { onChange(null); setOpen(false) }}
+            className={cn(
+              "px-2 py-2 rounded-md transition-colors cursor-clicker flex items-center justify-center",
+              value === null ? "text-[#00D992] bg-[#00D992]/10 ring-1 ring-[#00D992]/30" : "text-[#E8EEF2]/50 hover:bg-white/5"
+            )}
+          >
+            <Globe className="h-4 w-4" />
+          </button>
+          {FILTER_REGIONS.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => { onChange(r.key); setOpen(false) }}
+              className={cn(
+                "px-2 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker text-center",
+                value === r.key ? "text-[#00D992] bg-[#00D992]/10 ring-1 ring-[#00D992]/30" : "text-[#E8EEF2]/50 hover:bg-white/5"
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function FilterBar({
+  selectedPatch,
+  onPatchChange,
+  availablePatches,
+  selectedRegion,
+  onRegionChange,
   role,
   onRoleChange,
   suggestedRole,
@@ -594,6 +710,11 @@ function FilterBar({
   onSetItem,
   onClearItem,
 }: {
+  selectedPatch: string | null
+  onPatchChange: (v: string | null) => void
+  availablePatches: string[]
+  selectedRegion: string | null
+  onRegionChange: (v: string | null) => void
   role: RoleKey | null
   onRoleChange: (v: RoleKey | null) => void
   suggestedRole?: RoleKey | null
@@ -611,6 +732,15 @@ function FilterBar({
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999]">
       <div className="bg-liquirice/90 backdrop-blur-xl border border-[#1A1A1A] rounded-full px-4 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,217,146,0.06)]">
         <div className="flex items-center gap-2">
+          {/* Patch filter */}
+          <PatchFilterButton value={selectedPatch} onChange={onPatchChange} patches={availablePatches} />
+
+          {/* Region filter */}
+          <RegionFilterButton value={selectedRegion} onChange={onRegionChange} />
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+
           {/* Role filter */}
           <button
             type="button"
@@ -918,6 +1048,9 @@ export function ChampionStats({
   const [role, setRole] = useState<RoleKey | null>(null)
   const [tier, setTier] = useState<TierKey | null>(null)
   const [opponents, setOpponents] = useState<OpponentEntry[]>([])
+  const [selectedPatch, setSelectedPatch] = useState<string | null>(null)
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const [availablePatches, setAvailablePatches] = useState<string[]>([])
 
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
   const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
@@ -948,6 +1081,18 @@ export function ChampionStats({
           map[id] = { name: item.name, into: item.into, gold: item.gold, maps: item.maps }
         }
         setItemsMeta(map)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // Fetch available patches
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE_URL}/api/champion/patches`)
+      .then((r) => r.json())
+      .then((json: { patches: string[] }) => {
+        if (!cancelled && json.patches?.length) setAvailablePatches(json.patches)
       })
       .catch(() => {})
     return () => { cancelled = true }
@@ -1000,7 +1145,8 @@ export function ChampionStats({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         championId: Number(champ.key),
-        patch: null,
+        patch: selectedPatch,
+        region: selectedRegion,
         queueId: 420,
         role: role === "SUPPORT" ? "UTILITY" : role,
         tier: tier,
@@ -1027,10 +1173,12 @@ export function ChampionStats({
       cancelled = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [champ.key, role, tier, opponentsKey])
+  }, [champ.key, selectedPatch, selectedRegion, role, tier, opponentsKey])
 
   const floatingBar = (
     <FilterBar
+      selectedPatch={selectedPatch} onPatchChange={setSelectedPatch} availablePatches={availablePatches}
+      selectedRegion={selectedRegion} onRegionChange={setSelectedRegion}
       role={role} onRoleChange={setRole} suggestedRole={suggestedRole}
       tier={tier} onTierChange={setTier}
       opponents={opponents} champions={championList}

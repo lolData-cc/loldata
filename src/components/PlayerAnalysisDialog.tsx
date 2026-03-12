@@ -519,6 +519,14 @@ function BootsDistributionSection({ data }: { data: PlayerAnalysisResult }) {
   return (
     <SectionCard title="Boots Buy Distribution" tag="ITEMS" delay={0.6} accentColor="#8b5cf6">
       <div className="space-y-2">
+        <div className="flex items-center gap-3 pb-1">
+          <div className="w-7 shrink-0" />
+          <div className="w-[110px] shrink-0" />
+          <div className="flex-1" />
+          <span className="w-[38px] text-[9px] font-jetbrains text-flash/30 text-right uppercase">Pick</span>
+          <span className="w-[38px] text-[9px] font-jetbrains text-flash/30 text-right uppercase">WR</span>
+          <div className="w-[24px]" />
+        </div>
         {filtered.map((b) => {
           const itemId = BOOTS_ITEM_IDS[b.boots];
           const color = BOOTS_COLORS[b.boots] ?? AC;
@@ -547,6 +555,12 @@ function BootsDistributionSection({ data }: { data: PlayerAnalysisResult }) {
               </div>
               <span className="w-[38px] text-[10px] font-jetbrains font-medium text-flash/70 text-right">
                 {b.pct}%
+              </span>
+              <span
+                className="w-[38px] text-[10px] font-jetbrains font-medium text-right"
+                style={{ color: b.winRate >= 50 ? "#4ade80" : "#f87171" }}
+              >
+                {b.winRate}%
               </span>
               <span className="w-[24px] text-[9px] font-jetbrains text-flash/30 text-right">
                 {b.count}g

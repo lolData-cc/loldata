@@ -43,6 +43,7 @@ import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
+import { AnimatedTabsList } from "@/components/animated-tabs-list";
 
 import { PlayerHoverCard } from "@/components/playerhovercard";
 import { BorderBeam } from "@/components/ui/border-beam";
@@ -129,16 +130,16 @@ export default function SummonerPage() {
   async function fetchAnalysis(matchId: string) {
     const entry = analysisMap[matchId];
 
-    // Already fetched → just toggle open/closed
+    // Already fetched â" just toggle open/closed
     if (entry && !entry.loading) {
       setAnalysisMap(prev => ({ ...prev, [matchId]: { ...prev[matchId], open: !prev[matchId].open } }));
       return;
     }
 
-    // Currently loading → do nothing
+    // Currently loading â" do nothing
     if (entry?.loading) return;
 
-    // First time → fetch and open
+    // First time â" fetch and open
     setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: true, data: null, open: true } }));
     try {
       const res = await fetch(`${API_BASE_URL}/api/match/analysis`, {
@@ -338,7 +339,7 @@ export default function SummonerPage() {
   const filteredMatches = matches.filter((m) => {
     const matchQueueId = m.match.info.queueId;
 
-    // Niente filtro queue quando è "All"
+    // Niente filtro queue quando Ã¨ "All"
     const isCorrectQueue =
       selectedQueue === "All"
         ? true
@@ -409,13 +410,13 @@ export default function SummonerPage() {
   const githubWeeks = useMemo(() => {
     if (!monthlyDayStats.length) return [];
 
-    // parto dal primo giorno del mese (lo hai già calcolato così in monthlyDayStats)
+    // parto dal primo giorno del mese (lo hai giÃ  calcolato cosÃ¬ in monthlyDayStats)
     const first = monthlyDayStats[0].date;
     const year = first.getFullYear();
     const month = first.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    // 0 = lunedì, 6 = domenica (così hai le righe tipo "lun→dom")
+    // 0 = lunedÃ¬, 6 = domenica (cosÃ¬ hai le righe tipo "lunâ"dom")
     const weekdayOfFirst = (firstDay.getDay() + 6) % 7;
 
     const cells: (DayWinrateCell | null)[] = [];
@@ -496,7 +497,7 @@ export default function SummonerPage() {
       });
     });
 
-    // trasformiamo in array, filtriamo solo chi ha più di 1 game
+    // trasformiamo in array, filtriamo solo chi ha piÃ¹ di 1 game
     return Object.entries(duosMap)
       .filter(([_, data]) => data.games > 1)
       .map(([puuid, data]) => ({
@@ -505,7 +506,7 @@ export default function SummonerPage() {
         losses: data.games - data.wins,
         winrate: Math.round((data.wins / data.games) * 100),
       }))
-      .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
+      .sort((a, b) => b.games - a.games); // ordina per piÃ¹ partite giocate insieme
   }, [matches, summonerInfo]);
 
 
@@ -561,7 +562,7 @@ export default function SummonerPage() {
       if (items.length >= 13) {
         const thirteenth = items[12] as HTMLElement; // 0-based index
         const rect = thirteenth.getBoundingClientRect();
-        // se il top dell’elemento è sopra la viewport, vuol dire che l’abbiamo superato
+        // se il top dellâelemento Ã¨ sopra la viewport, vuol dire che lâabbiamo superato
         setShowScrollTop(rect.top < 0);
       }
     }
@@ -740,7 +741,7 @@ export default function SummonerPage() {
   async function refreshData() {
 
     if (!region) {
-      console.error("❌ Region mancante in refreshData")
+      console.error("â Region mancante in refreshData")
       return
     }
 
@@ -761,7 +762,7 @@ export default function SummonerPage() {
         navigate("/404", {
           state: {
             message: "Summoner not found",
-            subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
+            subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
           },
           replace: true,
         })
@@ -785,11 +786,11 @@ export default function SummonerPage() {
         //.then(data => setViews(data.views))
         .catch(console.error)
     } catch (err) {
-      console.error("❌ Error loading summoner data:", err)
+      console.error("â Error loading summoner data:", err)
       navigate("/404", {
         state: {
           message: "Summoner not found",
-          subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
+          subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
         },
         replace: true,
       })
@@ -913,7 +914,7 @@ export default function SummonerPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(row);
     }
-    return map; // mantiene l’ordine d’inserimento
+    return map; // mantiene lâordine dâinserimento
   }, [filteredMatches]);
 
 
@@ -951,7 +952,7 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* Center KDA column — visible only at xl+ */}
+              {/* Center KDA column â" visible only at xl+ */}
               <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
                 <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
                 <div>
@@ -962,7 +963,7 @@ export default function SummonerPage() {
               </div>
 
               <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
-                {/* KDA with tooltip — visible only below xl */}
+                {/* KDA with tooltip â" visible only below xl */}
                 <div className="xl:hidden">
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -976,7 +977,7 @@ export default function SummonerPage() {
                   </TooltipProvider>
                 </div>
 
-                {/* Winrate with tooltip for matches — visible below xl */}
+                {/* Winrate with tooltip for matches â" visible below xl */}
                 <div className="xl:hidden">
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -990,7 +991,7 @@ export default function SummonerPage() {
                   </TooltipProvider>
                 </div>
 
-                {/* Winrate + matches text — visible at xl+ */}
+                {/* Winrate + matches text â" visible at xl+ */}
                 <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
                 <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
               </div>
@@ -1073,7 +1074,7 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* ── PERFORMANCE OVERVIEW ── */}
+              {/* â"â" PERFORMANCE OVERVIEW â"â" */}
               {!recentDetailedStats && (
                 <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
                   <div className="flex items-start gap-1">
@@ -1128,7 +1129,7 @@ export default function SummonerPage() {
                   <div className="px-3 pt-2 pb-4 font-jetbrains">
                     <div className="flex items-start gap-1">
 
-                      {/* Radar chart — left */}
+                      {/* Radar chart â" left */}
                       <TooltipProvider delayDuration={0}>
                         <div className="shrink-0 -ml-2 relative">
                           <svg width="190" height="190" viewBox="0 0 220 220">
@@ -1183,7 +1184,7 @@ export default function SummonerPage() {
                         </div>
                       </TooltipProvider>
 
-                      {/* Stats panel — right */}
+                      {/* Stats panel â" right */}
                       <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
                         {[
                           { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
@@ -1260,30 +1261,30 @@ export default function SummonerPage() {
               >
                 <nav className="flex flex-col min-h-[400px]">
                   <div className="px-3 pt-3">
-                    <TabsList className="grid grid-cols-3 w-[90%] mx-auto bg-transparent gap-1.5 h-auto p-0">
+                    <TabsList className="flex justify-center w-[90%] mx-auto bg-transparent h-auto p-0 gap-6 border-b border-white/8">
                       <TabsTrigger
                         value="season"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
                       >
-                        SEASON
+                        Season
                       </TabsTrigger>
                       <TabsTrigger
                         value="solo"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
                       >
-                        SOLO/DUO
+                        Solo/Duo
                       </TabsTrigger>
                       <TabsTrigger
                         value="flex"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase py-2 rounded-sm text-flash/40 border border-transparent transition-all data-[state=active]:text-jade data-[state=active]:bg-jade/8 data-[state=active]:border-jade/25 data-[state=active]:shadow-[0_0_12px_rgba(0,217,146,0.1)] hover:text-flash/60"
+                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
                       >
-                        FLEX
+                        Flex
                       </TabsTrigger>
                     </TabsList>
                   </div>
 
-                  {/* separator più “glass” */}
-                  <Separator className="bg-white/10 w-[85%] mx-auto mt-2" />
+                  {/* small spacer after tabs */}
+                  <div className="h-2" />
 
                   <div className="relative overflow-hidden">
                     <AnimatePresence mode="wait">
@@ -1331,9 +1332,13 @@ export default function SummonerPage() {
                     </AnimatePresence>
                   </div>
 
-                  <div className="flex justify-center mt-auto pb-4 pt-2">
-                    <ShowMoreMatches />
-                  </div>
+                  <Link
+                    to={`/summoners/${region}/${slug}/season`}
+                    className="flex items-center justify-center gap-1.5 mt-auto mb-4 pt-2 mx-auto text-[11px] font-jetbrains tracking-[0.15em] uppercase text-flash/30 hover:text-jade transition-colors cursor-clicker"
+                  >
+                    Show more
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 </nav>
               </Tabs>
             </div>
@@ -1385,9 +1390,9 @@ export default function SummonerPage() {
 
                           // Celle con partite: calcolo colore
                           const rawT = cell.winrate / 100;
-                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensità
+                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensitÃ 
 
-                          // base leggermente più chiara (verde molto scuro ma leggibile)
+                          // base leggermente piÃ¹ chiara (verde molto scuro ma leggibile)
                           const start = { r: 0x0C, g: 0x40, b: 0x32 }; // #0C4032
                           const end = { r: 0x00, g: 0xD9, b: 0x92 };   // jade
 
@@ -1498,7 +1503,7 @@ export default function SummonerPage() {
                 <div className="px-4 pb-2 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.07]">
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest">#</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest uppercase">Player</span>
-                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W — L</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W â" L</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">WR</span>
                 </div>
 
@@ -1539,10 +1544,10 @@ export default function SummonerPage() {
                       )}
                     </div>
 
-                    {/* W — L */}
+                    {/* W â" L */}
                     <div className="flex items-center justify-end gap-1 font-mono text-xs tabular-nums">
                       <span className="text-jade">{duo.wins}W</span>
-                      <span className="text-flash/30">·</span>
+                      <span className="text-flash/30">Â·</span>
                       <span className="text-[#b11315]">{duo.losses}L</span>
                     </div>
 
@@ -1568,7 +1573,7 @@ export default function SummonerPage() {
                     onClick={() => setShowAllDuos(v => !v)}
                     className="w-full py-2.5 text-[10px] font-mono text-flash/30 hover:text-flash/55 tracking-[0.2em] uppercase transition-colors cursor-clicker"
                   >
-                    {showAllDuos ? '▲ collapse' : `▼ ${duoStats.length - 3} more`}
+                    {showAllDuos ? 'â² collapse' : `â¼ ${duoStats.length - 3} more`}
                   </button>
                 )}
               </div>
@@ -1985,7 +1990,7 @@ export default function SummonerPage() {
                                   )}
 
 
-                                  {/* ✅ BORDO COLORATO */}
+                                  {/* â BORDO COLORATO */}
                                   <div
                                     className={cn(
                                       "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
@@ -1995,7 +2000,7 @@ export default function SummonerPage() {
                                     )}
                                   />
 
-                                  {/* ✅ CONTENUTO INTERNO */}
+                                  {/* â CONTENUTO INTERNO */}
                                   <div className="relative z-10 ml-2">
                                     <div className="ml-2">
                                       <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
@@ -2299,7 +2304,7 @@ export default function SummonerPage() {
                                         </div>
                                       </div>
 
-                                      {/* BADGE STRIP — only visible when analysis is open */}
+                                      {/* BADGE STRIP â" only visible when analysis is open */}
                                       {isJungler && analysisEntry?.open && (
                                         <div className="mt-1.5 pt-1.5 border-t border-flash/[0.07] flex items-center gap-3">
                                           <span className="text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase shrink-0">Analysis</span>
@@ -2340,7 +2345,7 @@ export default function SummonerPage() {
                                           : "bg-black/20 border-flash/10 text-flash/25 hover:border-flash/25 hover:text-flash/50 hover:bg-black/30"
                                       )}
                                     >
-                                      <span className="text-xs leading-none pointer-events-none">◈</span>
+                                      <span className="text-xs leading-none pointer-events-none">â</span>
                                       <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">SCAN</span>
                                     </button>
                                   )}
@@ -2374,7 +2379,7 @@ export default function SummonerPage() {
 
           </div>
         </div>
-        {/* ── CYBER MATCH TRANSITION OVERLAY ── */}
+        {/* â"â" CYBER MATCH TRANSITION OVERLAY â"â" */}
         <style>{`
           @keyframes cyberGlitch {
             0%,100% { transform: translate(0) skewX(0deg); opacity: 1; }
@@ -2418,7 +2423,7 @@ export default function SummonerPage() {
                 transition={{ duration: 0.1 }}
               />
 
-              {/* Horizontal scan lines — staggered sweep */}
+              {/* Horizontal scan lines â" staggered sweep */}
               {Array.from({ length: 18 }).map((_, i) => (
                 <motion.div
                   key={i}
@@ -2481,13 +2486,13 @@ export default function SummonerPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.2, delay: 0.15 }}
               >
-                {/* ◈ icon */}
+                {/* â icon */}
                 <motion.div
                   className="text-jade text-4xl font-mono cyber-flicker"
                   animate={{ rotate: [0, 180, 360] }}
                   transition={{ duration: 0.9, ease: 'easeInOut' }}
                 >
-                  ◈
+                  â
                 </motion.div>
 
                 {/* Title */}
@@ -2558,7 +2563,7 @@ export default function SummonerPage() {
               />
             </span>
 
-            {/* Inner content — counter-rotated to stay upright */}
+            {/* Inner content â" counter-rotated to stay upright */}
             <span className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
               {/* Up chevron */}
               <svg

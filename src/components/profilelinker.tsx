@@ -48,7 +48,7 @@ type ProfileRow = {
 };
 
 const GET_SUMMONER_URL = `${API_BASE_URL}/api/summoner`;
-const PROFILE_ICON_BASE = "https://cdn.loldata.cc/15.13.1/img/profileicon";
+const PROFILE_ICON_BASE = "https://cdn2.loldata.cc/16.1.1/img/profileicon";
 
 export function ProfilerLinker() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);

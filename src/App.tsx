@@ -4,6 +4,7 @@ import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
 import SummonerPage from "@/pages/summonerpage"
+import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
 import LearnPage from "@/pages/learnpage"
 import LoginPage from "@/pages/loginpage"
@@ -169,6 +170,7 @@ function App() {
             <LiveToastOnBoot />
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
+              <Route path="/summoners/:region/:slug/season" element={<RootLayout><SeasonPage /></RootLayout>} />
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
               <Route path="/dashboard/:tab?" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
               <Route

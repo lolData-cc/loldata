@@ -133,6 +133,8 @@ export type PlayerAnalysisResult = {
     boots: string;
     count: number;
     pct: number;
+    wins: number;
+    winRate: number;
   }[];
 
   earlyGameAnalysis: {

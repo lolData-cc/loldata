@@ -352,7 +352,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                         <Star className="h-4 w-4 text-jade" />
                       </div>
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/profileicon/${sugg.icon_id}.png`}
+                        src={`https://cdn2.loldata.cc/16.1.1/img/profileicon/${sugg.icon_id}.png`}
                         alt="icon"
                         className="w-8 h-8 rounded-full"
                       />
