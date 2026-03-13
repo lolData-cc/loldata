@@ -34,6 +34,11 @@ export default function DashboardPage() {
   const { pickerMode, setPickerMode } = useChampionPicker();
 
   const { session, isAdmin, nametag, avatarUrl } = useAuth();
+
+  useEffect(() => {
+    document.title = "Dashboard - lolData";
+    return () => { document.title = "lolData"; };
+  }, []);
   const email = session?.user?.email ?? ""
   const [searchParams, setSearchParams] = useSearchParams();
   const [highlightSummoner, setHighlightSummoner] = useState(false);
