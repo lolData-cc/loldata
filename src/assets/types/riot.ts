@@ -104,6 +104,10 @@ export type SummonerInfo = {
   live: boolean
   peakRank?: string
   peakLp?: number
+  flexRank?: string
+  flexLp?: number
+  peakFlexRank?: string
+  peakFlexLp?: number
 }
 
 export type ChampionStats = {

@@ -2,6 +2,9 @@ export const UI_PREFS_KEYS = {
   disableBorderBeams: "lolData:disableBorderBeams",
   disableTechBackground: "lolData:disableTechBackground",
   disableMatchTransition: "lolData:disableMatchTransition",
+  disableMatchGrouping: "lolData:disableMatchGrouping",
+  enableColoredMatchBg: "lolData:enableColoredMatchBg",
+  enableMatchCentering: "lolData:enableMatchCentering",
 } as const;
 
 function safeWindow() {
@@ -49,5 +52,47 @@ export function setDisableMatchTransition(value: boolean) {
   if (!w) return;
 
   w.localStorage.setItem(UI_PREFS_KEYS.disableMatchTransition, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getDisableMatchGrouping(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: grouping enabled
+  return w.localStorage.getItem(UI_PREFS_KEYS.disableMatchGrouping) === "1";
+}
+
+export function setDisableMatchGrouping(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.disableMatchGrouping, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getEnableColoredMatchBg(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: off
+  return w.localStorage.getItem(UI_PREFS_KEYS.enableColoredMatchBg) === "1";
+}
+
+export function setEnableColoredMatchBg(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.enableColoredMatchBg, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getEnableMatchCentering(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: off
+  return w.localStorage.getItem(UI_PREFS_KEYS.enableMatchCentering) === "1";
+}
+
+export function setEnableMatchCentering(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.enableMatchCentering, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

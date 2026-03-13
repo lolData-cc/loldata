@@ -185,15 +185,15 @@ export function SearchPageFeature() {
 
     return (
         <div>
-            <div className="flex justify-between items-end space-x-24">
-                <img src="/img/katarina.png" className="w-[45%]"/>
-                <span className="text-4xl text-jade py-6 font-scifi"> Detail page functionalities </span>
+            <div className="flex flex-col-reverse md:flex-row justify-between items-center md:items-end gap-4 md:space-x-24">
+                <img src="/img/katarina.png" className="w-[60%] md:w-[45%]"/>
+                <span className="text-2xl md:text-4xl text-jade py-6 font-scifi text-center md:text-right"> Detail page functionalities </span>
             </div>
 
             <Separator className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen border-t border-flash/20" />
 
-            {/* wrapper relativo per i freeze absolute */}
-            <div ref={containerRef} className="flex justify-between px-24 relative">
+            {/* ── Desktop: scroll-pin layout ── */}
+            <div ref={containerRef} className="hidden md:flex justify-between px-6 lg:px-24 relative">
                 <div className="flex flex-col items-center h-[1000px] pt-6">
                     {Array.from({ length: lineLength }).map((_, i) => {
                         const opacity = 1 - i / lineLength;
@@ -263,7 +263,7 @@ export function SearchPageFeature() {
                 {/* <SearchDialogMock attachRef={champImgRef} ... /> */}
 
                 {/* ===== colonna destra ===== */}
-                <div className=" relative left-[50%] w-[50%] pt-5 space-y-12 text-sm px-8 font-geist">
+                <div className="relative left-[50%] w-[50%] pt-5 space-y-12 text-sm px-4 lg:px-8 font-geist">
                     {/* Heading nel flow: nascondi quando il relativo pin è attivo */}
                     <div className={`${prof.phase === 'pin' ? 'invisible' : ''}`}> PROFILE PAGE </div>
 
@@ -403,6 +403,40 @@ export function SearchPageFeature() {
               text-flash/20
             "
                     />
+                </div>
+            </div>
+
+            {/* ── Mobile: simplified text layout ── */}
+            <div className="md:hidden px-4 py-8 space-y-10 font-geist text-sm">
+                <div className="space-y-4">
+                    <p className="text-flash/40 uppercase text-xs tracking-wider font-jetbrains">Profile Page</p>
+                    <p className="text-flash/80">
+                        The profile page tells the full story of how you play. Every match is tracked with clarity, giving you a complete view of your journey.
+                    </p>
+                    <p className="text-flash/80">
+                        Each game is broken down in detail — timelines, runes, damage, builds — so you can dive deep into what worked and what didn't.
+                    </p>
+                    <div className="space-y-2 text-flash/50">
+                        <div className="flex items-center gap-2"><Sword className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Build Analysis</span></div>
+                        <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Items and Runes</span></div>
+                        <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Events Timeline</span></div>
+                    </div>
+                </div>
+
+                <Separator className="bg-flash/10" />
+
+                <div className="space-y-4">
+                    <p className="text-flash/40 uppercase text-xs tracking-wider font-jetbrains">Champion Page</p>
+                    <p className="text-flash/80">
+                        Every champion is a story waiting to be explored. Current patch performance is tracked in real time so you understand their power level as the meta evolves.
+                    </p>
+                    <p className="text-flash/80">
+                        Matchups aren't left to guesswork — detailed winrates are paired with AI-powered insights so you know exactly what to expect.
+                    </p>
+                    <div className="space-y-2 text-flash/50">
+                        <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Matchup Stats</span></div>
+                        <div className="flex items-center gap-2"><Brain className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">AI Analysis</span></div>
+                    </div>
                 </div>
             </div>
         </div>

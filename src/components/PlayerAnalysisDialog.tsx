@@ -811,12 +811,21 @@ export function PlayerAnalysisDialog({
   puuid,
   region,
   summonerName,
+  externalOpen,
+  onExternalOpenChange,
 }: {
   puuid: string;
   region: string;
   summonerName: string;
+  externalOpen?: boolean;
+  onExternalOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    onExternalOpenChange?.(v);
+  };
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [result, setResult] = useState<PlayerAnalysisResult | null>(null);
@@ -927,6 +936,13 @@ export function PlayerAnalysisDialog({
       }
     }
   }, [puuid, region, summonerName, addLine]);
+
+  // When opened externally, trigger analysis
+  useEffect(() => {
+    if (externalOpen && phase === "idle") {
+      startAnalysis();
+    }
+  }, [externalOpen]);
 
   function handleOpenChange(open: boolean) {
     if (open) {

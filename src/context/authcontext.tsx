@@ -9,7 +9,9 @@ interface AuthContextType {
   region: string | null
   plan: string | null
   puuid: string | null
+  avatarUrl: string | null
   isAdmin: boolean
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,7 +21,9 @@ const AuthContext = createContext<AuthContextType>({
   region: null,
   plan: null,
   puuid: null,
+  avatarUrl: null,
   isAdmin: false,
+  refreshProfile: async () => {},
 })
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -29,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [nametag, setNametag] = useState<string | null>(null)
   const [plan, setPlan] = useState<string | null>(null)
   const [puuid, setPuuid] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
 
   // evita che risposte lente sovrascrivano uno stato più recente
@@ -40,6 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setRegion(null)
     setPlan(null)
     setPuuid(null)
+    setAvatarUrl(null)
     setIsAdmin(false)
   }
 
@@ -67,7 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data, error } = await supabase
       .from("profile_players")
-      .select("nametag, region, plan, puuid, is_admin", { head: false })
+      .select("nametag, region, plan, puuid, avatar_url, is_admin", { head: false })
       .eq("profile_id", newUserId)
       .single()
 
@@ -80,6 +86,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         region: data.region,
         plan: data.plan,
         puuid: data.puuid,
+        avatar_url: data.avatar_url,
         is_admin: data.is_admin,
       })
 
@@ -87,6 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setRegion(data.region ?? null)
       setPlan(data.plan ?? null)
       setPuuid(data.puuid ?? null)
+      setAvatarUrl(data.avatar_url ?? null)
       setIsAdmin(!!data.is_admin)
     } else {
       console.warn("[AuthContext] Errore caricamento profilo o nessun dato:", error)
@@ -94,6 +102,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setLoading(false)
+  }
+
+  const refreshProfile = async () => {
+    const userId = session?.user?.id
+    if (!userId) return
+    const { data, error } = await supabase
+      .from("profile_players")
+      .select("nametag, region, plan, puuid, avatar_url, is_admin", { head: false })
+      .eq("profile_id", userId)
+      .single()
+    if (!error && data) {
+      setNametag(data.nametag ?? null)
+      setRegion(data.region ?? null)
+      setPlan(data.plan ?? null)
+      setPuuid(data.puuid ?? null)
+      setAvatarUrl(data.avatar_url ?? null)
+      setIsAdmin(!!data.is_admin)
+    }
   }
 
   useEffect(() => {
@@ -119,7 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ session, loading, nametag, region, plan, puuid, isAdmin }}
+      value={{ session, loading, nametag, region, plan, puuid, avatarUrl, isAdmin, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

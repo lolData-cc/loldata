@@ -11,15 +11,15 @@ type FooterProps = {
 export function Footer({ className = "" }: FooterProps) {
 
     return (
-        <div className={`font-jetbrains z-50 w-full h-72 ${className}`}>
-            <div className="h-full flex flex-col">
+        <div className={`font-jetbrains z-50 w-full ${className}`}>
+            <div className="flex flex-col">
                 <div className="flex-shrink-0">
                     <Separator className="w-full bg-flash/10" />
-                    <div className="flex justify-between p-6 mt-2 text-flash/50">
-                        <div className="w-64 text-2xl">
+                    <div className="flex flex-col md:flex-row justify-between p-4 md:p-6 mt-2 text-flash/50 gap-6 md:gap-0">
+                        <div className="text-xl md:text-2xl md:w-64">
                             The future of Improvement
                         </div>
-                        <div className="flex justify-between gap-24">
+                        <div className="grid grid-cols-3 gap-6 md:flex md:justify-between md:gap-24">
                             <div className="flex flex-col text-sm gap-2">
                                 <span className="text-flash/20 ">
                                     PARTNERS
@@ -74,7 +74,7 @@ export function Footer({ className = "" }: FooterProps) {
                             <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
                         </svg>
                     </ul>
-                    <span className="text-xs w-[70%] text-flash/50 text-center">
+                    <span className="text-xs w-[90%] md:w-[70%] text-flash/50 text-center">
                         © 2025 loldata.cc is not affiliated with or endorsed by Riot Games. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. All game content is © Riot Games, Inc.
                     </span>
                 </div>

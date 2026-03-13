@@ -6,7 +6,7 @@ import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { LiveViewer } from "@/components/liveviewer"
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronUp, RotateCw, Search, BarChart3, Flag, SlidersHorizontal, X } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
@@ -41,6 +41,10 @@ import { API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
 import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
+import { useDisableMatchGrouping } from "@/hooks/useDisableMatchGrouping"
+import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
+import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
+import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { AnimatedTabsList } from "@/components/animated-tabs-list";
@@ -111,6 +115,10 @@ function formatPlayedTime(totalSeconds: number) {
 export default function SummonerPage() {
   const { disabled: techBgDisabled } = useDisableTechBackground()
   const { disabled: matchTransitionDisabled } = useDisableMatchTransition()
+  const { disabled: matchGroupingDisabled } = useDisableMatchGrouping()
+  const { enabled: coloredMatchBg } = useEnableColoredMatchBg()
+  const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
+  const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
   const [enteringMatchId, setEnteringMatchId] = useState<string | null>(null)
@@ -130,16 +138,16 @@ export default function SummonerPage() {
   async function fetchAnalysis(matchId: string) {
     const entry = analysisMap[matchId];
 
-    // Already fetched â" just toggle open/closed
+    // Already fetched — just toggle open/closed
     if (entry && !entry.loading) {
       setAnalysisMap(prev => ({ ...prev, [matchId]: { ...prev[matchId], open: !prev[matchId].open } }));
       return;
     }
 
-    // Currently loading â" do nothing
+    // Currently loading — do nothing
     if (entry?.loading) return;
 
-    // First time â" fetch and open
+    // First time — fetch and open
     setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: true, data: null, open: true } }));
     try {
       const res = await fetch(`${API_BASE_URL}/api/match/analysis`, {
@@ -164,6 +172,9 @@ export default function SummonerPage() {
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
   const [summonerInfo, setSummonerInfo] = useState<SummonerWithAvatar | null>(null)
   const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
+  const [selectedResult, setSelectedResult] = useState<"all" | "wins" | "losses">("all")
+  const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  const [filterDuoPuuid, setFilterDuoPuuid] = useState<string | null>(null)
   const [allChampions, setAllChampions] = useState<{ id: string; name: string }[]>([])
   const [championMap, setChampionMap] = useState<Record<number, string>>({});
   const [championMapReverse, setChampionMapReverse] = useState<Record<string, number>>({});
@@ -171,13 +182,19 @@ export default function SummonerPage() {
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
   const [seasonStatsTab, setSeasonStatsTab] = useState("season");
+  const [rankQueueView, setRankQueueView] = useState<"solo" | "flex">("solo");
   const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [matchesCentered, setMatchesCentered] = useState(false);
   const [showAllDuos, setShowAllDuos] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
 
   const [linkedDiscord, setLinkedDiscord] = useState<{
     discord_username: string | null;
@@ -339,7 +356,6 @@ export default function SummonerPage() {
   const filteredMatches = matches.filter((m) => {
     const matchQueueId = m.match.info.queueId;
 
-    // Niente filtro queue quando Ã¨ "All"
     const isCorrectQueue =
       selectedQueue === "All"
         ? true
@@ -347,7 +363,27 @@ export default function SummonerPage() {
 
     const isCorrectChampion = selectedChampion ? m.championName === selectedChampion : true;
 
-    return isCorrectQueue && isCorrectChampion;
+    const isCorrectResult =
+      selectedResult === "all"
+        ? true
+        : selectedResult === "wins" ? m.win : !m.win;
+
+    const isCorrectRole =
+      !selectedRole
+        ? true
+        : (() => {
+            const pos = (m.match.info.participants ?? []).find(
+              (p: any) => p.puuid === summonerInfo?.puuid
+            )?.teamPosition?.toUpperCase();
+            return pos === selectedRole;
+          })();
+
+    const isCorrectDuo =
+      !filterDuoPuuid
+        ? true
+        : m.match.info.participants.some((p: any) => p.puuid === filterDuoPuuid);
+
+    return isCorrectQueue && isCorrectChampion && isCorrectResult && isCorrectRole && isCorrectDuo;
   });
 
   const loadMore = useCallback(async () => {
@@ -410,13 +446,13 @@ export default function SummonerPage() {
   const githubWeeks = useMemo(() => {
     if (!monthlyDayStats.length) return [];
 
-    // parto dal primo giorno del mese (lo hai giÃ  calcolato cosÃ¬ in monthlyDayStats)
+    // parto dal primo giorno del mese (lo hai già calcolato così in monthlyDayStats)
     const first = monthlyDayStats[0].date;
     const year = first.getFullYear();
     const month = first.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    // 0 = lunedÃ¬, 6 = domenica (cosÃ¬ hai le righe tipo "lunâ"dom")
+    // 0 = lunedì, 6 = domenica (così hai le righe tipo "lun-dom")
     const weekdayOfFirst = (firstDay.getDay() + 6) % 7;
 
     const cells: (DayWinrateCell | null)[] = [];
@@ -497,7 +533,7 @@ export default function SummonerPage() {
       });
     });
 
-    // trasformiamo in array, filtriamo solo chi ha piÃ¹ di 1 game
+    // trasformiamo in array, filtriamo solo chi ha più di 1 game
     return Object.entries(duosMap)
       .filter(([_, data]) => data.games > 1)
       .map(([puuid, data]) => ({
@@ -506,7 +542,7 @@ export default function SummonerPage() {
         losses: data.games - data.wins,
         winrate: Math.round((data.wins / data.games) * 100),
       }))
-      .sort((a, b) => b.games - a.games); // ordina per piÃ¹ partite giocate insieme
+      .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
   }, [matches, summonerInfo]);
 
 
@@ -562,13 +598,25 @@ export default function SummonerPage() {
       if (items.length >= 13) {
         const thirteenth = items[12] as HTMLElement; // 0-based index
         const rect = thirteenth.getBoundingClientRect();
-        // se il top dellâelemento Ã¨ sopra la viewport, vuol dire che lâabbiamo superato
+        // se il top dell—elemento è sopra la viewport, vuol dire che l—abbiamo superato
         setShowScrollTop(rect.top < 0);
+      }
+      if (matchCenteringEnabled) {
+        const matchItems = listRef.current.querySelectorAll(":scope > section > ul > li");
+        if (matchItems.length >= 12) {
+          const target = matchItems[11] as HTMLElement;
+          const rectTarget = target.getBoundingClientRect();
+          setMatchesCentered(rectTarget.top + (rectTarget.height * 0.25) < 0);
+        } else {
+          setMatchesCentered(false);
+        }
+      } else {
+        setMatchesCentered(false);
       }
     }
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [matchCenteringEnabled]);
 
   useEffect(() => {
     setNextOffset(0);
@@ -738,10 +786,35 @@ export default function SummonerPage() {
     // riesegui quando cambia la dimensione della lista o lo stato di loading/hasMore
   }, [loadMore, filteredMatches.length, hasMore, loading]);
 
+  // ── Context menu dismiss ──
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const dismiss = () => setCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("click", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [ctxMenu]);
+
+  // ── Global context menu override ──
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      e.preventDefault();
+      setCtxMenu({ x: e.clientX, y: e.clientY });
+    };
+    document.addEventListener("contextmenu", handler);
+    return () => document.removeEventListener("contextmenu", handler);
+  }, []);
+
   async function refreshData() {
 
     if (!region) {
-      console.error("â Region mancante in refreshData")
+      console.error("— Region mancante in refreshData")
       return
     }
 
@@ -754,6 +827,11 @@ export default function SummonerPage() {
     setHasMore(true);
     setNextOffset(0);
     setIsLoadingMore(false);
+    setSelectedChampion(null);
+    setSelectedQueue("All" as QueueType);
+    setSelectedResult("all");
+    setSelectedRole(null);
+    setRankQueueView("solo");
 
     try {
       const found = await fetchSummonerInfo(name, tag, region)
@@ -762,7 +840,7 @@ export default function SummonerPage() {
         navigate("/404", {
           state: {
             message: "Summoner not found",
-            subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
+            subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
           },
           replace: true,
         })
@@ -786,11 +864,11 @@ export default function SummonerPage() {
         //.then(data => setViews(data.views))
         .catch(console.error)
     } catch (err) {
-      console.error("â Error loading summoner data:", err)
+      console.error("— Error loading summoner data:", err)
       navigate("/404", {
         state: {
           message: "Summoner not found",
-          subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
+          subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
         },
         replace: true,
       })
@@ -914,7 +992,7 @@ export default function SummonerPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(row);
     }
-    return map; // mantiene lâordine dâinserimento
+    return map; // mantiene l—ordine d—inserimento
   }, [filteredMatches]);
 
 
@@ -952,7 +1030,7 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* Center KDA column â" visible only at xl+ */}
+              {/* Center KDA column — visible only at xl+ */}
               <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
                 <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
                 <div>
@@ -963,7 +1041,7 @@ export default function SummonerPage() {
               </div>
 
               <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
-                {/* KDA with tooltip â" visible only below xl */}
+                {/* KDA with tooltip — visible only below xl */}
                 <div className="xl:hidden">
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -977,7 +1055,7 @@ export default function SummonerPage() {
                   </TooltipProvider>
                 </div>
 
-                {/* Winrate with tooltip for matches â" visible below xl */}
+                {/* Winrate with tooltip for matches — visible below xl */}
                 <div className="xl:hidden">
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -991,7 +1069,7 @@ export default function SummonerPage() {
                   </TooltipProvider>
                 </div>
 
-                {/* Winrate + matches text â" visible at xl+ */}
+                {/* Winrate + matches text — visible at xl+ */}
                 <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
                 <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
               </div>
@@ -1005,8 +1083,53 @@ export default function SummonerPage() {
   return (
     <div className="relative z-0">
       {!techBgDisabled && <UltraTechBackground />}
+
+      {(selectedQueue !== "All" || selectedChampion || selectedResult !== "all" || selectedRole || filterDuoPuuid) && (
+        <div
+          className={cn(
+            "fixed right-10 z-50 flex flex-col items-center gap-2 transition-all duration-300 w-11",
+            showScrollTop ? "bottom-[7.5rem]" : "bottom-10"
+          )}
+        >
+          <button
+            onClick={() => {
+              setSelectedQueue("All");
+              setSelectedChampion(null);
+              setSelectedResult("all");
+              setSelectedRole(null);
+              setFilterDuoPuuid(null);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="group relative w-11 h-11 cursor-clicker"
+          >
+            <span className={cn(
+              "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
+              "bg-black/60 border-[#c93232]/40",
+              "group-hover:border-[#c93232]/80 group-hover:bg-[#c93232]/10",
+              "group-hover:shadow-[0_0_18px_rgba(201,50,50,0.35),inset_0_0_8px_rgba(201,50,50,0.08)]",
+              "shadow-[0_0_8px_rgba(201,50,50,0.15)]"
+            )}>
+              <span
+                className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
+                style={{
+                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(201,50,50,0.5) 3px, rgba(201,50,50,0.5) 4px)"
+                }}
+              />
+            </span>
+            <span className="absolute inset-0 flex items-center justify-center">
+              <X className="w-3.5 h-3.5 text-[#c93232] transition-transform duration-300 group-hover:scale-110" />
+            </span>
+          </button>
+          <span className="font-mono text-[8px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none">
+            Remove Filter
+          </span>
+        </div>
+      )}
       <div className="relative flex min-h-screen -mt-4 z-10">
-        <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
+        <div
+          className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center transition-opacity duration-700 ease-in-out"
+          style={{ opacity: matchesCentered ? 0 : 1 }}
+        >
           <div
             className={cn(
               "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
@@ -1074,7 +1197,7 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* â"â" PERFORMANCE OVERVIEW â"â" */}
+              {/* ———— PERFORMANCE OVERVIEW ———— */}
               {!recentDetailedStats && (
                 <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
                   <div className="flex items-start gap-1">
@@ -1129,7 +1252,7 @@ export default function SummonerPage() {
                   <div className="px-3 pt-2 pb-4 font-jetbrains">
                     <div className="flex items-start gap-1">
 
-                      {/* Radar chart â" left */}
+                      {/* Radar chart — left */}
                       <TooltipProvider delayDuration={0}>
                         <div className="shrink-0 -ml-2 relative">
                           <svg width="190" height="190" viewBox="0 0 220 220">
@@ -1184,7 +1307,7 @@ export default function SummonerPage() {
                         </div>
                       </TooltipProvider>
 
-                      {/* Stats panel â" right */}
+                      {/* Stats panel — right */}
                       <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
                         {[
                           { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
@@ -1236,6 +1359,7 @@ export default function SummonerPage() {
 
 
           <div
+            id="season-stats"
             className={cn(
               "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
               "bg-black/25 backdrop-blur-lg saturate-150",
@@ -1261,25 +1385,27 @@ export default function SummonerPage() {
               >
                 <nav className="flex flex-col min-h-[400px]">
                   <div className="px-3 pt-3">
-                    <TabsList className="flex justify-center w-[90%] mx-auto bg-transparent h-auto p-0 gap-6 border-b border-white/8">
-                      <TabsTrigger
-                        value="season"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Season
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="solo"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Solo/Duo
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="flex"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Flex
-                      </TabsTrigger>
+                    <TabsList className="flex justify-center w-[90%] mx-auto bg-transparent h-auto p-0 gap-5 border-b border-flash/[0.06]">
+                      {([
+                        { value: "season", label: "Season" },
+                        { value: "solo", label: "Solo/Duo" },
+                        { value: "flex", label: "Flex" },
+                      ] as const).map((tab) => (
+                        <TabsTrigger
+                          key={tab.value}
+                          value={tab.value}
+                          className={cn(
+                            "group relative font-mono text-[10px] tracking-[0.2em] uppercase px-1 py-2.5 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker",
+                            "text-flash/30 hover:text-flash/50",
+                            "data-[state=active]:text-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          )}
+                        >
+                          <span className="hidden group-data-[state=active]:inline text-jade/40 mr-0.5">[</span>
+                          {tab.label}
+                          <span className="hidden group-data-[state=active]:inline text-jade/40 ml-0.5">]</span>
+                          <span className="absolute bottom-0 left-0 right-0 h-px bg-jade/60 scale-x-0 group-data-[state=active]:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_6px_rgba(0,217,146,0.3)]" />
+                        </TabsTrigger>
+                      ))}
                     </TabsList>
                   </div>
 
@@ -1390,9 +1516,9 @@ export default function SummonerPage() {
 
                           // Celle con partite: calcolo colore
                           const rawT = cell.winrate / 100;
-                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensitÃ 
+                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensità
 
-                          // base leggermente piÃ¹ chiara (verde molto scuro ma leggibile)
+                          // base leggermente più chiara (verde molto scuro ma leggibile)
                           const start = { r: 0x0C, g: 0x40, b: 0x32 }; // #0C4032
                           const end = { r: 0x00, g: 0xD9, b: 0x92 };   // jade
 
@@ -1503,7 +1629,7 @@ export default function SummonerPage() {
                 <div className="px-4 pb-2 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.07]">
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest">#</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest uppercase">Player</span>
-                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W â" L</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W ◆ L</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">WR</span>
                 </div>
 
@@ -1511,7 +1637,13 @@ export default function SummonerPage() {
                 {visibleDuos.map((duo, i) => (
                   <div
                     key={duo.puuid}
-                    className="px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] hover:bg-white/[0.02] transition-colors"
+                    onClick={() => setFilterDuoPuuid(duo.puuid === filterDuoPuuid ? null : duo.puuid)}
+                    className={cn(
+                      "px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] transition-colors cursor-clicker",
+                      filterDuoPuuid === duo.puuid
+                        ? "bg-jade/10 border-jade/20"
+                        : "hover:bg-white/[0.02]"
+                    )}
                   >
                     {/* Rank */}
                     <span className="text-[10px] font-mono text-flash/30 leading-none tabular-nums">
@@ -1528,26 +1660,28 @@ export default function SummonerPage() {
                         />
                       )}
                       {duo.riotId.includes("#") ? (
-                        <PlayerHoverCard
-                          riotId={duo.riotId}
-                          region={region!}
-                          championId={duo.lastChampionName ? championMapReverse[duo.lastChampionName] : undefined}
-                          profileIconId={duo.profileIconId ?? undefined}
-                          patch={latestPatch}
-                          isCurrentUser={duo.puuid === summonerInfo?.puuid}
-                          championMap={championMap}
-                        >
-                          <span className="truncate text-flash/85 text-xs cursor-clicker">{duo.riotId}</span>
-                        </PlayerHoverCard>
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <PlayerHoverCard
+                            riotId={duo.riotId}
+                            region={region!}
+                            championId={duo.lastChampionName ? championMapReverse[duo.lastChampionName] : undefined}
+                            profileIconId={duo.profileIconId ?? undefined}
+                            patch={latestPatch}
+                            isCurrentUser={duo.puuid === summonerInfo?.puuid}
+                            championMap={championMap}
+                          >
+                            <span className="truncate text-flash/85 text-xs cursor-clicker">{duo.riotId}</span>
+                          </PlayerHoverCard>
+                        </span>
                       ) : (
                         <span className="truncate text-flash/85 text-xs">{duo.riotId}</span>
                       )}
                     </div>
 
-                    {/* W â" L */}
+                    {/* W ◆ L */}
                     <div className="flex items-center justify-end gap-1 font-mono text-xs tabular-nums">
                       <span className="text-jade">{duo.wins}W</span>
-                      <span className="text-flash/30">Â·</span>
+                      <span className="text-flash/30">·</span>
                       <span className="text-[#b11315]">{duo.losses}L</span>
                     </div>
 
@@ -1571,9 +1705,14 @@ export default function SummonerPage() {
                   <button
                     type="button"
                     onClick={() => setShowAllDuos(v => !v)}
-                    className="w-full py-2.5 text-[10px] font-mono text-flash/30 hover:text-flash/55 tracking-[0.2em] uppercase transition-colors cursor-clicker"
+                    className="group w-full py-2.5 text-[10px] font-mono text-flash/25 hover:text-jade/60 tracking-[0.25em] uppercase transition-all duration-300 cursor-clicker flex items-center justify-center gap-2"
                   >
-                    {showAllDuos ? 'â² collapse' : `â¼ ${duoStats.length - 3} more`}
+                    <span className="h-px flex-1 max-w-[3rem] bg-flash/[0.06] group-hover:bg-jade/20 transition-colors" />
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-jade/40 group-hover:text-jade/70 transition-colors">{showAllDuos ? '[-]' : '[+]'}</span>
+                      {showAllDuos ? 'collapse' : `${duoStats.length - 3} more`}
+                    </span>
+                    <span className="h-px flex-1 max-w-[3rem] bg-flash/[0.06] group-hover:bg-jade/20 transition-colors" />
                   </button>
                 )}
               </div>
@@ -1583,71 +1722,72 @@ export default function SummonerPage() {
 
         </div>
 
-        <div className="w-4/5">
+        <div
+          className="w-full transition-transform duration-700 ease-in-out"
+          style={{
+            transform: matchesCentered ? "translateX(-20%)" : "translateX(0)",
+          }}
+        >
 
           <div className="flex justify-between items-start mt-4 w-full min-w-full max-w-full">
             {/* SEZIONE SINISTRA: nuove icone */}
-            <div className="flex flex-col items-center gap-1">
-              <span>CURRENT RANK</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
-
-                <img
-                  src={
-                    !summonerInfo?.rank || summonerInfo.rank.toLowerCase() === "unranked"
-                      ? "/img/unranked.png"
-                      : getRankImage(summonerInfo.rank)
-                  }
-                  alt="Rank icon"
-                  className="w-32 h-32 z-10 relative"
-                  draggable={false}
-                  onError={(e) => {
-                    e.currentTarget.src = "/img/unranked.png";
-                  }}
-                />
-
-
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#BFC5C6]"> {summonerInfo?.rank} </span>
-                {summonerInfo?.rank &&
-                  summonerInfo.rank.toLowerCase() !== "unranked" && (
-                    <span className="text-[#5B5555]">{summonerInfo.lp} LP</span>
-                  )}
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[#E3E3E3]">HIGHEST RANK</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                {/* Cerchio dietro */}
-                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
-
-                {/* Immagine sopra */}
-                <img
-                  src={
-                    !summonerInfo?.peakRank || summonerInfo.peakRank?.toLowerCase() === "unranked"
-                      ? "/img/unranked.png"
-                      : getRankImage(summonerInfo.peakRank)
-                  }
-                  alt="Highest Rank icon"
-                  className="w-32 h-32 z-10 relative"
-                  draggable={false}
-                  onError={(e) => {
-                    e.currentTarget.src = "/img/unranked.png";
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#BFC5C6]">{summonerInfo?.peakRank}</span>
-                {summonerInfo?.rank &&
-                  summonerInfo.rank.toLowerCase() !== "unranked" && (
-                    <span className="text-[#5B5555]">{summonerInfo.peakLp} LP</span>
-                  )}
-              </div>
-            </div>
-            <div className="flex items-end justify-end"
-
-            >
+            {(() => {
+              const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
+              const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
+              const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
+              const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
+              return (
+                <>
+                  <div className="flex flex-col items-center gap-1 min-w-[200px]">
+                    <span>CURRENT RANK</span>
+                    <div className="relative w-32 h-32 flex items-center justify-center">
+                      <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                      <img
+                        src={
+                          !currentRank || currentRank.toLowerCase() === "unranked"
+                            ? "/img/unranked.png"
+                            : getRankImage(currentRank)
+                        }
+                        alt="Rank icon"
+                        className="w-32 h-32 z-10 relative"
+                        draggable={false}
+                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
+                      <span className="text-[#BFC5C6]">{currentRank}</span>
+                      {currentRank && currentRank.toLowerCase() !== "unranked" && (
+                        <span className="text-[#5B5555]">{currentLp} LP</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 min-w-[200px]">
+                    <span className="text-[#E3E3E3]">HIGHEST RANK</span>
+                    <div className="relative w-32 h-32 flex items-center justify-center">
+                      <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                      <img
+                        src={
+                          !peakRank || peakRank.toLowerCase() === "unranked"
+                            ? "/img/unranked.png"
+                            : getRankImage(peakRank)
+                        }
+                        alt="Highest Rank icon"
+                        className="w-32 h-32 z-10 relative"
+                        draggable={false}
+                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
+                      <span className="text-[#BFC5C6]">{peakRank}</span>
+                      {peakRank && peakRank.toLowerCase() !== "unranked" && (
+                        <span className="text-[#5B5555]">{peakLp} LP</span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+            <div className="flex items-end justify-end">
 
               <div className="relative z-10 flex justify-end items-center">
                 {/* LATO TESTO */}
@@ -1755,6 +1895,8 @@ export default function SummonerPage() {
                           puuid={summonerInfo.puuid}
                           region={region}
                           summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                          externalOpen={analyzeOpen}
+                          onExternalOpenChange={setAnalyzeOpen}
                         />
                       )}
 
@@ -1769,7 +1911,7 @@ export default function SummonerPage() {
                 </div>
 
                 {/* LATO AVATAR */}
-                <div className="relative w-32 h-32">
+                <div className="relative w-36 h-36">
                   <img
                     src={
                       summonerInfo?.avatar_url
@@ -1799,73 +1941,140 @@ export default function SummonerPage() {
 
           </div>
 
-          <div className="max-w-4xl mx-auto mt-4">
-            <nav
-              className={cn(
-                "relative w-full h-8 px-8 rounded-md text-flash font-jetbrains overflow-hidden",
-                // vetro scuro puro
-                "bg-black/20 backdrop-blur-lg saturate-150",
-                // edge ultra sottile solo via shadow
-                "shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-              )}
-            >
-              <div className="relative z-10 flex items-center h-full justify-between">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin cursor-clicker">
-                    <span className="text-sm tracking-wide cursor-clicker">
-                      {selectedQueue === "All" ? "ALL QUEUES" : selectedQueue.toUpperCase()}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
+          <div className="w-full mt-4">
+            {/* ── Unified filter row ── */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Queue — dropdown (many options) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    "font-mono text-[11px] tracking-[0.12em] uppercase px-4 py-2 rounded-sm transition-all duration-300 cursor-clicker flex items-center gap-1.5",
+                    "border",
+                    selectedQueue !== "All"
+                      ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                      : "text-flash/30 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20",
+                  )}
+                >
+                  {selectedQueue === "All" ? "Queue" : selectedQueue === "Ranked Solo/Duo" ? "Solo/Duo" : "Flex"}
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 text-sm bg-black/60 backdrop-blur-xl border-white/10">
+                  {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
+                    <DropdownMenuItem
+                      key={queue}
+                      onClick={() => setSelectedQueue(queue)}
+                      className={cn(
+                        "cursor-clicker uppercase font-mono text-[11px] tracking-[0.1em]",
+                        selectedQueue === queue ? "text-jade font-semibold" : "text-flash/50"
+                      )}
+                    >
+                      {queue}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-48 text-sm bg-black/40 backdrop-blur-lg border-white/10"
-                  >
-                    {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
-                      <DropdownMenuItem
-                        key={queue}
-                        onClick={() => setSelectedQueue(queue)}
-                        className={cn(
-                          "cursor-clicker uppercase font-jetbrains",
-                          selectedQueue === queue ? "text-jade font-semibold" : "text-flash/70"
-                        )}
-                      >
-                        {queue}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <div className="space-x-2 flex items-center">
-                  <ChampionPicker
-                    champions={allChampions}
-                    onSelect={(champName) => setSelectedChampion(champName)}
-                  />
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </DropdownMenu>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </DropdownMenu>
+              {/* Champion — dialog picker */}
+              <div
+                className={cn(
+                  "font-mono text-[11px] tracking-[0.12em] uppercase px-4 rounded-sm transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[34px]",
+                  "border",
+                  selectedChampion
+                    ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                    : "text-flash/30 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20",
+                )}
+              >
+                <ChampionPicker
+                  champions={allChampions}
+                  selectedChampion={selectedChampion}
+                  onSelect={(champName) => setSelectedChampion(champName)}
+                  triggerClassName="!text-[11px] !tracking-[0.12em] !font-mono"
+                />
               </div>
-            </nav>
+
+              {/* Role — segmented buttons */}
+              <div className="flex items-center gap-0">
+                {([
+                  { value: null, label: "Role" },
+                  { value: "TOP", label: "Top" },
+                  { value: "JUNGLE", label: "Jng" },
+                  { value: "MIDDLE", label: "Mid" },
+                  { value: "BOTTOM", label: "Adc" },
+                  { value: "UTILITY", label: "Sup" },
+                ] as { value: string | null; label: string }[]).map((role, i, arr) => (
+                  <button
+                    key={role.label}
+                    type="button"
+                    onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
+                    className={cn(
+                      "font-mono text-[11px] tracking-[0.12em] uppercase px-3.5 py-2 transition-all duration-300 cursor-clicker",
+                      "border border-flash/[0.08] hover:border-flash/[0.15]",
+                      i === 0 && "rounded-l-sm",
+                      i === arr.length - 1 && "rounded-r-sm",
+                      i > 0 && "border-l-0",
+                      (role.value === null ? selectedRole === null : selectedRole === role.value)
+                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                    )}
+                  >
+                    {role.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Result — segmented buttons */}
+              <div className="flex items-center gap-0">
+                {([
+                  { value: "all" as const, label: "All" },
+                  { value: "wins" as const, label: "W" },
+                  { value: "losses" as const, label: "L" },
+                ]).map((opt, i, arr) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSelectedResult(opt.value)}
+                    className={cn(
+                      "font-mono text-[11px] tracking-[0.12em] uppercase px-3.5 py-2 transition-all duration-300 cursor-clicker",
+                      "border border-flash/[0.08] hover:border-flash/[0.15]",
+                      i === 0 && "rounded-l-sm",
+                      i === arr.length - 1 && "rounded-r-sm",
+                      i > 0 && "border-l-0",
+                      selectedResult === opt.value
+                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Rank queue toggle */}
+              <div className="flex items-center gap-0">
+                {(["solo", "flex"] as const).map((mode, i, arr) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setRankQueueView(mode)}
+                    className={cn(
+                      "font-mono text-[11px] tracking-[0.12em] uppercase min-w-[56px] text-center px-3.5 py-2 transition-all duration-300 cursor-clicker",
+                      "border border-flash/[0.08] hover:border-flash/[0.15]",
+                      i === 0 && "rounded-l-sm",
+                      i === arr.length - 1 && "rounded-r-sm",
+                      i > 0 && "border-l-0",
+                      rankQueueView === mode
+                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                    )}
+                  >
+                    {mode === "solo" ? "Solo" : "Flex"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
 
             {loading ? (
@@ -1896,7 +2105,10 @@ export default function SummonerPage() {
               <Error404 />
             ) : (
               <div ref={listRef} className="space-y-1 mt-4">
-                {[...groupedByDay.entries()].map(([dayKey, rows]) => {
+                {(matchGroupingDisabled
+                  ? [["all", filteredMatches] as const]
+                  : [...groupedByDay.entries()]
+                ).map(([dayKey, rows]) => {
                   const wins = rows.filter(r => r.win).length;
                   const losses = rows.length - wins;
                   const wr = rows.length > 0 ? Math.round((wins / rows.length) * 100) : 0;
@@ -1906,6 +2118,7 @@ export default function SummonerPage() {
                   return (
                     <section key={dayKey} className="space-y-1">
                       {/* HEADER DEL GIORNO */}
+                      {!matchGroupingDisabled && (
                       <div className="flex items-center justify-between px-4 py-2 rounded-md mt-2 text-xs font-thin" >
                         <div className="uppercase text-flash/80 tracking-wide">
                           {dayLabelFromKey(dayKey)}
@@ -1918,6 +2131,7 @@ export default function SummonerPage() {
                           <span className="text-flash/70 uppercase">{playedLabel}</span>
                         </div>
                       </div>
+                      )}
 
                       {/* LISTA MATCH DI QUEL GIORNO */}
                       <ul className="space-y-3">
@@ -1964,9 +2178,17 @@ export default function SummonerPage() {
                               key={match.metadata.matchId}
                               className={cn(
                                 "relative overflow-hidden rounded-md p-2 text-flash transition",
-                                "bg-black/18 backdrop-blur-lg saturate-150",
+                                coloredMatchBg
+                                  ? win
+                                    ? "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
+                                    : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+                                  : "bg-black/18 backdrop-blur-lg saturate-150",
                                 "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
-                                "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                coloredMatchBg
+                                  ? win
+                                    ? "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                    : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                  : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                               )}
                             >
                               <div
@@ -1982,7 +2204,7 @@ export default function SummonerPage() {
                                 <div className="w-[95%]">
 
 
-                                  {isSelfMvpOrAce && (
+                                  {isSelfMvpOrAce && !coloredMatchBg && (
                                     <div
                                       className="absolute inset-0 z-0 mvpAceGlow"
                                       style={{ ['--glow-blue' as any]: '#0058ff', ['--glow-mint' as any]: '#9fffc3' }}
@@ -1990,7 +2212,8 @@ export default function SummonerPage() {
                                   )}
 
 
-                                  {/* â BORDO COLORATO */}
+
+                                  {/* — BORDO COLORATO */}
                                   <div
                                     className={cn(
                                       "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
@@ -2000,7 +2223,7 @@ export default function SummonerPage() {
                                     )}
                                   />
 
-                                  {/* â CONTENUTO INTERNO */}
+                                  {/* — CONTENUTO INTERNO */}
                                   <div className="relative z-10 ml-2">
                                     <div className="ml-2">
                                       <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
@@ -2015,6 +2238,17 @@ export default function SummonerPage() {
                                           >
                                             {win ? "WIN" : "LOSS"}
                                           </span>
+
+                                          {isSelfMvpOrAce && coloredMatchBg && (
+                                            <span className={cn(
+                                              "text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
+                                              summonerInfo?.puuid === mvpWin
+                                                ? "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10"
+                                                : "text-[#ff6b6b] border-[#ff6b6b]/25 bg-[#ff6b6b]/10"
+                                            )}>
+                                              {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
+                                            </span>
+                                          )}
 
                                         </span>
 
@@ -2304,7 +2538,7 @@ export default function SummonerPage() {
                                         </div>
                                       </div>
 
-                                      {/* BADGE STRIP â" only visible when analysis is open */}
+                                      {/* BADGE STRIP — only visible when analysis is open */}
                                       {isJungler && analysisEntry?.open && (
                                         <div className="mt-1.5 pt-1.5 border-t border-flash/[0.07] flex items-center gap-3">
                                           <span className="text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase shrink-0">Analysis</span>
@@ -2345,7 +2579,7 @@ export default function SummonerPage() {
                                           : "bg-black/20 border-flash/10 text-flash/25 hover:border-flash/25 hover:text-flash/50 hover:bg-black/30"
                                       )}
                                     >
-                                      <span className="text-xs leading-none pointer-events-none">â</span>
+                                      <span className="text-xs leading-none pointer-events-none">◈</span>
                                       <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">SCAN</span>
                                     </button>
                                   )}
@@ -2379,7 +2613,7 @@ export default function SummonerPage() {
 
           </div>
         </div>
-        {/* â"â" CYBER MATCH TRANSITION OVERLAY â"â" */}
+        {/* ———— CYBER MATCH TRANSITION OVERLAY ———— */}
         <style>{`
           @keyframes cyberGlitch {
             0%,100% { transform: translate(0) skewX(0deg); opacity: 1; }
@@ -2423,7 +2657,7 @@ export default function SummonerPage() {
                 transition={{ duration: 0.1 }}
               />
 
-              {/* Horizontal scan lines â" staggered sweep */}
+              {/* Horizontal scan lines — staggered sweep */}
               {Array.from({ length: 18 }).map((_, i) => (
                 <motion.div
                   key={i}
@@ -2486,13 +2720,13 @@ export default function SummonerPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.2, delay: 0.15 }}
               >
-                {/* â icon */}
+                {/* ◈ icon */}
                 <motion.div
                   className="text-jade text-4xl font-mono cyber-flicker"
                   animate={{ rotate: [0, 180, 360] }}
                   transition={{ duration: 0.9, ease: 'easeInOut' }}
                 >
-                  â
+                  ◈
                 </motion.div>
 
                 {/* Title */}
@@ -2563,7 +2797,7 @@ export default function SummonerPage() {
               />
             </span>
 
-            {/* Inner content â" counter-rotated to stay upright */}
+            {/* Inner content — counter-rotated to stay upright */}
             <span className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
               {/* Up chevron */}
               <svg
@@ -2587,6 +2821,242 @@ export default function SummonerPage() {
         </div>
 
       </div>
+
+      {/* ── Custom Context Menu ── */}
+      <AnimatePresence>
+        {ctxMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="fixed z-50"
+            style={{
+              top: ctxMenu.y + 200 > window.innerHeight ? ctxMenu.y - 180 : ctxMenu.y,
+              left: ctxMenu.x + 200 > window.innerWidth ? ctxMenu.x - 200 : ctxMenu.x,
+            }}
+          >
+            <div
+              className={cn(
+                "min-w-[200px] py-1.5 rounded-sm overflow-hidden",
+                "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
+                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              {/* Header accent */}
+              <div className="px-3 pt-1.5 pb-2 border-b border-flash/[0.06] mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade rounded-full" />
+                  <span className="font-mono text-[9px] tracking-[0.2em] text-jade/50 uppercase">
+                    {summonerInfo?.name ?? name ?? "Player"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Section 1: Actions */}
+              {([
+                { icon: RotateCw, label: "Update Page", action: () => { refreshData(); }, disabled: loading || onCooldown },
+                { icon: Search, label: "Analyze Player", action: () => setAnalyzeOpen(true) },
+                { icon: BarChart3, label: "Season Stats", action: () => navigate(`/summoners/${region}/${name}-${tag}/season`) },
+              ] as { icon: any; label: string; action: () => void; disabled?: boolean }[]).map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={(e) => { e.stopPropagation(); setCtxMenu(null); item.action(); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 transition-all duration-150",
+                    "font-mono text-[11px] tracking-[0.12em] uppercase",
+                    item.disabled
+                      ? "text-flash/15 cursor-not-allowed"
+                      : "text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker",
+                  )}
+                >
+                  <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              {/* Section: Change Visualization (logged-in only) */}
+              {authSession && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      navigate("/dashboard/preferences?highlight=summoner-page");
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Change Visualization</span>
+                  </button>
+                </>
+              )}
+
+              {/* Section 2: Copy IDs */}
+              {(linkedDiscord?.discord_username || summonerInfo?.name) && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  {/* Copy Riot ID */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      const riotId = `${summonerInfo?.name ?? name}#${summonerInfo?.tag ?? tag}`;
+                      navigator.clipboard.writeText(riotId);
+                      showCyberToast("Riot ID copied", "success");
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                      <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z" />
+                    </svg>
+                    <span>Copy Riot ID</span>
+                  </button>
+                  {/* Copy Discord */}
+                  {linkedDiscord?.discord_username && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCtxMenu(null);
+                        navigator.clipboard.writeText(linkedDiscord.discord_username!);
+                        showCyberToast("Discord ID copied", "success");
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                        <path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612" />
+                      </svg>
+                      <span>Copy Discord</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Section 3: Report */}
+              {premiumPlan && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      setReportReason(null);
+                      setShowReportModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-red-400 hover:bg-red-500/[0.06] cursor-clicker"
+                  >
+                    <Flag className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Report Player</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Report Player Modal ── */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            onClick={() => setShowReportModal(false)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 12 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "relative z-10 w-[380px] rounded-sm overflow-hidden",
+                "bg-[#060d10]/95 backdrop-blur-xl",
+                "border border-flash/[0.10]",
+                "shadow-[0_20px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              {/* Header */}
+              <div className="px-5 pt-4 pb-3 border-b border-flash/[0.06]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-red-500 rounded-full" />
+                  <span className="font-mono text-[10px] tracking-[0.2em] text-flash/50 uppercase">
+                    Report Player
+                  </span>
+                </div>
+                <p className="font-mono text-[10px] text-flash/25 mt-2 tracking-wide">
+                  Select a reason for reporting{" "}
+                  <span className="text-jade/60">{summonerInfo?.name ?? name}</span>
+                </p>
+              </div>
+
+              {/* Reason options */}
+              <div className="px-5 py-4 flex flex-col gap-2">
+                {["Inappropriate Profile Picture", "Inappropriate Username", "Impersonation", "Other"].map((reason) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setReportReason(reportReason === reason ? null : reason)}
+                    className={cn(
+                      "w-full px-3.5 py-2.5 rounded-sm text-left transition-all duration-150 cursor-clicker",
+                      "font-mono text-[11px] tracking-[0.12em] uppercase",
+                      "border",
+                      reportReason === reason
+                        ? "text-red-400 bg-red-500/[0.08] border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.08)]"
+                        : "text-flash/35 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20"
+                    )}
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 pb-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="font-mono text-[10px] tracking-[0.15em] uppercase text-flash/30 hover:text-flash/50 transition-colors cursor-clicker px-3 py-1.5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReportModal(false);
+                    showCyberToast("Report submitted", "success");
+                  }}
+                  disabled={!reportReason}
+                  className={cn(
+                    "font-mono text-[10px] tracking-[0.15em] uppercase px-4 py-2 rounded-sm transition-all duration-150 cursor-clicker",
+                    "border",
+                    reportReason
+                      ? "text-red-400 border-red-500/30 bg-red-500/[0.06] hover:bg-red-500/[0.12]"
+                      : "text-flash/15 border-flash/[0.05] bg-black/10 cursor-not-allowed"
+                  )}
+                >
+                  Submit Report
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }

@@ -8,7 +8,7 @@ import { useAuth } from "@/context/authcontext";
 const BUCKET = "avatars";
 
 export function PremiumAvatarUploader() {
-  const { session, plan, puuid } = useAuth();
+  const { session, plan, puuid, refreshProfile } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null | undefined>(undefined); // undefined = still loading
   const [uploading, setUploading] = useState(false);
   const [fileToCrop, setFileToCrop] = useState<File | null>(null);
@@ -52,6 +52,7 @@ export function PremiumAvatarUploader() {
       if (updErr) throw updErr;
 
       setAvatarUrl(publicUrl);
+      await refreshProfile();
       showCyberToast({
         title: "Avatar updated",
         description: "Your profile avatar has been changed.",
@@ -89,6 +90,7 @@ export function PremiumAvatarUploader() {
       if (updErr) throw updErr;
 
       setAvatarUrl(null);
+      await refreshProfile();
       showCyberToast({
         title: "Avatar reset",
         description: "Reverted to default avatar.",

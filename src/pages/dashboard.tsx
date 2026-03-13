@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { showCyberToast } from "@/lib/toast-utils";
 import { Separator } from "@/components/ui/separator";
 import { Navbar } from "@/components/navbar";
@@ -21,6 +22,10 @@ import { TechBackgroundPreference } from "@/components/techbackgroundpreference"
 import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
 import { AccountDeletion } from "@/components/accountdeletion";
 import { DocumentationGuide } from "@/components/documentationguide";
+import { MatchGroupingPreference } from "@/components/matchgroupingpreference";
+import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference";
+import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
+import { CDN_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -28,8 +33,43 @@ export default function DashboardPage() {
   const { tab } = useParams<{ tab?: string }>();
   const { pickerMode, setPickerMode } = useChampionPicker();
 
-  // ✅ prendi isAdmin dal context
-  const { isAdmin } = useAuth();
+  const { session, isAdmin, nametag, avatarUrl } = useAuth();
+  const email = session?.user?.email ?? ""
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightSummoner, setHighlightSummoner] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("highlight") === "summoner-page") {
+      setHighlightSummoner(true);
+      // Clean up the query param
+      searchParams.delete("highlight");
+      setSearchParams(searchParams, { replace: true });
+      // Remove glow after 2.5s
+      const t = setTimeout(() => setHighlightSummoner(false), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [])
+
+  // Fetch summoner icon_id when account is linked
+  const [iconId, setIconId] = useState<number | null>(null)
+  useEffect(() => {
+    if (!nametag) { setIconId(null); return }
+    const [name, tag] = nametag.split("#")
+    if (!name || !tag) return
+    supabase
+      .from("users")
+      .select("icon_id")
+      .eq("name", name)
+      .eq("tag", tag)
+      .single()
+      .then(({ data }) => { if (data?.icon_id) setIconId(data.icon_id) })
+  }, [nametag])
+
+  // Resolve avatar source
+  const avatarSrc = avatarUrl
+    ? avatarUrl
+    : `${CDN_BASE_URL}/img/profileicon/${iconId ?? 29}.png`
+  const displayName = nametag ?? email
 
   const validTabs = ["profile", "documentation", "billing", "preferences", "proApplications", "streamerApplications"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
@@ -62,9 +102,36 @@ export default function DashboardPage() {
         <div className="xl:w-[65%] w-full mx-auto px-4 h-full min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex w-full h-full min-h-0">
             {/* 20%: sidebar */}
-            <div className="w-[20%] border-r border-flash/10 h-full overflow-hidden flex flex-col">
+            <div className="w-[20%] border-r border-flash/10 h-full overflow-y-auto scrollbar-hide flex flex-col pt-6">
               <div>
-                <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent mt-32 w-[80%]">
+                {/* User identity card */}
+                <div className="relative mx-2 mb-3 rounded-[2px] border border-flash/10 bg-black/30 overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
+                  <div className="flex items-center gap-3 px-3 py-2.5 pl-4">
+                    <img
+                      src={avatarSrc}
+                      alt=""
+                      className="w-9 h-9 rounded-sm object-cover border border-flash/10 flex-shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-mono tracking-[0.1em] uppercase text-flash/80 truncate">
+                        {displayName}
+                      </p>
+                      {nametag && (
+                        <p className="text-[9px] font-mono tracking-[0.15em] uppercase text-jade/50 mt-0.5">
+                          LINKED
+                        </p>
+                      )}
+                      {!nametag && (
+                        <p className="text-[9px] font-mono tracking-[0.15em] uppercase text-flash/30 mt-0.5">
+                          NOT LINKED
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent w-[80%] h-auto">
                   <TabsTrigger
                     value="profile"
                     className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
@@ -142,6 +209,18 @@ export default function DashboardPage() {
               {/* PREFERENCES TAB */}
               <TabsContent value="preferences" className="outline-none">
                 <div className="flex flex-col gap-6 p-4 px-6">
+                  <div className="space-y-3">
+                    <p className={cn(
+                      "text-[11px] font-mono tracking-[0.25em] uppercase transition-all duration-700",
+                      highlightSummoner
+                        ? "text-jade drop-shadow-[0_0_8px_rgba(0,217,146,0.6)]"
+                        : "text-jade/50"
+                    )}>:: SUMMONER PAGE ::</p>
+                    <MatchGroupingPreference />
+                    <ColoredMatchBgPreference />
+                    <MatchCenteringPreference />
+                  </div>
+
                   <div className="space-y-3">
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: ANIMATIONS ::</p>
                     <BorderBeamPreference />

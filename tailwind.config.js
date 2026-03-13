@@ -18,35 +18,35 @@ module.exports = {
   		fontFamily: {
   			jetbrains: [
   				'JetBrains Mono',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			geist: [
   				'geist',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			gtamerica: [
   				'gtamerica',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			revxneue: [
   				'revxneue',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			vivala: [
   				'vivala',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			scifi: [
   				'scifi',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			mechano: [
   				'mechano',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			proto: [
   				'proto',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			]
   		},
   		colors: {

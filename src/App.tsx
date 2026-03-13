@@ -16,6 +16,7 @@ import { LiveViewerProvider } from "./context/liveviewercontext";
 import { LiveToastOnBoot } from "@/components/livetoastonboot"
 import { DotPattern } from "@/components/ui/dot-pattern"
 if (typeof window !== "undefined") {
+  window.history.scrollRestoration = "manual";
   // @ts-expect-error: expose supabase on window for console debugging
   window.supabase = supabase
 }
@@ -88,7 +89,7 @@ function HomePage() {
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10">
-        <div className="flex flex-col space-y-16">
+        <div className="flex flex-col space-y-8 md:space-y-16">
           <div>
             <HomeYasuo onDiscover={handleDiscover} />
             <div ref={learnRef} id="learn">

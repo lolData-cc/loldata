@@ -16,11 +16,13 @@ type Champion = {
 export function ChampionPicker({
   champions,
   onSelect,
+  selectedChampion = null,
   triggerLabel = "CHAMPION",
   triggerClassName,
 }: {
   champions: Champion[]
   onSelect: (championId: string | null) => void
+  selectedChampion?: string | null
   triggerLabel?: string
   triggerClassName?: string
 }) {
@@ -59,10 +61,22 @@ export function ChampionPicker({
       }}
     >
       <DialogTrigger className={cn(
-        "flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-thin tracking-wide cursor-clicker",
+        "flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-thin tracking-wide cursor-clicker h-full",
         triggerClassName
       )}>
-        <span>{triggerLabel}</span>
+        {selectedChampion ? (
+          <>
+            <img
+              src={`${champPath}/${selectedChampion}.png`}
+              alt={selectedChampion}
+              className="w-4 h-4 rounded-sm"
+              draggable={false}
+            />
+            <span className="text-jade/80">{selectedChampion.toUpperCase()}</span>
+          </>
+        ) : (
+          <span>{triggerLabel}</span>
+        )}
       </DialogTrigger>
 
       <DialogContent className="w-full max-w-[520px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">

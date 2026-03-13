@@ -20,10 +20,11 @@ const API_BASE =
 const SCROLL_DURATION_S = 35;
 
 const TILE_W_FRAC_DESKTOP = 0.25;
-const TILE_W_FRAC_TABLET = 0.75;
-const TILE_W_FRAC_MOBILE = 0.9;
+const TILE_W_FRAC_TABLET = 0.35;
+const TILE_W_FRAC_MOBILE = 0.48;
 
-const TILE_H_PX = 280;
+const TILE_H_DESKTOP = 280;
+const TILE_H_MOBILE = 180;
 
 function buildSlugFromNametag(nametag: string) {
   const [name, tag] = nametag.split("#");
@@ -88,6 +89,8 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
       ? Math.round(vw * TILE_W_FRAC_TABLET)
       : Math.round(vw * TILE_W_FRAC_MOBILE);
 
+  const tileHpx = vw >= 640 ? TILE_H_DESKTOP : TILE_H_MOBILE;
+
   const base = items.length > 0 ? items : [];
   let strip: LiveStreamer[] = [];
   if (base.length > 0) {
@@ -106,7 +109,7 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
       {/* Titolo opzionale, mostrato solo quando loading o ci sono items */}
       {withHeading && (
         <div className="xl:w-[65%] xl:px-0 w-full px-4 mx-auto">
-          <h2 className="text-flash/60 text-xl mb-3">STREAMING PARTNERS</h2>
+          <h2 className="text-flash/60 text-base sm:text-xl mb-2 sm:mb-3">STREAMING PARTNERS</h2>
         </div>
       )}
 
@@ -119,12 +122,12 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
 
       <div className="scroll-paused relative select-none overflow-hidden bg-liquirice border-y border-flash/10">
         {/* Fade sinistro */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-liquirice via-liquirice/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-12 sm:w-32 bg-gradient-to-r from-liquirice via-liquirice/80 to-transparent z-10" />
         {/* Fade destro */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-liquirice via-liquirice/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 sm:w-32 bg-gradient-to-l from-liquirice via-liquirice/80 to-transparent z-10" />
         {/* Contenuto scorrevole */}
         <div className="scroll-track">
-          {loading && <SkeletonRow height={TILE_H_PX} width={tileWpx} />}
+          {loading && <SkeletonRow height={tileHpx} width={tileWpx} />}
           {!loading &&
             track.map((s, i) => {
               const hasProfile = !!s.lol_nametag && !!s.region;
@@ -142,7 +145,7 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
                     width: tileWpx,
                     minWidth: tileWpx,
                     maxWidth: tileWpx,
-                    height: TILE_H_PX,
+                    height: tileHpx,
                     flex: `0 0 ${tileWpx}px`,
                   }}
                   draggable={false}
@@ -156,18 +159,18 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
                   )}
                   <div className="absolute inset-0 z-[1] bg-black/60 opacity-90 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
                   <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/80 via-black/50 to-transparent opacity-95 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
-                  <div className="relative z-[2] w-full h-full p-4 flex flex-col">
-                    <div className="flex items-start gap-3">
+                  <div className="relative z-[2] w-full h-full p-3 sm:p-4 flex flex-col">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <img
                         src={s.profile_image_url ?? "/placeholder-avatar.png"}
                         alt={s.twitch_login}
-                        className="h-12 w-12 rounded-lg object-cover border border-flash/20"
+                        className="h-9 w-9 sm:h-12 sm:w-12 rounded-lg object-cover border border-flash/20"
                       />
                       <div className="min-w-0">
-                        <div className="text-flash/80 font-jetbrains uppercase tracking-wide text-xl transition-colors  text-jade font-bold">
+                        <div className="text-flash/80 font-jetbrains uppercase tracking-wide text-sm sm:text-xl transition-colors text-jade font-bold">
                           {s.twitch_login}
                         </div>
-                        <div className="w-[80%] leading-tight text-sm break-words truncate transition-colors group-hover:text-flash pt-0.5 text-flash/60 font-jetbrains uppercase ">
+                        <div className="w-[80%] leading-tight text-xs sm:text-sm break-words truncate transition-colors group-hover:text-flash pt-0.5 text-flash/60 font-jetbrains uppercase">
                           {s.title}
                         </div>
                       </div>
@@ -176,8 +179,8 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
                     <div className="flex-1" />
 
                     <div className="flex items-end justify-between">
-                      <div className="text-flash/60 text-sm flex items-center gap-1 font-geist">
-                        <Eye className="w-3.5 h-3.5" />
+                      <div className="text-flash/60 text-xs sm:text-sm flex items-center gap-1 font-geist">
+                        <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         {s.viewer_count != null ? s.viewer_count.toLocaleString() : "—"}
                       </div>
 

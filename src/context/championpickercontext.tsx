@@ -482,6 +482,223 @@ const ROLE_SETS: Record<Role, Set<string>> = {
   SUP: new Set(SUP_CHAMPIONS),
 };
 
+// ── Shared champion grid content (used by both mobile + desktop) ──
+function ChampionPickerContent({
+  items,
+  onClose,
+  onConfirm,
+  hideHeader = false,
+}: {
+  items: ChampItem[];
+  onClose: () => void;
+  onConfirm: (item: ChampItem) => void;
+  hideHeader?: boolean;
+}) {
+  const [q, setQ] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const term = q.trim().toLowerCase();
+
+  const grouped = React.useMemo(() => {
+    const base: Record<Role, ChampItem[]> = {
+      TOP: [], JNG: [], MID: [], ADC: [], SUP: [],
+    };
+    for (const role of ROLES) {
+      const set = ROLE_SETS[role];
+      base[role] = items
+        .filter((c) => {
+          const inRole = set.has(c.id);
+          const matchSearch = !term || c.label.toLowerCase().includes(term);
+          return inRole && matchSearch;
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+    return base;
+  }, [items, term]);
+
+  return (
+    <>
+      {/* HEADER (hidden on mobile where the top bar already shows it) */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
+            CHAMPION PICKER
+          </span>
+          <button
+            type="button"
+            className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
+            onClick={() => setQ("")}
+          >
+            CLEAR
+          </button>
+        </div>
+      )}
+
+      {/* SEARCH */}
+      <div className="flex items-center gap-2 mb-4">
+        <Input
+          ref={inputRef}
+          placeholder="Type a champion name…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
+        />
+      </div>
+
+      {/* ROLE ACCORDION */}
+      <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide">
+        <Accordion type="multiple" defaultValue={ROLES} className="space-y-3">
+          {ROLES.map((role) => {
+            const champs = grouped[role];
+            if (!champs || champs.length === 0) return null;
+            const label = role === "ADC" ? "BOTTOM" : role;
+
+            return (
+              <AccordionItem
+                key={role}
+                value={role}
+                className="border border-flash/10 rounded-sm px-2"
+              >
+                <AccordionTrigger className="flex items-center justify-between py-2 hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.18em] uppercase">
+                      {label}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-flash/40">
+                    {champs.length} champion{champs.length !== 1 ? "s" : ""}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-3 pt-1">
+                  <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 sm:gap-3">
+                    {champs.map((c) => (
+                      <button
+                        key={`${role}-${c.id}`}
+                        type="button"
+                        className="flex flex-col items-center gap-1 group cursor-clicker"
+                        onClick={() => { onConfirm(c); onClose(); }}
+                      >
+                        <div className="bg-jade/10 rounded-[3px] p-[2px] border border-flash/10 group-hover:border-jade/50 transition-colors">
+                          <img
+                            src={c.image}
+                            alt={c.label}
+                            title={c.label}
+                            className="w-10 h-10 rounded-[3px] object-cover transition-transform group-hover:scale-110"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </div>
+                        <span className="text-[10px] text-flash/60 truncate max-w-[64px]">
+                          {c.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+
+        {ROLES.every((r) => grouped[r].length === 0) && (
+          <div className="text-xs text-flash/40 text-center py-10">
+            No champion found for this search.
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Mobile: full-screen overlay (no slide animation) ──
+function MobileChampionPicker({
+  open,
+  items,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  items: ChampItem[];
+  onClose: () => void;
+  onConfirm: (item: ChampItem) => void;
+}) {
+  // Lock body scroll while open
+  React.useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-liquirice flex flex-col font-jetbrains text-flash">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-flash/10">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-3 bg-jade rounded-full" />
+          <span className="text-[11px] text-flash/60 tracking-[0.22em] uppercase">
+            CHAMPION PICKER
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 text-flash/40 hover:text-flash/80 transition-colors cursor-clicker"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="4" y1="4" x2="12" y2="12" />
+            <line x1="12" y1="4" x2="4" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col px-4 py-3 overflow-hidden">
+        <ChampionPickerContent items={items} onClose={onClose} onConfirm={onConfirm} hideHeader />
+      </div>
+    </div>
+  );
+}
+
+// ── Desktop: Sheet sidebar ──
+function DesktopSheetPicker({
+  open,
+  items,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  items: ChampItem[];
+  onClose: () => void;
+  onConfirm: (item: ChampItem) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <SheetContent
+        side="right"
+        className={cn(
+          "w-[420px] md:w-[460px] lg:w-[520px]",
+          "h-full flex flex-col p-0",
+          "bg-liquirice/95 border-l border-flash/15 text-flash",
+          "[&>button]:hidden"
+        )}
+      >
+        <div className="relative flex-1 flex flex-col px-6 py-5 overflow-hidden">
+          <BorderBeam duration={8} size={110} />
+          <ChampionPickerContent items={items} onClose={onClose} onConfirm={onConfirm} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ── Wrapper: picks mobile vs desktop ──
 function SheetChampionPicker({
   open,
   items,
@@ -493,151 +710,20 @@ function SheetChampionPicker({
   onClose: () => void;
   onConfirm: (item: ChampItem) => void;
 }) {
-  const [q, setQ] = React.useState("");
-
-  const term = q.trim().toLowerCase();
-
-  const grouped = React.useMemo(() => {
-    const base: Record<Role, ChampItem[]> = {
-      TOP: [],
-      JNG: [],
-      MID: [],
-      ADC: [],
-      SUP: [],
-    };
-
-    for (const role of ROLES) {
-      const set = ROLE_SETS[role];
-      base[role] = items
-        .filter((c) => {
-          const inRole = set.has(c.id);
-          const matchSearch = !term || c.label.toLowerCase().includes(term);
-          return inRole && matchSearch;
-        })
-        .sort((a, b) => a.label.localeCompare(b.label));
-    }
-
-    return base;
-  }, [items, term]);
-
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) onClose();
-      }}
-    >
-      <SheetContent
-        side="right"
-        className={cn(
-          "w-[420px] sm:w-[460px] lg:w-[520px]",
-          "h-full flex flex-col p-0",
-          "bg-liquirice/95 border-l border-flash/15 text-flash",
-          "[&>button]:hidden" // <-- nasconde la X in alto a destra
-        )}
-      >
-        <div className="relative flex-1 flex flex-col px-6 py-5 overflow-hidden">
-          <BorderBeam duration={8} size={110} />
-
-          {/* HEADER */}
-          {/* HEADER */}
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
-              CHAMPION PICKER
-            </span>
-
-            <button
-              type="button"
-              className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
-              onClick={() => setQ("")}
-            >
-              CLEAR
-            </button>
-          </div>
-
-
-          {/* SEARCH */}
-          <div className="flex items-center gap-2 mb-4">
-            <Input
-              placeholder="Type a champion name…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
-            />
-          </div>
-
-          {/* SEZIONI PER RUOLO – ACCORDION */}
-          <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide">
-            <Accordion
-              type="multiple"
-              defaultValue={ROLES} // tutte aperte di default
-              className="space-y-3"
-            >
-              {ROLES.map((role) => {
-                const champs = grouped[role];
-                if (!champs || champs.length === 0) return null;
-
-                const label = role === "ADC" ? "BOTTOM" : role;
-
-                return (
-                  <AccordionItem
-                    key={role}
-                    value={role}
-                    className="border border-flash/10 rounded-sm px-2"
-                  >
-                    <AccordionTrigger className="flex items-center justify-between py-2 hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.18em] uppercase">
-                          {label}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-flash/40">
-                        {champs.length} champion{champs.length !== 1 ? "s" : ""}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-3 pt-1">
-                      <div className="grid grid-cols-6 gap-3">
-                        {champs.map((c) => (
-                          <button
-                            key={`${role}-${c.id}`}
-                            type="button"
-                            className="flex flex-col items-center gap-1 group cursor-clicker"
-                            onClick={() => {
-                              onConfirm(c);
-                              onClose();
-                            }}
-                          >
-                            <div className="bg-jade/10 rounded-[3px] p-[2px] border border-flash/10 group-hover:border-jade/50 transition-colors">
-                              <img
-                                src={c.image}
-                                alt={c.label}
-                                title={c.label}
-                                className="w-10 h-10 rounded-[3px] object-cover transition-transform group-hover:scale-110"
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            </div>
-                            <span className="text-[10px] text-flash/60 truncate max-w-[64px]">
-                              {c.label}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-
-            {/* nessun champ in nessun ruolo (es. search senza match) */}
-            {ROLES.every((r) => grouped[r].length === 0) && (
-              <div className="text-xs text-flash/40 text-center py-10">
-                No champion found for this search.
-              </div>
-            )}
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+  const [isMobile, setIsMobile] = React.useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  if (isMobile) {
+    return <MobileChampionPicker open={open} items={items} onClose={onClose} onConfirm={onConfirm} />;
+  }
+  return <DesktopSheetPicker open={open} items={items} onClose={onClose} onConfirm={onConfirm} />;
 }

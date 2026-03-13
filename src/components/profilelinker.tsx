@@ -20,6 +20,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { LoadingDots } from "./ui/loading-dots";
+import { useAuth } from "@/context/authcontext";
 
 type LolRegion = "EUW" | "NA" | "KR";
 
@@ -51,6 +52,7 @@ const GET_SUMMONER_URL = `${API_BASE_URL}/api/summoner`;
 const PROFILE_ICON_BASE = "https://cdn2.loldata.cc/16.1.1/img/profileicon";
 
 export function ProfilerLinker() {
+  const { refreshProfile } = useAuth();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   const [name, setName] = useState("");
@@ -336,6 +338,8 @@ export function ProfilerLinker() {
         nametag,
         region,
       });
+
+      await refreshProfile();
 
       showCyberToast({
         title: "Profile linked",
