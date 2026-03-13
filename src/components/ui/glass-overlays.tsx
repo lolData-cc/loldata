@@ -6,7 +6,7 @@ export function GlassOverlays() {
         className="pointer-events-none absolute -top-28 left-0 w-full h-[360px] z-[1]"
         style={{
           background:
-            "radial-gradient(120% 80% at 18% 18%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 32%, rgba(255,255,255,0.03) 52%, rgba(255,255,255,0.0) 72%)",
+            "radial-gradient(120% 80% at 18% 18%, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.008) 32%, rgba(255,255,255,0.003) 52%, rgba(255,255,255,0.0) 72%)",
         }}
       />
 
@@ -24,7 +24,7 @@ export function GlassOverlays() {
         className="pointer-events-none absolute inset-0 z-[1]"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 38%, rgba(0,0,0,0.40) 100%)",
+            "linear-gradient(to bottom, rgba(255,255,255,0.006) 0%, rgba(255,255,255,0.002) 38%, rgba(0,0,0,0.40) 100%)",
         }}
       />
 

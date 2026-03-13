@@ -71,8 +71,10 @@ export function setDisableMatchGrouping(value: boolean) {
 
 export function getEnableColoredMatchBg(): boolean {
   const w = safeWindow();
-  if (!w) return false; // default: off
-  return w.localStorage.getItem(UI_PREFS_KEYS.enableColoredMatchBg) === "1";
+  if (!w) return true; // default: on
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.enableColoredMatchBg);
+  if (val === null) return true; // first visit: enabled by default
+  return val === "1";
 }
 
 export function setEnableColoredMatchBg(value: boolean) {

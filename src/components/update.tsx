@@ -6,16 +6,27 @@ import { cn } from "@/lib/utils"
 type UpdateButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean
   cooldown?: boolean
+  cooldownSeconds?: number
 }
 
 export function UpdateButton({
   loading,
   cooldown,
+  cooldownSeconds,
   className,
   children,
   ...props
 }: UpdateButtonProps) {
-  const label = cooldown ? "UPDATED" : (children || "UPDATE")
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${sec.toString().padStart(2, "0")}`
+  }
+  const label = cooldown && cooldownSeconds
+    ? formatTime(cooldownSeconds)
+    : cooldown
+      ? "UPDATED"
+      : (children || "UPDATE")
 
   return (
     <button

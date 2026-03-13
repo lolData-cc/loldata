@@ -89,7 +89,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
     "flex items-center w-full h-16 z-50 px-3 sm:px-4 md:px-4 md:py-2 justify-between"
 
   const position = sticky
-    ? "fixed bg-transparent xl:w-[65%] mx-auto"
+    ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
     : "fixed top-0 left-0 md:static"
 
   const bg = sticky

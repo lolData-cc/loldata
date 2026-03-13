@@ -108,7 +108,7 @@ export default function StreamersInfiniteCarousel({ withHeading = true }: { with
     >
       {/* Titolo opzionale, mostrato solo quando loading o ci sono items */}
       {withHeading && (
-        <div className="xl:w-[65%] xl:px-0 w-full px-4 mx-auto">
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 mx-auto">
           <h2 className="text-flash/60 text-base sm:text-xl mb-2 sm:mb-3">STREAMING PARTNERS</h2>
         </div>
       )}

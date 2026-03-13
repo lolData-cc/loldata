@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const { tab } = useParams<{ tab?: string }>();
   const { pickerMode, setPickerMode } = useChampionPicker();
 
-  const { session, isAdmin, nametag, avatarUrl } = useAuth();
+  const { session, isAdmin, nametag, avatarUrl, region: userRegion } = useAuth();
 
   useEffect(() => {
     document.title = "Dashboard - lolData";
@@ -96,7 +96,7 @@ export default function DashboardPage() {
     <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen grid grid-rows-[auto,1fr] overflow-hidden">
       {/* riga 1: navbar */}
       <div className="w-full">
-        <div className="xl:w-[65%] w-full mx-auto">
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto">
           <Navbar />
           <Separator className="bg-flash/20 mt-0 w-full" />
         </div>
@@ -104,13 +104,24 @@ export default function DashboardPage() {
 
       {/* riga 2: contenuto */}
       <div className="w-full min-h-0">
-        <div className="xl:w-[65%] w-full mx-auto px-4 h-full min-h-0">
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto px-4 h-full min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex w-full h-full min-h-0">
             {/* 20%: sidebar */}
             <div className="w-[20%] border-r border-flash/10 h-full overflow-y-auto scrollbar-hide flex flex-col pt-6">
               <div>
                 {/* User identity card */}
-                <div className="relative mx-2 mb-3 rounded-[2px] border border-flash/10 bg-black/30 overflow-hidden">
+                <div
+                  className={cn(
+                    "relative mx-2 mb-3 rounded-[2px] border border-flash/10 bg-black/30 overflow-hidden",
+                    nametag && userRegion && "cursor-clicker hover:bg-black/40 transition-colors"
+                  )}
+                  onClick={() => {
+                    if (nametag && userRegion) {
+                      const [n, t] = nametag.split("#");
+                      navigate(`/summoners/${userRegion.toLowerCase()}/${n}-${t}`);
+                    }
+                  }}
+                >
                   <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
                   <div className="flex items-center gap-3 px-3 py-2.5 pl-4">
                     <img

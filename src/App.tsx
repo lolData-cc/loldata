@@ -147,7 +147,7 @@ export function RootLayout({
         ref={scrollRef}
         className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
-        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 flex flex-col items-center">
           <Navbar sticky={navbarSticky} />
           <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />

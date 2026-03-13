@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { LiveViewer } from "@/components/liveviewer"
 import { ChevronDown, ChevronRight, ChevronUp, RotateCw, Search, BarChart3, Flag, SlidersHorizontal, X } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
+import { RoleTopIcon, RoleJungleIcon, RoleMidIcon, RoleAdcIcon, RoleSupportIcon } from "@/components/ui/roleicons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
 import { getKdaClass } from '@/utils/kdaColor'
@@ -67,8 +68,6 @@ const itemKeys: (keyof Participant)[] = [
   "item6"
 ];
 
-const COOLDOWN_MS = 300_000
-const STORAGE_KEY = "loldata:updateTimestamp"
 
 
 function getMatchTimestamp(m: MatchWithWin["match"]["info"]) {
@@ -163,6 +162,7 @@ export default function SummonerPage() {
   }
   const [loading, setLoading] = useState(false)
   const [onCooldown, setOnCooldown] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
@@ -722,16 +722,25 @@ export default function SummonerPage() {
       .then((versions: string[]) => setLatestPatch(versions[0]))
   }, [])
 
+  // Cooldown countdown timer
   useEffect(() => {
-    const last = localStorage.getItem(STORAGE_KEY)
-    if (last) {
-      const diff = Date.now() - Number(last)
-      if (diff < COOLDOWN_MS) {
-        setOnCooldown(true)
-        setTimeout(() => setOnCooldown(false), COOLDOWN_MS - diff)
-      }
+    if (cooldownSeconds <= 0) {
+      setOnCooldown(false)
+      return
     }
-  }, [])
+    setOnCooldown(true)
+    const interval = setInterval(() => {
+      setCooldownSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setOnCooldown(false)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cooldownSeconds > 0]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!name || !tag) return
@@ -834,7 +843,7 @@ export default function SummonerPage() {
     setRankQueueView("solo");
 
     try {
-      const found = await fetchSummonerInfo(name, tag, region)
+      const { found, cooldownRemaining } = await fetchSummonerInfo(name, tag, region)
 
       if (!found) {
         navigate("/404", {
@@ -876,9 +885,6 @@ export default function SummonerPage() {
     }
 
     setLoading(false)
-    localStorage.setItem(STORAGE_KEY, Date.now().toString())
-    setOnCooldown(true)
-    setTimeout(() => setOnCooldown(false), COOLDOWN_MS)
   }
 
   function LoadingSquares() {
@@ -910,7 +916,7 @@ export default function SummonerPage() {
   }
 
 
-  async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<boolean> {
+  async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<{ found: boolean; cooldownRemaining: number }> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/summoner`, {
         method: "POST",
@@ -918,15 +924,19 @@ export default function SummonerPage() {
         body: JSON.stringify({ name, tag, region }),
       })
 
-      if (!res.ok) return false
+      if (!res.ok) return { found: false, cooldownRemaining: 0 }
 
       const data = await res.json()
-      if (!data.summoner) return false
+      if (!data.summoner) return { found: false, cooldownRemaining: 0 }
 
       setSummonerInfo(data.summoner as SummonerInfo)
-      return true
+
+      const cd = data.cooldownRemaining ?? 0
+      if (cd > 0) setCooldownSeconds(cd)
+
+      return { found: true, cooldownRemaining: cd }
     } catch {
-      return false
+      return { found: false, cooldownRemaining: 0 }
     }
   }
 
@@ -1363,7 +1373,7 @@ export default function SummonerPage() {
             className={cn(
               "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
               "bg-black/25 backdrop-blur-lg saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.02)]"
             )}
           >
             <GlassOverlays />
@@ -1594,7 +1604,7 @@ export default function SummonerPage() {
                             width:
                               summonerInfo?.puuid && matches.length > 0
                                 ? `${recentRating}%`
-                                : "40%", // minimo visivo se non ci sono dati
+                                : "40%",
                           }}
                         />
                       </div>
@@ -1904,6 +1914,7 @@ export default function SummonerPage() {
                         onClick={refreshData}
                         loading={loading}
                         cooldown={onCooldown}
+                        cooldownSeconds={cooldownSeconds}
                         className=" hover:bg-jade/30"
                       />
                     </div>
@@ -1995,29 +2006,29 @@ export default function SummonerPage() {
               {/* Role — segmented buttons */}
               <div className="flex items-center gap-0">
                 {([
-                  { value: null, label: "Role" },
-                  { value: "TOP", label: "Top" },
-                  { value: "JUNGLE", label: "Jng" },
-                  { value: "MIDDLE", label: "Mid" },
-                  { value: "BOTTOM", label: "Adc" },
-                  { value: "UTILITY", label: "Sup" },
-                ] as { value: string | null; label: string }[]).map((role, i, arr) => (
+                  { value: null, label: "Role", icon: null },
+                  { value: "TOP", label: "Top", icon: <RoleTopIcon className="w-4 h-4" /> },
+                  { value: "JUNGLE", label: "Jng", icon: <RoleJungleIcon className="w-4 h-4" /> },
+                  { value: "MIDDLE", label: "Mid", icon: <RoleMidIcon className="w-4 h-4" /> },
+                  { value: "BOTTOM", label: "Adc", icon: <RoleAdcIcon className="w-4 h-4" /> },
+                  { value: "UTILITY", label: "Sup", icon: <RoleSupportIcon className="w-4 h-4" /> },
+                ] as { value: string | null; label: string; icon: React.ReactNode }[]).map((role, i, arr) => (
                   <button
                     key={role.label}
                     type="button"
                     onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
                     className={cn(
-                      "font-mono text-[11px] tracking-[0.12em] uppercase px-3.5 py-2 transition-all duration-300 cursor-clicker",
+                      "font-mono text-[11px] tracking-[0.12em] uppercase min-w-[34px] px-2.5 py-2 transition-all duration-300 cursor-clicker flex items-center justify-center",
                       "border border-flash/[0.08] hover:border-flash/[0.15]",
                       i === 0 && "rounded-l-sm",
                       i === arr.length - 1 && "rounded-r-sm",
-                      i > 0 && "border-l-0",
+                      i > 0 && "-ml-px",
                       (role.value === null ? selectedRole === null : selectedRole === role.value)
-                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)] z-10"
                         : "text-flash/30 hover:text-flash/50 bg-black/20",
                     )}
                   >
-                    {role.label}
+                    {role.icon ?? role.label}
                   </button>
                 ))}
               </div>
@@ -2038,9 +2049,9 @@ export default function SummonerPage() {
                       "border border-flash/[0.08] hover:border-flash/[0.15]",
                       i === 0 && "rounded-l-sm",
                       i === arr.length - 1 && "rounded-r-sm",
-                      i > 0 && "border-l-0",
+                      i > 0 && "-ml-px",
                       selectedResult === opt.value
-                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
+                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)] z-10"
                         : "text-flash/30 hover:text-flash/50 bg-black/20",
                     )}
                   >

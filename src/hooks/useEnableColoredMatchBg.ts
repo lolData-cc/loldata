@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getEnableColoredMatchBg, setEnableColoredMatchBg } from "@/lib/uiPrefs";
 
 export function useEnableColoredMatchBg() {
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     setEnabled(getEnableColoredMatchBg());

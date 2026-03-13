@@ -39,6 +39,13 @@ export default function SeasonPage() {
   const [name, tag] = slug?.split("-") ?? []
 
   const [summoner, setSummoner] = useState<SummonerInfo | null>(null)
+
+  useEffect(() => {
+    if (name && tag) {
+      document.title = `${name}#${tag} - lolData`;
+    }
+    return () => { document.title = "lolData"; };
+  }, [name, tag])
   const [season, setSeason] = useState<SeasonData>({ champs: [], matchups: {} })
   const [solo, setSolo] = useState<SeasonData>({ champs: [], matchups: {} })
   const [flex, setFlex] = useState<SeasonData>({ champs: [], matchups: {} })
