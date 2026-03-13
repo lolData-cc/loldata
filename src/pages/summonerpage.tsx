@@ -2908,7 +2908,7 @@ export default function SummonerPage() {
                       setCtxMenu(null);
                       const riotId = `${summonerInfo?.name ?? name}#${summonerInfo?.tag ?? tag}`;
                       navigator.clipboard.writeText(riotId);
-                      showCyberToast("Riot ID copied", "success");
+                      showCyberToast({ title: "Riot ID copied" });
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
                   >
@@ -2925,7 +2925,7 @@ export default function SummonerPage() {
                         e.stopPropagation();
                         setCtxMenu(null);
                         navigator.clipboard.writeText(linkedDiscord.discord_username!);
-                        showCyberToast("Discord ID copied", "success");
+                        showCyberToast({ title: "Discord ID copied" });
                       }}
                       className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
                     >
@@ -3038,7 +3038,7 @@ export default function SummonerPage() {
                   type="button"
                   onClick={() => {
                     setShowReportModal(false);
-                    showCyberToast("Report submitted", "success");
+                    showCyberToast({ title: "Report submitted" });
                   }}
                   disabled={!reportReason}
                   className={cn(
