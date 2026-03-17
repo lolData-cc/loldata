@@ -36,7 +36,9 @@ type SeasonData = {
 export default function SeasonPage() {
   const navigate = useNavigate()
   const { region, slug } = useParams()
-  const [name, tag] = slug?.split("-") ?? []
+  const _dashIdx = slug?.lastIndexOf("-") ?? -1
+  const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
+  const tag = _dashIdx > 0 ? slug!.slice(_dashIdx + 1) : ""
 
   const [summoner, setSummoner] = useState<SummonerInfo | null>(null)
 

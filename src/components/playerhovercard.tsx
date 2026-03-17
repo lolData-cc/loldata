@@ -93,7 +93,7 @@ export function PlayerHoverCard({
     const [name, tag] = riotId.split("#");
     if (!name || !tag) return;
 
-    navigate(`/summoners/${region}/${name}-${tag}`);
+    navigate(`/summoners/${region}/${name.replace(/\s+/g, "+")}-${tag}`);
   };
 
   const totalGames =

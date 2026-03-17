@@ -45,6 +45,7 @@ import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { useDisableMatchGrouping } from "@/hooks/useDisableMatchGrouping"
 import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
 import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
+import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
 import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -117,6 +118,7 @@ export default function SummonerPage() {
   const { disabled: matchGroupingDisabled } = useDisableMatchGrouping()
   const { enabled: coloredMatchBg } = useEnableColoredMatchBg()
   const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
+  const { enabled: hideRemakes } = useHideRemakeMatches()
   const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
@@ -167,7 +169,9 @@ export default function SummonerPage() {
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
   const { region, slug } = useParams()
-  const [name, tag] = slug?.split("-") ?? []
+  const _dashIdx = slug?.lastIndexOf("-") ?? -1
+  const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
+  const tag = _dashIdx > 0 ? slug!.slice(_dashIdx + 1) : ""
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
   const [summonerInfo, setSummonerInfo] = useState<SummonerWithAvatar | null>(null)
@@ -189,6 +193,7 @@ export default function SummonerPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
   const [matchesCentered, setMatchesCentered] = useState(false);
   const [showAllDuos, setShowAllDuos] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -383,7 +388,9 @@ export default function SummonerPage() {
         ? true
         : m.match.info.participants.some((p: any) => p.puuid === filterDuoPuuid);
 
-    return isCorrectQueue && isCorrectChampion && isCorrectResult && isCorrectRole && isCorrectDuo;
+    const isNotHiddenRemake = hideRemakes ? m.match.info.gameDuration >= 300 : true;
+
+    return isCorrectQueue && isCorrectChampion && isCorrectResult && isCorrectRole && isCorrectDuo && isNotHiddenRemake;
   });
 
   const loadMore = useCallback(async () => {
@@ -406,18 +413,39 @@ export default function SummonerPage() {
     const month = now.getMonth(); // 0 = gennaio
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // inizializza un record per ogni giorno del mese
+    // Build cache key from player identity + month
+    const cacheKey = summonerInfo?.puuid
+      ? `lolData:heatmap:${summonerInfo.puuid}:${year}-${month}`
+      : null;
+
+    // Read cached data
+    type CachedDay = { games: number; wins: number };
+    let cached: CachedDay[] | null = null;
+    if (cacheKey) {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) cached = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+
+    // inizializza un record per ogni giorno del mese (start from cache if available)
     const stats: DayWinrateCell[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
+      const c = cached?.[day - 1];
       stats.push({
         date: new Date(year, month, day),
-        games: 0,
-        wins: 0,
+        games: c?.games ?? 0,
+        wins: c?.wins ?? 0,
         winrate: null,
       });
     }
 
-    // accumula stats usando TUTTE le partite del mese corrente
+    // accumula stats usando TUTTE le partite del mese corrente, taking max with cache
+    const liveStats: { games: number; wins: number }[] = Array.from(
+      { length: daysInMonth },
+      () => ({ games: 0, wins: 0 })
+    );
+
     for (const m of matches) {
       const ts = getMatchTimestamp(m.match.info);
       if (!ts) continue;
@@ -425,10 +453,17 @@ export default function SummonerPage() {
       const d = new Date(ts);
       if (d.getFullYear() !== year || d.getMonth() !== month) continue;
 
-      const dayIndex = d.getDate() - 1; // 0-based index
-      const cell = stats[dayIndex];
-      cell.games += 1;
-      if (m.win) cell.wins += 1;
+      const dayIndex = d.getDate() - 1;
+      liveStats[dayIndex].games += 1;
+      if (m.win) liveStats[dayIndex].wins += 1;
+    }
+
+    // Merge: take the max of cache vs live for each day
+    for (let i = 0; i < daysInMonth; i++) {
+      if (liveStats[i].games >= stats[i].games) {
+        stats[i].games = liveStats[i].games;
+        stats[i].wins = liveStats[i].wins;
+      }
     }
 
     // calcola winrate
@@ -440,8 +475,16 @@ export default function SummonerPage() {
       }
     });
 
+    // Persist to cache
+    if (cacheKey) {
+      try {
+        const toCache = stats.map(s => ({ games: s.games, wins: s.wins }));
+        localStorage.setItem(cacheKey, JSON.stringify(toCache));
+      } catch { /* quota exceeded — ignore */ }
+    }
+
     return stats;
-  }, [matches]);
+  }, [matches, summonerInfo?.puuid]);
 
   const githubWeeks = useMemo(() => {
     if (!monthlyDayStats.length) return [];
@@ -666,7 +709,9 @@ export default function SummonerPage() {
 
   useEffect(() => {
     if (!slug) return;
-    const [name, tag] = slug.split("-");
+    const di = slug.lastIndexOf("-");
+    const name = di > 0 ? slug.slice(0, di).replace(/\+/g, " ") : slug;
+    const tag = di > 0 ? slug.slice(di + 1) : "";
     if (!name || !tag) return;
 
     checkUserFlags(name, tag).then(({ isPro, isStreamer }) => {
@@ -745,38 +790,36 @@ export default function SummonerPage() {
   useEffect(() => {
     if (!name || !tag) return
     refreshData()
-  }, [name, tag])
-
-  useEffect(() => {
-    if (name && tag && region) {
-      fetchSummonerInfo(name, tag, region)
-    }
   }, [name, tag, region])
 
   useEffect(() => {
     if (!summonerInfo?.puuid || !region) return;
-    let cancelled = false;
 
-    (async () => {
-      const okAll = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
-      const okSolo = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
-      const okFlex = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
-
-      if (cancelled) return;
-
-      if (!(okAll && okSolo && okFlex)) {
-        const id = setInterval(async () => {
-          if (cancelled) { clearInterval(id); return; }
-          const doneAll = topChampionsSeason.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_all");
-          const doneSolo = topChampionsSolo.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_solo");
-          const doneFlex = topChampionsFlex.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_flex");
-          if (doneAll && doneSolo && doneFlex) clearInterval(id);
-        }, 2000);
-      }
-    })();
-
-    return () => { cancelled = true; };
+    // Fetch all three season stat groups — no polling needed,
+    // data is populated during match ingestion by the backend.
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
   }, [summonerInfo?.puuid, region]);
+
+  // Poll for matches when ingestion is in progress (first-time search)
+  useEffect(() => {
+    if (!isIngesting || !name || !tag || !region) return;
+    const id = setInterval(() => {
+      fetchMatches(name, tag, region, 0, false);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isIngesting, name, tag, region]);
+
+  // Also re-fetch season stats once ingestion completes
+  useEffect(() => {
+    if (!isIngesting && summonerInfo?.puuid && region && matches.length > 0) {
+      // Matches just appeared — refresh season stats
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+    }
+  }, [isIngesting, matches.length]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -833,9 +876,12 @@ export default function SummonerPage() {
     setSummonerInfo(null);
     setMatches([]);
     setTopChampionsSeason([]);
+    setTopChampionsSolo([]);
+    setTopChampionsFlex([]);
     setHasMore(true);
     setNextOffset(0);
     setIsLoadingMore(false);
+    setIsIngesting(false);
     setSelectedChampion(null);
     setSelectedQueue("All" as QueueType);
     setSelectedResult("all");
@@ -843,9 +889,14 @@ export default function SummonerPage() {
     setRankQueueView("solo");
 
     try {
-      const { found, cooldownRemaining } = await fetchSummonerInfo(name, tag, region)
+      // Fire summoner info and matches in parallel — summoner endpoint
+      // no longer blocks on match ingestion, so both can run concurrently
+      const [summonerResult] = await Promise.all([
+        fetchSummonerInfo(name, tag, region),
+        fetchMatches(name, tag, region, 0, false),
+      ])
 
-      if (!found) {
+      if (!summonerResult.found) {
         navigate("/404", {
           state: {
             message: "Summoner not found",
@@ -856,22 +907,26 @@ export default function SummonerPage() {
         return
       }
 
-      await fetchMatches(name, tag, region, 0, false)
+      // Re-fetch matches after a short delay to catch
+      // any additional matches ingested in background
+      setTimeout(async () => {
+        try {
+          await fetchMatches(name, tag, region, 0, false);
+        } catch {}
+      }, 3000);
 
-      await fetch(`${API_BASE_URL}/api/summoner/view`, {
+      // Fire-and-forget tracking calls — don't block the UI
+      fetch(`${API_BASE_URL}/api/summoner/view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, tag }),
       }).catch(console.error)
 
-      await fetch(`${API_BASE_URL}/api/profile/views`, {
+      fetch(`${API_BASE_URL}/api/profile/views`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, tag }),
-      })
-        .then(res => res.json())
-        //.then(data => setViews(data.views))
-        .catch(console.error)
+      }).catch(console.error)
     } catch (err) {
       console.error("— Error loading summoner data:", err)
       navigate("/404", {
@@ -948,6 +1003,13 @@ export default function SummonerPage() {
     });
     const data = await res.json();
 
+    // If backend says ingestion is in progress (first-time visit), poll until matches appear
+    if (data.ingesting && (!data.matches || data.matches.length === 0)) {
+      setIsIngesting(true);
+      return;
+    }
+
+    setIsIngesting(false);
     setHasMore(Boolean(data.hasMore));
     setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
 
@@ -965,21 +1027,22 @@ export default function SummonerPage() {
     region: string,
     queueGroup: "ranked_all" | "ranked_solo" | "ranked_flex" = "ranked_all"
   ) {
-    const res = await fetch(`${API_BASE_URL}/api/season_stats`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ puuid, region, queueGroup }),
-    });
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/season_stats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puuid, region, queueGroup }),
+      });
 
-    if (res.status === 200) {
-      const data = await res.json();
-      if (queueGroup === "ranked_all") setTopChampionsSeason(data.topChampions || []);
-      if (queueGroup === "ranked_solo") setTopChampionsSolo(data.topChampions || []);
-      if (queueGroup === "ranked_flex") setTopChampionsFlex(data.topChampions || []);
-      return true;
+      if (res.ok) {
+        const data = await res.json();
+        if (queueGroup === "ranked_all") setTopChampionsSeason(data.topChampions || []);
+        if (queueGroup === "ranked_solo") setTopChampionsSolo(data.topChampions || []);
+        if (queueGroup === "ranked_flex") setTopChampionsFlex(data.topChampions || []);
+      }
+    } catch (err) {
+      console.error("Error fetching season stats:", err);
     }
-    if (res.status === 202) return false;
-    return false;
   }
 
 
@@ -1008,10 +1071,12 @@ export default function SummonerPage() {
 
 
   function StatsList({ champs }: { champs: ChampionStats[] }) {
-    const isLoading = !champs || champs.length === 0;
+    const isEmpty = !champs || champs.length === 0;
+    // Show skeleton only while initial page is loading or ingesting
+    const showSkeleton = isEmpty && (loading || isIngesting);
     return (
       <div className="flex flex-col gap-3 mx-2 mt-3">
-        {isLoading ? (
+        {showSkeleton ? (
           Array.from({ length: 5 }).map((_, idx) => (
             <div key={idx} className="grid items-center px-4 py-1 animate-pulse">
               <div className="flex items-center gap-3 w-full">
@@ -1023,6 +1088,10 @@ export default function SummonerPage() {
               </div>
             </div>
           ))
+        ) : isEmpty ? (
+          <div className="text-center py-6 text-flash/40 text-sm">
+            No ranked games this season
+          </div>
         ) : (
           champs.slice(0, 5).map((champ) => (
             <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
@@ -1505,6 +1574,9 @@ export default function SummonerPage() {
                           const dayNumber = cell.date.getDate();
                           const baseClasses = "w-3 h-3 rounded-[2px] cursor-default";
 
+                          const dayName = cell.date.toLocaleDateString("en-US", { weekday: "short" });
+                          const monthDay = cell.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
                           // Celle senza partite
                           if (!cell.games || cell.winrate == null) {
                             return (
@@ -1512,12 +1584,11 @@ export default function SummonerPage() {
                                 <TooltipTrigger asChild>
                                   <div className={cn(baseClasses, "bg-white/5")} />
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <div className="flex flex-col gap-[2px] leading-snug">
-                                    <span className="uppercase tracking-wide text-flash/60">Day {dayNumber}</span>
-                                    <span className="text-flash/60">
-                                      {cell.games} {cell.games === 1 ? "game" : "games"}
-                                    </span>
+                                <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
+                                  <div className="relative bg-[#0a0f14] border border-flash/10 rounded-[3px] px-3 py-2 min-w-[100px]">
+                                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-flash/20 rounded-l-[3px]" />
+                                    <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
+                                    <div className="mt-1 text-[11px] text-flash/30 font-mono">No games</div>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
@@ -1542,13 +1613,27 @@ export default function SummonerPage() {
                               <TooltipTrigger asChild>
                                 <div className={baseClasses} style={{ backgroundColor: bgColor }} />
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <div className="flex flex-col gap-[2px] leading-snug">
-                                  <span className="uppercase tracking-wide text-flash/60">Day {dayNumber}</span>
-                                  <span className="font-jetbrains text-flash/70">{cell.winrate}% WR</span>
-                                  <span className="text-flash/60">
-                                    {cell.games} {cell.games === 1 ? "game" : "games"}
-                                  </span>
+                              <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
+                                <div className="relative bg-[#0a0f14] border border-jade/15 rounded-[3px] px-3 py-2 min-w-[120px]">
+                                  <div className={cn(
+                                    "absolute left-0 top-0 bottom-0 w-[2px] rounded-l-[3px]",
+                                    cell.winrate >= 60 ? "bg-jade" : cell.winrate >= 50 ? "bg-jade/50" : "bg-[#c93232]"
+                                  )} />
+                                  <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
+                                  <div className="mt-1.5 flex items-baseline gap-2">
+                                    <span className={cn(
+                                      "text-base font-bold font-mono leading-none",
+                                      cell.winrate >= 60 ? "text-jade" : cell.winrate >= 50 ? "text-flash/70" : "text-[#c93232]"
+                                    )}>{cell.winrate}%</span>
+                                    <span className="text-[10px] text-flash/30 font-mono uppercase">WR</span>
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1.5 text-[10px] font-mono text-flash/50">
+                                    <span className="text-jade/70">{cell.wins}W</span>
+                                    <span className="text-flash/20">·</span>
+                                    <span className="text-[#c93232]/70">{cell.games - cell.wins}L</span>
+                                    <span className="text-flash/20">·</span>
+                                    <span>{cell.games} {cell.games === 1 ? "game" : "games"}</span>
+                                  </div>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -1801,7 +1886,7 @@ export default function SummonerPage() {
 
               <div className="relative z-10 flex justify-end items-center">
                 {/* LATO TESTO */}
-                <div className="flex flex-col pr-4">
+                <div className="flex flex-col pr-4 h-36 justify-between">
                   <div className="uppercase select-none">
                     {(isPro || isStreamer) && (
                       <div className="flex justify-end mb-2 items-center space-x-2">
@@ -1929,9 +2014,10 @@ export default function SummonerPage() {
                       ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
                     }
                     className={cn(
-                      "w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
-                      summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                      "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
+                      summonerInfo?.live ? "border-red-500" : "border-transparent"
                     )}
+                    style={summonerInfo?.live ? { boxShadow: "0 0 16px rgba(239,68,68,0.35), 0 0 4px rgba(239,68,68,0.5)" } : undefined}
                     draggable={false}
                     onError={(e) => {
                       e.currentTarget.src =
@@ -2087,9 +2173,119 @@ export default function SummonerPage() {
               </div>
             </div>
 
+            {/* ── Stats summary bar ── */}
+            {!loading && !isIngesting && filteredMatches.length > 0 && (() => {
+              const puuid = summonerInfo?.puuid
+              const stats = filteredMatches.reduce((acc, m) => {
+                const me = m.match.info.participants.find((p: any) => p.puuid === puuid)
+                if (!me) return acc
+                acc.wins += m.win ? 1 : 0
+                acc.losses += m.win ? 0 : 1
+                acc.kills += me.kills ?? 0
+                acc.deaths += me.deaths ?? 0
+                acc.assists += me.assists ?? 0
+                acc.cs += (me.totalMinionsKilled ?? 0) + (me.neutralMinionsKilled ?? 0)
+                acc.damage += me.totalDamageDealtToChampions ?? 0
+                acc.vision += me.visionScore ?? 0
+                acc.durationMin += (m.match.info.gameDuration ?? 0) / 60
+                acc.count++
+                return acc
+              }, { wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, cs: 0, damage: 0, vision: 0, durationMin: 0, count: 0 })
 
-            {loading ? (
+              const n = stats.count || 1
+              const wr = Math.round((stats.wins / (stats.wins + stats.losses || 1)) * 100)
+              const avgK = (stats.kills / n).toFixed(1)
+              const avgD = (stats.deaths / n).toFixed(1)
+              const avgA = (stats.assists / n).toFixed(1)
+              const kda = stats.deaths === 0 ? "Perfect" : ((stats.kills + stats.assists) / stats.deaths).toFixed(2)
+              const csMin = stats.durationMin > 0 ? (stats.cs / stats.durationMin).toFixed(1) : "0"
+              const avgDmg = Math.round(stats.damage / n).toLocaleString()
+              const avgVis = (stats.vision / n).toFixed(1)
+
+              // SVG donut params
+              const r = 14, cx = 18, cy = 18
+              const circ = 2 * Math.PI * r
+              const winArc = (wr / 100) * circ
+              const kdaNum = stats.deaths === 0 ? 99 : (stats.kills + stats.assists) / stats.deaths
+              const kdaColor = kdaNum >= 4 ? "text-jade" : kdaNum >= 3 ? "text-amber-400" : kdaNum >= 2 ? "text-flash/70" : "text-rose-400"
+
+              return (
+                <div className="mt-2 flex items-center gap-0 rounded-sm overflow-hidden border border-flash/[0.06]">
+                  {/* Win rate section */}
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 bg-black/30 border-r border-flash/[0.06]">
+                    <svg width="32" height="32" viewBox="0 0 36 36" className="shrink-0">
+                      <defs>
+                        <filter id="donut-glow">
+                          <feGaussianBlur stdDeviation="1.5" result="blur" />
+                          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                        </filter>
+                      </defs>
+                      {/* Track */}
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="3.5" />
+                      {/* Loss arc */}
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#b11315" strokeWidth="3.5"
+                        strokeDasharray={circ} strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`} opacity="0.7" />
+                      {/* Win arc */}
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00d992" strokeWidth="3.5"
+                        strokeDasharray={`${winArc} ${circ - winArc}`} strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`} filter="url(#donut-glow)" />
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                        className="font-mono text-[8px] font-bold"
+                        fill={wr >= 55 ? "#00d992" : wr < 45 ? "#f87171" : "rgba(255,255,255,0.5)"}>
+                        {wr}%
+                      </text>
+                    </svg>
+                    <div className="flex flex-col -gap-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-[11px] font-semibold text-jade tabular-nums">{stats.wins}W</span>
+                        <span className="font-mono text-[11px] font-semibold text-[#b11315] tabular-nums">{stats.losses}L</span>
+                      </div>
+                      <span className="font-mono text-[8px] text-flash/20 tracking-widest uppercase">{stats.count} played</span>
+                    </div>
+                  </div>
+
+                  {/* KDA section */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 border-r border-flash/[0.06]">
+                    <span className={cn("font-mono text-[13px] font-bold tabular-nums", kdaColor)}>{kda}</span>
+                    <div className="flex flex-col">
+                      <span className="font-mono text-[10px] text-flash/50 tabular-nums leading-tight">
+                        {avgK}<span className="text-flash/20"> / </span>{avgD}<span className="text-flash/20"> / </span>{avgA}
+                      </span>
+                      <span className="font-mono text-[8px] text-flash/20 tracking-widest uppercase">KDA</span>
+                    </div>
+                  </div>
+
+                  {/* Stat pills */}
+                  {[
+                    { val: csMin, label: "CS/M" },
+                    { val: avgDmg, label: "DMG" },
+                    { val: avgVis, label: "VIS" },
+                  ].map((s, i) => (
+                    <div key={s.label} className={cn(
+                      "flex flex-col items-center justify-center px-3 py-1.5 bg-black/20",
+                      i < 2 && "border-r border-flash/[0.06]"
+                    )}>
+                      <span className="font-mono text-[11px] text-flash/60 font-medium tabular-nums leading-tight">{s.val}</span>
+                      <span className="font-mono text-[7px] text-flash/20 tracking-[0.15em] uppercase">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {loading || isIngesting ? (
               <ul className="space-y-3 mt-4">
+                {isIngesting && !loading && (
+                  <div className="text-center py-4 mb-2">
+                    <div className="text-flash/60 text-sm font-mono animate-pulse">
+                      Fetching match history for the first time...
+                    </div>
+                    <div className="text-flash/30 text-xs mt-1">
+                      This may take a moment
+                    </div>
+                  </div>
+                )}
                 {Array.from({ length: 10 }).map((_, idx) => (
                   <li
                     key={idx}
@@ -2183,29 +2379,50 @@ export default function SummonerPage() {
                             !!summonerInfo?.puuid &&
                             (summonerInfo.puuid === mvpWin || summonerInfo.puuid === mvpLose);
 
+                          const isRemake = match.info.gameDuration < 300;
 
                           return (
                             <li
                               key={match.metadata.matchId}
                               className={cn(
                                 "relative overflow-hidden rounded-md p-2 text-flash transition",
-                                coloredMatchBg
-                                  ? win
-                                    ? "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
-                                    : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
-                                  : "bg-black/18 backdrop-blur-lg saturate-150",
+                                isRemake
+                                  ? "bg-black/30 backdrop-blur-lg saturate-150"
+                                  : coloredMatchBg
+                                    ? win
+                                      ? "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
+                                      : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+                                    : "bg-black/18 backdrop-blur-lg saturate-150",
                                 "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
-                                coloredMatchBg
-                                  ? win
-                                    ? "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                                    : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                                  : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                isRemake
+                                  ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                  : coloredMatchBg
+                                    ? win
+                                      ? "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                      : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                    : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                               )}
                             >
+                              {isRemake && (
+                                <>
+                                  {/* Diagonal warning stripes */}
+                                  <div
+                                    className="pointer-events-none absolute inset-0 z-[1] opacity-[0.07]"
+                                    style={{
+                                      backgroundImage: "repeating-linear-gradient(-45deg, #f5a623 0px, #f5a623 8px, transparent 8px, transparent 20px)",
+                                    }}
+                                  />
+                                  {/* Yellow border glow */}
+                                  <div className="pointer-events-none absolute inset-0 z-[1] rounded-md shadow-[inset_0_0_0_1px_rgba(245,166,35,0.15)]" />
+                                </>
+                              )}
+
                               <div
                                 className={cn(
                                   "pointer-events-none absolute -top-28 left-0 h-60 w-full z-[1]",
-                                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.018),rgba(255,255,255,0)_72%)]"
+                                  isRemake
+                                    ? "bg-[radial-gradient(circle_at_18%_18%,rgba(245,166,35,0.03),rgba(255,255,255,0)_72%)]"
+                                    : "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.018),rgba(255,255,255,0)_72%)]"
                                 )}
                               />
 
@@ -2228,9 +2445,11 @@ export default function SummonerPage() {
                                   <div
                                     className={cn(
                                       "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
-                                      win
-                                        ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
-                                        : "bg-gradient-to-b from-[#c93232] to-[#420909]"
+                                      isRemake
+                                        ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
+                                        : win
+                                          ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
+                                          : "bg-gradient-to-b from-[#c93232] to-[#420909]"
                                     )}
                                   />
 
@@ -2244,10 +2463,12 @@ export default function SummonerPage() {
                                           <span
                                             className={cn(
                                               "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
-                                              win ? "text-[#00D992]" : "text-[#d63336]"
+                                              isRemake
+                                                ? "text-[#f5a623]"
+                                                : win ? "text-[#00D992]" : "text-[#d63336]"
                                             )}
                                           >
-                                            {win ? "WIN" : "LOSS"}
+                                            {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
                                           </span>
 
                                           {isSelfMvpOrAce && coloredMatchBg && (
@@ -2868,7 +3089,7 @@ export default function SummonerPage() {
               {([
                 { icon: RotateCw, label: "Update Page", action: () => { refreshData(); }, disabled: loading || onCooldown },
                 { icon: Search, label: "Analyze Player", action: () => setAnalyzeOpen(true) },
-                { icon: BarChart3, label: "Season Stats", action: () => navigate(`/summoners/${region}/${name}-${tag}/season`) },
+                { icon: BarChart3, label: "Season Stats", action: () => navigate(`/summoners/${region}/${name.replace(/\s+/g, "+")}-${tag}/season`) },
               ] as { icon: any; label: string; action: () => void; disabled?: boolean }[]).map((item) => (
                 <button
                   key={item.label}

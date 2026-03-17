@@ -25,6 +25,7 @@ import { DocumentationGuide } from "@/components/documentationguide";
 import { MatchGroupingPreference } from "@/components/matchgroupingpreference";
 import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference";
 import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
+import { HideRemakesPreference } from "@/components/hideremakespreference";
 import { CDN_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +119,7 @@ export default function DashboardPage() {
                   onClick={() => {
                     if (nametag && userRegion) {
                       const [n, t] = nametag.split("#");
-                      navigate(`/summoners/${userRegion.toLowerCase()}/${n}-${t}`);
+                      navigate(`/summoners/${userRegion.toLowerCase()}/${n.replace(/\s+/g, "+")}-${t}`);
                     }
                   }}
                 >
@@ -235,6 +236,7 @@ export default function DashboardPage() {
                     <MatchGroupingPreference />
                     <ColoredMatchBgPreference />
                     <MatchCenteringPreference />
+                    <HideRemakesPreference />
                   </div>
 
                   <div className="space-y-3">

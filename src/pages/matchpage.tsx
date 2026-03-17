@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import splashPositionMap from "@/converters/splashPositionMap"
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom"
@@ -14,15 +14,7 @@ import {
   TabsTrigger,
   TabsContent
 } from "@/components/ui/tabs"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  LabelList
-} from "recharts"
+// Recharts removed — damage bars now use custom CSS
 import { KillMap } from "@/components/killmap";
 import { API_BASE_URL } from "@/config";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
@@ -82,6 +74,89 @@ export default function MatchPage() {
   const getAverage = (key: string, participants: Participant[]) => {
     const total = participants.reduce((sum: number, p: Participant) => sum + (p[key as keyof Participant] as number || 0), 0)
     return Math.round(total / participants.length)
+  }
+
+  const getMax = (key: string, participants: Participant[]) => {
+    return Math.max(...participants.map((p: Participant) => (p[key as keyof Participant] as number) || 0), 1)
+  }
+
+  /** Animated stat bar — grows from 0 on mount with staggered delay */
+  function StatBar({ pct, avgPct, isAboveAvg, delay }: { pct: number; avgPct: number; isAboveAvg: boolean; delay: number }) {
+    const [w, setW] = useState(0)
+    const [avgW, setAvgW] = useState(0)
+    useEffect(() => {
+      const t1 = setTimeout(() => setW(pct), delay)
+      const t2 = setTimeout(() => setAvgW(avgPct), delay + 80)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }, [pct, avgPct, delay])
+
+    return (
+      <div className="relative h-[22px] w-full rounded-[3px] bg-white/[0.04] border border-white/[0.04] overflow-hidden">
+        {/* Player fill bar */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-[2px]"
+          style={{
+            width: `${w}%`,
+            transition: `width 600ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
+            background: isAboveAvg
+              ? "linear-gradient(90deg, rgba(0,217,146,0.08) 0%, rgba(0,217,146,0.35) 100%)"
+              : "linear-gradient(90deg, rgba(215,216,217,0.04) 0%, rgba(215,216,217,0.15) 100%)",
+            boxShadow: isAboveAvg
+              ? "inset 0 0 12px rgba(0,217,146,0.1), 2px 0 8px rgba(0,217,146,0.2)"
+              : "none",
+          }}
+        />
+
+        {/* Glowing edge */}
+        {w > 2 && (
+          <div
+            className="absolute top-0 bottom-0 w-[2px]"
+            style={{
+              left: `${w}%`,
+              transition: `left 600ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, opacity 300ms ease ${delay + 200}ms`,
+              opacity: w > 0 ? 1 : 0,
+              background: isAboveAvg ? "#00d992" : "rgba(215,216,217,0.3)",
+              boxShadow: isAboveAvg
+                ? "0 0 6px rgba(0,217,146,0.6), 0 0 12px rgba(0,217,146,0.3)"
+                : "none",
+            }}
+          />
+        )}
+
+        {/* Average marker */}
+        <div
+          className="absolute top-0 bottom-0 w-[1px]"
+          style={{
+            left: `${avgW}%`,
+            transition: `left 500ms cubic-bezier(0.16, 1, 0.3, 1) ${delay + 100}ms, opacity 300ms ease ${delay + 100}ms`,
+            opacity: avgW > 0 ? 1 : 0,
+            background: "rgba(255,182,21,0.5)",
+          }}
+        >
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[5px] h-[5px] rounded-full"
+            style={{
+              background: "#FFB615",
+              boxShadow: "0 0 4px rgba(255,182,21,0.6)",
+            }}
+          />
+        </div>
+
+        {/* Percentage label */}
+        {pct >= 15 && (
+          <span
+            className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[9px] tracking-wider tabular-nums"
+            style={{
+              color: isAboveAvg ? "rgba(0,217,146,0.5)" : "rgba(215,216,217,0.2)",
+              transition: `opacity 300ms ease ${delay + 400}ms`,
+              opacity: w > 0 ? 1 : 0,
+            }}
+          >
+            {pct}%
+          </span>
+        )}
+      </div>
+    )
   }
 
   useEffect(() => {
@@ -275,7 +350,7 @@ export default function MatchPage() {
         <div className="w-[110px] min-w-0 shrink-0">
           {p.riotIdGameName && p.riotIdTagline ? (
             <Link
-              to={`/summoners/${region}/${p.riotIdGameName}-${p.riotIdTagline}`}
+              to={`/summoners/${region}/${(p.riotIdGameName || "").replace(/\s+/g, "+")}-${p.riotIdTagline}`}
               className={cn(
                 "block truncate text-[11px] font-mono tracking-wide hover:underline cursor-clicker",
                 isFocused ? "text-jade font-bold" : teamColor
@@ -505,12 +580,12 @@ export default function MatchPage() {
         <SectionHeader>Statistics</SectionHeader>
 
         <Tabs defaultValue={focusedPlayerPuuid || participants[0]?.puuid} className="w-full">
-          <div className="flex gap-3 min-h-[320px]">
+          <div className="flex gap-3">
 
             {/* Player sidebar */}
             <div className={cn(glassCard, "w-[22%] shrink-0")}>
-              <div className="relative z-10 p-1.5">
-                <TabsList className="flex flex-col gap-0.5 w-full h-auto bg-transparent">
+              <div className="relative z-10 p-1.5 h-full">
+                <TabsList className="flex flex-col justify-between w-full h-full bg-transparent">
                   {participants.map((p) => {
                     const isBlue = p.teamId === 100;
                     return (
@@ -550,10 +625,10 @@ export default function MatchPage() {
 
             {/* Stats content */}
             <div className={cn(glassCard, "flex-1")}>
-                <div className="relative z-10 p-5">
+                <div className="relative z-10 p-3">
                 {participants.map((p) => (
                   <TabsContent key={p.puuid} value={p.puuid} className="mt-0">
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {[
                         { label: "Damage Dealt", key: "totalDamageDealtToChampions" },
                         { label: "Damage Taken", key: "totalDamageTaken" },
@@ -562,45 +637,42 @@ export default function MatchPage() {
                         { label: "Vision Score", key: "visionScore" },
                         { label: "Wards Placed", key: "wardsPlaced" },
                         { label: "Wards Killed", key: "wardsKilled" },
-                      ].map(({ label, key }) => {
+                      ].map(({ label, key }, idx) => {
                         const playerValue = (p as unknown as Record<string, number>)[key] ?? 0
                         const avgValue = getAverage(key, participants)
+                        const maxValue = getMax(key, participants)
+                        const pct = Math.round((playerValue / maxValue) * 100)
+                        const avgPct = Math.round((avgValue / maxValue) * 100)
+                        const isAboveAvg = playerValue >= avgValue
 
                         return (
                           <div key={key}>
                             <div className="flex items-baseline justify-between mb-1">
                               <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-flash/30">{label}</span>
                               <div className="flex items-center gap-3">
-                                <span className="font-mono text-[10px] text-pine/60">{avgValue} avg</span>
-                                <span className="font-mono text-[11px] text-jade tabular-nums">{playerValue.toLocaleString()}</span>
+                                <span className="font-mono text-[10px] text-citrine/40 tabular-nums">{avgValue.toLocaleString()} avg</span>
+                                <span className={cn(
+                                  "font-mono text-[11px] tabular-nums font-medium",
+                                  isAboveAvg ? "text-jade" : "text-flash/50"
+                                )}>{playerValue.toLocaleString()}</span>
                               </div>
                             </div>
-                            <ResponsiveContainer width="100%" height={16}>
-                              <BarChart
-                                layout="vertical"
-                                data={[{ name: label, Player: playerValue, Average: avgValue }]}
-                                margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                                barGap={4}
-                              >
-                                <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="name" hide />
-                                <Bar dataKey="Player" fill="rgba(0,217,146,0.5)" barSize={6} radius={[0, 4, 4, 0]} />
-                                <Bar dataKey="Average" fill="rgba(20,132,96,0.3)" barSize={6} radius={[0, 4, 4, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
+                            <StatBar pct={pct} avgPct={avgPct} isAboveAvg={isAboveAvg} delay={idx * 60} />
                           </div>
                         )
                       })}
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-5 mt-3 pt-2.5 border-t border-white/[0.06]">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-jade/50" />
+                        <div className="w-5 h-[3px] rounded-full" style={{ background: "linear-gradient(90deg, rgba(0,217,146,0.1), rgba(0,217,146,0.5))" }} />
                         <span className="font-mono text-[9px] tracking-[0.15em] text-flash/25 uppercase">Player</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-pine/40" />
+                        <div className="relative w-[1px] h-3" style={{ background: "rgba(255,182,21,0.5)" }}>
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[4px] h-[4px] rounded-full" style={{ background: "#FFB615" }} />
+                        </div>
                         <span className="font-mono text-[9px] tracking-[0.15em] text-flash/25 uppercase">Avg</span>
                       </div>
                     </div>

@@ -5,6 +5,7 @@ export const UI_PREFS_KEYS = {
   disableMatchGrouping: "lolData:disableMatchGrouping",
   enableColoredMatchBg: "lolData:enableColoredMatchBg",
   enableMatchCentering: "lolData:enableMatchCentering",
+  hideRemakeMatches: "lolData:hideRemakeMatches",
 } as const;
 
 function safeWindow() {
@@ -96,5 +97,19 @@ export function setEnableMatchCentering(value: boolean) {
   if (!w) return;
 
   w.localStorage.setItem(UI_PREFS_KEYS.enableMatchCentering, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getHideRemakeMatches(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: show remakes
+  return w.localStorage.getItem(UI_PREFS_KEYS.hideRemakeMatches) === "1";
+}
+
+export function setHideRemakeMatches(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.hideRemakeMatches, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

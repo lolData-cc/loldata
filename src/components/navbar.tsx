@@ -54,7 +54,8 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         e.preventDefault()
         if (nametag && region) {
-          const slug = nametag.replace("#", "-")
+          const [n, t] = nametag.split("#")
+          const slug = `${n.replace(/\s+/g, "+")}-${t}`
           navigate(`/summoners/${region}/${slug}`)
         }
       }
@@ -240,7 +241,8 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
                           type="button"
                           onClick={() => {
                             setMenuOpen(false)
-                            const slug = nametag.replace("#", "-")
+                            const [n, t] = nametag.split("#")
+                            const slug = `${n.replace(/\s+/g, "+")}-${t}`
                             navigate(`/summoners/${region}/${slug}`)
                           }}
                           className="

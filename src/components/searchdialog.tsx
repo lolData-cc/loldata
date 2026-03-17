@@ -1,5 +1,5 @@
 // #region imports
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import type React from "react"
 import { useNavigate } from "react-router-dom"
 import {
@@ -53,7 +53,59 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [regionPopoverOpen, setRegionPopoverOpen] = useState(false)
   const [savedProfiles, setSavedProfiles] = useState<any[]>([])
 
-  // #endergion
+  // Autocomplete debounce + abort
+  const abortRef = useRef<AbortController | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fetchAutocomplete = useCallback((query: string) => {
+    // Cancel any in-flight request
+    abortRef.current?.abort()
+
+    const [partialName] = query.split("#")
+    if (partialName.trim().length < 2) {
+      setSuggestions([])
+      setLoadingSuggestions(false)
+      return
+    }
+
+    setLoadingSuggestions(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    fetch(`${API_BASE_URL}/api/autocomplete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: query.trim(),
+        region: region.toUpperCase(),
+      }),
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setSuggestions(data.results ?? [])
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Autocomplete fetch:", err)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoadingSuggestions(false)
+        }
+      })
+  }, [region])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   // #region functions
   const handleSearch = () => {
@@ -73,7 +125,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     if (!name) return;
     if (!tag) tag = "EUW";
 
-    const formattedName = name.replace(/\s+/g, "");
+    const formattedName = name.replace(/\s+/g, "+");
     const formattedTag = tag.toUpperCase();
     const slug = `${formattedName}-${formattedTag}`;
 
@@ -236,25 +288,21 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     const value = e.target.value
                     setInput(value)
 
+                    // Clear previous debounce
+                    if (debounceRef.current) clearTimeout(debounceRef.current)
+
                     const [partialName] = value.split("#")
-                    if (partialName.length < 4) {
+                    if (partialName.trim().length < 2) {
+                      abortRef.current?.abort()
                       setSuggestions([])
+                      setLoadingSuggestions(false)
                       return
                     }
 
-                    setLoadingSuggestions(true)
-                    fetch(`${API_BASE_URL}/api/autocomplete`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        query: partialName.trim(),
-                        region: region.toUpperCase()
-                      }),
-                    })
-                      .then((res) => res.json())
-                      .then((data) => setSuggestions(data.results))
-                      .catch((err) => console.error("Autocomplete fetch:", err))
-                      .finally(() => setLoadingSuggestions(false))
+                    // Debounce 200ms
+                    debounceRef.current = setTimeout(() => {
+                      fetchAutocomplete(value)
+                    }, 200)
                   }}
                   className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 w-[80%]"
                 />
@@ -313,7 +361,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     key={idx}
                     className="cursor-clicker h-16 bg-liquirice/90 border border-flash/10 hover:border-flash/30 text-flash px-7 py-2 rounded-md flex justify-between items-center"
                     onClick={() => {
-                      const formattedName = sugg.name.replace(/\s+/g, "")
+                      const formattedName = sugg.name.replace(/\s+/g, "+")
                       const formattedTag = sugg.tag.toUpperCase()
                       const slug = `${formattedName}-${formattedTag}`
 

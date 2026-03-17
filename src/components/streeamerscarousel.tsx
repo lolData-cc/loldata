@@ -29,7 +29,7 @@ const TILE_H_MOBILE = 180;
 function buildSlugFromNametag(nametag: string) {
   const [name, tag] = nametag.split("#");
   if (!name || !tag) return null;
-  const formattedName = name.replace(/\s+/g, "");
+  const formattedName = name.replace(/\s+/g, "+");
   const formattedTag = tag.toUpperCase();
   return `${formattedName}-${formattedTag}`;
 }

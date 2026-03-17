@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, CDN_BASE_URL, itemPath } from "@/config";
 import type { PlayerAnalysisResult } from "@/assets/types/riot";
+import { useAuth } from "@/context/authcontext";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -832,6 +834,33 @@ export function PlayerAnalysisDialog({
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<"login" | "limit">("login");
+  const [trialUsed, setTrialUsed] = useState(false);
+  const [usageChecked, setUsageChecked] = useState(false);
+  const { session, plan } = useAuth();
+  const navigate = useNavigate();
+  const isPremium = !!plan && plan.toLowerCase() !== "free";
+  const isFreeUser = !plan || plan.toLowerCase() === "free";
+  const isLocked = isFreeUser && trialUsed;
+
+  // Check usage status on mount / session change
+  useEffect(() => {
+    if (!session?.access_token || isPremium) {
+      setUsageChecked(true);
+      return;
+    }
+    fetch(`${API_BASE_URL}/api/player/analyze/status`, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.uses >= 1) setTrialUsed(true);
+      })
+      .catch(() => {})
+      .finally(() => setUsageChecked(true));
+  }, [session?.access_token, isPremium]);
 
   const addLine = useCallback((type: TerminalLine["type"], text: string) => {
     setLines((prev) => [...prev, { type, text }]);
@@ -844,27 +873,21 @@ export function PlayerAnalysisDialog({
     }
   }, [lines]);
 
+  const [currentStep, setCurrentStep] = useState("");
+
   const startAnalysis = useCallback(async () => {
+    // Auth gate: must be logged in
+    if (!session?.access_token) {
+      setPaywallReason("login");
+      setShowPaywall(true);
+      return;
+    }
+
     setPhase("connecting");
     setLines([]);
     setResult(null);
     setProgress({ current: 0, total: 0 });
-
-    // Dramatic intro lines
-    const introLines: [TerminalLine["type"], string][] = [
-      ["system", "LOLDATA :: DEEP ANALYSIS SYSTEM v2.0"],
-      ["system", "────────────────────────────────────"],
-      ["data", `TARGET    ${summonerName}`],
-      ["data", `REGION    ${region.toUpperCase()}`],
-      ["data", `PROTOCOL  SSE-STREAM`],
-      ["system", "────────────────────────────────────"],
-      ["system", "Initializing analysis pipeline..."],
-    ];
-
-    for (const [type, text] of introLines) {
-      addLine(type, text);
-      await new Promise((r) => setTimeout(r, 80));
-    }
+    setCurrentStep("CONNECTING");
 
     const abortController = new AbortController();
     abortRef.current = abortController;
@@ -872,10 +895,33 @@ export function PlayerAnalysisDialog({
     try {
       const response = await fetch(`${API_BASE_URL}/api/player/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ puuid, region }),
         signal: abortController.signal,
       });
+
+      // Handle paywall responses
+      if (response.status === 403) {
+        try {
+          const errData = await response.json();
+          if (errData.error === "login_required") {
+            setPaywallReason("login");
+          } else {
+            setPaywallReason("limit");
+            setTrialUsed(true);
+          }
+        } catch {
+          setPaywallReason("limit");
+          setTrialUsed(true);
+        }
+        setPhase("idle");
+        setLines([]);
+        setShowPaywall(true);
+        return;
+      }
 
       if (!response.ok || !response.body) {
         setPhase("error");
@@ -884,7 +930,6 @@ export function PlayerAnalysisDialog({
       }
 
       setPhase("analyzing");
-      addLine("success", ">> Connection established. Stream active.");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -907,19 +952,12 @@ export function PlayerAnalysisDialog({
               if (event.current != null && event.total != null) {
                 setProgress({ current: event.current, total: event.total });
               }
-
-              const lineType: TerminalLine["type"] =
-                event.step === "COMPLETE"
-                  ? "success"
-                  : event.message.startsWith(">>")
-                    ? "success"
-                    : "progress";
-
-              addLine(lineType, event.message);
+              setCurrentStep(event.step ?? "");
+              addLine("progress", event.message);
             } else if (event.type === "result") {
               setResult(event.data);
               setPhase("complete");
-              addLine("success", ">> All systems nominal. Rendering...");
+              if (isFreeUser) setTrialUsed(true);
             } else if (event.type === "error") {
               setPhase("error");
               addLine("error", event.message);
@@ -986,23 +1024,165 @@ export function PlayerAnalysisDialog({
   return (
     <>
       {/* Trigger Button */}
-      <button
-        onClick={() => handleOpenChange(true)}
-        disabled={!puuid}
-        className={cn(
-          "inline-flex items-center gap-1.5 h-9 px-4",
-          "font-jetbrains text-[11px] tracking-[0.15em] uppercase",
-          "border border-jade/30 rounded-sm",
-          "bg-jade/5 text-jade/80",
-          "hover:bg-jade/15 hover:border-jade/50 hover:text-jade",
-          "transition-all duration-200",
-          "cursor-clicker select-none",
-          "disabled:opacity-30 disabled:pointer-events-none"
+      <div className="relative inline-flex flex-col items-center">
+        <button
+          onClick={() => {
+            if (isLocked) {
+              setPaywallReason("limit");
+              setShowPaywall(true);
+            } else if (!session?.access_token) {
+              setPaywallReason("login");
+              setShowPaywall(true);
+            } else {
+              handleOpenChange(true);
+            }
+          }}
+          disabled={!puuid}
+          className={cn(
+            "inline-flex items-center gap-1.5 h-9 px-4",
+            "font-jetbrains text-[11px] tracking-[0.15em] uppercase",
+            "border rounded-sm",
+            "transition-all duration-200",
+            "cursor-clicker select-none",
+            "disabled:opacity-30 disabled:pointer-events-none",
+            isLocked
+              ? "border-flash/10 bg-flash/5 text-flash/25"
+              : "border-jade/30 bg-jade/5 text-jade/80 hover:bg-jade/15 hover:border-jade/50 hover:text-jade"
+          )}
+        >
+          <span className="text-[8px]">◈</span>
+          ANALYZE
+        </button>
+        {isFreeUser && usageChecked && !trialUsed && (
+          <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-mono tracking-[0.15em] text-citrine/60">
+            1 FREE TRIAL
+          </span>
         )}
-      >
-        <span className="text-[8px]">◈</span>
-        ANALYZE
-      </button>
+      </div>
+
+      {/* Paywall Dialog */}
+      <Dialog open={showPaywall} onOpenChange={setShowPaywall}>
+        <DialogContent className="max-w-sm p-0 border-0 shadow-none bg-transparent overflow-hidden [&>button]:hidden">
+          <DialogTitle className="sr-only">Premium Feature</DialogTitle>
+          <div
+            className="relative overflow-hidden rounded-sm"
+            style={{
+              background: "#040A0C",
+              border: `1px solid color-mix(in srgb, ${AC} 20%, transparent)`,
+              boxShadow: `0 0 40px ${AC_DIM}, 0 8px 32px rgba(0,0,0,0.7)`,
+            }}
+          >
+            <HudCorners />
+            <Scanlines />
+
+            {/* Left accent bar */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-[2px] z-[4]"
+              style={{ background: CITRINE, boxShadow: `0 0 8px rgba(255,182,21,0.4)` }}
+            />
+
+            <div className="relative z-[5]">
+              {/* Header */}
+              <div className="px-5 pt-5 pb-3 border-b border-white/[0.06]">
+                <div
+                  className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase mb-1"
+                  style={{ color: "rgba(255,182,21,0.5)" }}
+                >
+                  <span style={{ color: CITRINE, fontSize: "8px" }}>◈</span>
+                  <span>::</span>
+                  <span>ACCESS RESTRICTED</span>
+                </div>
+                <div className="text-flash text-sm font-medium">
+                  {paywallReason === "login"
+                    ? "Authentication Required"
+                    : "Analysis Limit Reached"}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-5 py-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 w-1 h-1 rounded-full flex-shrink-0" style={{ background: CITRINE }} />
+                    <p className="text-flash/50 text-xs leading-relaxed font-mono">
+                      {paywallReason === "login"
+                        ? "Sign in to access AI-powered analysis. Free accounts include one trial analysis."
+                        : "Free trial consumed. Premium members receive unlimited deep analysis scans."}
+                    </p>
+                  </div>
+
+                  {paywallReason === "limit" && (
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 w-1 h-1 rounded-full flex-shrink-0" style={{ background: AC }} />
+                      <p className="text-flash/50 text-xs leading-relaxed font-mono">
+                        Upgrade includes: unlimited analyses, priority processing, and advanced insights.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status indicator */}
+                <div className="mt-4 py-2 px-3 rounded-[2px] border border-citrine/10 bg-citrine/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: CITRINE }} />
+                    <span className="text-[9px] font-mono tracking-[0.2em] uppercase" style={{ color: "rgba(255,182,21,0.7)" }}>
+                      {paywallReason === "login" ? "NO SESSION DETECTED" : "TRIAL QUOTA: 1/1 USED"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-5 pb-4 flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowPaywall(false);
+                    navigate(paywallReason === "login" ? "/login" : "/pricing");
+                  }}
+                  className={cn(
+                    "flex-1 h-9 rounded-sm font-jetbrains text-[10px] tracking-[0.15em] uppercase",
+                    "border transition-all duration-200 cursor-clicker"
+                  )}
+                  style={{
+                    background: "rgba(255,182,21,0.1)",
+                    borderColor: "rgba(255,182,21,0.3)",
+                    color: CITRINE,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,182,21,0.2)";
+                    e.currentTarget.style.borderColor = "rgba(255,182,21,0.5)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,182,21,0.1)";
+                    e.currentTarget.style.borderColor = "rgba(255,182,21,0.3)";
+                  }}
+                >
+                  {paywallReason === "login" ? "◈ LOG IN" : "◈ VIEW PLANS"}
+                </button>
+                <button
+                  onClick={() => setShowPaywall(false)}
+                  className={cn(
+                    "h-9 px-4 rounded-sm font-jetbrains text-[10px] tracking-[0.15em] uppercase",
+                    "text-flash/30 border border-flash/8",
+                    "hover:text-flash/50 hover:border-flash/15",
+                    "transition-all duration-200 cursor-clicker"
+                  )}
+                >
+                  CLOSE
+                </button>
+              </div>
+
+              {/* Bottom bar */}
+              <div className="h-[1px] bg-gradient-to-r from-citrine/20 via-flash/5 to-transparent" />
+              <div className="px-5 py-2">
+                <div className="text-[8px] font-mono text-flash/20 tracking-[0.1em]">
+                  ◈ LOLDATA DEEP ANALYSIS :: {paywallReason === "login" ? "AUTH GATE" : "PAYWALL"} :: v2.0
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
@@ -1067,63 +1247,164 @@ export function PlayerAnalysisDialog({
                 </p>
               </div>
 
-              {/* ── Terminal Phase ─────────────────────────── */}
+              {/* ── Loading Phase — Cyber HUD ─────────────────────────── */}
               <AnimatePresence>
                 {showTerminal && (
                   <motion.div
-                    initial={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div
-                      ref={terminalRef}
-                      className="px-6 py-4 max-h-[400px] overflow-y-auto cyber-scrollbar"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {lines.map((line, i) => (
+                    <div className="px-6 py-8 flex flex-col items-center gap-6">
+                      {/* Spinning ring */}
+                      <div className="relative w-28 h-28">
+                        {/* Outer ring */}
                         <div
-                          key={i}
-                          className="text-[11px] leading-[1.8] whitespace-pre-wrap"
-                          style={{ color: lineColor(line.type) }}
-                        >
-                          <span className="opacity-40 mr-2 select-none">
-                            {linePrefix(line.type)}
-                          </span>
-                          {line.text}
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            border: `2px solid ${AC_DIM}`,
+                          }}
+                        />
+                        {/* Spinning arc */}
+                        <div
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            border: `2px solid transparent`,
+                            borderTopColor: AC,
+                            borderRightColor: AC,
+                            animation: "spin 1.5s linear infinite",
+                          }}
+                        />
+                        {/* Inner ring */}
+                        <div
+                          className="absolute inset-3 rounded-full"
+                          style={{
+                            border: `1px solid ${AC_DIM}`,
+                          }}
+                        />
+                        {/* Counter-spinning inner arc */}
+                        <div
+                          className="absolute inset-3 rounded-full"
+                          style={{
+                            border: `1px solid transparent`,
+                            borderBottomColor: CITRINE,
+                            borderLeftColor: CITRINE,
+                            animation: "spin 2s linear infinite reverse",
+                          }}
+                        />
+                        {/* Center content */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          {progress.total > 0 ? (
+                            <>
+                              <span className="text-[20px] font-jetbrains font-bold" style={{ color: AC }}>
+                                {progress.current}
+                              </span>
+                              <span className="text-[9px] font-jetbrains text-flash/30">
+                                /{progress.total}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[8px] font-jetbrains tracking-[0.2em] text-flash/40 animate-pulse">
+                              INIT
+                            </span>
+                          )}
                         </div>
-                      ))}
-
-                      {/* Blinking cursor */}
-                      {phase === "analyzing" && (
-                        <span
-                          className="inline-block text-[11px] animate-blink"
-                          style={{ color: AC }}
-                        >
-                          _
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Progress bar during fetch */}
-                    {progress.total > 0 && phase === "analyzing" && (
-                      <div className="px-6 pb-3">
-                        <div className="h-[2px] bg-white/[0.06] rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ background: AC }}
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${(progress.current / progress.total) * 100}%`,
-                            }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                          />
-                        </div>
-                        <p className="text-[9px] font-jetbrains text-flash/20 mt-1 text-right">
-                          {progress.current}/{progress.total} matches processed
-                        </p>
+                        {/* Glow */}
+                        <div
+                          className="absolute inset-0 rounded-full pointer-events-none"
+                          style={{ boxShadow: `0 0 30px ${AC_DIM}, inset 0 0 20px ${AC_DIM}` }}
+                        />
                       </div>
-                    )}
+
+                      {/* Progress bar */}
+                      {progress.total > 0 && (
+                        <div className="w-full max-w-xs">
+                          <div className="relative h-[3px] bg-white/[0.06] rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{ background: `linear-gradient(90deg, ${AC}, ${CITRINE})` }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                              transition={{ duration: 0.4, ease: "easeOut" }}
+                            />
+                            {/* Shimmer overlay */}
+                            <div
+                              className="absolute inset-0 pointer-events-none"
+                              style={{
+                                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
+                                backgroundSize: "200% 100%",
+                                animation: "shimmer-sweep 1.5s ease-in-out infinite",
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1.5">
+                            <span className="text-[8px] font-mono text-flash/25 tracking-[0.15em]">
+                              {Math.round((progress.current / progress.total) * 100)}% COMPLETE
+                            </span>
+                            <span className="text-[8px] font-mono tracking-[0.15em]" style={{ color: `color-mix(in srgb, ${AC} 50%, transparent)` }}>
+                              {progress.current}/{progress.total} MATCHES
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Current step label */}
+                      <div className="text-center space-y-2">
+                        <motion.div
+                          key={currentStep}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-[10px] font-jetbrains tracking-[0.2em] uppercase"
+                          style={{ color: `color-mix(in srgb, ${AC} 70%, transparent)` }}
+                        >
+                          {currentStep === "FETCH_MATCH_IDS" && "◈ QUERYING RIOT DATABASE"}
+                          {currentStep === "MATCH_IDS_FOUND" && "◈ MATCHES LOCATED"}
+                          {currentStep === "FETCH_MATCH" && "◈ DOWNLOADING MATCH DATA"}
+                          {currentStep === "RATE_LIMITED" && "◈ RATE LIMITED — WAITING"}
+                          {currentStep === "FETCH_COMPLETE" && "◈ DATA ACQUIRED"}
+                          {currentStep === "ANALYZE_ROLES" && "◈ SCANNING ROLES"}
+                          {currentStep === "ANALYZE_CHAMPIONS" && "◈ MAPPING CHAMPION POOL"}
+                          {currentStep === "ANALYZE_STATS" && "◈ COMPUTING VECTORS"}
+                          {currentStep === "ANALYZE_JUNGLE" && "◈ DECODING JUNGLE PATHS"}
+                          {currentStep === "ANALYZE_WINLOSS" && "◈ ANALYZING WIN DELTAS"}
+                          {currentStep === "ANALYZE_EARLY_GAME" && "◈ EVALUATING EARLY GAME"}
+                          {currentStep === "ANALYZE_WARDS" && "◈ MAPPING WARD PLACEMENT"}
+                          {currentStep === "ANALYZE_BOOTS" && "◈ SCANNING ITEM BUILDS"}
+                          {currentStep === "IDENTIFY_WEAKNESSES" && "◈ RUNNING VULN SCANNER"}
+                          {currentStep === "GENERATE_TIPS" && "◈ COMPILING PLAYBOOK"}
+                          {currentStep === "CONNECTING" && "◈ ESTABLISHING CONNECTION"}
+                        </motion.div>
+
+                        {/* Last log line */}
+                        {lines.length > 0 && (
+                          <motion.p
+                            key={lines.length}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-[9px] font-mono text-flash/25 max-w-xs truncate"
+                          >
+                            {lines[lines.length - 1]?.text}
+                          </motion.p>
+                        )}
+                      </div>
+
+                      {/* Decorative hex grid */}
+                      <div className="flex gap-1.5 opacity-30">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-1.5 h-1.5 rounded-[1px]"
+                            style={{
+                              background: progress.total > 0 && i < Math.ceil((progress.current / progress.total) * 8)
+                                ? AC : "rgba(255,255,255,0.1)",
+                              transition: "background 0.3s ease",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
