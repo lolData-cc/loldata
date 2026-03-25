@@ -108,6 +108,7 @@ export type SummonerInfo = {
   flexLp?: number
   peakFlexRank?: string
   peakFlexLp?: number
+  ladderRank?: number | null
 }
 
 export type ChampionStats = {

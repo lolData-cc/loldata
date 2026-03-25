@@ -25,7 +25,7 @@ type NavbarProps = {
 const NAV_ITEMS = [
   { label: "CHAMPIONS", icon: ChartNoAxesCombined, to: null, action: "picker" as const },
   { label: "LEADERBOARD", icon: Trophy, to: "/leaderboards" as const, action: null },
-  { label: "TIER LISTS", icon: Layers, to: null, action: null },
+  { label: "TIER LISTS", icon: Layers, to: "/tierlist" as const, action: null },
   { label: "LEARN", icon: BookOpen, to: "/learn" as const, action: null },
 ] as const
 
@@ -353,7 +353,9 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
           <Link to="/leaderboards" className="flex-shrink-0">
             <MenuItem label="LEADERBOARD" />
           </Link>
-          <MenuItem label="TIER LISTS" />
+          <Link to="/tierlist" className="flex-shrink-0">
+            <MenuItem label="TIER LISTS" />
+          </Link>
           <Link to="/learn" className="flex-shrink-0">
             <MenuItem label="LEARN" />
           </Link>

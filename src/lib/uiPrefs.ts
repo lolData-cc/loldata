@@ -6,6 +6,8 @@ export const UI_PREFS_KEYS = {
   enableColoredMatchBg: "lolData:enableColoredMatchBg",
   enableMatchCentering: "lolData:enableMatchCentering",
   hideRemakeMatches: "lolData:hideRemakeMatches",
+  hideStatsBar: "lolData:hideStatsBar",
+  statsBarVisibleStats: "lolData:statsBarVisibleStats",
 } as const;
 
 function safeWindow() {
@@ -111,5 +113,46 @@ export function setHideRemakeMatches(value: boolean) {
   if (!w) return;
 
   w.localStorage.setItem(UI_PREFS_KEYS.hideRemakeMatches, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+// ── Stats Bar ──
+
+export const STATS_BAR_STAT_KEYS = ["kda", "kp", "csm", "dmg", "vis"] as const;
+export type StatsBarStatKey = (typeof STATS_BAR_STAT_KEYS)[number];
+
+const DEFAULT_VISIBLE_STATS: Record<StatsBarStatKey, boolean> = {
+  kda: true, kp: true, csm: true, dmg: true, vis: true,
+};
+
+export function getHideStatsBar(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: shown
+  return w.localStorage.getItem(UI_PREFS_KEYS.hideStatsBar) === "1";
+}
+
+export function setHideStatsBar(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.hideStatsBar, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getStatsBarVisibleStats(): Record<StatsBarStatKey, boolean> {
+  const w = safeWindow();
+  if (!w) return { ...DEFAULT_VISIBLE_STATS };
+  const raw = w.localStorage.getItem(UI_PREFS_KEYS.statsBarVisibleStats);
+  if (!raw) return { ...DEFAULT_VISIBLE_STATS };
+  try {
+    return { ...DEFAULT_VISIBLE_STATS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_VISIBLE_STATS };
+  }
+}
+
+export function setStatsBarVisibleStats(stats: Record<StatsBarStatKey, boolean>) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.statsBarVisibleStats, JSON.stringify(stats));
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

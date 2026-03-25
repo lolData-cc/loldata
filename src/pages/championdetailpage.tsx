@@ -1,14 +1,36 @@
 'use client';
 
 // src/pages/champion-detail-page.tsx
-import { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
+import { CDN_BASE_URL } from "@/config"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL } from "@/config"
+import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
+
+type SpellInfo = {
+  id: string
+  name: string
+  description: string
+  tooltip?: string
+  cooldown?: number[]
+  cost?: number[]
+  costType?: string
+  maxrank?: number
+  image: { full: string }
+}
+
+type PassiveInfo = {
+  name: string
+  description: string
+  image: { full: string }
+}
 
 type ChampInfo = {
   id: string
@@ -17,8 +39,16 @@ type ChampInfo = {
   title: string
   tags: string[]
   lore?: string
+  blurb?: string
+  allytips?: string[]
+  enemytips?: string[]
+  info?: { attack: number; defense: number; magic: number; difficulty: number }
   image: { full: string }
   stats?: Record<string, number>
+  spells?: SpellInfo[]
+  passive?: PassiveInfo
+  skins?: { id: string; num: number; name: string }[]
+  partype?: string
 }
 
 type Matchup = {
@@ -72,6 +102,13 @@ export default function ChampionDetailPage() {
   const [champ, setChamp] = useState<ChampInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 300)
+    window.addEventListener("scroll", onScroll)
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   const [matchups, setMatchups] = useState<Matchup[]>([])
   const [matchupsLoading, setMatchupsLoading] = useState(false)
@@ -85,7 +122,7 @@ export default function ChampionDetailPage() {
   // helpers immagini ora accettano key e risolvono id
   const opponentIdFromKey = (k: number) => keyToIdSafe(k)
   const opponentIcon = (k: number) =>
-    `https://cdn.loldata.cc/15.13.1/img/champion/${opponentIdFromKey(k)}.png`
+    `https://cdn2.loldata.cc/16.1.1/img/champion/${opponentIdFromKey(k)}.png`
 
   //retrieve matchup
   useEffect(() => {
@@ -172,7 +209,7 @@ export default function ChampionDetailPage() {
     setLoading(true)
     setError(null)
 
-    fetch(`https://cdn.loldata.cc/15.13.1/data/en_US/champion/${champId}.json`)
+    fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion/${champId}.json`)
       .then(r => {
         if (!r.ok) throw new Error("Failed to load champion")
         return r.json()
@@ -198,7 +235,7 @@ export default function ChampionDetailPage() {
 
   const iconUrl = useMemo(() => {
     if (!champ) return ""
-    return `https://cdn.loldata.cc/15.13.1/img/champion/${champ.image.full}`
+    return `https://cdn2.loldata.cc/16.1.1/img/champion/${champ.image.full}`
   }, [champ])
 
   if (!champId) {
@@ -227,32 +264,45 @@ export default function ChampionDetailPage() {
 
   return (
     <main className="min-h-dvh">
-      {/* Hero */}
-      <div className="relative h-[340px] w-full overflow-hidden rounded-xl -mt-6">
+      {/* Hero — full-width splash */}
+      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[360px] overflow-hidden -mt-6 mb-4">
         <img
           src={splashUrl || "/placeholder.svg"}
           alt={`${champ.name} splash`}
-          className="h-full w-full object-cover object-[center_-40px]"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: `center ${splashPositionMap[champId ?? ""] || "15%"}` }}
           loading="eager"
           decoding="async"
           draggable={false}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div className="absolute bottom-4 left-4 flex items-center gap-4">
-          <img
-            src={iconUrl || "/placeholder.svg"}
-            alt={`${champ.name} icon`}
-            className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
-          />
-          <div>
-            <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
-            <p className="text-sm text-white/70">{champ.title}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {champ.tags?.map(t => (
-                <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                  {t}
-                </span>
-              ))}
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-liquirice/60" />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-[2]"
+          style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px)" }} />
+        <div className="absolute inset-0 pointer-events-none z-[3] bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(4,10,12,0.85)_100%)]" />
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-b from-liquirice to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-t from-liquirice to-transparent" />
+
+        {/* Content — aligned to the center container width */}
+        <div className="absolute bottom-4 inset-x-0 z-10 flex justify-center">
+          <div className="w-full xl:w-[65%] min-[2560px]:w-[55%]">
+            <div className="flex items-center gap-4">
+              <img
+                src={iconUrl || "/placeholder.svg"}
+                alt={`${champ.name} icon`}
+                className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
+              />
+              <div>
+                <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
+                <p className="text-sm text-white/70">{champ.title}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {champ.tags?.map(t => (
+                    <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -260,131 +310,46 @@ export default function ChampionDetailPage() {
 
       {/* Body */}
       <Tabs value={activeTab} onValueChange={(v) => navigate(`/champions/${champId}/${v}`, { replace: true })}>
-        <div className="mx-auto max-w-6xl py-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="space-y-4 w-[90%]">
-            <TabsList
-              className="
-    xl:-ml-12
-    bg-transparent
-    p-0
-    gap-2
-    flex 
-    justify-start
-  "
-            >
+        {/* Cyber tab bar */}
+        <div className="relative mb-6">
+          <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06]">
+            {[
+              { value: "overview", label: "Overview" },
+              { value: "statistics", label: "Statistics" },
+              { value: "items", label: "Items" },
+              { value: "matchups", label: "Matchups" },
+              { value: "pros", label: "Pros" },
+            ].map(({ value, label }) => (
               <TabsTrigger
-                value="overview"
+                key={value}
+                value={value}
                 className="
-      px-3 py-2
-      text-[12px] tracking-[0.18em] uppercase
-      text-neutral-300/70
-      border border-transparent
-      hover:border-white/20 hover:bg-white/5
-      data-[state=active]:text-jade
-      data-[state=active]:bg-jade/10
-      data-[state=active]:border-jade
-    "
+                  relative px-5 py-3 rounded-none
+                  font-mono text-[11px] tracking-[0.15em] uppercase
+                  text-flash/30 hover:text-flash/60
+                  transition-colors duration-200
+                  data-[state=active]:text-jade
+                  data-[state=active]:bg-transparent
+                  data-[state=active]:shadow-none
+                  cursor-pointer
+                "
               >
-                OVERVIEW
+                {label}
+                {/* Sliding underline — shared layoutId animates between tabs */}
+                {activeTab === value && (
+                  <motion.div
+                    layoutId="champ-tab-underline"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-jade shadow-[0_0_8px_rgba(0,217,146,0.5)]"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
               </TabsTrigger>
-
-              <TabsTrigger
-                value="statistics"
-                className="
-      px-3 py-2
-      text-[12px] tracking-[0.18em] uppercase
-      text-neutral-300/70
-      border border-transparent
-      hover:border-white/20 hover:bg-white/5
-      data-[state=active]:text-jade
-      data-[state=active]:bg-jade/10
-      data-[state=active]:border-jade
-    "
-              >
-                STATISTICS
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="items"
-                className="
-      px-3 py-2
-      text-[12px] tracking-[0.18em] uppercase
-      text-neutral-300/70
-      border border-transparent
-      hover:border-white/20 hover:bg-white/5
-     data-[state=active]:text-jade
-      data-[state=active]:bg-jade/10
-      data-[state=active]:border-jade
-    "
-              >
-                ITEMS
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="matchups"
-                className="
-      px-3 py-2
-      text-[12px] tracking-[0.18em] uppercase
-      text-neutral-300/70
-      border border-transparent
-      hover:border-white/20 hover:bg-white/5
-     data-[state=active]:text-jade
-      data-[state=active]:bg-jade/10
-      data-[state=active]:border-jade
-    "
-              >
-                MATCHUPS
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="pros"
-                className="
-      px-3 py-2
-      text-[12px] tracking-[0.18em] uppercase
-      text-neutral-300/70
-      border border-transparent
-      hover:border-white/20 hover:bg-white/5
-     data-[state=active]:text-jade
-      data-[state=active]:bg-jade/10
-      data-[state=active]:border-jade
-    "
-              >
-                PROS
-              </TabsTrigger>
-            </TabsList>
-
-
-          </div>
-
-
+            ))}
+          </TabsList>
         </div>
         <div className="space-y-4">
           <TabsContent value="overview">
-            <div className="flex space-x-12">
-              <div className="w-[80%]">
-                <h3 className="text-base font-semibold">Introduction</h3>
-                <p className="text-sm text-neutral-300 leading-relaxed pt-2">
-                  {champ.lore || "No lore available."}
-                </p>
-              </div>
-              <div className="w-[50%]">
-                <h3 className="text-base font-semibold">Base Stats</h3>
-                <div className="rounded-lg border border-white/10 bg-neutral-900/50 p-4 text-sm text-neutral-200 mt-2">
-                  {champ.stats ? (
-                    <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {Object.entries(champ.stats).map(([k, v]) => (
-                        <li key={k} className="flex justify-between uppercase">
-                          <span className="text-neutral-400">{k}</span>
-                          <span className="font-medium text-white">{v}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-neutral-400">N/A</div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ChampOverview champ={champ} />
           </TabsContent>
           <TabsContent value="statistics">
             {Object.keys(keyToId).length === 0 ? (
@@ -410,6 +375,259 @@ export default function ChampionDetailPage() {
         </div>
       </Tabs>
 
+      {/* Cyber scroll-to-top */}
+      <div
+        className={cn(
+          "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
+          "transition-all duration-300 ease-in-out",
+          showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
+        )}
+      >
+        <button
+          aria-label="Scroll to top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="group relative w-11 h-11 cursor-pointer"
+        >
+          <span className={cn(
+            "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
+            "bg-black/60 border-jade/40",
+            "group-hover:border-jade/80 group-hover:bg-jade/10",
+            "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
+            "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
+          )}>
+            <span
+              className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
+              style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)" }}
+            />
+          </span>
+          <span className="absolute inset-0 flex items-center justify-center">
+            <svg viewBox="0 0 10 6" className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="1,5 5,1 9,5" />
+            </svg>
+          </span>
+        </button>
+        <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">TOP</span>
+      </div>
+
     </main>
+  )
+}
+
+// ── Champion Overview Component ──
+
+const ABILITY_KEYS = ["P", "Q", "W", "E", "R"] as const
+const STAT_LABELS: Record<string, string> = {
+  hp: "Health", hpperlevel: "HP / Lvl", mp: "Mana", mpperlevel: "MP / Lvl",
+  armor: "Armor", armorperlevel: "Armor / Lvl", spellblock: "Magic Resist", spellblockperlevel: "MR / Lvl",
+  attackdamage: "Attack Damage", attackdamageperlevel: "AD / Lvl",
+  attackspeed: "Attack Speed", attackspeedperlevel: "AS / Lvl",
+  movespeed: "Move Speed", attackrange: "Attack Range",
+  hpregen: "HP Regen", hpregenperlevel: "HP Regen / Lvl",
+  mpregen: "MP Regen", mpregenperlevel: "MP Regen / Lvl",
+  crit: "Crit", critperlevel: "Crit / Lvl",
+}
+const STAT_ORDER = ["hp", "hpperlevel", "mp", "mpperlevel", "armor", "armorperlevel", "spellblock", "spellblockperlevel", "attackdamage", "attackdamageperlevel", "attackspeed", "attackspeedperlevel", "movespeed", "attackrange", "hpregen", "hpregenperlevel", "mpregen", "mpregenperlevel"]
+
+function ChampOverview({ champ }: { champ: ChampInfo }) {
+  const [selectedAbility, setSelectedAbility] = useState(0) // 0=P, 1=Q, 2=W, 3=E, 4=R
+
+  const abilities = [
+    champ.passive ? { key: "P", name: champ.passive.name, description: champ.passive.description, image: champ.passive.image.full, cooldown: null, cost: null } : null,
+    ...(champ.spells ?? []).map((s, i) => ({
+      key: ABILITY_KEYS[i + 1],
+      name: s.name,
+      description: s.description,
+      image: s.image.full,
+      cooldown: s.cooldown,
+      cost: s.cost,
+    })),
+  ].filter(Boolean) as { key: string; name: string; description: string; image: string; cooldown: number[] | null; cost: number[] | null }[]
+
+  const active = abilities[selectedAbility] ?? abilities[0]
+
+  // Strip HTML tags from description
+  const cleanDesc = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+
+  return (
+    <div className="space-y-5">
+      {/* ── Lore ── */}
+      <div>
+        <SectionTitle>Lore</SectionTitle>
+        <p className="text-[13px] text-flash/65 leading-[1.75] mt-2">
+          {champ.lore || "No lore available."}
+        </p>
+      </div>
+
+      {/* ── Abilities — all displayed as stacked cards ── */}
+      <div>
+        <SectionTitle>Abilities</SectionTitle>
+        <div className="mt-2 space-y-1.5">
+          {abilities.map((ab, idx) => (
+            <motion.div
+              key={ab.key}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.06, duration: 0.25 }}
+              className={cn(
+                "group relative flex items-start gap-3 py-2 px-3 rounded-sm cursor-pointer transition-all duration-200",
+                "bg-white/[0.02] hover:bg-white/[0.05]",
+                "ring-1 ring-white/[0.04] hover:ring-jade/20",
+              )}
+              onClick={() => setSelectedAbility(idx)}
+            >
+              {/* Left accent */}
+              <div className={cn(
+                "absolute left-0 top-0 bottom-0 w-[3px] rounded-l-sm transition-colors duration-200",
+                selectedAbility === idx ? "bg-jade" : "bg-white/[0.06] group-hover:bg-jade/30"
+              )} />
+
+              {/* Icon */}
+              <div className="relative shrink-0 ml-2">
+                <img
+                  src={ab.key === "P"
+                    ? `${CDN_BASE_URL}/img/passive/${ab.image}`
+                    : `${CDN_BASE_URL}/img/spell/${ab.image}`
+                  }
+                  alt={ab.name}
+                  className={cn(
+                    "w-9 h-9 rounded-sm object-cover transition-all duration-200",
+                    selectedAbility === idx
+                      ? "ring-2 ring-jade/40 shadow-[0_0_12px_rgba(0,217,146,0.15)]"
+                      : "ring-1 ring-white/10 group-hover:ring-white/20"
+                  )}
+                />
+                <span className={cn(
+                  "absolute -top-1.5 -left-1.5 text-[9px] font-mono font-black px-1.5 py-0.5 rounded-[2px] leading-none",
+                  selectedAbility === idx
+                    ? "bg-jade text-black"
+                    : "bg-flash/15 text-flash/50"
+                )}>
+                  {ab.key}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h4 className={cn(
+                  "text-[13px] font-mono font-semibold transition-colors duration-200",
+                  selectedAbility === idx ? "text-jade" : "text-flash/80 group-hover:text-flash"
+                )}>
+                  {ab.name}
+                </h4>
+
+                {/* Cooldown + Cost badges */}
+                {(ab.cooldown || ab.cost) && (
+                  <div className="flex items-center gap-3 mt-1">
+                    {ab.cooldown && ab.cooldown.some(v => v > 0) && (
+                      <span className="text-[11px] font-mono text-flash/35">
+                        CD: <span className="text-flash/60">{[...new Set(ab.cooldown)].join(" / ")}s</span>
+                      </span>
+                    )}
+                    {ab.cost && ab.cost.some(v => v > 0) && (
+                      <span className="text-[11px] font-mono text-flash/35">
+                        Cost: <span className="text-sky-400/60">{[...new Set(ab.cost)].join(" / ")}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[12px] text-flash/50 leading-[1.6] mt-1.5">
+                  {cleanDesc(ab.description)}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Base Stats ── */}
+      {champ.stats && (
+        <div>
+          <SectionTitle>Base Stats</SectionTitle>
+          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-0">
+            {STAT_ORDER.filter(k => champ.stats![k] !== undefined && !k.includes("perlevel")).map(k => (
+              <div key={k} className="flex justify-between items-center py-1.5 border-b border-white/[0.04]">
+                <span className="text-[12px] font-mono text-flash/35">{STAT_LABELS[k] ?? k}</span>
+                <span className="text-[13px] font-mono text-flash/75 font-semibold tabular-nums">{champ.stats![k]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Playstyle bars ── */}
+      {champ.info && (
+        <div>
+          <SectionTitle>Playstyle</SectionTitle>
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            {(["attack", "defense", "magic", "difficulty"] as const).map(stat => {
+              const val = champ.info![stat]
+              return (
+                <div key={stat} className="rounded-sm bg-white/[0.03] ring-1 ring-white/[0.05] p-4 text-center">
+                  <div className="text-[22px] font-mono font-bold text-jade tabular-nums">{val}</div>
+                  <div className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/35 mt-1 capitalize">{stat}</div>
+                  <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden mt-3">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${val * 10}%` }}
+                      transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
+                      className="h-full rounded-full bg-gradient-to-r from-jade to-jade/40"
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tips ── */}
+      {((champ.allytips?.length ?? 0) > 0 || (champ.enemytips?.length ?? 0) > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {champ.allytips && champ.allytips.length > 0 && (
+            <div>
+              <SectionTitle>Playing as {champ.name}</SectionTitle>
+              <ul className="mt-3 space-y-2">
+                {champ.allytips.map((tip, i) => (
+                  <li key={i} className="text-[13px] text-flash/55 leading-relaxed flex gap-2">
+                    <span className="text-jade shrink-0 mt-0.5">{">"}</span>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {champ.enemytips && champ.enemytips.length > 0 && (
+            <div>
+              <SectionTitle>Playing against {champ.name}</SectionTitle>
+              <ul className="mt-3 space-y-2">
+                {champ.enemytips.map((tip, i) => (
+                  <li key={i} className="text-[13px] text-red-400/60 leading-relaxed flex gap-2">
+                    <span className="text-red-400/70 shrink-0 mt-0.5">{">"}</span>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Resource ── */}
+      {champ.partype && (
+        <div className="text-[11px] font-mono text-flash/30 tracking-[0.15em] uppercase">
+          Resource: <span className="text-flash/40">{champ.partype}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-jade/50">{children}</span>
+      <div className="h-px flex-1 bg-gradient-to-r from-jade/15 to-transparent" />
+    </div>
   )
 }

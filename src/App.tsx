@@ -37,6 +37,7 @@ import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
 import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
+import TierlistPage from "@/pages/tierlistpage";
 import PlaygroundPage from "./pages/playgroundpage";
 import TotalMasteryPage from "./pages/totalmastery";
 import PrivacyPolicyPage from "@/pages/privacypolicypage";
@@ -187,6 +188,7 @@ function App() {
               <Route path="/matches/:matchId" element={<MatchPage />} />
               <Route path="/champions" element={<ChampionPage />} />
               <Route path="/leaderboards" element={<RootLayout><LeaderboardPage /></RootLayout>} />
+              <Route path="/tierlist/:role?" element={<RootLayout><TierlistPage /></RootLayout>} />
               <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>

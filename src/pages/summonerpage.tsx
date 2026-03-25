@@ -1,3 +1,4 @@
+import React from "react"
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
 import { motion, AnimatePresence } from "framer-motion"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
@@ -46,6 +47,7 @@ import { useDisableMatchGrouping } from "@/hooks/useDisableMatchGrouping"
 import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
 import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
 import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
+import { useStatsBarPrefs } from "@/hooks/useStatsBarPrefs"
 import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -119,6 +121,7 @@ export default function SummonerPage() {
   const { enabled: coloredMatchBg } = useEnableColoredMatchBg()
   const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
   const { enabled: hideRemakes } = useHideRemakeMatches()
+  const { hidden: statsBarHidden, visibleStats } = useStatsBarPrefs()
   const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
@@ -1003,22 +1006,21 @@ export default function SummonerPage() {
     });
     const data = await res.json();
 
-    // If backend says ingestion is in progress (first-time visit), poll until matches appear
-    if (data.ingesting && (!data.matches || data.matches.length === 0)) {
-      setIsIngesting(true);
-      return;
-    }
+    // Track ingestion state — keep polling while backend says ingesting
+    setIsIngesting(Boolean(data.ingesting));
 
-    setIsIngesting(false);
     setHasMore(Boolean(data.hasMore));
     setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
 
     setTopChampions(data.topChampions || []);
 
-    if (append) {
-      setMatches(prev => [...prev, ...(data.matches || [])]);
-    } else {
-      setMatches(data.matches || []);
+    // Always update matches if we got any (even partial during ingestion)
+    if (data.matches && data.matches.length > 0) {
+      if (append) {
+        setMatches(prev => [...prev, ...data.matches]);
+      } else {
+        setMatches(data.matches);
+      }
     }
   }
 
@@ -1919,6 +1921,11 @@ export default function SummonerPage() {
                       </div>
                     )}
 
+                    {summonerInfo?.ladderRank && (
+                      <p className="text-jade/60 text-[11px] text-right font-mono tracking-[0.15em] uppercase">
+                        RANK #{summonerInfo.ladderRank.toLocaleString()}
+                      </p>
+                    )}
                     <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
                       LEVEL {summonerInfo?.level} | {region}
                     </p>
@@ -2011,7 +2018,7 @@ export default function SummonerPage() {
                   <img
                     src={
                       summonerInfo?.avatar_url
-                      ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                      ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }
                     className={cn(
                       "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
@@ -2021,7 +2028,7 @@ export default function SummonerPage() {
                     draggable={false}
                     onError={(e) => {
                       e.currentTarget.src =
-                        `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                        `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }}
                   />
                   {summonerInfo?.live && summonerInfo?.puuid && (
@@ -2174,7 +2181,7 @@ export default function SummonerPage() {
             </div>
 
             {/* ── Stats summary bar ── */}
-            {!loading && !isIngesting && filteredMatches.length > 0 && (() => {
+            {!statsBarHidden && !loading && !isIngesting && filteredMatches.length > 0 && (() => {
               const puuid = summonerInfo?.puuid
               const stats = filteredMatches.reduce((acc, m) => {
                 const me = m.match.info.participants.find((p: any) => p.puuid === puuid)
@@ -2188,9 +2195,15 @@ export default function SummonerPage() {
                 acc.damage += me.totalDamageDealtToChampions ?? 0
                 acc.vision += me.visionScore ?? 0
                 acc.durationMin += (m.match.info.gameDuration ?? 0) / 60
+                // Team total kills for KP
+                const teamId = me.teamId
+                const teamKills = m.match.info.participants
+                  .filter((p: any) => p.teamId === teamId)
+                  .reduce((sum: number, p: any) => sum + (p.kills ?? 0), 0)
+                acc.teamKills += teamKills
                 acc.count++
                 return acc
-              }, { wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, cs: 0, damage: 0, vision: 0, durationMin: 0, count: 0 })
+              }, { wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, cs: 0, damage: 0, vision: 0, durationMin: 0, teamKills: 0, count: 0 })
 
               const n = stats.count || 1
               const wr = Math.round((stats.wins / (stats.wins + stats.losses || 1)) * 100)
@@ -2201,75 +2214,102 @@ export default function SummonerPage() {
               const csMin = stats.durationMin > 0 ? (stats.cs / stats.durationMin).toFixed(1) : "0"
               const avgDmg = Math.round(stats.damage / n).toLocaleString()
               const avgVis = (stats.vision / n).toFixed(1)
+              const kp = stats.teamKills > 0 ? Math.round(((stats.kills + stats.assists) / stats.teamKills) * 100) : 0
 
               // SVG donut params
-              const r = 14, cx = 18, cy = 18
+              const r = 20, cx = 24, cy = 24
               const circ = 2 * Math.PI * r
               const winArc = (wr / 100) * circ
               const kdaNum = stats.deaths === 0 ? 99 : (stats.kills + stats.assists) / stats.deaths
               const kdaColor = kdaNum >= 4 ? "text-jade" : kdaNum >= 3 ? "text-amber-400" : kdaNum >= 2 ? "text-flash/70" : "text-rose-400"
 
+              // Collect visible stat sections with separators
+              const sections: React.ReactNode[] = []
+              if (visibleStats.kda) {
+                sections.push(
+                  <div key="kda" className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className={cn("text-[14px] font-bold tabular-nums tracking-tight leading-none", kdaColor)}>{kda}</span>
+                      <span className="text-[9px] text-flash/25 tracking-[0.1em] uppercase leading-none">KDA</span>
+                    </div>
+                    <span className="text-[9px] text-flash/40 tabular-nums leading-none mt-1">
+                      {avgK}<span className="text-flash/15"> / </span><span className="text-red-400/50">{avgD}</span><span className="text-flash/15"> / </span>{avgA}
+                    </span>
+                  </div>
+                )
+              }
+              if (visibleStats.kp) {
+                sections.push(
+                  <div key="kp" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{kp}%</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">KP</span>
+                  </div>
+                )
+              }
+              if (visibleStats.csm) {
+                sections.push(
+                  <div key="csm" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{csMin}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">CS/M</span>
+                  </div>
+                )
+              }
+              if (visibleStats.dmg) {
+                sections.push(
+                  <div key="dmg" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgDmg}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">DMG</span>
+                  </div>
+                )
+              }
+              if (visibleStats.vis) {
+                sections.push(
+                  <div key="vis" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgVis}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">VIS</span>
+                  </div>
+                )
+              }
+
               return (
-                <div className="mt-2 flex items-center gap-0 rounded-sm overflow-hidden border border-flash/[0.06]">
-                  {/* Win rate section */}
-                  <div className="flex items-center gap-2.5 px-3 py-1.5 bg-black/30 border-r border-flash/[0.06]">
-                    <svg width="32" height="32" viewBox="0 0 36 36" className="shrink-0">
-                      <defs>
-                        <filter id="donut-glow">
-                          <feGaussianBlur stdDeviation="1.5" result="blur" />
-                          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                        </filter>
-                      </defs>
-                      {/* Track */}
+                <div className="mt-3 flex items-center gap-4">
+                  {/* Win rate ring */}
+                  <div className="relative shrink-0">
+                    <svg width="52" height="52" viewBox="0 0 48 48">
                       <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="3.5" />
-                      {/* Loss arc */}
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#b11315" strokeWidth="3.5"
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(185,30,30,0.45)" strokeWidth="3.5"
                         strokeDasharray={circ} strokeDashoffset={0}
-                        transform={`rotate(-90 ${cx} ${cy})`} opacity="0.7" />
-                      {/* Win arc */}
+                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round" />
                       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00d992" strokeWidth="3.5"
                         strokeDasharray={`${winArc} ${circ - winArc}`} strokeDashoffset={0}
-                        transform={`rotate(-90 ${cx} ${cy})`} filter="url(#donut-glow)" />
-                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-                        className="font-mono text-[8px] font-bold"
+                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round"
+                        style={{ filter: "drop-shadow(0 0 5px rgba(0,217,146,0.5))" }} />
+                      <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="central"
+                        className="font-mono text-[11px] font-bold"
                         fill={wr >= 55 ? "#00d992" : wr < 45 ? "#f87171" : "rgba(255,255,255,0.5)"}>
                         {wr}%
                       </text>
+                      <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="central"
+                        className="font-mono text-[7px]" fill="rgba(255,255,255,0.25)">
+                        {stats.wins}W {stats.losses}L
+                      </text>
                     </svg>
-                    <div className="flex flex-col -gap-0.5">
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-[11px] font-semibold text-jade tabular-nums">{stats.wins}W</span>
-                        <span className="font-mono text-[11px] font-semibold text-[#b11315] tabular-nums">{stats.losses}L</span>
-                      </div>
-                      <span className="font-mono text-[8px] text-flash/20 tracking-widest uppercase">{stats.count} played</span>
-                    </div>
                   </div>
 
-                  {/* KDA section */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 border-r border-flash/[0.06]">
-                    <span className={cn("font-mono text-[13px] font-bold tabular-nums", kdaColor)}>{kda}</span>
-                    <div className="flex flex-col">
-                      <span className="font-mono text-[10px] text-flash/50 tabular-nums leading-tight">
-                        {avgK}<span className="text-flash/20"> / </span>{avgD}<span className="text-flash/20"> / </span>{avgA}
-                      </span>
-                      <span className="font-mono text-[8px] text-flash/20 tracking-widest uppercase">KDA</span>
-                    </div>
-                  </div>
+                  {/* Stats row — flat, evenly distributed with separators */}
+                  <div className="flex-1 flex items-center justify-between font-mono">
+                    {sections.map((section, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
+                        {section}
+                      </React.Fragment>
+                    ))}
 
-                  {/* Stat pills */}
-                  {[
-                    { val: csMin, label: "CS/M" },
-                    { val: avgDmg, label: "DMG" },
-                    { val: avgVis, label: "VIS" },
-                  ].map((s, i) => (
-                    <div key={s.label} className={cn(
-                      "flex flex-col items-center justify-center px-3 py-1.5 bg-black/20",
-                      i < 2 && "border-r border-flash/[0.06]"
-                    )}>
-                      <span className="font-mono text-[11px] text-flash/60 font-medium tabular-nums leading-tight">{s.val}</span>
-                      <span className="font-mono text-[7px] text-flash/20 tracking-[0.15em] uppercase">{s.label}</span>
-                    </div>
-                  ))}
+                    {sections.length > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
+
+                    {/* Games count — always shown */}
+                    <span className="text-[9px] text-flash/20 tracking-[0.15em] uppercase">LAST {stats.count} GAMES</span>
+                  </div>
                 </div>
               )
             })()}
@@ -2291,16 +2331,18 @@ export default function SummonerPage() {
                     key={idx}
                     className={cn(
                       "flex items-center gap-4 p-3 rounded-md h-28",
-                      // vetro scuro identico alle card
                       "bg-black/22 backdrop-blur-lg saturate-150",
-                      // edge ultra sottile solo via shadow (NO alone)
                       "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
                     )}
                   >
-                    {/* champ icon */}
-                    <Skeleton className="w-12 h-12 rounded-md bg-white/10" />
+                    {/* summoner icon 29 as placeholder */}
+                    <img
+                      src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png"
+                      alt=""
+                      className="w-12 h-12 rounded-md opacity-15 animate-pulse"
+                    />
 
-                    {/* testo */}
+                    {/* skeleton text */}
                     <div className="flex flex-col gap-2 w-full">
                       <Skeleton className="h-4 w-1/2 bg-white/10" />
                       <Skeleton className="h-4 w-1/3 bg-white/10" />

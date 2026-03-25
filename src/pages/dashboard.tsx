@@ -26,6 +26,7 @@ import { MatchGroupingPreference } from "@/components/matchgroupingpreference";
 import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference";
 import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
 import { HideRemakesPreference } from "@/components/hideremakespreference";
+import { StatsBarPreference } from "@/components/statsbarpreference";
 import { CDN_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 
@@ -237,6 +238,7 @@ export default function DashboardPage() {
                     <ColoredMatchBgPreference />
                     <MatchCenteringPreference />
                     <HideRemakesPreference />
+                    <StatsBarPreference />
                   </div>
 
                   <div className="space-y-3">
