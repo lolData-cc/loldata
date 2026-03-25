@@ -16,6 +16,8 @@ export type Participant = {
   totalMinionsKilled: number
   neutralMinionsKilled: number
   goldEarned: number
+  totalDamageDealtToChampions: number
+  visionScore: number
   teamId: number
   timePlayed: number
   soloKills: number
