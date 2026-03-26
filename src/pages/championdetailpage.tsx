@@ -263,7 +263,7 @@ export default function ChampionDetailPage() {
   }
 
   return (
-    <main className="min-h-dvh overflow-x-hidden">
+    <main className="min-h-dvh w-full">
       {/* Hero — full-width splash */}
       <div className="relative w-screen left-1/2 -translate-x-1/2 h-[360px] overflow-hidden -mt-6 mb-4">
         <img
