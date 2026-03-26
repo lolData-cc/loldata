@@ -60,7 +60,7 @@ export function RoleDistribution({ data, delay = 0 }: { data: RoleData[]; delay?
                   fontSize: 10,
                   fontFamily: "JetBrains Mono",
                 }}
-                formatter={(value: number, name: string) => [`${value} games`, ROLE_LABELS[name] ?? name]}
+                formatter={(value: any, name: any) => [`${value} games`, ROLE_LABELS[name as string] ?? name]}
               />
             </PieChart>
           </ResponsiveContainer>

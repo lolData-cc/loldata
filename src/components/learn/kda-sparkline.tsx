@@ -46,9 +46,9 @@ export function KDASparkline({ data, delay = 0 }: { data: DataPoint[]; delay?: n
                 fontFamily: "JetBrains Mono",
               }}
               labelStyle={{ color: "rgba(191,197,198,0.5)" }}
-              formatter={(value: number, _: any, entry: any) => {
+              formatter={(value: any, _: any, entry: any) => {
                 const p = entry.payload as DataPoint
-                return [`${value.toFixed(2)} KDA — ${p.champion} (${p.win ? "W" : "L"})`, ""]
+                return [`${Number(value).toFixed(2)} KDA — ${p.champion} (${p.win ? "W" : "L"})`, ""]
               }}
               labelFormatter={(v) => `Game ${v}`}
             />
