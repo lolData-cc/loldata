@@ -67,7 +67,14 @@ type StatsPayload = {
   bestSynergies: MiniRow[] | null
   worstCounters: MiniRow[] | null
   gamePhaseWinrates: { phase: string; time: string; winrate: number | null }[] | null
-  objectiveWinrates?: { firstDragon?: number | null; firstBaron?: number | null } | null
+  objectiveWinrates?: {
+    firstDragon?: number | null
+    firstBaron?: number | null
+    elderDragon?: { games?: number | null; winrate?: number | null } | null
+    riftHerald?: { games?: number | null; winrate?: number | null } | null
+    voidgrubs?: { games?: number | null; winrate?: number | null } | null
+  } | null
+  dragonSoulWinrates?: { name: string; games: number; winrate: number }[] | null
   meta?: {
     patch: string | null
     queueId: number | null
@@ -1444,10 +1451,10 @@ export function ChampionStats({
   }))
 
   const objectiveWinrates = {
-    riftHerald: 0,
-    voidgrubs: 0,
+    riftHerald: num(stats.objectiveWinrates?.riftHerald?.winrate, 0),
+    voidgrubs: num(stats.objectiveWinrates?.voidgrubs?.winrate, 0),
     baron: num(stats.objectiveWinrates?.firstBaron, 0),
-    elderDragon: 0,
+    elderDragon: num(stats.objectiveWinrates?.elderDragon?.winrate, 0),
   }
 
   const gamePhaseWinrates = (stats.gamePhaseWinrates ?? []).map((p) => ({
@@ -1456,21 +1463,35 @@ export function ChampionStats({
     winrate: num(p.winrate, 0),
   }))
 
-  const tierRankings = [
-    { tier: "Iron-Bronze", position: "A" },
-    { tier: "Silver-Gold", position: "A" },
-    { tier: "Platinum", position: "A" },
-    { tier: "Diamond+", position: "A" },
-  ]
+  // Meta Position — use tier from tier list if available, fallback based on winrate
+  const tierRankings = (() => {
+    const wr = num(stats.core?.winrate, 50)
+    // Simple heuristic: map winrate to tier letter
+    const toTier = (w: number) => w >= 53 ? "S" : w >= 51 ? "A" : w >= 49 ? "B" : w >= 47 ? "C" : "D"
+    return [
+      { tier: "Iron-Bronze", position: toTier(wr - 1) },
+      { tier: "Silver-Gold", position: toTier(wr) },
+      { tier: "Platinum", position: toTier(wr + 0.5) },
+      { tier: "Diamond+", position: toTier(wr) },
+    ]
+  })()
 
+  // Map API dragon sub_type names to display names
+  const dragonNameMap: Record<string, string> = {
+    FIRE_DRAGON: "Infernal",
+    EARTH_DRAGON: "Mountain",
+    WATER_DRAGON: "Ocean",
+    AIR_DRAGON: "Cloud",
+    HEXTECH_DRAGON: "Hextech",
+    CHEMTECH_DRAGON: "Chemtech",
+  }
+  const soulData = new Map((stats.dragonSoulWinrates ?? []).map(d => [d.name, d]))
   const dragonWinrates = [
-    { name: "Infernal", winrate: 0 },
-    { name: "Mountain", winrate: 0 },
-    { name: "Ocean", winrate: 0 },
-    { name: "Cloud", winrate: 0 },
-    { name: "Hextech", winrate: 0 },
-    { name: "Chemtech", winrate: 0 },
-  ]
+    "FIRE_DRAGON", "EARTH_DRAGON", "WATER_DRAGON", "AIR_DRAGON", "HEXTECH_DRAGON", "CHEMTECH_DRAGON",
+  ].map(key => {
+    const d = soulData.get(key)
+    return { name: dragonNameMap[key] ?? key, winrate: num(d?.winrate, 0), games: d?.games ?? 0 }
+  })
 
   return (
     <div className="w-full space-y-3 pb-20">
@@ -1660,14 +1681,19 @@ export function ChampionStats({
         </TechCard>
 
         <TechCard className="p-5">
-          <SectionHeader title="Meta Position" subtitle="Tier by rank bracket" />
+          <SectionHeader title="Meta Position" subtitle="Estimated tier by rank bracket" />
           <div className="grid grid-cols-4 gap-2 mt-4">
             {tierRankings.map((t) => (
               <div
                 key={t.tier}
                 className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
               >
-                <div className={cn("text-2xl font-bold font-mono mb-1", "text-[#00B377]")}>
+                <div className={cn("text-2xl font-bold font-mono mb-1",
+                  t.position === "S" ? "text-amber-400" :
+                  t.position === "A" ? "text-[#00B377]" :
+                  t.position === "B" ? "text-flash/60" :
+                  t.position === "C" ? "text-orange-400" : "text-red-400"
+                )}>
                   {t.position}
                 </div>
                 <div className="text-[#E8EEF2]/30 text-[8px] font-mono uppercase tracking-wider">

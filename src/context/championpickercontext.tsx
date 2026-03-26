@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { champDisplayName } from "@/config";
 
 import {
   Accordion,
@@ -114,7 +115,7 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
           const id = String(c.id);
           return {
             id,
-            label: id,
+            label: String(c.name || id),
             image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${id}.png`,
           };
         });
@@ -512,7 +513,8 @@ function ChampionPickerContent({
       base[role] = items
         .filter((c) => {
           const inRole = set.has(c.id);
-          const matchSearch = !term || c.label.toLowerCase().includes(term);
+          const display = champDisplayName(c.id).toLowerCase();
+          const matchSearch = !term || c.label.toLowerCase().includes(term) || c.id.toLowerCase().includes(term) || display.includes(term);
           return inRole && matchSearch;
         })
         .sort((a, b) => a.label.localeCompare(b.label));
@@ -593,7 +595,7 @@ function ChampionPickerContent({
                           />
                         </div>
                         <span className="text-[10px] text-flash/60 truncate max-w-[64px]">
-                          {c.label}
+                          {champDisplayName(c.id)}
                         </span>
                       </button>
                     ))}

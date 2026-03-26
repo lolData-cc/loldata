@@ -1,251 +1,311 @@
-// src/components/overview.tsx
-import { useEffect, useMemo, useState } from "react"
-import type { MatchWithWin, SummonerInfo } from "@/assets/types/riot"
-import { API_BASE_URL } from "@/config"
-import dayjs from "dayjs"
-import { Separator } from "@/components/ui/separator"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+// src/components/overview.tsx — Daily Performance Dashboard (Cyber UI)
+import { useLearnOverview } from "@/hooks/useLearnOverview"
+import { KDASparkline } from "@/components/learn/kda-sparkline"
+import { StrengthsWeaknesses } from "@/components/learn/strengths-weaknesses"
+import { OverviewSkeleton } from "@/components/learn/overview-skeleton"
+import { OrbitEmpty } from "@/components/learn/orbit-empty"
+import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
+import { normalizeChampName, champPath } from "@/config"
 
-type Props = {
-  nametag: string | null
-  region: string | null
-  puuid?: string | null
+type Props = { puuid: string | null; region: string | null; nametag: string | null }
+
+const NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+function numWord(n: number): string {
+  return n >= 0 && n < NUM_WORDS.length ? NUM_WORDS[n] : String(n)
 }
 
-/* ------------------------- time helpers ------------------------- */
-function getMatchTimestamp(info: MatchWithWin["match"]["info"]) {
-  return info.gameEndTimestamp ?? info.gameStartTimestamp ?? info.gameCreation
-}
-function dayKeyFromTs(ts: number) {
-  const d = new Date(ts)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
+/* ── Cyber card wrapper with corner brackets + scanlines ── */
+function CyberCard({ children, className, accent = "jade", delay = 0 }: {
+  children: React.ReactNode; className?: string; accent?: "jade" | "red" | "amber" | "flash"; delay?: number
+}) {
+  const borderColor = accent === "jade" ? "border-jade/10" : accent === "red" ? "border-red-400/10" : accent === "amber" ? "border-amber-400/10" : "border-flash/[0.06]"
+  const barColor = accent === "jade" ? "bg-jade/30" : accent === "red" ? "bg-red-400/30" : accent === "amber" ? "bg-amber-400/30" : "bg-flash/10"
+  const cornerColor = accent === "jade" ? "bg-jade/20" : accent === "red" ? "bg-red-400/20" : accent === "amber" ? "bg-amber-400/20" : "bg-flash/10"
+  const scanColor = accent === "jade" ? "rgba(0,217,146,0.012)" : accent === "red" ? "rgba(248,113,113,0.012)" : accent === "amber" ? "rgba(245,158,11,0.012)" : "rgba(255,255,255,0.008)"
 
-/* -------- shared finder: robust match of the current participant -------- */
-function findMyParticipant(
-  match: MatchWithWin,
-  opts: { puuid?: string | null; summoner?: SummonerInfo | null; nametag?: string | null }
-) {
-  const [authName, authTag] = (opts.nametag ?? "").split("#").map(s => s?.toLowerCase())
-  const parts = match.match.info.participants
-
-  return parts.find(pp => {
-    if (opts.puuid && pp.puuid === opts.puuid) return true
-    if (!opts.puuid && opts.summoner?.puuid && pp.puuid === opts.summoner.puuid) return true
-
-    const riotOk =
-      pp.riotIdGameName && pp.riotIdTagline &&
-      authName && authTag &&
-      pp.riotIdGameName.toLowerCase() === authName &&
-      pp.riotIdTagline.toLowerCase() === authTag
-    if (riotOk) return true
-
-    const snOk =
-      opts.summoner?.name &&
-      pp.summonerName &&
-      pp.summonerName.toLowerCase() === opts.summoner.name.toLowerCase()
-    return snOk
-  })
-}
-
-export default function Overview({ nametag, region, puuid }: Props) {
-  const [summoner, setSummoner] = useState<SummonerInfo | null>(null)
-  const [matches, setMatches] = useState<MatchWithWin[]>([])
-  const [loading, setLoading] = useState(true)
-
-  /* ----------------------------- fetch ----------------------------- */
-  useEffect(() => {
-    const run = async () => {
-      if (!nametag || !region) return
-      const [name, tag] = nametag.split("#")
-      if (!name || !tag) return
-      setLoading(true)
-      try {
-        const sRes = await fetch(`${API_BASE_URL}/api/summoner`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, tag, region })
-        })
-        const sData = await sRes.json()
-        setSummoner(sData.summoner ?? null)
-
-        const mRes = await fetch(`${API_BASE_URL}/api/matches`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, tag, region })
-        })
-        const mData = await mRes.json()
-        setMatches(mData.matches || [])
-      } catch (e) {
-        console.error("Overview fetch error:", e)
-      } finally {
-        setLoading(false)
-      }
-    }
-    run()
-  }, [nametag, region])
-
-  /* -------------------------- today filtering -------------------------- */
-  const todayKey = dayjs().format("YYYY-MM-DD")
-  const todaysMatches = useMemo(() => {
-    if (!matches.length) return []
-    return matches.filter(m => dayKeyFromTs(getMatchTimestamp(m.match.info)) === todayKey)
-  }, [matches, todayKey])
-
-  /* --------------------------- KDA aggregate --------------------------- */
-  const { kdaLabel, kdaDisplay } = useMemo(() => {
-    if (!todaysMatches.length) return { kdaLabel: "—", kdaDisplay: "—" }
-
-    let K = 0, D = 0, A = 0
-    let foundAnyParticipant = false
-
-    for (const m of todaysMatches) {
-      const p = findMyParticipant(m, { puuid, summoner, nametag })
-      if (!p) continue
-      foundAnyParticipant = true
-      K += p.kills ?? 0
-      D += p.deaths ?? 0
-      A += p.assists ?? 0
-    }
-
-    if (!foundAnyParticipant) return { kdaLabel: "—", kdaDisplay: "—" }
-    if (D === 0 && (K + A) > 0) return { kdaLabel: "Perfect", kdaDisplay: `${K}/${D}/${A}` }
-
-    const kda = D > 0 ? (K + A) / D : 0
-    return { kdaLabel: `${kda.toFixed(2)} KDA`, kdaDisplay: `${K}/${D}/${A}` }
-  }, [todaysMatches, puuid, summoner, nametag])
-
-  const totalGamesToday = todaysMatches.length
-
-  /* --------------------------- chart datapoints -------------------------- */
-  const kdaData = useMemo(() => {
-    if (!todaysMatches.length) return []
-    return todaysMatches.map((m, idx) => {
-      const p = findMyParticipant(m, { puuid, summoner, nametag })
-      if (!p) return { name: `G${idx + 1}`, kda: 0 }
-      const { kills, deaths, assists } = p
-      const kda = deaths === 0 ? (kills + assists) : (kills + assists) / Math.max(1, deaths)
-      return { name: `G${idx + 1}`, kda: parseFloat(kda.toFixed(2)) }
-    })
-  }, [todaysMatches, puuid, summoner, nametag])
-
-  /* -------------------------- rank / progress -------------------------- */
-  const rank = summoner?.rank ?? "Unranked"
-  const lp = typeof summoner?.lp === "number" ? summoner!.lp : 0
-  const lpToNext = Math.max(0, 100 - lp)
-
-  /* ================================ UI ================================ */
   return (
-    <div className="flex w-full h-64">
-      {/* LEFT: today’s KDA + total games */}
-      <div className="w-[25%] h-full rounded-[4px] flex flex-col p-2 gap-3">
-        <div className="h-32 bg-jade/10 border border-flash/10 rounded-sm flex flex-col justify-between p-4">
-          <span className="text-sm text-flash/70">TODAY’S KDA</span>
-          <div className="flex items-baseline gap-2">
-            <span className="font-proto text-3xl">
-              {loading ? "…" : (kdaLabel === "Perfect" ? "Perfect" : kdaLabel.split(" ")[0])}
-            </span>
-            <span className="text-flash/60 text-xs">
-              {loading ? "" : kdaLabel === "—" ? "" : kdaLabel.includes("KDA") ? "KDA" : ""}
-            </span>
-          </div>
-          <span className="text-flash/60 text-xs">{loading ? "" : kdaDisplay}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.35 }}
+      className={cn("relative rounded-[2px] border overflow-hidden", borderColor, className)}
+    >
+      {/* Left accent bar */}
+      <div className={cn("absolute left-0 top-0 bottom-0 w-[2px]", barColor)} />
+      {/* Scanlines */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: `repeating-linear-gradient(0deg, transparent, transparent 3px, ${scanColor} 3px, ${scanColor} 4px)` }} />
+      {/* Corner brackets */}
+      {[["top-0 left-0", "top-0 left-0", "top-0 left-0"], ["top-0 right-0", "top-0 right-0", "top-0 right-0"], ["bottom-0 left-0", "bottom-0 left-0", "bottom-0 left-0"], ["bottom-0 right-0", "bottom-0 right-0", "bottom-0 right-0"]].map((pos, i) => (
+        <div key={i} className={cn("absolute w-2.5 h-2.5 z-[3]", i === 0 ? "top-0 left-0" : i === 1 ? "top-0 right-0" : i === 2 ? "bottom-0 left-0" : "bottom-0 right-0")}>
+          <div className={cn("absolute h-px w-full", cornerColor, i < 2 ? "top-0" : "bottom-0", i % 2 === 0 ? "left-0" : "right-0")} />
+          <div className={cn("absolute w-px h-full", cornerColor, i < 2 ? "top-0" : "bottom-0", i % 2 === 0 ? "left-0" : "right-0")} />
         </div>
+      ))}
+      {/* Bottom glow line */}
+      <div className={cn("absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent to-transparent", accent === "jade" ? "via-jade/15" : accent === "red" ? "via-red-400/15" : accent === "amber" ? "via-amber-400/15" : "via-flash/8")} style={{ zIndex: 3 }} />
+      {/* Content */}
+      <div className="relative z-[2] p-4 pl-5">{children}</div>
+    </motion.div>
+  )
+}
 
-        <div className="h-32 bg-cement border border-flash/10 rounded-sm flex flex-col justify-between p-4">
-          <span className="text-sm text-flash/70">TOTAL GAMES</span>
-          <span className="font-proto text-3xl">{loading ? "…" : totalGamesToday}</span>
-        </div>
-      </div>
+/* ── Section header with jade dashes ── */
+function SectionLabel({ children, delay = 0 }: { children: string; delay?: number }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay }}
+      className="flex items-center gap-3 mt-8 mb-3">
+      <div className="w-1.5 h-1.5 rotate-45 bg-jade/30" />
+      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-jade/40">{children}</span>
+      <div className="flex-1 h-px bg-gradient-to-r from-jade/10 to-transparent" />
+    </motion.div>
+  )
+}
 
-      {/* MIDDLE: bar chart KDA di oggi */}
-      <div className="w-[50%] h-full flex flex-col py-2 px-0.5 gap-1">
-        <div className="bg-cement border border-flash/10 rounded-sm h-full p-2">
-          {loading ? (
-            <div className="text-flash/50 text-sm h-full flex items-center justify-center">Caricamento…</div>
-          ) : kdaData.length === 0 ? (
-            <div className="text-flash/60 text-sm h-full flex items-center justify-center">
-              Nessuna partita giocata oggi.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={kdaData} margin={{ top: 12, right: 16, left: 8, bottom: 12 }} barSize={24}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: "#8a8f8e", fontSize: 11 }}
-                  axisLine={{ stroke: "#8a8f8e" }}
-                  tickLine={{ stroke: "#8a8f8e" }}
-                />
-                <YAxis
-                  domain={[0, (dataMax: number) => Math.max(1, Math.ceil(dataMax + 0.2))]}
-                  tick={{ fill: "#8a8f8e", fontSize: 11 }}
-                  axisLine={{ stroke: "#8a8f8e" }}
-                  tickLine={{ stroke: "#8a8f8e" }}
-                  allowDecimals
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                  contentStyle={{ background: "#111", border: "1px solid #2B2A2B" }}
-                  labelStyle={{ color: "#BFC5C6" }}
-                  itemStyle={{ color: "#BFC5C6" }}
-                  formatter={(value) => [Number(value ?? 0).toFixed(2), "KDA"]}
-                />
-                <Bar dataKey="kda" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                  {(() => {
-                    const values = kdaData.map(d => d.kda)
-                    const max = Math.max(...values)
-                    const highlight = max > 0 ? max : -1
-                    return kdaData.map((entry, i) => (
-                      <Cell key={`cell-${i}`} fill={entry.kda === highlight ? "#00d992" : "#BFC5C6"} />
-                    ))
-                  })()}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </div>
-
-          {/* RIGHT: current rank */}
-          <div className="w-[25%] h-full flex flex-col p-2 gap-1">
-              <div className="h-full bg-cement border border-flash/10 rounded-sm flex flex-col justify-between p-4">
-                  <div className="flex flex-col">
-                      <span className="text-sm text-flash/70">CURRENT RANK</span>
-                      <span className="text-xl text-flash">{loading ? "…" : rank}</span>
-                      <span className="font-proto"> BWIPO </span>
-                  </div>
-
-                  <div className="space-y-2">
-                      <div className="font-proto">
-                          {rank.toLowerCase() !== "unranked" && (
-                              <div className="flex justify-between items-end text-flash/70 text-sm ">
-                                  <span className="text-3xl">{lp}</span>
-                                  <div>
-                                      <span>/</span>
-                                      <span>100</span>
-                                  </div>
-                              </div>
-                          )}
-                      </div>
-
-            <Separator className="w-full bg-flash/10" />
-
-            {rank.toLowerCase() !== "unranked" ? (
-              <>
-                <div className="flex justify-between text-xs text-flash/60">
-                  <span>LP to next division</span>
-                  <span>{loading ? "…" : lpToNext}</span>
-                </div>
-                <div className="h-2 w-full bg-flash/10 rounded-sm overflow-hidden">
-                  <div className="h-full bg-jade" style={{ width: `${loading ? 0 : Math.min(100, lp)}%` }} />
-                </div>
-              </>
-            ) : (
-              <div className="text-xs text-flash/50">Gioca partite ranked per ottenere un rank.</div>
-            )}
-          </div>
-        </div>
+/* ── Stat row inside a CyberCard ── */
+function StatRow({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-flash/[0.03] last:border-0">
+      <span className="text-[11px] font-mono text-flash/35 tracking-wide">{label}</span>
+      <div className="flex items-baseline gap-2.5">
+        <span className={cn("text-[13px] font-orbitron font-semibold tabular-nums", color || "text-flash/65")}>{value}</span>
+        {sub && <span className="text-[13px] font-orbitron font-semibold tabular-nums text-flash/20">{sub}</span>}
       </div>
     </div>
+  )
+}
+
+/* ── Big stat with glow ── */
+function BigStat({ value, label, sub, color, glow }: { value: string | number; label: string; sub?: string; color: string; glow?: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/20 mb-1">{label}</span>
+      <span className={cn("text-[42px] font-orbitron font-bold tabular-nums leading-none tracking-tight", color)}
+        style={glow ? { textShadow: glow } : undefined}
+      >{value}</span>
+      {sub && <span className="text-[11px] font-mono text-flash/25 mt-1">{sub}</span>}
+    </div>
+  )
+}
+
+export default function Overview({ puuid, region, nametag }: Props) {
+  const { data, loading, error } = useLearnOverview(puuid, region, nametag)
+
+  if (loading) return <OverviewSkeleton />
+  if (error) return <div className="flex items-center justify-center h-48"><span className="text-flash/40 font-mono text-sm">Failed to load overview data</span></div>
+
+  if (!data?.today || data.today.totalGames === 0) {
+    return (
+      <div className="space-y-2">
+        <OrbitEmpty label="No ranked games played today" />
+        {data?.baseline && (
+          <div className="text-center pt-2">
+            <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-flash/20">RECENT AVERAGES</span>
+            <div className="flex justify-center gap-6 mt-2">
+              {[["KDA", data.baseline.avgKDA], ["CS/M", data.baseline.avgCSPM], ["KP", data.baseline.avgKP + "%"]].map(([l, v]) => (
+                <div key={l as string} className="flex flex-col items-center">
+                  <span className="text-[13px] font-mono text-flash/50 tabular-nums">{v}</span>
+                  <span className="text-[8px] font-mono text-flash/20 tracking-[0.15em]">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const t = data.today
+  const b = data.baseline
+  const kdaColor = t.aggregateKDA.ratio >= 4 ? "text-jade" : t.aggregateKDA.ratio >= 3 ? "text-amber-400" : t.aggregateKDA.ratio >= 2 ? "text-flash/80" : "text-red-400"
+  const kdaGlow = t.aggregateKDA.ratio >= 4 ? "0 0 35px rgba(0,217,146,0.3), 0 0 80px rgba(0,217,146,0.1)" : t.aggregateKDA.ratio >= 3 ? "0 0 35px rgba(245,158,11,0.25), 0 0 80px rgba(245,158,11,0.08)" : t.aggregateKDA.ratio >= 2 ? "0 0 25px rgba(255,255,255,0.08)" : "0 0 35px rgba(248,113,113,0.25), 0 0 80px rgba(248,113,113,0.08)"
+  const wrColor = t.winrate >= 50 ? "text-jade" : "text-red-400"
+  const wrGlow = t.winrate >= 50 ? "0 0 35px rgba(0,217,146,0.3), 0 0 80px rgba(0,217,146,0.1)" : "0 0 35px rgba(248,113,113,0.3), 0 0 80px rgba(248,113,113,0.1)"
+  const impactColor = t.impact >= 70 ? "text-jade" : t.impact >= 50 ? "text-amber-400" : "text-red-400"
+  const impactStroke = t.impact >= 70 ? "#00d992" : t.impact >= 50 ? "#f59e0b" : "#f87171"
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="space-y-1 pb-12">
+
+      {/* ═══ HERO STRIP ═══ */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        className="flex items-end justify-between pb-6 mb-2 border-b border-flash/[0.05]">
+
+        {/* WR */}
+        <BigStat value={`${t.winrate}%`} label="SESSION WINRATE" sub={`${t.wins}W ${t.losses}L  //  ${t.totalGames} games`} color={wrColor} glow={wrGlow} />
+
+        {/* KDA */}
+        <div className="text-right">
+          <BigStat value={t.aggregateKDA.ratio} label="SESSION KDA" color={kdaColor} glow={kdaGlow} />
+          <div className="text-[11px] font-mono text-flash/30 mt-1">
+            {t.aggregateKDA.kills}<span className="text-flash/12"> / </span>
+            <span className="text-red-400/50">{t.aggregateKDA.deaths}</span>
+            <span className="text-flash/12"> / </span>{t.aggregateKDA.assists}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ═══ PERFORMANCE ═══ */}
+      <SectionLabel delay={0.1}>PERFORMANCE</SectionLabel>
+      <div className="grid grid-cols-2 gap-4">
+        <CyberCard delay={0.12}>
+          <StatRow label="CS / min" value={t.avgCSPM} sub={b ? `avg ${b.avgCSPM}` : undefined} />
+          <StatRow label="Gold / min" value={t.avgGoldPerMin ?? 0} sub={b ? `avg ${b.avgGoldPerMin}` : undefined} />
+          <StatRow label="Gold / game" value={Number(t.avgGoldPerGame).toLocaleString()} />
+          <StatRow label="Avg game length" value={`${t.avgGameDuration}m`} />
+        </CyberCard>
+        <CyberCard delay={0.14}>
+          <StatRow label="Kill participation" value={`${t.killParticipation}%`} sub={b ? `avg ${b.avgKP}%` : undefined} />
+          <StatRow label="Damage share" value={`${t.avgDamageShare}%`} sub={b ? `avg ${b.avgDmgShare}%` : undefined} />
+          <StatRow label="Vision score" value={t.avgVision} sub={`${t.avgWardsPlaced} placed`} />
+          <StatRow label="CC time / game" value={`${t.avgCCTime}s`} />
+        </CyberCard>
+      </div>
+
+      {/* ═══ COMBAT ═══ */}
+      <SectionLabel delay={0.18}>COMBAT</SectionLabel>
+      <div className="grid grid-cols-2 gap-4">
+        <CyberCard delay={0.2}>
+          <StatRow label="Avg damage dealt" value={Number(t.avgDmgPerGame).toLocaleString()} />
+          <StatRow label="Avg damage taken" value={Number(t.avgDmgTakenPerGame).toLocaleString()} />
+          <StatRow label="Turret damage" value={Number(t.avgTurretDmg).toLocaleString()} />
+        </CyberCard>
+        <CyberCard delay={0.22}>
+          <StatRow label="Solo kills" value={t.soloKills} color={t.soloKills > 0 ? "text-jade/70" : undefined} />
+          <StatRow label="First bloods" value={t.firstBloods} color={t.firstBloods > 0 ? "text-jade/70" : undefined} />
+          <StatRow label="Multi kills" value={[
+            t.doubleKills > 0 ? `${numWord(t.doubleKills)} double${t.doubleKills > 1 ? "s" : ""}` : null,
+            t.tripleKills > 0 ? `${numWord(t.tripleKills)} triple${t.tripleKills > 1 ? "s" : ""}` : null,
+            t.quadraKills > 0 ? `${numWord(t.quadraKills)} quadra${t.quadraKills > 1 ? "s" : ""}` : null,
+            t.pentaKills > 0 ? `${numWord(t.pentaKills)} penta${t.pentaKills > 1 ? "s" : ""}` : null,
+          ].filter(Boolean).join(", ") || "none"} />
+        </CyberCard>
+      </div>
+
+      {/* ═══ IMPACT ═══ */}
+      <SectionLabel delay={0.24}>IMPACT SCORE</SectionLabel>
+      <CyberCard accent={t.impact >= 65 ? "jade" : t.impact >= 50 ? "amber" : "red"} delay={0.26}>
+        <div className="flex items-center gap-6">
+          <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+            <svg width="80" height="80" viewBox="0 0 80 80" className="absolute inset-0">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="3" />
+              <circle cx="40" cy="40" r="34" fill="none"
+                stroke={impactStroke} strokeWidth="3" strokeLinecap="round"
+                strokeDasharray={`${(t.impact / 100) * 213.6} 213.6`}
+                transform="rotate(-90 40 40)"
+                style={{ filter: `drop-shadow(0 0 6px ${impactStroke}40)` }}
+              />
+            </svg>
+            <span className={cn("text-[26px] font-orbitron font-bold tabular-nums", impactColor)}>{t.impact}</span>
+          </div>
+          <div className="flex-1">
+            <span className={cn("text-[14px] font-orbitron font-bold tracking-wide", impactColor)}>
+              {t.impact >= 80 ? "DOMINANT" : t.impact >= 65 ? "STRONG" : t.impact >= 50 ? "AVERAGE" : t.impact >= 35 ? "BELOW AVERAGE" : "ROUGH SESSION"}
+            </span>
+            <p className="text-[11px] font-mono text-flash/30 mt-1 leading-relaxed">
+              {t.impact >= 65
+                ? "You outperformed relative to your team. Your individual plays had a significant positive effect on outcomes."
+                : t.impact >= 50
+                  ? "You played at an average level relative to your team. Consistent but room to carry harder."
+                  : "Your individual performance was below your team average. Focus on reducing deaths and increasing participation."}
+            </p>
+          </div>
+        </div>
+      </CyberCard>
+
+      {/* ═══ KDA TREND ═══ */}
+      <SectionLabel delay={0.24}>KDA TREND</SectionLabel>
+      <CyberCard delay={0.26} className="!p-0 !pl-0">
+        <div className="-ml-1">
+          <KDASparkline data={t.perGameKDA} delay={0} />
+        </div>
+      </CyberCard>
+
+      {/* ═══ CHAMPIONS ═══ */}
+      {t.allChampions?.length > 0 && (
+        <>
+          <SectionLabel delay={0.3}>CHAMPIONS PLAYED</SectionLabel>
+          <CyberCard delay={0.32} className="!p-0 !pl-0">
+            <div>
+              {t.allChampions.map((c: any, i: number) => (
+                <div key={c.name} className={cn(
+                  "flex items-center gap-3 px-4 py-2.5 pl-5 transition-colors duration-150 hover:bg-jade/[0.02]",
+                  i > 0 && "border-t border-flash/[0.03]"
+                )}>
+                  <img src={`${champPath}/${normalizeChampName(c.name)}.png`} alt="" className="w-8 h-8 rounded-sm border border-flash/[0.06]" onError={e => { e.currentTarget.style.display = "none" }} />
+                  <span className="text-[12px] font-mono text-flash/65 w-28 truncate">{c.name}</span>
+                  <div className="flex-1 flex items-center gap-4 justify-end">
+                    <span className={cn("text-[12px] font-mono tabular-nums font-semibold", c.winrate >= 50 ? "text-jade/70" : "text-red-400/70")}>{c.winrate}%</span>
+                    <span className="text-[10px] font-mono text-flash/25 w-8 text-right">{c.games}g</span>
+                    <span className="text-[10px] font-mono text-flash/35 w-14 text-right">{c.avgKDA} KDA</span>
+                    <span className="text-[10px] font-mono text-flash/20 w-12 text-right">{c.avgCSPM} cs/m</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CyberCard>
+        </>
+      )}
+
+      {/* ═══ MATCHUPS ═══ */}
+      {(t.worstMatchups?.length > 0 || t.bestMatchups?.length > 0) && (
+        <>
+          <SectionLabel delay={0.36}>MATCHUPS</SectionLabel>
+          <div className="grid grid-cols-2 gap-4">
+            {t.bestMatchups?.length > 0 && (
+              <CyberCard accent="jade" delay={0.38}>
+                <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-jade/40 mb-2 block">BEST MATCHUPS</span>
+                {t.bestMatchups.map((m: any) => (
+                  <div key={m.enemy} className="flex items-center gap-2 py-1.5">
+                    <img src={`${champPath}/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-jade/10" onError={e => { e.currentTarget.style.display = "none" }} />
+                    <span className="text-[11px] font-mono text-flash/50 flex-1 truncate">{m.enemy}</span>
+                    <span className="text-[11px] font-mono text-jade/60 tabular-nums font-semibold">{m.winrate}%</span>
+                    <span className="text-[9px] font-mono text-flash/18">{m.wins}W {m.games - m.wins}L</span>
+                  </div>
+                ))}
+              </CyberCard>
+            )}
+            {t.worstMatchups?.length > 0 && (
+              <CyberCard accent="red" delay={0.4}>
+                <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-red-400/40 mb-2 block">WORST MATCHUPS</span>
+                {t.worstMatchups.map((m: any) => (
+                  <div key={m.enemy} className="flex items-center gap-2 py-1.5">
+                    <img src={`${champPath}/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-red-400/10" onError={e => { e.currentTarget.style.display = "none" }} />
+                    <span className="text-[11px] font-mono text-flash/50 flex-1 truncate">{m.enemy}</span>
+                    <span className="text-[11px] font-mono text-red-400/60 tabular-nums font-semibold">{m.winrate}%</span>
+                    <span className="text-[9px] font-mono text-flash/18">{m.wins}W {m.games - m.wins}L</span>
+                  </div>
+                ))}
+              </CyberCard>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ═══ WIN vs LOSS ═══ */}
+      {t.winSplitStats && t.lossSplitStats && (
+        <>
+          <SectionLabel delay={0.42}>WIN vs LOSS BREAKDOWN</SectionLabel>
+          <div className="grid grid-cols-2 gap-4">
+            <CyberCard accent="jade" delay={0.44}>
+              <span className="text-[9px] font-mono tracking-[0.2em] text-jade/40 uppercase mb-2 block">IN WINS ({t.winSplitStats.games})</span>
+              <StatRow label="KDA" value={t.winSplitStats.avgKDA} color="text-jade/70" />
+              <StatRow label="K / D / A" value={`${t.winSplitStats.avgKills} / ${t.winSplitStats.avgDeaths} / ${t.winSplitStats.avgAssists}`} />
+              <StatRow label="CS/min" value={t.winSplitStats.avgCSPM} />
+              <StatRow label="Damage" value={Number(t.winSplitStats.avgDmg).toLocaleString()} />
+            </CyberCard>
+            <CyberCard accent="red" delay={0.46}>
+              <span className="text-[9px] font-mono tracking-[0.2em] text-red-400/40 uppercase mb-2 block">IN LOSSES ({t.lossSplitStats.games})</span>
+              <StatRow label="KDA" value={t.lossSplitStats.avgKDA} color="text-red-400/70" />
+              <StatRow label="K / D / A" value={`${t.lossSplitStats.avgKills} / ${t.lossSplitStats.avgDeaths} / ${t.lossSplitStats.avgAssists}`} />
+              <StatRow label="CS/min" value={t.lossSplitStats.avgCSPM} />
+              <StatRow label="Damage" value={Number(t.lossSplitStats.avgDmg).toLocaleString()} />
+            </CyberCard>
+          </div>
+        </>
+      )}
+
+      {/* ═══ INSIGHTS ═══ */}
+      <SectionLabel delay={0.48}>INSIGHTS</SectionLabel>
+      <StrengthsWeaknesses strengths={data.strengths} weaknesses={data.weaknesses} delay={0.5} />
+    </motion.div>
   )
 }

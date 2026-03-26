@@ -25,7 +25,7 @@ export function Footer({ className = "" }: FooterProps) {
                                     PARTNERS
                                 </span>
                                 <ul className="flex flex-col gap-2 text-[13px] cursor-clicker [&>span:hover]:text-flash/80">
-                                    <span> Collaborations </span>
+                                    <span><span className="hidden sm:inline"> Collaborations </span><span className="sm:hidden"> Collabs </span></span>
                                     <span> Streamers </span>
                                     <span> Pros </span>
                                 </ul>

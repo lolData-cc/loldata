@@ -36,6 +36,10 @@ module.exports = {
   				'vivala',
   				'monospace', 'sans-serif'
   			],
+  			orbitron: [
+  				'Orbitron',
+  				'sans-serif'
+  			],
   			scifi: [
   				'scifi',
   				'monospace', 'sans-serif'

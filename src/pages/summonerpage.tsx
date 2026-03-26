@@ -16,7 +16,7 @@ import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { champPath, CDN_BASE_URL } from "@/config"
+import { champPath, CDN_BASE_URL, normalizeChampName } from "@/config"
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
@@ -1098,7 +1098,7 @@ export default function SummonerPage() {
           champs.slice(0, 5).map((champ) => (
             <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
               <div className="flex items-center gap-3">
-                <img src={`${champPath}/${champ.champion}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
+                <img src={`${champPath}/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
                 <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
                   <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
                   <div className="text-white font-thin text-[11px]">
@@ -2547,7 +2547,7 @@ export default function SummonerPage() {
                                             <div className="flex space-x-1.5 relative">
                                               <div className="relative w-12 h-12">
                                                 <img
-                                                  src={`${champPath}/${championName}.png`}
+                                                  src={`${champPath}/${normalizeChampName(championName)}.png`}
                                                   alt={championName}
                                                   className="w-12 h-12 rounded-md"
                                                 />
@@ -2717,7 +2717,7 @@ export default function SummonerPage() {
                                                     <li key={p.puuid} className="flex items-center gap-2">
                                                       <div className="relative w-4 h-4">
                                                         <img
-                                                          src={`${champPath}/${p.championName}.png`}
+                                                          src={`${champPath}/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />
@@ -2786,7 +2786,7 @@ export default function SummonerPage() {
                                                       )}
                                                       <div className="relative w-4 h-4">
                                                         <img
-                                                          src={`${champPath}/${p.championName}.png`}
+                                                          src={`${champPath}/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />

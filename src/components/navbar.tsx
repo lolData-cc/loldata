@@ -24,7 +24,7 @@ type NavbarProps = {
 // ── Mobile menu nav items ──
 const NAV_ITEMS = [
   { label: "CHAMPIONS", icon: ChartNoAxesCombined, to: null, action: "picker" as const },
-  { label: "LEADERBOARD", icon: Trophy, to: "/leaderboards" as const, action: null },
+  { label: "RANKINGS", icon: Trophy, to: "/leaderboards" as const, action: null },
   { label: "TIER LISTS", icon: Layers, to: "/tierlist" as const, action: null },
   { label: "LEARN", icon: BookOpen, to: "/learn" as const, action: null },
 ] as const
@@ -348,16 +348,16 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
               openPicker()
             }}
           >
-            <MenuItem label="CHAMPIONS" />
+            <MenuItem label="CHAMPIONS" active={location.pathname.startsWith("/champions")} />
           </button>
           <Link to="/leaderboards" className="flex-shrink-0">
-            <MenuItem label="LEADERBOARD" />
+            <MenuItem label="RANKINGS" active={location.pathname.startsWith("/leaderboard")} />
           </Link>
           <Link to="/tierlist" className="flex-shrink-0">
-            <MenuItem label="TIER LISTS" />
+            <MenuItem label="TIER LISTS" active={location.pathname.startsWith("/tierlist")} />
           </Link>
           <Link to="/learn" className="flex-shrink-0">
-            <MenuItem label="LEARN" />
+            <MenuItem label="LEARN" active={location.pathname.startsWith("/learn")} />
           </Link>
         </div>
 
@@ -386,9 +386,17 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
   )
 }
 
-function MenuItem({ label }: { label: string }) {
+function MenuItem({ label, active }: { label: string; active?: boolean }) {
   return (
-    <div className="flex items-center px-1.5 lg:px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/70 hover:text-flash transition-colors duration-150">
+    <div className={
+      active
+        ? "flex items-center px-1.5 lg:px-3 py-1 rounded cursor-clicker text-jade brightness-125 transition-all duration-300"
+        : "flex items-center px-1.5 lg:px-3 py-1 rounded cursor-clicker hover:bg-flash/5 text-flash/70 hover:text-flash transition-colors duration-150"
+    }
+      style={active ? {
+        textShadow: "0 0 6px rgba(0,217,146,0.9), 0 0 20px rgba(0,217,146,0.6), 0 0 45px rgba(0,217,146,0.35), 0 0 80px rgba(0,217,146,0.15)",
+      } : undefined}
+    >
       <div>{label}</div>
     </div>
   )

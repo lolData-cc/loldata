@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, champPath } from "@/config"
+import { API_BASE_URL, champPath, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
 import { Skeleton } from "@/components/ui/skeleton"
 import splashPositionMap from "@/converters/splashPositionMap"
 import {
@@ -109,7 +109,7 @@ export default function TierlistPage() {
     let arr = [...data.champions]
     if (search.length >= 2) {
       const q = search.toLowerCase()
-      arr = arr.filter(c => c.champion_name.toLowerCase().includes(q))
+      arr = arr.filter(c => c.champion_name.toLowerCase().includes(q) || champDisplayName(c.champion_name).toLowerCase().includes(q))
     }
     if (sortBy === "winrate") arr.sort((a, b) => b.winrate - a.winrate)
     else if (sortBy === "pickrate") arr.sort((a, b) => b.pickrate - a.pickrate)
@@ -132,7 +132,7 @@ export default function TierlistPage() {
             initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8 }}
-            src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChamp}_0.jpg`}
+            src={`https://cdn.loldata.cc/15.13.1/img/champion/${normalizeChampSplash(topChamp)}_0.jpg`}
             alt={topChamp}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[topChamp] || "15%"}` }}
@@ -345,7 +345,7 @@ function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
       {/* Icon */}
       <div className="relative mb-1">
         <img
-          src={`${champPath}/${champ.champion_name}.png`}
+          src={`${champPath}/${normalizeChampName(champ.champion_name)}.png`}
           alt={champ.champion_name}
           className={cn(
             "w-10 h-10 rounded-[2px] object-cover transition-transform duration-200 group-hover:scale-110",
@@ -368,7 +368,7 @@ function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
         "text-[8px] font-mono leading-tight truncate w-full text-center",
         isElite ? "text-flash/70" : "text-flash/35"
       )}>
-        {champ.champion_name}
+        {champDisplayName(champ.champion_name)}
       </span>
 
       {/* WR */}

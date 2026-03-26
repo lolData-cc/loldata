@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { CDN_BASE_URL } from "@/config"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { API_BASE_URL } from "@/config"
+import { API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
@@ -230,7 +230,7 @@ export default function ChampionDetailPage() {
   const splashUrl = useMemo(() => {
     if (!champId) return ""
     // splash
-    return `https://cdn.loldata.cc/15.13.1/img/champion/${champId}_0.jpg`
+    return `https://cdn.loldata.cc/15.13.1/img/champion/${normalizeChampSplash(champId)}_0.jpg`
   }, [champId])
 
   const iconUrl = useMemo(() => {
@@ -263,7 +263,7 @@ export default function ChampionDetailPage() {
   }
 
   return (
-    <main className="min-h-dvh">
+    <main className="min-h-dvh overflow-x-hidden">
       {/* Hero — full-width splash */}
       <div className="relative w-screen left-1/2 -translate-x-1/2 h-[360px] overflow-hidden -mt-6 mb-4">
         <img
@@ -311,8 +311,8 @@ export default function ChampionDetailPage() {
       {/* Body */}
       <Tabs value={activeTab} onValueChange={(v) => navigate(`/champions/${champId}/${v}`, { replace: true })}>
         {/* Cyber tab bar */}
-        <div className="relative mb-6">
-          <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06]">
+        <div className="relative mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
+          <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06] min-w-0 w-max sm:w-full">
             {[
               { value: "overview", label: "Overview" },
               { value: "statistics", label: "Statistics" },
@@ -324,7 +324,7 @@ export default function ChampionDetailPage() {
                 key={value}
                 value={value}
                 className="
-                  relative px-5 py-3 rounded-none
+                  relative px-3 sm:px-5 py-3 rounded-none whitespace-nowrap
                   font-mono text-[11px] tracking-[0.15em] uppercase
                   text-flash/30 hover:text-flash/60
                   transition-colors duration-200

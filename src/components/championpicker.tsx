@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { cn } from "@/lib/utils"
-import { champPath } from "@/config"
+import { champPath, champDisplayName } from "@/config"
 
 type Champion = {
   id: string
@@ -43,7 +43,8 @@ export function ChampionPicker({
     return champions.filter((c) => {
       const name = (c.name ?? "").toLowerCase()
       const id = (c.id ?? "").toLowerCase()
-      return name.includes(q) || id.includes(q)
+      const display = champDisplayName(c.name).toLowerCase()
+      return name.includes(q) || id.includes(q) || display.includes(q)
     })
   }, [champions, trimmed])
 
@@ -193,7 +194,7 @@ export function ChampionPicker({
                           />
                         </div>
                         <span className="text-[9px] font-jetbrains text-flash/40 group-hover:text-jade/80 truncate max-w-[60px] transition-colors">
-                          {champ.name}
+                          {champDisplayName(champ.name)}
                         </span>
                       </button>
                     ))}
