@@ -48,6 +48,7 @@ import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
 import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
 import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
 import { useStatsBarPrefs } from "@/hooks/useStatsBarPrefs"
+import { useContextMenuActions } from "@/hooks/useContextMenuActions"
 import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -122,6 +123,7 @@ export default function SummonerPage() {
   const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
   const { enabled: hideRemakes } = useHideRemakeMatches()
   const { hidden: statsBarHidden, visibleStats } = useStatsBarPrefs()
+  const { enabled: contextMenuMode } = useContextMenuActions()
   const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
@@ -200,6 +202,7 @@ export default function SummonerPage() {
   const [matchesCentered, setMatchesCentered] = useState(false);
   const [showAllDuos, setShowAllDuos] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [matchCtxMenu, setMatchCtxMenu] = useState<{ x: number; y: number; matchId: string; isJungler: boolean } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
@@ -856,6 +859,21 @@ export default function SummonerPage() {
     };
   }, [ctxMenu]);
 
+  // ── Match context menu dismiss ──
+  useEffect(() => {
+    if (!matchCtxMenu) return;
+    const dismiss = () => setMatchCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("click", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [matchCtxMenu]);
+
   // ── Global context menu override ──
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1095,67 +1113,88 @@ export default function SummonerPage() {
             No ranked games this season
           </div>
         ) : (
-          champs.slice(0, 5).map((champ) => (
-            <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
-              <div className="flex items-center gap-3">
-                <img src={`${champPath}/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
-                <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
-                  <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
-                  <div className="text-white font-thin text-[11px]">
-                    {(() => {
-                      const num = Number(champ.csPerMin);
-                      const rounded = Math.round(num * 10) / 10;
-                      return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
-                    })()}{" "}CS/({champ.avgGold})
+          (() => {
+            const displayChamps = champs.slice(0, 5);
+            return (
+              <>
+                {displayChamps.map((champ) => (
+                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
+                    <div className="flex items-center gap-3">
+                      <img src={`${champPath}/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
+                      <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
+                        <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
+                        <div className="text-white font-thin text-[11px]">
+                          {(() => {
+                            const num = Number(champ.csPerMin);
+                            const rounded = Math.round(num * 10) / 10;
+                            return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
+                          })()}{" "}CS/({champ.avgGold})
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Center KDA column — visible only at xl+ */}
+                    <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
+                      <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
+                      <div>
+                        {formatStat(champ.kills / champ.games)}/
+                        {formatStat(champ.deaths / champ.games)}/
+                        {formatStat(champ.assists / champ.games)}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
+                      {/* KDA with tooltip — visible only below xl */}
+                      <div className="xl:hidden">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {/* Winrate with tooltip for matches — visible below xl */}
+                      <div className="xl:hidden">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {champ.games} matches
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {/* Winrate + matches text — visible at xl+ */}
+                      <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                      <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Center KDA column — visible only at xl+ */}
-              <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
-                <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
-                <div>
-                  {formatStat(champ.kills / champ.games)}/
-                  {formatStat(champ.deaths / champ.games)}/
-                  {formatStat(champ.assists / champ.games)}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
-                {/* KDA with tooltip — visible only below xl */}
-                <div className="xl:hidden">
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {/* Winrate with tooltip for matches — visible below xl */}
-                <div className="xl:hidden">
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {champ.games} matches
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {/* Winrate + matches text — visible at xl+ */}
-                <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
-                <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
-              </div>
-            </div>
-          ))
+                ))}
+                {/* Placeholder slots when fewer than 5 champions */}
+                {displayChamps.length < 5 && Array.from({ length: 5 - displayChamps.length }).map((_, i) => (
+                  <div key={`placeholder-${i}`} className="flex items-center px-3 w-full h-12">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/29.png`}
+                        alt="empty slot"
+                        className="w-12 h-12 rounded-full grayscale"
+                        style={{ opacity: 0.3 - i * 0.05 }}
+                      />
+                      <div className="h-2 w-16 rounded bg-flash/5" style={{ opacity: 0.3 - i * 0.05 }} />
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()
         )}
       </div>
     );
@@ -1201,8 +1240,8 @@ export default function SummonerPage() {
               <X className="w-3.5 h-3.5 text-[#c93232] transition-transform duration-300 group-hover:scale-110" />
             </span>
           </button>
-          <span className="font-mono text-[8px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none">
-            Remove Filter
+          <span className="font-mono text-[8px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none text-center leading-tight">
+            REMOVE<br/>FILTER
           </span>
         </div>
       )}
@@ -2383,7 +2422,7 @@ export default function SummonerPage() {
                       )}
 
                       {/* LISTA MATCH DI QUEL GIORNO */}
-                      <ul className="space-y-3">
+                      <ul className="flex flex-col gap-1">
                         {rows.map((row) => {
                           const { match, win, championName } = row;
 
@@ -2423,9 +2462,11 @@ export default function SummonerPage() {
 
                           const isRemake = match.info.gameDuration < 300;
 
+                          const matchTs = getMatchTimestamp(match.info);
+
                           return (
+                            <div key={match.metadata.matchId} className="match-card-group">
                             <li
-                              key={match.metadata.matchId}
                               className={cn(
                                 "relative overflow-hidden rounded-md p-2 text-flash transition",
                                 isRemake
@@ -2444,6 +2485,12 @@ export default function SummonerPage() {
                                       : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                                     : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                               )}
+                              {...(contextMenuMode ? {
+                                onContextMenu: (e: React.MouseEvent) => {
+                                  e.preventDefault();
+                                  setMatchCtxMenu({ x: e.clientX, y: e.clientY, matchId, isJungler });
+                                }
+                              } : {})}
                             >
                               {isRemake && (
                                 <>
@@ -2471,7 +2518,7 @@ export default function SummonerPage() {
                               <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
 
                               <div className="flex items-center justify-center h-full relative z-10">
-                                <div className="w-[95%]">
+                                <div className="w-full">
 
 
                                   {isSelfMvpOrAce && !coloredMatchBg && (
@@ -2838,36 +2885,62 @@ export default function SummonerPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex flex-col ml-2 w-[5%] gap-1 h-28 shrink-0 self-start">
-                                  {isJungler && (
-                                    <button
-                                      type="button"
-                                      disabled={analysisEntry?.loading}
-                                      onClick={() => fetchAnalysis(matchId)}
-                                      className={cn(
-                                        "w-full flex-1 rounded-[3px] border flex items-center justify-center gap-1.5 cursor-clicker transition font-mono",
-                                        analysisEntry?.loading
-                                          ? "bg-black/20 border-flash/10 text-flash/20 animate-pulse"
-                                          : analysisEntry?.open
-                                          ? "bg-jade/10 border-jade/30 text-jade"
-                                          : "bg-black/20 border-flash/10 text-flash/25 hover:border-flash/25 hover:text-flash/50 hover:bg-black/30"
-                                      )}
-                                    >
-                                      <span className="text-xs leading-none pointer-events-none">◈</span>
-                                      <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">SCAN</span>
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="w-full flex-1 rounded-[3px] border border-flash/10 bg-black/20 hover:bg-jade/10 hover:border-jade/30 text-flash/30 hover:text-jade flex items-center justify-center gap-1.5 cursor-clicker transition font-mono"
-                                    onClick={() => handleEnterMatch(match.metadata.matchId)}
-                                  >
-                                    <ChevronRight className="w-3.5 h-3.5 pointer-events-none" />
-                                    <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">VIEW</span>
-                                  </button>
-                                </div>
                               </div>
                             </li>
+                            {/* Hover action tabs below the card */}
+                            {!contextMenuMode && (
+                              <div className="match-action-wrap" style={{ marginTop: '-1px' }}>
+                                <div className="match-action-tabs flex items-center justify-between px-4 py-1">
+                                  <span className="flex items-center gap-1.5 text-[9px] font-mono text-flash/50 tabular-nums tracking-wider mt-0.5">
+                                    <span className="text-jade/30">&#x25C8;</span>
+                                    {matchTs ? new Date(matchTs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                                  </span>
+                                  <div className="flex gap-1.5">
+                                    {/* VIEW */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEnterMatch(matchId)}
+                                      className="px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-flash/40 hover:text-jade border-b border-flash/10 hover:border-jade/40 bg-transparent hover:bg-jade/5 transition-all duration-200 cursor-clicker"
+                                    >
+                                      VIEW
+                                    </button>
+
+                                    {/* SCAN */}
+                                    {isJungler && (
+                                      <button
+                                        type="button"
+                                        onClick={() => fetchAnalysis(matchId)}
+                                        className={cn(
+                                          "px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase border-b transition-all duration-200 cursor-clicker",
+                                          analysisEntry?.open
+                                            ? "text-jade border-jade/50 bg-jade/5"
+                                            : "text-flash/40 border-flash/10 hover:text-jade hover:border-jade/40 hover:bg-jade/5"
+                                        )}
+                                      >
+                                        SCAN
+                                      </button>
+                                    )}
+
+                                    {/* ASK AI */}
+                                    <button
+                                      type="button"
+                                      className="px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-flash/40 hover:text-purple-400 border-b border-flash/10 hover:border-purple-400/40 bg-transparent hover:bg-purple-500/5 transition-all duration-200 cursor-clicker"
+                                      onClick={() => {
+                                        const me = match.info.participants.find((p: any) => p.puuid === summonerInfo?.puuid)
+                                        const champName = me?.championName ?? "Unknown"
+                                        const kda = `${me?.kills ?? 0}/${me?.deaths ?? 0}/${me?.assists ?? 0}`
+                                        const result = m.win ? "won" : "lost"
+                                        const prompt = `Analyze my ${champName} game where I went ${kda} and ${result}. Match ID: ${match.metadata.matchId}`
+                                        navigate(`/learn?tab=ai&prompt=${encodeURIComponent(prompt)}`)
+                                      }}
+                                    >
+                                      ASK AI
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            </div>
                           )
                         })}
                       </ul>
@@ -3231,6 +3304,85 @@ export default function SummonerPage() {
                   </button>
                 </>
               )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Match Context Menu (right-click) ── */}
+        {matchCtxMenu && contextMenuMode && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="fixed z-50"
+            style={{
+              top: matchCtxMenu.y + 160 > window.innerHeight ? matchCtxMenu.y - 140 : matchCtxMenu.y,
+              left: matchCtxMenu.x + 200 > window.innerWidth ? matchCtxMenu.x - 200 : matchCtxMenu.x,
+            }}
+          >
+            <div
+              className={cn(
+                "min-w-[180px] py-1.5 rounded-sm overflow-hidden",
+                "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
+                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              <div className="px-3 pt-1.5 pb-2 border-b border-flash/[0.06] mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade rounded-full" />
+                  <span className="font-mono text-[9px] tracking-[0.2em] text-jade/50 uppercase">
+                    Match Actions
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { handleEnterMatch(matchCtxMenu.matchId); setMatchCtxMenu(null); }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+              >
+                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>View Match</span>
+              </button>
+
+              {matchCtxMenu.isJungler && (
+                <button
+                  type="button"
+                  onClick={() => { fetchAnalysis(matchCtxMenu.matchId); setMatchCtxMenu(null); }}
+                  className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-amber-400 hover:bg-amber-400/[0.06] cursor-clicker"
+                >
+                  <Search className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Scan Jungle</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => { setMatchCtxMenu(null); }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-violet-400 hover:bg-violet-400/[0.06] cursor-clicker"
+              >
+                <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Ask AI</span>
+              </button>
+
+              <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(matchCtxMenu.matchId);
+                  showCyberToast({ title: "Match ID copied" });
+                  setMatchCtxMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 flex-shrink-0">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy Match ID</span>
+              </button>
             </div>
           </motion.div>
         )}

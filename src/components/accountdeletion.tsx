@@ -85,7 +85,7 @@ export function AccountDeletion() {
           <button
             type="button"
             onClick={handleOpen}
-            className="px-3 py-1 rounded-[2px] border border-error/20 text-error/50 hover:text-error hover:border-error/40 hover:bg-error/5 text-[11px] tracking-[0.1em] uppercase cursor-clicker transition-colors shrink-0"
+            className="px-2 py-1 rounded-[2px] border border-error/20 text-error/50 hover:text-error hover:border-error/40 hover:bg-error/5 text-[11px] tracking-[0.1em] uppercase cursor-clicker transition-colors shrink-0"
           >
             DELETE
           </button>

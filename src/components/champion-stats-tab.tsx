@@ -1141,11 +1141,12 @@ export function ChampionStats({
 
   const opponentsKey = JSON.stringify(opponents)
 
-  // Refetch when any filter changes
+  // Refetch when any filter changes (keep old data visible during load)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
+    // Don't clear stats — keep stale data visible while loading
 
     fetch(`${API_BASE_URL}/api/champion/stats`, {
       method: "POST",
@@ -1451,10 +1452,11 @@ export function ChampionStats({
   }))
 
   const objectiveWinrates = {
-    riftHerald: num(stats.objectiveWinrates?.riftHerald?.winrate, 0),
-    voidgrubs: num(stats.objectiveWinrates?.voidgrubs?.winrate, 0),
-    baron: num(stats.objectiveWinrates?.firstBaron, 0),
-    elderDragon: num(stats.objectiveWinrates?.elderDragon?.winrate, 0),
+    riftHerald: num(stats.objectiveWinrates?.riftHerald?.winrate ?? stats.objectiveWinrates?.riftHerald, 0),
+    voidgrubs: num(stats.objectiveWinrates?.voidgrubs?.winrate ?? stats.objectiveWinrates?.voidgrubs, 0),
+    baron: num(stats.objectiveWinrates?.firstBaron?.winrate ?? stats.objectiveWinrates?.firstBaron, 0),
+    elderDragon: num(stats.objectiveWinrates?.elderDragon?.winrate ?? stats.objectiveWinrates?.elderDragon, 0),
+    firstDragon: num(stats.objectiveWinrates?.firstDragon?.winrate ?? stats.objectiveWinrates?.firstDragon, 0),
   }
 
   const gamePhaseWinrates = (stats.gamePhaseWinrates ?? []).map((p) => ({
@@ -1497,6 +1499,7 @@ export function ChampionStats({
     <div className="w-full space-y-3 pb-20">
       {floatingBar}
 
+      <div className="transition-opacity duration-300" style={{ opacity: loading ? 0.4 : 1 }}>
       {/* WINRATE / KDA / ECONOMY */}
       <div className="grid grid-cols-3 gap-3">
         <TechCard className="p-5">
@@ -1629,8 +1632,9 @@ export function ChampionStats({
       </TechCard>
 
       {/* OBJECTIVES */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
+          { label: "First Dragon", value: objectiveWinrates.firstDragon },
           { label: "Rift Herald", value: objectiveWinrates.riftHerald },
           { label: "Voidgrubs", value: objectiveWinrates.voidgrubs },
           { label: "Baron Nashor", value: objectiveWinrates.baron },
@@ -1704,6 +1708,7 @@ export function ChampionStats({
           </div>
         </TechCard>
       </div>
+      </div>{/* end opacity transition wrapper */}
     </div>
   )
 }

@@ -147,7 +147,7 @@ export default function SeasonPage() {
       {/* ═══════════════════════════════════════════════
           HERO BANNER
           ═══════════════════════════════════════════════ */}
-      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[280px] overflow-hidden">
+      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[350px] overflow-hidden">
         {topChamp && (
           <img
             src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChamp}_0.jpg`}

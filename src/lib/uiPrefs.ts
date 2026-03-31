@@ -8,6 +8,7 @@ export const UI_PREFS_KEYS = {
   hideRemakeMatches: "lolData:hideRemakeMatches",
   hideStatsBar: "lolData:hideStatsBar",
   statsBarVisibleStats: "lolData:statsBarVisibleStats",
+  useContextMenuActions: "lolData:useContextMenuActions",
 } as const;
 
 function safeWindow() {
@@ -154,5 +155,20 @@ export function setStatsBarVisibleStats(stats: Record<StatsBarStatKey, boolean>)
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.statsBarVisibleStats, JSON.stringify(stats));
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+// ── Context Menu Actions (right-click on match) ──
+
+export function getUseContextMenuActions(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: off (hover collapse mode)
+  return w.localStorage.getItem(UI_PREFS_KEYS.useContextMenuActions) === "1";
+}
+
+export function setUseContextMenuActions(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.useContextMenuActions, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

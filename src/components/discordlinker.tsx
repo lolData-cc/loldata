@@ -389,7 +389,7 @@ export function DiscordLinker() {
 
   // ===== UI =====
   return (
-    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden h-[180px]">
+    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
       {/* Left accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
       {/* Scanlines */}
@@ -408,7 +408,7 @@ export function DiscordLinker() {
         <div className="flex gap-4 items-center">
           {/* Discord avatar — same size/position as the Avatar card */}
           {isLinked && effectiveDiscord && (
-            <div className="w-20 h-20 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+            <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
               {effectiveDiscord.avatarUrl && !avatarBroken ? (
                 <img
                   src={effectiveDiscord.avatarUrl}
@@ -478,7 +478,7 @@ export function DiscordLinker() {
                       type="button"
                       onClick={handleUnlinkDiscord}
                       disabled={disconnecting}
-                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
                     >
                       {disconnecting ? "UNLINKING…" : "UNLINK"}
                     </button>
@@ -487,7 +487,7 @@ export function DiscordLinker() {
                       type="button"
                       onClick={handleLinkDiscord}
                       disabled={linking}
-                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none transition-colors"
                     >
                       {linking ? "LINKING…" : "◈ LINK"}
                     </button>

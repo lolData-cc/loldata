@@ -12,6 +12,7 @@ import { API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
+import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
 
 type SpellInfo = {
@@ -202,29 +203,59 @@ export default function ChampionDetailPage() {
     };
   }, [champ?.name]);
 
-  // fetch champion data
+  // fetch champion data (case-insensitive URL support)
   useEffect(() => {
     if (!champId) return
     let cancelled = false
     setLoading(true)
     setError(null)
 
+    // Try direct fetch first (fast path for correct casing)
     fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion/${champId}.json`)
       .then(r => {
-        if (!r.ok) throw new Error("Failed to load champion")
+        if (!r.ok) throw new Error("not_found")
         return r.json()
       })
       .then((data) => {
         if (cancelled) return
-        // DDragon single-champion schema: { data: { [id]: ChampInfo } }
         const key = Object.keys(data?.data ?? {})[0]
         const c = key ? data.data[key] as ChampInfo : null
         setChamp(c)
+        setLoading(false)
       })
-      .catch((e: any) => setError(e?.message ?? "Error"))
-      .finally(() => !cancelled && setLoading(false))
+      .catch(async () => {
+        if (cancelled) return
+        // Case mismatch — fetch full list to find correct ID
+        try {
+          const listRes = await fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion.json`)
+          if (!listRes.ok) throw new Error("Failed to load champion list")
+          const listData = await listRes.json()
+          const champKeys = Object.keys(listData?.data ?? {})
+          const match = champKeys.find(k => k.toLowerCase() === champId.toLowerCase())
+          if (match && match !== champId) {
+            // Redirect to correct casing
+            navigate(`/champions/${match}`, { replace: true })
+            return
+          }
+          if (match) {
+            // Fetch with correct ID
+            const res = await fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion/${match}.json`)
+            if (!res.ok) throw new Error("Failed to load champion")
+            const data = await res.json()
+            if (cancelled) return
+            const key = Object.keys(data?.data ?? {})[0]
+            setChamp(key ? data.data[key] as ChampInfo : null)
+          } else {
+            setError("Champion not found")
+          }
+        } catch (e: any) {
+          if (!cancelled) setError(e?.message ?? "Error")
+        }
+        if (!cancelled) setLoading(false)
+      })
 
     return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champId, patch])
 
   const splashUrl = useMemo(() => {
@@ -247,11 +278,7 @@ export default function ChampionDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-neutral-300">Loading {champId}…</p>
-      </div>
-    )
+    return <div className="min-h-dvh w-full" />
   }
 
   if (error || !champ) {
@@ -370,6 +397,11 @@ export default function ChampionDetailPage() {
               <ChampionItemsTab champ={champ} patch={patch} />
             </div>
           </TabsContent>
+          <TabsContent value="pros">
+            {champ && (
+              <ChampionOtpRanking championName={champ.id} latestPatch={patch} />
+            )}
+          </TabsContent>
 
 
         </div>
@@ -469,7 +501,7 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.06, duration: 0.25 }}
               className={cn(
-                "group relative flex items-start gap-3 py-2 px-3 rounded-sm cursor-pointer transition-all duration-200",
+                "group relative flex items-start gap-3 py-2 px-3 rounded-sm cursor-custom transition-all duration-200",
                 "bg-white/[0.02] hover:bg-white/[0.05]",
                 "ring-1 ring-white/[0.04] hover:ring-jade/20",
               )}

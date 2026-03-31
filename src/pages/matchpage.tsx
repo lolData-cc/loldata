@@ -17,6 +17,7 @@ import {
 // Recharts removed — damage bars now use custom CSS
 import { KillMap } from "@/components/killmap";
 import { API_BASE_URL } from "@/config";
+import { getRankImage } from "@/utils/rankIcons";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import {
   Tooltip,
@@ -69,6 +70,7 @@ export default function MatchPage() {
   const [match, setMatch] = useState<{ info: { participants: Participant[];[key: string]: any } } | null>(null)
   const [timeline, setTimeline] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [playerRanks, setPlayerRanks] = useState<Record<string, { rank: string; lp: number }>>({})
   const navigate = useNavigate();
 
   const getAverage = (key: string, participants: Participant[]) => {
@@ -203,6 +205,24 @@ export default function MatchPage() {
       setError("Dati URL mancanti");
     }
   }, [matchId, region]);
+
+  // Fetch player ranks after match loads
+  useEffect(() => {
+    if (!match) return;
+    const puuids = match.info.participants.map((p: any) => p.puuid).filter(Boolean);
+    if (puuids.length === 0) return;
+
+    fetch(`${API_BASE_URL}/api/player-ranks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ puuids, region: region?.toUpperCase() }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.ranks) setPlayerRanks(data.ranks);
+      })
+      .catch(() => {});
+  }, [match]);
 
   if (error) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -346,7 +366,7 @@ export default function MatchPage() {
           )}
         </div>
 
-        {/* Name */}
+        {/* Name + Rank */}
         <div className="w-[110px] min-w-0 shrink-0">
           {p.riotIdGameName && p.riotIdTagline ? (
             <Link
@@ -365,6 +385,18 @@ export default function MatchPage() {
           ) : (
             <span className="block truncate text-[11px] font-mono text-flash/40">{p.riotIdGameName ?? "Unknown"}</span>
           )}
+          {/* Rank badge */}
+          {(() => {
+            const r = playerRanks[p.puuid];
+            if (!r || !r.rank || r.rank === "Unranked") return null;
+            const tier = r.rank.split(" ")[0];
+            return (
+              <div className="flex items-center gap-1 mt-0.5">
+                <img src={getRankImage(r.rank)} alt="" className="w-4 h-4 object-contain" />
+                <span className="text-[10px] font-mono text-flash/40 truncate">{tier} {r.lp ? `${r.lp}LP` : ""}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* KDA */}

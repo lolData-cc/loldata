@@ -27,6 +27,8 @@ import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference"
 import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
 import { HideRemakesPreference } from "@/components/hideremakespreference";
 import { StatsBarPreference } from "@/components/statsbarpreference";
+import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
+import { ChangePassword } from "@/components/changepassword";
 import { CDN_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 
@@ -220,6 +222,7 @@ export default function DashboardPage() {
                   <PremiumAvatarUploader />
                   <DiscordLinker />
                   <ProfilerLinker />
+                  <ChangePassword />
                   <AccountDeletion />
                 </div>
               </TabsContent>
@@ -239,6 +242,7 @@ export default function DashboardPage() {
                     <MatchCenteringPreference />
                     <HideRemakesPreference />
                     <StatsBarPreference />
+                    <ContextMenuActionsPreference />
                   </div>
 
                   <div className="space-y-3">

@@ -5,9 +5,17 @@
 @tailwind utilities;
 
 @layer base {
+  *, *::before, *::after {
+    cursor: inherit;
+  }
   body {
     @apply cursor-custom;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans CJK SC', 'Noto Sans CJK KR', 'Noto Sans CJK JP', sans-serif;
+  }
+  a, button, [role="button"], input[type="submit"], input[type="button"],
+  select, label[for],
+  .cursor-clicker {
+    cursor: url("/cursors/clicker.svg") 16 6, pointer !important;
   }
   ::selection {
     background-color: #00d992;
@@ -50,7 +58,32 @@
   }
 }
 
+/* Match card hover action tabs — grid collapse (outside @layer to avoid purging) */
+.match-action-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms cubic-bezier(0.33, 1, 0.68, 1);
+  transition-delay: 50ms;
+}
+.match-card-group:hover .match-action-wrap {
+  grid-template-rows: 1fr;
+  transition-delay: 800ms;
+}
+.match-action-tabs {
+  overflow: hidden;
+  min-height: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: visibility 0s linear 50ms;
+}
+.match-card-group:hover .match-action-tabs {
+  pointer-events: auto;
+  visibility: visible;
+  transition: visibility 0s linear 800ms;
+}
+
 @layer utilities {
+
   .purchase-wrapper {
     @apply relative bg-gradient-to-b from-[#1f1f1f] to-[#171717] rounded-md overflow-hidden;
   }

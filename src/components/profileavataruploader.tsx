@@ -124,96 +124,84 @@ export function PremiumAvatarUploader() {
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
         <div className="relative z-[2] px-4 py-3 pl-5">
-          <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-3">
-            :: AVATAR ::
-          </p>
-
-          <div className="flex gap-4 items-start">
-            {/* Avatar preview */}
-            {avatarUrl !== undefined && (
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1">
+              {/* Avatar preview */}
               <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[9px] text-flash/30 font-mono">
-                    N/A
-                  </div>
+                  <img src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png" alt="" className="w-full h-full object-cover opacity-30" />
                 )}
               </div>
-            )}
 
-            <div className="flex-1 min-w-0 space-y-1">
-              <h4 className="text-flash/80 text-sm font-medium">
-                {isPremium ? "◈ Customize Your Avatar" : "◈ Upgrade to Customize"}
-              </h4>
-              <p className="text-flash/40 text-xs">
-                {isPremium
-                  ? "Upload a custom image to make your profile truly yours."
-                  : "Unlock avatar customization with a Premium plan."}
-              </p>
+              <div>
+                <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">
+                  Avatar
+                </h4>
+                <span className="text-flash/60 text-sm block mt-0.5">
+                  {isPremium
+                    ? "Upload a custom image to personalize your profile."
+                    : "Upgrade to Premium to customize your avatar."}
+                </span>
+              </div>
             </div>
 
-            {/* Status badge */}
-            <div className="text-right shrink-0">
+            {/* Buttons — right aligned */}
+            <div className="flex items-center gap-2 shrink-0 self-center">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={uploading || !avatarUrl}
+                className="px-2 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                RESET
+              </button>
+
               {isPremium ? (
-                <span className="text-[9px] uppercase tracking-[0.2em] text-jade/60 font-mono">◈ PREMIUM</span>
+                <label
+                  className={cn(
+                    "px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors inline-flex items-center gap-1",
+                    uploading && "opacity-60 pointer-events-none"
+                  )}
+                >
+                  {uploading ? "UPLOADING..." : "UPLOAD"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (!f.type.startsWith("image/"))
+                        return showCyberToast({
+                          title: "Invalid file",
+                          description: "Select an image file.",
+                          tag: "ERR",
+                          variant: "error",
+                        });
+                      if (f.size > 5 * 1024 * 1024)
+                        return showCyberToast({
+                          title: "File too large",
+                          description: "Maximum file size is 5 MB.",
+                          tag: "ERR",
+                          variant: "error",
+                        });
+                      setFileToCrop(f);
+                    }}
+                  />
+                </label>
               ) : (
-                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">FREE</span>
+                <span className="text-[10px] text-flash/30 font-mono tracking-[0.1em]">
+                  PREMIUM ONLY
+                </span>
               )}
             </div>
           </div>
 
-          <div className="my-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
-
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={uploading || !avatarUrl}
-              title={avatarUrl ? "Reset to Riot avatar" : "No custom avatar"}
-              className="px-2 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            >
-              RESET
-            </button>
-
-            {isPremium ? (
-              <label
-                className={cn(
-                  "px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors inline-flex items-center gap-1",
-                  uploading && "opacity-60 pointer-events-none"
-                )}
-              >
-                {uploading ? "UPLOADING..." : "◈ UPLOAD"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    if (!f.type.startsWith("image/"))
-                      return showCyberToast({
-                        title: "Invalid file",
-                        description: "Select an image file.",
-                        tag: "ERR",
-                        variant: "error",
-                      });
-                    if (f.size > 5 * 1024 * 1024)
-                      return showCyberToast({
-                        title: "File too large",
-                        description: "Maximum file size is 5 MB.",
-                        tag: "ERR",
-                        variant: "error",
-                      });
-                    setFileToCrop(f);
-                  }}
-                />
-              </label>
-            ) : (
-              <span className="text-[10px] text-flash/30 font-mono tracking-[0.1em] self-center">
-                PREMIUM REQUIRED
-              </span>
-            )}
+          <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+          <div className="pt-2 text-[10px] font-mono text-flash/30 tracking-[0.08em]">
+            {isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}
           </div>
         </div>
       </div>

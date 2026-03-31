@@ -27,7 +27,10 @@ export function showCyberToast({
         description={description}
         tag={tag}
         variant={variant}
-        action={action}
+        action={action ? {
+          label: action.label,
+          onClick: () => { action.onClick(); toast.dismiss(id); },
+        } : undefined}
         onDismiss={closeButton ? () => toast.dismiss(id) : undefined}
       />
     ),
