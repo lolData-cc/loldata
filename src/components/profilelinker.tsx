@@ -63,6 +63,7 @@ export function ProfilerLinker() {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
+  const [rsoLoading, setRsoLoading] = useState(false);
   const [step, setStep] = useState<"preview" | "verifyIcon">("preview");
   const [currentSummoner, setCurrentSummoner] = useState<Summoner | null>(null);
   const [verifyingIcon, setVerifyingIcon] = useState(false);
@@ -135,6 +136,70 @@ export function ProfilerLinker() {
       }
     })();
   }, []);
+
+  // Riot RSO callback — detect ?code= param on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code) return;
+
+    // Remove code from URL to prevent re-processing on refresh
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, "", cleanUrl);
+
+    (async () => {
+      setRsoLoading(true);
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth?.user) {
+          showCyberToast({ title: "Not logged in", description: "Please log in first.", variant: "error", tag: "ERR" });
+          return;
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/auth/riot/callback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, userId: auth.user.id }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          showCyberToast({ title: "Riot link failed", description: errText, variant: "error", tag: "ERR" });
+          return;
+        }
+
+        const data = await res.json();
+        showCyberToast({ title: "Riot account linked", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
+
+        // Refresh profile data
+        await refreshProfile();
+        window.location.reload();
+      } catch (err) {
+        console.error("RSO callback error:", err);
+        showCyberToast({ title: "Link failed", description: "Something went wrong.", variant: "error", tag: "ERR" });
+      } finally {
+        setRsoLoading(false);
+      }
+    })();
+  }, []);
+
+  async function handleRiotSignIn() {
+    setRsoLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/riot/url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error("Failed to get Riot auth URL:", err);
+      showCyberToast({ title: "Failed to connect", variant: "error", tag: "ERR" });
+      setRsoLoading(false);
+    }
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -498,10 +563,18 @@ export function ProfilerLinker() {
             )}
             <button
               type="button"
-              onClick={() => setShowLinkForm(!showLinkForm)}
-              className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors"
+              onClick={handleRiotSignIn}
+              disabled={rsoLoading}
+              className="px-3 py-1.5 rounded-[2px] cursor-clicker border border-[#c8292e]/40 bg-[#c8292e]/10 hover:bg-[#c8292e]/20 text-[#e8484d] hover:text-[#ff5f63] text-[11px] tracking-[0.1em] uppercase transition-colors disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1.5"
             >
-              {isLinked ? "RE-LINK" : "LINK"}
+              {rsoLoading ? "CONNECTING..." : isLinked ? "RE-LINK WITH RIOT" : "LINK WITH RIOT"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLinkForm(!showLinkForm)}
+              className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/10 hover:bg-flash/5 text-[10px] tracking-[0.1em] uppercase text-flash/30 hover:text-flash/50 transition-colors"
+            >
+              MANUAL
             </button>
           </div>
         </div>

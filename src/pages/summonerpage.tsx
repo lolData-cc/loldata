@@ -1240,9 +1240,7 @@ export default function SummonerPage() {
               <X className="w-3.5 h-3.5 text-[#c93232] transition-transform duration-300 group-hover:scale-110" />
             </span>
           </button>
-          <span className="font-mono text-[8px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none text-center leading-tight">
-            REMOVE<br/>FILTER
-          </span>
+          <span className="font-mono text-[7px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none text-center leading-tight">REMOVE<br/>FILTER</span>
         </div>
       )}
       <div className="relative flex min-h-screen -mt-4 z-10">
@@ -1875,9 +1873,9 @@ export default function SummonerPage() {
               return (
                 <>
                   <div className="flex flex-col items-center gap-1 min-w-[200px]">
-                    <span>CURRENT RANK</span>
+                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
                     <div className="relative w-32 h-32 flex items-center justify-center">
-                      <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                      <div className="absolute w-24 h-24 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
                       <img
                         src={
                           !currentRank || currentRank.toLowerCase() === "unranked"
@@ -1891,16 +1889,16 @@ export default function SummonerPage() {
                       />
                     </div>
                     <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
-                      <span className="text-[#BFC5C6]">{currentRank}</span>
+                      <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
                       {currentRank && currentRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[#5B5555]">{currentLp} LP</span>
+                        <span className="text-[16px] font-orbitron font-bold text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1 min-w-[200px]">
-                    <span className="text-[#E3E3E3]">HIGHEST RANK</span>
+                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
                     <div className="relative w-32 h-32 flex items-center justify-center">
-                      <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
+                      <div className="absolute w-24 h-24 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
                       <img
                         src={
                           !peakRank || peakRank.toLowerCase() === "unranked"
@@ -1908,15 +1906,15 @@ export default function SummonerPage() {
                             : getRankImage(peakRank)
                         }
                         alt="Highest Rank icon"
-                        className="w-32 h-32 z-10 relative"
+                        className="w-32 h-32 z-10 relative opacity-70"
                         draggable={false}
                         onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                       />
                     </div>
                     <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
-                      <span className="text-[#BFC5C6]">{peakRank}</span>
+                      <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
                       {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[#5B5555]">{peakLp} LP</span>
+                        <span className="text-[16px] font-orbitron font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
                       )}
                     </div>
                   </div>
@@ -1927,7 +1925,7 @@ export default function SummonerPage() {
 
               <div className="relative z-10 flex justify-end items-center">
                 {/* LATO TESTO */}
-                <div className="flex flex-col pr-4 h-36 justify-between">
+                <div className="flex flex-col pr-4 h-36 justify-end gap-0.5 -translate-y-1">
                   <div className="uppercase select-none">
                     {(isPro || isStreamer) && (
                       <div className="flex justify-end mb-2 items-center space-x-2">

@@ -58,28 +58,20 @@
   }
 }
 
-/* Match card hover action tabs — grid collapse (outside @layer to avoid purging) */
+/* Match card hover action tabs */
 .match-action-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 300ms cubic-bezier(0.33, 1, 0.68, 1);
-  transition-delay: 50ms;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-height 200ms ease 0ms, opacity 150ms ease 0ms;
+  will-change: max-height, opacity;
 }
 .match-card-group:hover .match-action-wrap {
-  grid-template-rows: 1fr;
-  transition-delay: 800ms;
-}
-.match-action-tabs {
-  overflow: hidden;
-  min-height: 0;
-  pointer-events: none;
-  visibility: hidden;
-  transition: visibility 0s linear 50ms;
-}
-.match-card-group:hover .match-action-tabs {
+  max-height: 3rem;
+  opacity: 1;
   pointer-events: auto;
-  visibility: visible;
-  transition: visibility 0s linear 800ms;
+  transition: max-height 300ms ease 800ms, opacity 250ms ease 900ms;
 }
 
 @layer utilities {
