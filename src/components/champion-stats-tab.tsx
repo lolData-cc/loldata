@@ -1452,11 +1452,11 @@ export function ChampionStats({
   }))
 
   const objectiveWinrates = {
-    riftHerald: num(stats.objectiveWinrates?.riftHerald?.winrate ?? stats.objectiveWinrates?.riftHerald, 0),
-    voidgrubs: num(stats.objectiveWinrates?.voidgrubs?.winrate ?? stats.objectiveWinrates?.voidgrubs, 0),
-    baron: num(stats.objectiveWinrates?.firstBaron?.winrate ?? stats.objectiveWinrates?.firstBaron, 0),
-    elderDragon: num(stats.objectiveWinrates?.elderDragon?.winrate ?? stats.objectiveWinrates?.elderDragon, 0),
-    firstDragon: num(stats.objectiveWinrates?.firstDragon?.winrate ?? stats.objectiveWinrates?.firstDragon, 0),
+    riftHerald: num((stats.objectiveWinrates?.riftHerald as any)?.winrate ?? stats.objectiveWinrates?.riftHerald, 0),
+    voidgrubs: num((stats.objectiveWinrates?.voidgrubs as any)?.winrate ?? stats.objectiveWinrates?.voidgrubs, 0),
+    baron: num((stats.objectiveWinrates?.firstBaron as any)?.winrate ?? stats.objectiveWinrates?.firstBaron, 0),
+    elderDragon: num((stats.objectiveWinrates?.elderDragon as any)?.winrate ?? stats.objectiveWinrates?.elderDragon, 0),
+    firstDragon: num((stats.objectiveWinrates?.firstDragon as any)?.winrate ?? stats.objectiveWinrates?.firstDragon, 0),
   }
 
   const gamePhaseWinrates = (stats.gamePhaseWinrates ?? []).map((p) => ({

@@ -2929,7 +2929,7 @@ export default function SummonerPage() {
                                         const me = match.info.participants.find((p: any) => p.puuid === summonerInfo?.puuid)
                                         const champName = me?.championName ?? "Unknown"
                                         const kda = `${me?.kills ?? 0}/${me?.deaths ?? 0}/${me?.assists ?? 0}`
-                                        const result = m.win ? "won" : "lost"
+                                        const result = win ? "won" : "lost"
                                         const prompt = `Analyze my ${champName} game where I went ${kda} and ${result}. Match ID: ${match.metadata.matchId}`
                                         navigate(`/learn?tab=ai&prompt=${encodeURIComponent(prompt)}`)
                                       }}
