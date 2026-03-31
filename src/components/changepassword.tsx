@@ -56,23 +56,23 @@ export function ChangePassword() {
         <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
-        <div className="relative z-[2] px-4 py-3 pl-5 flex items-center justify-between gap-4">
-          <div>
-            <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">
-              Change Password
-            </h4>
-            <span className="text-flash/60 text-sm">
-              Update your account password.
-            </span>
-          </div>
+        <div className="relative z-[2] px-4 py-3 pl-5">
+          <span className="text-flash/60 text-sm">
+            Update your account password.
+          </span>
 
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors shrink-0"
-          >
-            CHANGE
-          </button>
+          <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">◈ REQUIRES ACTIVE SESSION</span>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors shrink-0"
+            >
+              CHANGE
+            </button>
+          </div>
         </div>
       </div>
 

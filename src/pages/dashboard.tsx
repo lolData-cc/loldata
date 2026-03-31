@@ -218,12 +218,27 @@ export default function DashboardPage() {
             <div className="w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide">
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
-                <div className="flex flex-col gap-6 p-4 px-6">
-                  <PremiumAvatarUploader />
-                  <DiscordLinker />
-                  <ProfilerLinker />
-                  <ChangePassword />
-                  <AccountDeletion />
+                <div className="flex flex-col gap-5 p-4 px-6">
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: AVATAR ::</p>
+                    <PremiumAvatarUploader />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DISCORD ::</p>
+                    <DiscordLinker />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: LEAGUE PROFILE ::</p>
+                    <ProfilerLinker />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: SECURITY ::</p>
+                    <ChangePassword />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DANGER ZONE ::</p>
+                    <AccountDeletion />
+                  </div>
                 </div>
               </TabsContent>
 

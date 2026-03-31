@@ -124,31 +124,31 @@ export function PremiumAvatarUploader() {
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
         <div className="relative z-[2] px-4 py-3 pl-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              {/* Avatar preview */}
-              <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <img src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png" alt="" className="w-full h-full object-cover opacity-30" />
-                )}
-              </div>
-
-              <div>
-                <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">
-                  Avatar
-                </h4>
-                <span className="text-flash/60 text-sm block mt-0.5">
-                  {isPremium
-                    ? "Upload a custom image to personalize your profile."
-                    : "Upgrade to Premium to customize your avatar."}
-                </span>
-              </div>
+          {/* Content */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <img src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png" alt="" className="w-full h-full object-cover opacity-30" />
+              )}
             </div>
+            <span className="text-flash/60 text-sm">
+              {isPremium
+                ? "Upload a custom image to personalize your profile."
+                : "Upgrade to Premium to customize your avatar."}
+            </span>
+          </div>
 
-            {/* Buttons — right aligned */}
-            <div className="flex items-center gap-2 shrink-0 self-center">
+          {/* Divider */}
+          <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+
+          {/* Buttons below divider */}
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
+              {isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}
+            </span>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleReset}
@@ -157,7 +157,6 @@ export function PremiumAvatarUploader() {
               >
                 RESET
               </button>
-
               {isPremium ? (
                 <label
                   className={cn(
@@ -197,11 +196,6 @@ export function PremiumAvatarUploader() {
                 </span>
               )}
             </div>
-          </div>
-
-          <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
-          <div className="pt-2 text-[10px] font-mono text-flash/30 tracking-[0.08em]">
-            {isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}
           </div>
         </div>
       </div>

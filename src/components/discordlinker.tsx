@@ -403,7 +403,6 @@ export function DiscordLinker() {
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
       <div className="relative z-[2] px-4 py-3 pl-5">
-        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DISCORD ::</p>
 
         <div className="flex gap-4 items-center">
           {/* Discord avatar — same size/position as the Avatar card */}
@@ -427,7 +426,7 @@ export function DiscordLinker() {
           <div className="flex-1 min-w-0">
             {/* Title + status row */}
             <div className="flex items-center justify-between gap-3">
-              <h4 className="text-flash/80 text-sm font-medium">◈ DISCORD PROFILE</h4>
+              <h4 className="text-flash/80 text-sm font-medium">Discord</h4>
               {loadingState ? (
                 <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">LOADING…</span>
               ) : isLinked ? (

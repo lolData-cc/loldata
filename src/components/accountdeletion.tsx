@@ -72,23 +72,23 @@ export function AccountDeletion() {
         <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-error/20" />
 
         {/* Content */}
-        <div className="relative z-[2] px-4 py-3 pl-5 flex items-center justify-between gap-4">
-          <div>
-            <h4 className="text-flash/35 text-xs font-medium tracking-wide">
-              Delete Account
-            </h4>
-            <p className="text-flash/20 text-[11px] mt-0.5">
-              Permanently remove your account and all associated data.
-            </p>
-          </div>
+        <div className="relative z-[2] px-4 py-3 pl-5">
+          <p className="text-flash/20 text-[11px]">
+            Permanently remove your account and all associated data.
+          </p>
 
-          <button
-            type="button"
-            onClick={handleOpen}
-            className="px-2 py-1 rounded-[2px] border border-error/20 text-error/50 hover:text-error hover:border-error/40 hover:bg-error/5 text-[11px] tracking-[0.1em] uppercase cursor-clicker transition-colors shrink-0"
-          >
-            DELETE
-          </button>
+          <div className="mt-3 h-[1px] bg-gradient-to-r from-error/15 via-flash/5 to-transparent" />
+
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-[10px] font-mono text-error/20 tracking-[0.08em]">◈ IRREVERSIBLE</span>
+            <button
+              type="button"
+              onClick={handleOpen}
+              className="px-2 py-1 rounded-[2px] border border-error/20 text-error/50 hover:text-error hover:border-error/40 hover:bg-error/5 text-[11px] tracking-[0.1em] uppercase cursor-clicker transition-colors shrink-0"
+            >
+              DELETE
+            </button>
+          </div>
         </div>
       </div>
 
