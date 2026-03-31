@@ -137,10 +137,16 @@ export function ProfilerLinker() {
     })();
   }, []);
 
-  // Riot RSO callback — detect ?code= param on mount
+  // Riot RSO callback — detect ?code= param or saved code from sessionStorage
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
+    let code = params.get("code");
+
+    // Also check sessionStorage (saved by AuthGuard before redirect to login)
+    if (!code) {
+      code = sessionStorage.getItem("riot_rso_code");
+      if (code) sessionStorage.removeItem("riot_rso_code");
+    }
     if (!code) return;
 
     // Remove code from URL to prevent re-processing on refresh

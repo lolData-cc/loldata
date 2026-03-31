@@ -10,6 +10,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !session) {
+      // Preserve Riot RSO code before redirecting to login
+      const params = new URLSearchParams(window.location.search)
+      const riotCode = params.get("code")
+      if (riotCode) {
+        sessionStorage.setItem("riot_rso_code", riotCode)
+      }
       navigate("/login")
     }
   }, [loading, session, navigate])
