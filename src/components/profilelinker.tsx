@@ -157,15 +157,12 @@ export function ProfilerLinker() {
       setRsoLoading(true);
       try {
         const { data: auth } = await supabase.auth.getUser();
-        if (!auth?.user) {
-          showCyberToast({ title: "Not logged in", description: "Please log in first.", variant: "error", tag: "ERR" });
-          return;
-        }
+        const userId = auth?.user?.id;
 
         const res = await fetch(`${API_BASE_URL}/api/auth/riot/callback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, userId: auth.user.id }),
+          body: JSON.stringify({ code, userId, mode: userId ? "link" : "login" }),
         });
 
         if (!res.ok) {
@@ -175,9 +172,25 @@ export function ProfilerLinker() {
         }
 
         const data = await res.json();
-        showCyberToast({ title: "Riot account linked", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
 
-        // Refresh profile data
+        if (data.mode === "login" && data.verifyUrl) {
+          // Login mode: verify the magic link to create a Supabase session
+          const { error: verifyErr } = await supabase.auth.verifyOtp({
+            token_hash: data.hashed_token,
+            type: "magiclink",
+          });
+          if (verifyErr) {
+            console.error("Magic link verify error:", verifyErr);
+            showCyberToast({ title: "Login failed", description: verifyErr.message, variant: "error", tag: "ERR" });
+            return;
+          }
+          showCyberToast({ title: "Logged in with Riot", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        // Link mode
+        showCyberToast({ title: "Riot account linked", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
         await refreshProfile();
         window.location.reload();
       } catch (err) {
