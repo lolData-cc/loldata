@@ -114,6 +114,10 @@ export default function OverlayPage() {
 
   return (
     <div className="w-[460px] relative select-none" style={{ background: "transparent", fontFamily: "'JetBrains Mono', monospace" }}>
+      {/* Force transparent background */}
+      <style>{`
+        html, body, #root { background: transparent !important; }
+      `}</style>
       {/* Glitch CSS */}
       <style>{`
         @keyframes overlayGlitch {
@@ -159,11 +163,11 @@ export default function OverlayPage() {
 
         <div className="relative z-10 flex items-center px-4 py-3 gap-4">
           {/* LEFT: Rank icon + LP */}
-          <div className="shrink-0 flex flex-col items-center gap-1 w-[80px]">
+          <div className="shrink-0 flex flex-col items-center gap-1 w-[80px] overflow-visible">
             <img
               src={rank !== "Unranked" ? getRankImage(rank) : "/img/unranked.png"}
               alt=""
-              className="w-20 h-20 object-contain drop-shadow-[0_0_12px_rgba(0,217,146,0.15)]"
+              className="w-24 h-24 object-contain drop-shadow-[0_0_12px_rgba(0,217,146,0.15)] -my-2"
             />
             {rank !== "Unranked" && (() => {
               const parts = rank.split(" ");
