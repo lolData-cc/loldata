@@ -161,7 +161,7 @@ export default function OverlayPage() {
           />
         )}
 
-        <div className="relative z-10 flex items-center px-4 py-3 gap-4">
+        <div className="relative z-10 flex items-center px-4 py-3 gap-1.5">
           {/* LEFT: Rank icon + LP */}
           <div className="shrink-0 flex flex-col items-center gap-1 overflow-visible">
             <img
@@ -241,12 +241,12 @@ export default function OverlayPage() {
                 >
                   LAST 10 GAMES
                 </span>
-                <div className="flex" style={{ gap: "3px" }}>
+                <div className="flex" style={{ gap: "1.5px" }}>
                   {recentMatches.length === 0 ? (
                     <span className="text-[10px] text-[#E8EEF2]/20">No recent matches</span>
                   ) : (
                     recentMatches.map((m, i) => (
-                      <div key={i} className="relative w-[30px] h-[38px] overflow-hidden"
+                      <div key={i} className="relative w-[34px] h-[38px] overflow-hidden"
                         style={{
                           clipPath: "polygon(20% 0, 100% 0, 80% 100%, 0 100%)",
                         }}
