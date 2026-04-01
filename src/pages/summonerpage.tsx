@@ -49,6 +49,7 @@ import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
 import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
 import { useStatsBarPrefs } from "@/hooks/useStatsBarPrefs"
 import { useContextMenuActions } from "@/hooks/useContextMenuActions"
+import { useClickToExpandMatch } from "@/hooks/useClickToExpandMatch"
 import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -124,6 +125,8 @@ export default function SummonerPage() {
   const { enabled: hideRemakes } = useHideRemakeMatches()
   const { hidden: statsBarHidden, visibleStats } = useStatsBarPrefs()
   const { enabled: contextMenuMode } = useContextMenuActions()
+  const { enabled: clickToExpand } = useClickToExpandMatch()
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
   const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
@@ -1863,7 +1866,7 @@ export default function SummonerPage() {
           }}
         >
 
-          <div className="flex justify-between items-start mt-4 w-full min-w-full max-w-full">
+          <div className="flex justify-between items-center mt-4 mb-6 w-full min-w-full max-w-full">
             {/* SEZIONE SINISTRA: nuove icone */}
             {(() => {
               const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
@@ -2463,7 +2466,19 @@ export default function SummonerPage() {
                           const matchTs = getMatchTimestamp(match.info);
 
                           return (
-                            <div key={match.metadata.matchId} className="match-card-group">
+                            <div
+                              key={match.metadata.matchId}
+                              className={cn(
+                                clickToExpand
+                                  ? (expandedMatchId === match.metadata.matchId ? "match-card-expanded" : "match-card-collapsed")
+                                  : "match-card-group"
+                              )}
+                              onClick={clickToExpand ? (e) => {
+                                // Don't toggle if clicking a button/link inside
+                                if ((e.target as HTMLElement).closest("button, a")) return;
+                                setExpandedMatchId(prev => prev === match.metadata.matchId ? null : match.metadata.matchId);
+                              } : undefined}
+                            >
                             <li
                               className={cn(
                                 "relative overflow-hidden rounded-md p-2 text-flash transition",

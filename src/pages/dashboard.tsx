@@ -28,6 +28,7 @@ import { MatchCenteringPreference } from "@/components/matchcenteringpreference"
 import { HideRemakesPreference } from "@/components/hideremakespreference";
 import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
+import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
 import { ChangePassword } from "@/components/changepassword";
 import { CDN_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
@@ -258,6 +259,7 @@ export default function DashboardPage() {
                     <HideRemakesPreference />
                     <StatsBarPreference />
                     <ContextMenuActionsPreference />
+                    <ClickToExpandPreference />
                   </div>
 
                   <div className="space-y-3">

@@ -9,6 +9,7 @@ export const UI_PREFS_KEYS = {
   hideStatsBar: "lolData:hideStatsBar",
   statsBarVisibleStats: "lolData:statsBarVisibleStats",
   useContextMenuActions: "lolData:useContextMenuActions",
+  clickToExpandMatch: "lolData:clickToExpandMatch",
 } as const;
 
 function safeWindow() {
@@ -170,5 +171,20 @@ export function setUseContextMenuActions(value: boolean) {
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.useContextMenuActions, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+// ── Click to Expand Match ──
+
+export function getClickToExpandMatch(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: hover mode
+  return w.localStorage.getItem(UI_PREFS_KEYS.clickToExpandMatch) === "1";
+}
+
+export function setClickToExpandMatch(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.clickToExpandMatch, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

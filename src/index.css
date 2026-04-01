@@ -73,6 +73,16 @@
   pointer-events: auto;
   transition: max-height 300ms ease 800ms, opacity 250ms ease 900ms;
 }
+/* Click-to-expand mode */
+.match-card-expanded .match-action-wrap {
+  max-height: 3rem;
+  opacity: 1;
+  pointer-events: auto;
+  transition: max-height 300ms ease 0ms, opacity 250ms ease 100ms;
+}
+.match-card-collapsed {
+  cursor: url("/cursors/clicker.svg") 16 6, pointer;
+}
 
 @layer utilities {
 

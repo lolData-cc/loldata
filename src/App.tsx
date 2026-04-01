@@ -30,6 +30,7 @@ import StreamersInfiniteCarousel from "./components/streeamerscarousel";
 import { PricingPlans } from "./components/pricingplans";
 import AuthCallback from "./auth/callback";
 import RiotCallbackPage from "./pages/riotcallback";
+import OverlayPage from "./pages/overlaypage";
 import WordShiftOnScroll from "./components/features1";
 import { LearnPageFeature } from "./components/learnpagefeature";
 import { SearchPageFeature } from "./components/searchpagefeature";
@@ -193,6 +194,7 @@ function App() {
               <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/riot/callback" element={<RiotCallbackPage />} />
+              <Route path="/overlay/:region/:slug" element={<OverlayPage />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
