@@ -125,7 +125,7 @@ export function RootLayout({
   const { pathname } = useLocation()
   const navbarSticky = pathname === "/"
   const noTopMargin = pathname === "/" || pathname === "/streamers"
-  const contentMargin = noTopMargin ? "mt-0" : "mt-10"
+  const contentMargin = noTopMargin ? "mt-0" : "mt-4"
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll to top on route change
