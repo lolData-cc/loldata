@@ -17,6 +17,7 @@ import {
 import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
 import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
+import { StreamerAdminPanel } from "@/components/admin/streamer-admin-panel";
 import { BorderBeamPreference } from "@/components/borderbeampreference";
 import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
 import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
@@ -358,24 +359,20 @@ export default function DashboardPage() {
                 </div>
               </TabsContent>
 
-              {/* ✅ ADMIN TAB: PRO APPLICATIONS */}
+              {/* ADMIN TAB: PRO APPLICATIONS */}
               {isAdmin && (
                 <TabsContent value="proApplications" className="outline-none">
                   <div className="flex flex-col gap-6 p-4 px-6">
-                    <h3 className="text-flash/60">PRO APPLICATIONS</h3>
                     <ProApplicationsAdminPanel />
                   </div>
                 </TabsContent>
               )}
 
-              {/* ✅ ADMIN TAB: STREAMER APPLICATIONS (placeholder) */}
+              {/* ADMIN TAB: STREAMER MANAGEMENT */}
               {isAdmin && (
                 <TabsContent value="streamerApplications" className="outline-none">
                   <div className="flex flex-col gap-6 p-4 px-6">
-                    <h3 className="text-flash/60">STREAMER APPLICATIONS</h3>
-                    <div className="rounded-md border border-flash/10 bg-neutral-950/60 p-4 text-sm text-flash/70">
-                      Streamer applications panel coming soon.
-                    </div>
+                    <StreamerAdminPanel />
                   </div>
                 </TabsContent>
               )}

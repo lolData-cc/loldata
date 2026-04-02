@@ -176,6 +176,15 @@ export default function SummonerPage() {
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
+  const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
+  const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
+  const [proPlayerInfo, setProPlayerInfo] = useState<{
+    id: string; username: string; first_name: string | null; last_name: string | null;
+    nickname: string | null; team: string | null; nationality: string | null;
+    profile_image_url: string | null;
+  } | null>(null);
+  const [proTeamLogo, setProTeamLogo] = useState<string | null>(null);
+  const [proLinkedAccounts, setProLinkedAccounts] = useState<string[]>([]);
   const { region, slug } = useParams()
   const _dashIdx = slug?.lastIndexOf("-") ?? -1
   const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
@@ -727,7 +736,83 @@ export default function SummonerPage() {
       setIsPro(isPro);
       setIsStreamer(isStreamer);
     });
+
+    // Fetch full pro player details for this summoner
+    // Check both pro_players.username and pro_player_accounts.username
+    const nametag = `${name}#${tag}`;
+
+    async function fetchProInfo() {
+      const cols = "id, username, first_name, last_name, nickname, team, nationality, profile_image_url";
+
+      // 1. Direct match on pro_players.username
+      const { data: directRows } = await supabase
+        .from("pro_players")
+        .select(cols)
+        .ilike("username", nametag)
+        .limit(1);
+
+      let proData = directRows?.[0] ?? null;
+
+      // 2. If not found, check pro_player_accounts
+      if (!proData) {
+        const { data: accRows } = await supabase
+          .from("pro_player_accounts")
+          .select("pro_player_id")
+          .ilike("username", nametag)
+          .limit(1);
+        if (accRows?.[0]) {
+          const { data: playerRows } = await supabase
+            .from("pro_players")
+            .select(cols)
+            .eq("id", accRows[0].pro_player_id)
+            .limit(1);
+          proData = playerRows?.[0] ?? null;
+        }
+      }
+
+      if (proData) {
+        setProPlayerInfo(proData);
+        // Fetch team logo
+        if (proData.team) {
+          const { data: teamData } = await supabase.from("teams").select("logo_url").eq("name", proData.team).maybeSingle();
+          setProTeamLogo(teamData?.logo_url ?? null);
+        } else { setProTeamLogo(null); }
+        // Fetch linked accounts (primary + additional)
+        const { data: accData } = await supabase
+          .from("pro_player_accounts")
+          .select("username")
+          .eq("pro_player_id", proData.id);
+        const allAccounts = [proData.username, ...(accData ?? []).map((a: { username: string }) => a.username)];
+        setProLinkedAccounts(allAccounts);
+      } else {
+        setProPlayerInfo(null);
+        setProTeamLogo(null);
+        setProLinkedAccounts([]);
+      }
+    }
+    fetchProInfo();
   }, [slug]);
+
+  useEffect(() => {
+    // Load pro usernames from both pro_players and pro_player_accounts
+    Promise.all([
+      supabase.from("pro_players").select("username"),
+      supabase.from("pro_player_accounts").select("username"),
+    ]).then(([{ data: proData }, { data: accData }]) => {
+      const names = new Set<string>();
+      for (const r of proData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      for (const r of accData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      setProUsernames(names);
+    });
+    supabase
+      .from("streamers")
+      .select("lol_nametag")
+      .then(({ data }) => {
+        if (data) {
+          setStreamerUsernames(new Set(data.filter((r) => r.lol_nametag).map((r) => r.lol_nametag.toLowerCase())));
+        }
+      });
+  }, []);
 
   useEffect(() => {
     fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
@@ -1251,6 +1336,88 @@ export default function SummonerPage() {
           className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center transition-opacity duration-700 ease-in-out"
           style={{ opacity: matchesCentered ? 0 : 1 }}
         >
+
+          {/* ═══ PRO PLAYER CARD — floating layout ═══ */}
+          {proPlayerInfo && (
+            <div className="w-[90%] mt-5 mb-2 flex items-start gap-4 px-1">
+              {/* Player image — left, prominent */}
+              {proPlayerInfo.profile_image_url ? (
+                <img
+                  src={proPlayerInfo.profile_image_url}
+                  alt=""
+                  className="shrink-0 w-[88px] h-[88px] rounded-lg object-cover border border-jade/20 shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,217,146,0.1)]"
+                />
+              ) : (
+                <div className="shrink-0 w-[88px] h-[88px] rounded-lg bg-black/40 border border-flash/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                  <span
+                    className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-[3px]"
+                    style={{
+                      background: "linear-gradient(135deg, #00d992, #00b8ff)",
+                      color: "#040A0C",
+                    }}
+                  >
+                    PRO
+                  </span>
+                </div>
+              )}
+
+              {/* Right side — info stack */}
+              <div className="flex flex-col gap-0.5 min-w-0 pt-0.5">
+                {/* Team icon + team name — top header */}
+                {proPlayerInfo.team && (
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    {proTeamLogo && <img src={proTeamLogo} alt="" className="w-3.5 h-3.5 object-contain" />}
+                    <span className="text-[10px] font-mono text-jade/60 tracking-[0.15em] uppercase">{proPlayerInfo.team}</span>
+                  </div>
+                )}
+
+                {/* Nickname — biggest */}
+                <div className="text-2xl font-bold font-mono text-flash leading-tight tracking-wide">
+                  {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
+                </div>
+
+                {/* Name + surname + nationality + accounts */}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {(proPlayerInfo.first_name || proPlayerInfo.last_name) && (
+                    <span className="text-[11px] font-mono text-flash/45">
+                      {[proPlayerInfo.first_name, proPlayerInfo.last_name].filter(Boolean).join(" ")}
+                    </span>
+                  )}
+                  {proPlayerInfo.nationality && (
+                    <>
+                      {(proPlayerInfo.first_name || proPlayerInfo.last_name) && <span className="text-flash/15">·</span>}
+                      <span className="text-[10px] font-mono text-flash/35 uppercase">{proPlayerInfo.nationality}</span>
+                    </>
+                  )}
+                  {proLinkedAccounts.length > 1 && (
+                    <>
+                      <span className="text-flash/15">·</span>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[9px] font-mono tracking-[0.08em] text-jade/35 hover:text-jade/60 transition-colors cursor-clicker">
+                              +{proLinkedAccounts.length - 1} acc
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="p-0 bg-transparent border-none shadow-none">
+                            <div className="bg-[#0a0f14] border border-jade/15 rounded-[4px] px-3 py-2 min-w-[140px]">
+                              <div className="text-[9px] font-mono text-jade/50 tracking-[0.15em] uppercase mb-1.5">Accounts</div>
+                              <div className="flex flex-col gap-1">
+                                {proLinkedAccounts.map((acc, i) => (
+                                  <div key={i} className="text-[11px] font-mono text-flash/70">{acc}</div>
+                                ))}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div
             className={cn(
               "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
@@ -1637,23 +1804,40 @@ export default function SummonerPage() {
                             );
                           }
 
-                          // Celle con partite: calcolo colore
-                          const rawT = cell.winrate / 100;
-                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensità
+                          // Cells with games: color based on winrate
+                          // 0% = red, 50% = muted neutral, 100% = jade green
+                          const wr = cell.winrate;
+                          const isHighWr = wr >= 70 && cell.games >= 3;
+                          let bgColor: string;
+                          let shadow: string | undefined;
 
-                          // base leggermente più chiara (verde molto scuro ma leggibile)
-                          const start = { r: 0x0C, g: 0x40, b: 0x32 }; // #0C4032
-                          const end = { r: 0x00, g: 0xD9, b: 0x92 };   // jade
+                          if (wr < 50) {
+                            // Red side: lerp from deep red to muted
+                            const t = wr / 50; // 0→1
+                            const r = Math.round(180 - 100 * t);  // 180→80
+                            const g = Math.round(40 + 40 * t);    // 40→80
+                            const b = Math.round(50 + 30 * t);    // 50→80
+                            bgColor = `rgb(${r}, ${g}, ${b})`;
+                          } else {
+                            // Green side: lerp from muted to jade
+                            const t = (wr - 50) / 50; // 0→1
+                            const r = Math.round(80 - 80 * t);    // 80→0
+                            const g = Math.round(80 + 137 * t);   // 80→217
+                            const b = Math.round(80 + 66 * t);    // 80→146
+                            bgColor = `rgb(${r}, ${g}, ${b})`;
+                          }
 
-                          const r = Math.round(start.r + (end.r - start.r) * t);
-                          const g = Math.round(start.g + (end.g - start.g) * t);
-                          const b = Math.round(start.b + (end.b - start.b) * t);
-                          const bgColor = `rgb(${r}, ${g}, ${b})`;
+                          if (isHighWr) {
+                            shadow = `0 0 6px rgba(0, 217, 146, 0.6), 0 0 2px rgba(0, 217, 146, 0.3)`;
+                          }
 
                           return (
                             <Tooltip key={idx}>
                               <TooltipTrigger asChild>
-                                <div className={baseClasses} style={{ backgroundColor: bgColor }} />
+                                <div
+                                  className={cn(baseClasses, isHighWr && "animate-heatmapPulse")}
+                                  style={{ backgroundColor: bgColor, boxShadow: shadow }}
+                                />
                               </TooltipTrigger>
                               <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
                                 <div className="relative bg-[#0a0f14] border border-jade/15 rounded-[3px] px-3 py-2 min-w-[120px]">
@@ -2761,7 +2945,7 @@ export default function SummonerPage() {
                                               </div>
                                             </div>
                                           </div>
-                                          <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
+                                          <div className="w-[44%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
                                             <div>
                                               <ul className="space-y-0.5">
                                                 {team1.map((p) => {
@@ -2771,11 +2955,13 @@ export default function SummonerPage() {
                                                   const showName = riotName ? `${riotName}#${tag}` : p.puuid;
                                                   const isMvp = p.puuid === mvpWin;
                                                   const isAce = p.puuid === mvpLose;
-
+                                                  const nameKey = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
+                                                  const isProPlayer = nameKey && proUsernames.has(nameKey);
+                                                  const isStreamerPlayer = nameKey && !isProPlayer && streamerUsernames.has(nameKey);
 
                                                   return (
-                                                    <li key={p.puuid} className="flex items-center gap-2">
-                                                      <div className="relative w-4 h-4">
+                                                    <li key={p.puuid} className="flex items-center gap-1">
+                                                      <div className="relative w-4 h-4 shrink-0">
                                                         <img
                                                           src={`${champPath}/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
@@ -2794,22 +2980,39 @@ export default function SummonerPage() {
                                                           </span>
                                                         )}
                                                       </div>
-                                                      {/* Nome */}
-                                                      {riotName && tag ? (
-                                                        <PlayerHoverCard
-                                                          riotId={showName}
-                                                          region={region!}
-                                                          championId={championMapReverse[p.championName]}
-                                                          profileIconId={p.profileIconId}
-                                                          patch={latestPatch}
-                                                          isCurrentUser={isCurrentUser}
-                                                          championMap={championMap}
+                                                      {(isProPlayer || isStreamerPlayer) && (
+                                                        <span
+                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                                                          style={{
+                                                            background: isProPlayer
+                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
+                                                            boxShadow: isProPlayer
+                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                                                          }}
                                                         >
-                                                          {showName}
-                                                        </PlayerHoverCard>
-                                                      ) : (
-                                                        <span className="truncate">{showName}</span>
+                                                          {isProPlayer ? "PRO" : "STR"}
+                                                        </span>
                                                       )}
+                                                      <span className="min-w-0 truncate">
+                                                        {riotName && tag ? (
+                                                          <PlayerHoverCard
+                                                            riotId={showName}
+                                                            region={region!}
+                                                            championId={championMapReverse[p.championName]}
+                                                            profileIconId={p.profileIconId}
+                                                            patch={latestPatch}
+                                                            isCurrentUser={isCurrentUser}
+                                                            championMap={championMap}
+                                                          >
+                                                            {showName}
+                                                          </PlayerHoverCard>
+                                                        ) : (
+                                                          <span className="truncate">{showName}</span>
+                                                        )}
+                                                      </span>
                                                     </li>
                                                   );
                                                 })}
@@ -2825,26 +3028,46 @@ export default function SummonerPage() {
                                                   const showName = riotName ? `${riotName}#${tag}` : p.puuid;
                                                   const isMvp = p.puuid === mvpWin;
                                                   const isAce = p.puuid === mvpLose;
+                                                  const nameKey2 = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
+                                                  const isProPlayer = nameKey2 && proUsernames.has(nameKey2);
+                                                  const isStreamerPlayer = nameKey2 && !isProPlayer && streamerUsernames.has(nameKey2);
 
                                                   return (
-                                                    <li key={p.puuid} className="flex items-center justify-end gap-2">
-                                                      {/* Nome */}
-                                                      {riotName && tag ? (
-                                                        <PlayerHoverCard
-                                                          riotId={showName}
-                                                          region={region!}
-                                                          championId={championMapReverse[p.championName]}
-                                                          profileIconId={p.profileIconId}
-                                                          patch={latestPatch}
-                                                          isCurrentUser={isCurrentUser}
-                                                          championMap={championMap}
+                                                    <li key={p.puuid} className="flex items-center justify-end gap-1">
+                                                      <span className="min-w-0 truncate text-right">
+                                                        {riotName && tag ? (
+                                                          <PlayerHoverCard
+                                                            riotId={showName}
+                                                            region={region!}
+                                                            championId={championMapReverse[p.championName]}
+                                                            profileIconId={p.profileIconId}
+                                                            patch={latestPatch}
+                                                            isCurrentUser={isCurrentUser}
+                                                            championMap={championMap}
+                                                          >
+                                                            {showName}
+                                                          </PlayerHoverCard>
+                                                        ) : (
+                                                          <span className="truncate">{showName}</span>
+                                                        )}
+                                                      </span>
+                                                      {(isProPlayer || isStreamerPlayer) && (
+                                                        <span
+                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                                                          style={{
+                                                            background: isProPlayer
+                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
+                                                            boxShadow: isProPlayer
+                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                                                          }}
                                                         >
-                                                          {showName}
-                                                        </PlayerHoverCard>
-                                                      ) : (
-                                                        <span className="truncate">{showName}</span>
+                                                          {isProPlayer ? "PRO" : "STR"}
+                                                        </span>
                                                       )}
-                                                      <div className="relative w-4 h-4">
+                                                      <div className="relative w-4 h-4 shrink-0">
                                                         <img
                                                           src={`${champPath}/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
@@ -2853,7 +3076,7 @@ export default function SummonerPage() {
                                                         {(isMvp || isAce) && (
                                                           <span
                                                             className={cn(
-                                                              "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10", // <- a sinistra
+                                                              "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10",
                                                               isMvp && "bg-pine text-jade",
                                                               isAce && "bg-[#3A2C45] text-[#C693F1]"
                                                             )}

@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, Star, Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
+import { getRankImage } from "@/utils/rankIcons"
 import { API_BASE_URL } from "@/config"
 import { BorderBeam } from "./ui/border-beam"
 import { SavedProfiles } from "./savedprofiles"
@@ -299,10 +300,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                       return
                     }
 
-                    // Debounce 200ms
+                    // Debounce 400ms to reduce requests during typing
                     debounceRef.current = setTimeout(() => {
                       fetchAutocomplete(value)
-                    }, 200)
+                    }, 400)
                   }}
                   className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 w-[80%]"
                 />
@@ -373,20 +374,19 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                       setSuggestions([])
                     }}
                   >
-                    <div className="flex justify-between gap-4 items-center">
-                      <div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-flash text-sm font-medium">{sugg.name}</span>
-                          <span className="text-flash/50 text-[11px] font-medium">#{sugg.tag}</span>
-                        </div>
+                    <div className="flex items-center">
+                      <div className="w-[200px] shrink-0 flex items-center gap-1 min-w-0">
+                        <span className="text-flash text-sm font-medium truncate">{sugg.name}</span>
+                        <span className="text-flash/50 text-[11px] font-medium shrink-0">#{sugg.tag}</span>
                       </div>
-                      <div className="flex justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
                         <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(sugg.rank)}.png`}
-                          className="w-4 h-4 rounded-sm"
+                          src={getRankImage(sugg.rank)}
+                          alt={sugg.rank ?? "Unranked"}
+                          className="w-5 h-5 object-contain"
                         />
-                        <span className="text-xs text-flash/40 font-jetbrains">
-                          {sugg.rank}
+                        <span className="text-xs text-flash/40 font-jetbrains whitespace-nowrap">
+                          {sugg.rank ?? "Unranked"}
                         </span>
                       </div>
                     </div>

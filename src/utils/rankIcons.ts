@@ -6,6 +6,6 @@ function formatRank(rank: string): string {
 }
 
 export function getRankImage(rank: string | undefined): string {
-  if (!rank) return "/fallback.png"
+  if (!rank || rank.toLowerCase() === "unranked") return "/img/unranked.png"
   return `${RANK_IMAGE_BASE_URL}/${formatRank(rank)}.png`
 }

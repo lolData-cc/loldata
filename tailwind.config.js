@@ -65,6 +65,7 @@ module.exports = {
   		animation: {
   			pulseGlow: 'pulseGlow 10s ease-in-out infinite',
   			glow: 'glowPulse 3s ease-in-out infinite',
+			heatmapPulse: 'heatmapPulse 2s ease-in-out infinite',
   			glitch: 'glitch 1s infinite',
   			'rotate-outline': 'rotateOutline 2s linear infinite',
   			jerk: 'jerk 0.5s infinite',
@@ -155,6 +156,14 @@ module.exports = {
   					backgroundPosition: 'right center',
   					filter: 'brightness(1.3)'
   				}
+  			},
+  			heatmapPulse: {
+  				'0%, 100%': {
+  					boxShadow: '0 0 4px rgba(0, 217, 146, 0.3), 0 0 1px rgba(0, 217, 146, 0.2)',
+  				},
+  				'50%': {
+  					boxShadow: '0 0 8px rgba(0, 217, 146, 0.7), 0 0 3px rgba(0, 217, 146, 0.4)',
+  				},
   			},
   			'open-vertical': {
   				'0%': {

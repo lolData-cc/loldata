@@ -18,6 +18,7 @@ import {
 import { KillMap } from "@/components/killmap";
 import { API_BASE_URL } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
+import { supabase } from "@/lib/supabaseClient";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import {
   Tooltip,
@@ -71,6 +72,8 @@ export default function MatchPage() {
   const [timeline, setTimeline] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [playerRanks, setPlayerRanks] = useState<Record<string, { rank: string; lp: number }>>({})
+  const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
+  const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   const getAverage = (key: string, participants: Participant[]) => {
@@ -160,6 +163,21 @@ export default function MatchPage() {
       </div>
     )
   }
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("pro_players").select("username"),
+      supabase.from("pro_player_accounts").select("username"),
+    ]).then(([{ data: proData }, { data: accData }]) => {
+      const names = new Set<string>();
+      for (const r of proData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      for (const r of accData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      setProUsernames(names);
+    });
+    supabase.from("streamers").select("lol_nametag").then(({ data }) => {
+      if (data) setStreamerUsernames(new Set(data.filter((r) => r.lol_nametag).map((r) => r.lol_nametag.toLowerCase())));
+    });
+  }, []);
 
   useEffect(() => {
     async function fetchMatch() {
@@ -368,23 +386,48 @@ export default function MatchPage() {
 
         {/* Name + Rank */}
         <div className="w-[110px] min-w-0 shrink-0">
-          {p.riotIdGameName && p.riotIdTagline ? (
-            <Link
-              to={`/summoners/${region}/${(p.riotIdGameName || "").replace(/\s+/g, "+")}-${p.riotIdTagline}`}
-              className={cn(
-                "block truncate text-[11px] font-mono tracking-wide hover:underline cursor-clicker",
-                isFocused ? "text-jade font-bold" : teamColor
-              )}
-              onClick={(e) => {
-                sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
-                e.stopPropagation();
-              }}
-            >
-              {p.riotIdGameName}
-            </Link>
-          ) : (
-            <span className="block truncate text-[11px] font-mono text-flash/40">{p.riotIdGameName ?? "Unknown"}</span>
-          )}
+          {(() => {
+            const nameKey = p.riotIdGameName && p.riotIdTagline ? `${p.riotIdGameName}#${p.riotIdTagline}`.toLowerCase() : "";
+            const isPro = nameKey && proUsernames.has(nameKey);
+            const isStr = nameKey && !isPro && streamerUsernames.has(nameKey);
+            return (
+              <div className="flex items-center gap-1">
+                {p.riotIdGameName && p.riotIdTagline ? (
+                  <Link
+                    to={`/summoners/${region}/${(p.riotIdGameName || "").replace(/\s+/g, "+")}-${p.riotIdTagline}`}
+                    className={cn(
+                      "truncate text-[11px] font-mono tracking-wide hover:underline cursor-clicker",
+                      isFocused ? "text-jade font-bold" : teamColor
+                    )}
+                    onClick={(e) => {
+                      sessionStorage.setItem("summonerScrollY", window.scrollY.toString());
+                      e.stopPropagation();
+                    }}
+                  >
+                    {p.riotIdGameName}
+                  </Link>
+                ) : (
+                  <span className="truncate text-[11px] font-mono text-flash/40">{p.riotIdGameName ?? "Unknown"}</span>
+                )}
+                {(isPro || isStr) && (
+                  <span
+                    className="shrink-0 text-[7px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                    style={{
+                      background: isPro
+                        ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                        : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                      color: isPro ? "#040A0C" : "#e0d0f0",
+                      boxShadow: isPro
+                        ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                        : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                    }}
+                  >
+                    {isPro ? "PRO" : "STR"}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           {/* Rank badge */}
           {(() => {
             const r = playerRanks[p.puuid];
@@ -642,6 +685,25 @@ export default function MatchPage() {
                         )}>
                           {p.riotIdGameName ?? "Unknown"}
                         </span>
+                        {(() => {
+                          const nk = p.riotIdGameName && p.riotIdTagline ? `${p.riotIdGameName}#${p.riotIdTagline}`.toLowerCase() : "";
+                          const isPro = nk && proUsernames.has(nk);
+                          const isStr = nk && !isPro && streamerUsernames.has(nk);
+                          if (!isPro && !isStr) return null;
+                          return (
+                            <span
+                              className="shrink-0 text-[7px] font-black leading-none px-[2px] py-[1px] rounded-[2px] tracking-wide"
+                              style={{
+                                background: isPro
+                                  ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                  : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                color: isPro ? "#040A0C" : "#e0d0f0",
+                              }}
+                            >
+                              {isPro ? "PRO" : "STR"}
+                            </span>
+                          );
+                        })()}
                         <span className={cn(
                           "ml-auto text-[8px] opacity-40 shrink-0",
                           isBlue ? "text-cyan-300" : "text-rose-300"

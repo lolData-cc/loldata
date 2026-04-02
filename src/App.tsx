@@ -44,6 +44,7 @@ import PlaygroundPage from "./pages/playgroundpage";
 import TotalMasteryPage from "./pages/totalmastery";
 import PrivacyPolicyPage from "@/pages/privacypolicypage";
 import TermsOfServicePage from "@/pages/termsofservicepage";
+import StreamersPage from "@/pages/streamerspage";
 //
 
 declare global {
@@ -123,7 +124,8 @@ export function RootLayout({
 }>) {
   const { pathname } = useLocation()
   const navbarSticky = pathname === "/"
-  const contentMargin = pathname === "/" ? "mt-0" : "mt-10"
+  const noTopMargin = pathname === "/" || pathname === "/streamers"
+  const contentMargin = noTopMargin ? "mt-0" : "mt-10"
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll to top on route change
@@ -200,6 +202,7 @@ function App() {
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
               <Route path="/terms" element={<RootLayout><TermsOfServicePage /></RootLayout>} />
+              <Route path="/streamers" element={<RootLayout><StreamersPage /></RootLayout>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>
