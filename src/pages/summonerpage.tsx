@@ -1445,47 +1445,91 @@ export default function SummonerPage() {
             <BorderBeam duration={8} size={100} />
 
             {/* contenuto */}
+            {/* Splash art — absolute from card top, doesn't affect layout */}
+            {topChampionsSeason.length > 0 && (
+              <div className="absolute inset-x-0 top-0 h-[220px] overflow-hidden z-[2] pointer-events-none">
+                <img
+                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
+                  alt={`Splash art ${topChampionsSeason[0].champion}`}
+                  className="w-full h-full object-cover opacity-15 filter grayscale brightness-150"
+                  style={{
+                    objectPosition: "top center",
+                    maskImage: "linear-gradient(to bottom, black 0%, black 40%, transparent 85%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 40%, transparent 85%)",
+                  }}
+                />
+              </div>
+            )}
             <div className="relative z-10">
-              <div className="relative w-full h-32 overflow-hidden mt-6">
-                {topChampionsSeason.length > 0 && (
-                  <img
-                    src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
-                    alt={`Splash art ${topChampionsSeason[0].champion}`}
-                    className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
-                    style={{ objectPosition: "top center" }}
-                  />
-                )}
+              <div className="relative w-full h-32 mt-2">
 
-                <div className="relative z-10 px-4 py-2">
-                  <span className="text-flash/70">THIS SEASON</span>
+                <div className="relative z-10 px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-flash/40">This Season</span>
+                    <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
+                    {recentDetailedStats?.roleDistribution?.[0] && (() => {
+                      const roleMap: Record<string, React.ReactNode> = {
+                        TOP: <RoleTopIcon className="w-7 h-7" />,
+                        JNG: <RoleJungleIcon className="w-7 h-7" />,
+                        MID: <RoleMidIcon className="w-7 h-7" />,
+                        ADC: <RoleAdcIcon className="w-7 h-7" />,
+                        SUP: <RoleSupportIcon className="w-7 h-7" />,
+                      };
+                      return (
+                        <div className="text-flash/20">
+                          {roleMap[recentDetailedStats.roleDistribution[0].role] ?? null}
+                        </div>
+                      );
+                    })()}
+                  </div>
 
-                  <div className="flex mt-14 px-3 gap-4">
-                    <div className="flex">
-                      <span className="text-2xl text-jade">{summonerInfo?.wins}</span>
-                      <span>WINS</span>
+                  <div className="flex items-end gap-5 mt-12">
+                    {/* Wins */}
+                    <div className="flex flex-col items-center">
+                      {summonerInfo ? (
+                        <span className="text-3xl font-orbitron font-bold text-jade tabular-nums leading-none">{summonerInfo.wins}</span>
+                      ) : (
+                        <span className="text-3xl font-orbitron font-bold text-jade/30 tabular-nums leading-none animate-pulse">--</span>
+                      )}
+                      <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
                     </div>
 
-                    <div className="flex">
-                      <span className="text-2xl text-[#b11315]">{summonerInfo?.losses}</span>
-                      <span>LOSSES</span>
+                    {/* Separator */}
+                    <div className="h-8 w-[1px] bg-flash/10 mb-1" />
+
+                    {/* Losses */}
+                    <div className="flex flex-col items-center">
+                      {summonerInfo ? (
+                        <span className="text-3xl font-orbitron font-bold text-[#b11315] tabular-nums leading-none">{summonerInfo.losses}</span>
+                      ) : (
+                        <span className="text-3xl font-orbitron font-bold text-[#b11315]/30 tabular-nums leading-none animate-pulse">--</span>
+                      )}
+                      <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
                     </div>
 
-                    {summonerInfo && (
-                      <div className="flex items-center gap-1">
-                        {(() => {
-                          const totalGames = summonerInfo.wins + summonerInfo.losses;
-                          const winrate =
-                            totalGames > 0 ? Math.round((summonerInfo.wins / totalGames) * 100) : 0;
+                    {/* Separator */}
+                    <div className="h-8 w-[1px] bg-flash/10 mb-1" />
 
-                          return (
-                            <>
-                              <span className={`text-2xl ${getWinrateClass(winrate, totalGames)}`}>
-                                {winrate}%
-                              </span>
-                              <span>WINRATE</span>
-                            </>
-                          );
-                        })()}
+                    {/* Winrate */}
+                    {summonerInfo ? (() => {
+                      const totalGames = summonerInfo.wins + summonerInfo.losses;
+                      const winrate = totalGames > 0 ? Math.round((summonerInfo.wins / totalGames) * 100) : 0;
+                      return (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-baseline gap-0.5">
+                            <span className={`text-3xl font-orbitron font-bold tabular-nums leading-none ${getWinrateClass(winrate, totalGames)}`}>{winrate}</span>
+                            <span className={`text-lg font-orbitron font-bold leading-none ${getWinrateClass(winrate, totalGames)}`}>%</span>
+                          </div>
+                          <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                        </div>
+                      );
+                    })() : (
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-baseline gap-0.5">
+                          <span className="text-3xl font-orbitron font-bold text-flash/20 tabular-nums leading-none animate-pulse">--</span>
+                          <span className="text-lg font-orbitron font-bold text-flash/20 leading-none animate-pulse">%</span>
+                        </div>
+                        <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
                       </div>
                     )}
                   </div>
@@ -1549,7 +1593,7 @@ export default function SummonerPage() {
 
                       {/* Radar chart — left */}
                       <TooltipProvider delayDuration={0}>
-                        <div className="shrink-0 -ml-2 relative">
+                        <div className="shrink-0 -ml-2 relative mt-[22px]">
                           <svg width="190" height="190" viewBox="0 0 220 220">
                             {/* Grid hexagons */}
                             {[0.25, 0.5, 0.75, 1].map(s => (
@@ -1570,7 +1614,7 @@ export default function SummonerPage() {
                               return (
                                 <Tooltip key={i}>
                                   <TooltipTrigger asChild>
-                                    <g className="cursor-pointer">
+                                    <g className="cursor-clicker">
                                       <circle cx={dx} cy={dy} r="10" fill="transparent" />
                                       <circle cx={dx} cy={dy} r="5" fill="#00d992" fillOpacity="0.12" />
                                       <circle cx={dx} cy={dy} r="2.5" fill="#00d992" fillOpacity="0.9" />
@@ -1603,7 +1647,7 @@ export default function SummonerPage() {
                       </TooltipProvider>
 
                       {/* Stats panel — right */}
-                      <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                      <div className="flex flex-col gap-[7px] pt-6 flex-1 min-w-0">
                         {[
                           { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
                           { label: "CS/MIN", value: recentDetailedStats.csPerMin },
@@ -1615,8 +1659,8 @@ export default function SummonerPage() {
                           <div key={s.label} className="flex items-baseline justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
                             <span className="text-[10px] text-flash/35 uppercase tracking-wider">{s.label}</span>
                             <div className="flex items-baseline gap-1.5">
-                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
                               {s.sub && <span className="text-[10px] text-flash/25">{s.sub}</span>}
+                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
                             </div>
                           </div>
                         ))}
@@ -1625,23 +1669,18 @@ export default function SummonerPage() {
 
                     </div>
 
-                    {/* Full-width footer rows */}
-                    {recentDetailedStats.roleDistribution.length > 0 && (
-                      <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
-                        {recentDetailedStats.roleDistribution.map((r, i) => (
-                          <span key={r.role} className="text-[11px] tabular-nums">
-                            <span className={i === 0 ? "text-jade" : "text-flash/40"}>{r.role}</span>
-                            <span className="text-flash/20 ml-1">{r.pct}%</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
+                    {/* MVP badge */}
                     {recentBadgeLabel && (
-                      <div className="flex items-center justify-between px-1 pt-2 mt-1 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-flash/25">{recentBadgeCount}/{recentDetailedStats.games} MVP</span>
-                        <span className="text-[11px] font-bold text-jade tracking-widest drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]">
-                          {recentBadgeLabel}
+                      <div className="flex justify-end px-1 mt-2">
+                        <span
+                          className="text-[9px] font-orbitron font-bold tracking-[0.15em] px-2 py-[2px] rounded-[2px]"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(0,217,146,0.12), rgba(0,184,255,0.08))",
+                            color: "#00d992",
+                            boxShadow: "0 0 8px rgba(0,217,146,0.2)",
+                          }}
+                        >
+                          {recentBadgeCount}/{recentDetailedStats.games} MVP · {recentBadgeLabel}
                         </span>
                       </div>
                     )}
@@ -2057,19 +2096,19 @@ export default function SummonerPage() {
           }}
         >
 
-          <div className="flex justify-between items-center mt-4 mb-6 w-full min-w-full max-w-full">
-            {/* SEZIONE SINISTRA: nuove icone */}
+          <div className="flex flex-row-reverse justify-between items-start mt-[22px] mb-6 w-full min-w-full max-w-full">
+            {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
             {(() => {
               const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
               const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
               const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
               const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
               return (
-                <>
-                  <div className="flex flex-col items-center gap-1 min-w-[200px]">
+                <div className="flex items-center justify-center gap-0 h-full">
+                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
                     <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
-                    <div className="relative w-32 h-32 flex items-center justify-center">
-                      <div className="absolute w-24 h-24 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
                       <img
                         src={
                           !currentRank || currentRank.toLowerCase() === "unranked"
@@ -2077,22 +2116,22 @@ export default function SummonerPage() {
                             : getRankImage(currentRank)
                         }
                         alt="Rank icon"
-                        className="w-32 h-32 z-10 relative"
+                        className="w-28 h-28 z-10 relative"
                         draggable={false}
                         onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                       />
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
+                    <div className="flex flex-col items-center text-sm min-w-[180px]">
                       <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
                       {currentRank && currentRank.toLowerCase() !== "unranked" && (
                         <span className="text-[16px] font-orbitron font-bold text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-center gap-1 min-w-[200px]">
+                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
                     <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
-                    <div className="relative w-32 h-32 flex items-center justify-center">
-                      <div className="absolute w-24 h-24 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
                       <img
                         src={
                           !peakRank || peakRank.toLowerCase() === "unranked"
@@ -2105,147 +2144,34 @@ export default function SummonerPage() {
                         onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                       />
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-sm min-w-[180px]">
+                    <div className="flex flex-col items-center text-sm min-w-[180px]">
                       <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
                       {peakRank && peakRank.toLowerCase() !== "unranked" && (
                         <span className="text-[16px] font-orbitron font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
                       )}
                     </div>
                   </div>
-                </>
+                </div>
               );
             })()}
-            <div className="flex items-end justify-end">
+            <div
+              className={cn(
+                "relative overflow-hidden rounded-md",
+                "bg-black/25 backdrop-blur-lg saturate-150",
+                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              )}
+            >
+              {/* glossy overlays */}
+              <div className={cn(
+                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
+              )} />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
 
-              <div className="relative z-10 flex justify-end items-center">
-                {/* LATO TESTO */}
-                <div className="flex flex-col pr-4 h-36 justify-end gap-0.5 -translate-y-1">
-                  <div className="uppercase select-none">
-                    {(isPro || isStreamer) && (
-                      <div className="flex justify-end mb-2 items-center space-x-2">
-                        {isPro && (
-                          <div className="relative rounded-sm overflow-hidden px-1.5">
-                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
-                            <div className="relative text-black text-sm text-center z-10">PRO</div>
-                          </div>
-                        )}
+              <div className="relative z-10 flex items-center gap-6 px-8 py-6">
 
-                        {isStreamer && (
-                          <div className="relative rounded-sm overflow-hidden px-1.5">
-                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
-                            <div className="relative text-black text-sm z-10">STREAMER</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {linkedDiscord && (
-                      <div className="flex justify-end mb-1">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
-                          <span className="text-[10px] text-flash/50 tracking-[0.18em]">
-                            DISCORD
-                          </span>
-                          <span className="text-xs text-flash/80 font-medium">
-                            {linkedDiscord.discord_username ?? "Connected user"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {summonerInfo?.ladderRank && (
-                      <p className="text-jade/60 text-[11px] text-right font-mono tracking-[0.15em] uppercase">
-                        RANK #{summonerInfo.ladderRank.toLocaleString()}
-                      </p>
-                    )}
-                    <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
-                      LEVEL {summonerInfo?.level} | {region}
-                    </p>
-
-                    <div
-                      className={cn(
-                        "flex justify-end cursor-clicker",
-                        ((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
-                          ? "text-[17px]"
-                          : "text-2xl"
-                      )}
-                      title="CLICK TO COPY"
-                      onClick={() => {
-                        if (summonerInfo) {
-                          navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
-                        }
-                      }}
-                    >
-                      {!summonerInfo ? (
-                        <div className="flex justify-end w-[180px]">
-                          <Skeleton className="h-6 w-[70%] bg-white/10" />
-                        </div>
-                      ) : (
-                        <span className="text-right">
-                          <span
-                            className={
-                              premiumPlan === "premium" || premiumPlan === "elite"
-                                ? "bg-clip-text text-transparent animate-glow"
-                                : "text-[#D7D8D9] animate-glow"
-                            }
-                            style={
-                              premiumPlan === "premium"
-                                ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                                : premiumPlan === "elite"
-                                  ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                                  : undefined
-                            }
-                          >
-                            {summonerInfo.name}
-                          </span>
-
-                          {summonerInfo.tag && (
-                            <span
-                              className={
-                                premiumPlan === "premium" || premiumPlan === "elite"
-                                  ? "ml-0.5 bg-clip-text text-transparent animate-glow"
-                                  : "ml-0.5 text-[#BCC9C6] animate-glow"
-                              }
-                              style={
-                                premiumPlan === "premium"
-                                  ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                                  : premiumPlan === "elite"
-                                    ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                                    : undefined
-                              }
-                            >
-                              #{summonerInfo.tag}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="w-[100%] h-px mt-2 bg-white/15 rounded" />
-                    <div className="mt-2 flex justify-end items-center gap-2">
-
-                      {summonerInfo?.puuid && region && (
-                        <PlayerAnalysisDialog
-                          puuid={summonerInfo.puuid}
-                          region={region}
-                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                          externalOpen={analyzeOpen}
-                          onExternalOpenChange={setAnalyzeOpen}
-                        />
-                      )}
-
-                      <UpdateButton
-                        onClick={refreshData}
-                        loading={loading}
-                        cooldown={onCooldown}
-                        cooldownSeconds={cooldownSeconds}
-                        className=" hover:bg-jade/30"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* LATO AVATAR */}
-                <div className="relative w-36 h-36">
+                {/* Avatar */}
+                <div className="relative shrink-0 w-[128px] h-[128px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
@@ -2269,6 +2195,74 @@ export default function SummonerPage() {
                       region={region!}
                     />
                   )}
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  {/* Badges */}
+                  <div className="flex items-center gap-2">
+                    {isPro && (
+                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                    )}
+                    {isStreamer && (
+                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
+                    )}
+                    {linkedDiscord && (
+                      <span className="text-[10px] font-mono text-[#7289da]/50">{linkedDiscord.discord_username}</span>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div
+                    className="cursor-clicker"
+                    title="Click to copy"
+                    onClick={() => { if (summonerInfo) navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`); }}
+                  >
+                    {!summonerInfo ? (
+                      <Skeleton className="h-8 w-[200px] bg-white/10" />
+                    ) : (
+                      <>
+                        <span className="text-[26px] font-bold font-mono text-flash tracking-wide leading-none">
+                          {summonerInfo.name}
+                        </span>
+                        {summonerInfo.tag && (
+                          <span className="text-[18px] font-mono text-flash/30 ml-1">#{summonerInfo.tag}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Level · Region · Rank */}
+                  <div className="flex items-center gap-2.5 text-[12px] font-mono">
+                    <span className="text-flash/35">Level {summonerInfo?.level}</span>
+                    <span className="text-flash/15">·</span>
+                    <span className="text-flash/35">{region?.toUpperCase()}</span>
+                    {summonerInfo?.ladderRank && (
+                      <>
+                        <span className="text-flash/15">·</span>
+                        <span className="text-jade/50 tracking-[0.08em]">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <UpdateButton
+                      onClick={refreshData}
+                      loading={loading}
+                      cooldown={onCooldown}
+                      cooldownSeconds={cooldownSeconds}
+                    />
+                    {summonerInfo?.puuid && region && (
+                      <PlayerAnalysisDialog
+                        puuid={summonerInfo.puuid}
+                        region={region}
+                        summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                        externalOpen={analyzeOpen}
+                        onExternalOpenChange={setAnalyzeOpen}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 

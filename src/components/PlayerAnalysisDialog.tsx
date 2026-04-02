@@ -1039,19 +1039,25 @@ export function PlayerAnalysisDialog({
           }}
           disabled={!puuid}
           className={cn(
-            "inline-flex items-center gap-1.5 h-9 px-4",
-            "font-jetbrains text-[11px] tracking-[0.15em] uppercase",
-            "border rounded-sm",
-            "transition-all duration-200",
+            "group relative inline-flex items-center gap-1.5 h-8 px-4 overflow-hidden",
+            "font-jetbrains text-[10px] tracking-[0.15em] uppercase",
+            "border rounded-[3px]",
+            "transition-all duration-300",
             "cursor-clicker select-none",
-            "disabled:opacity-30 disabled:pointer-events-none",
+            "disabled:opacity-60 disabled:pointer-events-none",
             isLocked
               ? "border-flash/10 bg-flash/5 text-flash/25"
-              : "border-jade/30 bg-jade/5 text-jade/80 hover:bg-jade/15 hover:border-jade/50 hover:text-jade"
+              : "border-jade/30 bg-jade/10 text-jade hover:border-jade/50 hover:shadow-[0_0_16px_rgba(0,217,146,0.2)]"
           )}
         >
-          <span className="text-[8px]">◈</span>
-          ANALYZE
+          {!isLocked && (
+            <>
+              <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.06) 3px, rgba(0,217,146,0.06) 4px)" }} />
+              <span className="absolute inset-0 bg-jade/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
+            </>
+          )}
+          <span className="relative text-[8px] group-hover:scale-110 transition-transform duration-300">◈</span>
+          <span className="relative">ANALYZE</span>
         </button>
         {isFreeUser && usageChecked && !trialUsed && (
           <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-mono tracking-[0.15em] text-citrine/60">
