@@ -56,6 +56,7 @@ import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { AnimatedTabsList } from "@/components/animated-tabs-list";
 
 import { PlayerHoverCard } from "@/components/playerhovercard";
+import { TeamLogo } from "@/components/teamlogo";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
 import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
@@ -1345,19 +1346,25 @@ export default function SummonerPage() {
                 <img
                   src={proPlayerInfo.profile_image_url}
                   alt=""
-                  className="shrink-0 w-[88px] h-[88px] rounded-lg object-cover border border-jade/20 shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,217,146,0.1)]"
+                  className="shrink-0 w-[88px] h-[88px] rounded-lg object-cover shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,217,146,0.1)]"
                 />
               ) : (
-                <div className="shrink-0 w-[88px] h-[88px] rounded-lg bg-black/40 border border-flash/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-                  <span
-                    className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-[3px]"
-                    style={{
-                      background: "linear-gradient(135deg, #00d992, #00b8ff)",
-                      color: "#040A0C",
-                    }}
-                  >
-                    PRO
-                  </span>
+                <div className="shrink-0 w-[88px] h-[88px] rounded-lg bg-black/50 border border-jade/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden relative">
+                  {/* Scanlines */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.03) 3px, rgba(0,217,146,0.03) 4px)" }} />
+                  {/* Corner brackets */}
+                  <div className="absolute top-0 left-0 w-3 h-3"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute top-0 right-0 w-3 h-3"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute bottom-0 left-0 w-3 h-3"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/20" /></div>
+                  {/* Silhouette + diamond */}
+                  <div className="relative flex flex-col items-center gap-1">
+                    <svg viewBox="0 0 64 52" className="w-10 h-8">
+                      <circle cx="32" cy="16" r="9" fill="rgba(0,217,146,0.12)" stroke="rgba(0,217,146,0.2)" strokeWidth="1" />
+                      <path d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.15)" strokeWidth="1" />
+                    </svg>
+                    <span className="text-jade/25 text-[8px] font-orbitron tracking-[0.2em]">◈</span>
+                  </div>
                 </div>
               )}
 
@@ -1366,7 +1373,7 @@ export default function SummonerPage() {
                 {/* Team icon + team name — top header */}
                 {proPlayerInfo.team && (
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    {proTeamLogo && <img src={proTeamLogo} alt="" className="w-3.5 h-3.5 object-contain" />}
+                    {proTeamLogo && <TeamLogo src={proTeamLogo} className="w-3.5 h-3.5 object-contain" />}
                     <span className="text-[10px] font-mono text-jade/60 tracking-[0.15em] uppercase">{proPlayerInfo.team}</span>
                   </div>
                 )}

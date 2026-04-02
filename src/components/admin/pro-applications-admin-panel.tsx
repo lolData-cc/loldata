@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Label } from "@/components/ui/label";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +14,7 @@ import {
 import { showCyberToast } from "@/lib/toast-utils";
 import { LoadingDots } from "@/components/ui/loading-dots";
 import { API_BASE_URL } from "@/config";
+import { TeamLogo } from "@/components/teamlogo";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
@@ -92,6 +95,20 @@ function GlassCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ── Crop helper ─────────────────────────────────────────────────── */
+
+async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = reject; img.src = imageSrc; });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+  return new Promise((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error("Canvas toBlob failed")), "image/jpeg", 0.92));
+}
+
 /* ── Shared styles ───────────────────────────────────────────────── */
 
 const btnJade = "px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
@@ -137,10 +154,17 @@ export function ProApplicationsAdminPanel() {
   const [manageAccountsLoading, setManageAccountsLoading] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
   const [manageAvatarFile, setManageAvatarFile] = useState<File | null>(null);
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
   const [manageBusy, setManageBusy] = useState(false);
   const [manageNickname, setManageNickname] = useState("");
   const [manageFirstName, setManageFirstName] = useState("");
   const [manageLastName, setManageLastName] = useState("");
+  const [manageTeam, setManageTeam] = useState("");
+  const [manageNationality, setManageNationality] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // ── Teams state
@@ -336,6 +360,8 @@ export function ProApplicationsAdminPanel() {
     setManageNickname(player.nickname ?? "");
     setManageFirstName(player.first_name ?? "");
     setManageLastName(player.last_name ?? "");
+    setManageTeam(player.team ?? "");
+    setManageNationality(player.nationality ?? "");
     setManageAvatarFile(null);
     setNewAccountName("");
     if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -350,6 +376,8 @@ export function ProApplicationsAdminPanel() {
     setManageNickname("");
     setManageFirstName("");
     setManageLastName("");
+    setManageTeam("");
+    setManageNationality("");
   }
 
   async function handleSaveDetails() {
@@ -361,29 +389,62 @@ export function ProApplicationsAdminPanel() {
           nickname: manageNickname.trim() || null,
           first_name: manageFirstName.trim() || null,
           last_name: manageLastName.trim() || null,
+          team: manageTeam || null,
+          nationality: manageNationality.trim() || null,
         })
         .eq("id", manageTarget.id);
       if (error) { showCyberToast({ title: "Failed to save", variant: "error" }); return; }
       showCyberToast({ title: "Details saved", tag: "PRO" });
       await loadProPlayers();
-      setManageTarget((prev) => prev ? { ...prev, nickname: manageNickname.trim() || null, first_name: manageFirstName.trim() || null, last_name: manageLastName.trim() || null } : null);
+      setManageTarget((prev) => prev ? { ...prev, nickname: manageNickname.trim() || null, first_name: manageFirstName.trim() || null, last_name: manageLastName.trim() || null, team: manageTeam || null, nationality: manageNationality.trim() || null } : null);
     } finally { setManageBusy(false); }
+  }
+
+  function handleFileSelect(file: File | null) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropImageUrl(url);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setCropOpen(true);
+  }
+
+  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  async function handleCropConfirm() {
+    if (!cropImageUrl || !croppedAreaPixels) return;
+    try {
+      const blob = await getCroppedBlob(cropImageUrl, croppedAreaPixels);
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+      setManageAvatarFile(file);
+    } catch { showCyberToast({ title: "Failed to crop image", variant: "error" }); }
+    setCropOpen(false);
+    if (cropImageUrl) URL.revokeObjectURL(cropImageUrl);
+    setCropImageUrl(null);
+  }
+
+  function handleCropCancel() {
+    setCropOpen(false);
+    if (cropImageUrl) URL.revokeObjectURL(cropImageUrl);
+    setCropImageUrl(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
   }
 
   async function handleUploadAvatar() {
     if (!manageTarget || !manageAvatarFile) return;
     setManageBusy(true);
     try {
-      const ext = manageAvatarFile.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `${manageTarget.id}.${ext}`;
-      // Remove old file if exists (ignore errors)
+      const path = `${manageTarget.id}.jpg`;
       await supabase.storage.from("pro-player-avatars").remove([path]);
       const { error: uploadErr } = await supabase.storage
         .from("pro-player-avatars")
-        .upload(path, manageAvatarFile, { contentType: manageAvatarFile.type, upsert: true });
+        .upload(path, manageAvatarFile, { contentType: "image/jpeg", upsert: true });
       if (uploadErr) { showCyberToast({ title: "Failed to upload avatar", variant: "error" }); return; }
       const { data: urlData } = supabase.storage.from("pro-player-avatars").getPublicUrl(path);
-      const url = urlData.publicUrl + `?t=${Date.now()}`; // cache bust
+      const url = urlData.publicUrl + `?t=${Date.now()}`;
       const { error } = await supabase.from("pro_players").update({ profile_image_url: url }).eq("id", manageTarget.id);
       if (error) { showCyberToast({ title: "Failed to update avatar URL", variant: "error" }); return; }
       showCyberToast({ title: "Avatar uploaded", tag: "PRO" });
@@ -598,7 +659,7 @@ export function ProApplicationsAdminPanel() {
                     <td className={tdCls}>
                       {p.team ? (
                         <div className="flex items-center gap-1.5">
-                          {teamLogoMap[p.team] && <img src={teamLogoMap[p.team]!} alt="" className="w-4 h-4 rounded-sm object-contain" />}
+                          {teamLogoMap[p.team] && <TeamLogo src={teamLogoMap[p.team]!} className="w-4 h-4 rounded-sm object-contain" />}
                           <span>{p.team}</span>
                         </div>
                       ) : "—"}
@@ -647,7 +708,7 @@ export function ProApplicationsAdminPanel() {
                 {filteredTeams.map((t) => (
                   <tr key={t.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
                     <td className={tdCls}>
-                      {t.logo_url ? <img src={t.logo_url} alt={t.name} className="w-6 h-6 rounded-sm object-contain" /> : <div className="w-6 h-6 rounded-sm bg-flash/10 flex items-center justify-center text-[8px] text-flash/30">—</div>}
+                      {t.logo_url ? <TeamLogo src={t.logo_url} alt={t.name} className="w-6 h-6 rounded-sm object-contain" /> : <div className="w-6 h-6 rounded-sm bg-flash/10 flex items-center justify-center text-[8px] text-flash/30">—</div>}
                     </td>
                     <td className={`${tdCls} text-flash`}>{t.name}</td>
                     <td className={tdCls}>{new Date(t.created_at).toLocaleDateString()}</td>
@@ -755,9 +816,18 @@ export function ProApplicationsAdminPanel() {
                   <div className="w-16 h-16 rounded-md bg-flash/10 border border-flash/10 flex items-center justify-center text-[10px] text-flash/30">No image</div>
                 )}
                 <div className="flex flex-col gap-2">
-                  <input ref={avatarInputRef} type="file" accept="image/*" onChange={(e) => setManageAvatarFile(e.target.files?.[0] ?? null)}
-                    className="text-[10px] text-flash/60 font-mono file:mr-2 file:px-2 file:py-1 file:rounded-sm file:border file:border-flash/20 file:bg-black/40 file:text-flash/70 file:text-[10px] file:font-mono file:cursor-clicker hover:file:bg-flash/10" />
+                  {/* Hidden file input */}
+                  <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)} />
+
+                  {/* Cropped preview */}
+                  {manageAvatarFile && (
+                    <img src={URL.createObjectURL(manageAvatarFile)} alt="Cropped" className="w-16 h-16 rounded-md object-cover border border-jade/20" />
+                  )}
+
                   <div className="flex gap-2">
+                    <button type="button" onClick={() => avatarInputRef.current?.click()} className={btnFlash}>
+                      {manageAvatarFile ? "CHANGE" : "SELECT IMAGE"}
+                    </button>
                     {manageAvatarFile && <button type="button" onClick={handleUploadAvatar} disabled={manageBusy} className={btnJade}>{manageBusy ? "..." : "UPLOAD"}</button>}
                     {manageTarget?.profile_image_url && <button type="button" onClick={handleRemoveAvatar} disabled={manageBusy} className={btnDanger}>REMOVE</button>}
                   </div>
@@ -783,6 +853,19 @@ export function ProApplicationsAdminPanel() {
                   <div>
                     <Label className="text-[10px] font-mono tracking-[0.12em] uppercase text-flash/40">Last Name</Label>
                     <input type="text" placeholder="Doe" value={manageLastName} onChange={(e) => setManageLastName(e.target.value)} className={inputCls} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[10px] font-mono tracking-[0.12em] uppercase text-flash/40">Team</Label>
+                    <select value={manageTeam} onChange={(e) => setManageTeam(e.target.value)} className={`${selectCls} w-full`}>
+                      <option value="">No team</option>
+                      {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] font-mono tracking-[0.12em] uppercase text-flash/40">Nationality</Label>
+                    <input type="text" placeholder="Country" value={manageNationality} onChange={(e) => setManageNationality(e.target.value)} className={inputCls} />
                   </div>
                 </div>
                 <div className="flex justify-end">
@@ -871,6 +954,46 @@ export function ProApplicationsAdminPanel() {
           <DialogFooter className="mt-2 flex justify-between">
             <button type="button" onClick={() => setDeleteTeamTarget(null)} className={btnFlash}>Cancel</button>
             <button type="button" onClick={handleDeleteTeam} disabled={deleteTeamBusy} className={btnDanger}>{deleteTeamBusy ? "..." : "CONFIRM DELETE"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ IMAGE CROP DIALOG ═══ */}
+      <Dialog open={cropOpen} onOpenChange={(open) => { if (!open) handleCropCancel(); }}>
+        <DialogContent className="w-full max-w-md bg-liquirice/90 border border-flash/10">
+          <DialogHeader>
+            <DialogTitle className="text-flash text-[13px] font-mono tracking-[0.2em] uppercase">:: Crop Image ::</DialogTitle>
+          </DialogHeader>
+          <div className="relative w-full h-[300px] bg-black/60 rounded-sm overflow-hidden">
+            {cropImageUrl && (
+              <Cropper
+                image={cropImageUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-[10px] font-mono text-flash/40 shrink-0">Zoom</span>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.05}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="flex-1 accent-jade"
+            />
+          </div>
+          <DialogFooter className="mt-3 flex justify-between">
+            <button type="button" onClick={handleCropCancel} className={btnFlash}>Cancel</button>
+            <button type="button" onClick={handleCropConfirm} className={btnJade}>Confirm Crop</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

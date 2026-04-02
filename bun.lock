@@ -33,7 +33,7 @@
         "popover": "^2.4.1",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-easy-crop": "^5.5.0",
+        "react-easy-crop": "^5.5.7",
         "react-router-dom": "^7.6.2",
         "recharts": "^3.1.0",
         "shadcn": "^2.9.2",
@@ -1054,7 +1054,7 @@
 
     "react-dom": ["react-dom@19.1.0", "", { "dependencies": { "scheduler": "^0.26.0" }, "peerDependencies": { "react": "^19.1.0" } }, ""],
 
-    "react-easy-crop": ["react-easy-crop@5.5.0", "", { "dependencies": { "normalize-wheel": "^1.0.1", "tslib": "^2.0.1" }, "peerDependencies": { "react": ">=16.4.0", "react-dom": ">=16.4.0" } }, "sha512-OZzU+yXMhe69vLkDex+5QxcfT94FdcgVCyW2dBUw35ZoC3Is42TUxUy04w8nH1mfMKaizVdC3rh/wUfNW1mK4w=="],
+    "react-easy-crop": ["react-easy-crop@5.5.7", "", { "dependencies": { "normalize-wheel": "^1.0.1", "tslib": "^2.0.1" }, "peerDependencies": { "react": ">=16.4.0", "react-dom": ">=16.4.0" } }, "sha512-kYo4NtMeXFQB7h1U+h5yhUkE46WQbQdq7if54uDlbMdZHdRgNehfvaFrXnFw5NR1PNoUOJIfTwLnWmEx/MaZnA=="],
 
     "react-is": ["react-is@19.1.1", "", {}, "sha512-tr41fA15Vn8p4X9ntI+yCyeGSf1TlYaY5vlTZfQmeLBrFo3psOPX6HhTDnFNL9uj3EhP0KAQ80cugCl4b4BERA=="],
 

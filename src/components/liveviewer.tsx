@@ -151,6 +151,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
   function PlayerRow({ p, side }: { p: Participant; side: "blue" | "red" }) {
     const isFocused = p.riotId === riotId
     const rank = ranks[p.riotId]
+    const isStreamerMode = !rank?.rank || rank.rank.toLowerCase() === "error"
     const teamColor = side === "blue" ? "text-cyan-300/90" : "text-rose-300/90"
     const total = (rank?.wins ?? 0) + (rank?.losses ?? 0)
     const wr = total > 0 ? Math.round((rank?.wins / total) * 100) : 0
@@ -220,19 +221,39 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
         })()}
 
         {/* Rank */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
-          <img
-            src={rank?.rank ? `https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(rank.rank)}.png` : "/img/unranked.png"}
-            className="w-5 h-5 shrink-0 object-contain"
-          />
-          <span className="font-mono text-[11px] tracking-wide text-flash/50 whitespace-nowrap">
-            {rank?.rank || "..."} {rank?.lp != null ? <span className="text-flash/70">{rank.lp} LP</span> : ""}
-          </span>
-        </div>
+        {(() => {
+          const rankStr = rank?.rank;
+          return (
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
+              {!isStreamerMode && (
+                <img
+                  src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(rankStr!)}.png`}
+                  className="w-5 h-5 shrink-0 object-contain"
+                />
+              )}
+              {isStreamerMode ? (
+                <span
+                  className="font-orbitron text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-[2px] rounded-[2px] border border-flash/15 whitespace-nowrap"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(155,89,182,0.15), rgba(168,85,199,0.08))",
+                    color: "rgba(168,85,199,0.7)",
+                    boxShadow: "0 0 6px rgba(155,89,182,0.15)",
+                  }}
+                >
+                  Streamer Mode
+                </span>
+              ) : (
+                <span className="font-mono text-[11px] tracking-wide text-flash/50 whitespace-nowrap">
+                  {rankStr} {rank?.lp != null ? <span className="text-flash/70">{rank.lp} LP</span> : ""}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Winrate */}
-        <div className="shrink-0 text-right">
-          {total > 0 ? (
+        <div className="shrink-0 text-right w-[50px]">
+          {isStreamerMode ? null : total > 0 ? (
             <div className="flex flex-col items-end">
               <span className={cn("font-mono text-[11px] tabular-nums font-medium", wrColor)}>
                 {wr}%
