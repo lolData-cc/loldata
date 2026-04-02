@@ -10,6 +10,7 @@ export const UI_PREFS_KEYS = {
   statsBarVisibleStats: "lolData:statsBarVisibleStats",
   useContextMenuActions: "lolData:useContextMenuActions",
   clickToExpandMatch: "lolData:clickToExpandMatch",
+  blueWinTint: "lolData:blueWinTint",
 } as const;
 
 function safeWindow() {
@@ -178,13 +179,28 @@ export function setUseContextMenuActions(value: boolean) {
 
 export function getClickToExpandMatch(): boolean {
   const w = safeWindow();
-  if (!w) return false; // default: hover mode
-  return w.localStorage.getItem(UI_PREFS_KEYS.clickToExpandMatch) === "1";
+  if (!w) return true; // default: click mode
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.clickToExpandMatch);
+  if (val === null) return true; // first visit: click mode by default
+  return val === "1";
 }
 
 export function setClickToExpandMatch(value: boolean) {
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.clickToExpandMatch, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getBlueWinTint(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: green wins
+  return w.localStorage.getItem(UI_PREFS_KEYS.blueWinTint) === "1";
+}
+
+export function setBlueWinTint(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.blueWinTint, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

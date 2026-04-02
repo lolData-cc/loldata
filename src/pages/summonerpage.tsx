@@ -45,6 +45,7 @@ import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
 import { useDisableMatchGrouping } from "@/hooks/useDisableMatchGrouping"
 import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
+import { useBlueWinTint } from "@/hooks/useBlueWinTint"
 import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
 import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
 import { useStatsBarPrefs } from "@/hooks/useStatsBarPrefs"
@@ -122,6 +123,7 @@ export default function SummonerPage() {
   const { disabled: matchTransitionDisabled } = useDisableMatchTransition()
   const { disabled: matchGroupingDisabled } = useDisableMatchGrouping()
   const { enabled: coloredMatchBg } = useEnableColoredMatchBg()
+  const { enabled: blueWinTint } = useBlueWinTint()
   const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
   const { enabled: hideRemakes } = useHideRemakeMatches()
   const { hidden: statsBarHidden, visibleStats } = useStatsBarPrefs()
@@ -1491,7 +1493,7 @@ export default function SummonerPage() {
                       ) : (
                         <span className="text-3xl font-orbitron font-bold text-jade/30 tabular-nums leading-none animate-pulse">--</span>
                       )}
-                      <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
+                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
                     </div>
 
                     {/* Separator */}
@@ -1504,7 +1506,7 @@ export default function SummonerPage() {
                       ) : (
                         <span className="text-3xl font-orbitron font-bold text-[#b11315]/30 tabular-nums leading-none animate-pulse">--</span>
                       )}
-                      <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
+                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
                     </div>
 
                     {/* Separator */}
@@ -1520,7 +1522,7 @@ export default function SummonerPage() {
                             <span className={`text-3xl font-orbitron font-bold tabular-nums leading-none ${getWinrateClass(winrate, totalGames)}`}>{winrate}</span>
                             <span className={`text-lg font-orbitron font-bold leading-none ${getWinrateClass(winrate, totalGames)}`}>%</span>
                           </div>
-                          <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
                         </div>
                       );
                     })() : (
@@ -1529,7 +1531,7 @@ export default function SummonerPage() {
                           <span className="text-3xl font-orbitron font-bold text-flash/20 tabular-nums leading-none animate-pulse">--</span>
                           <span className="text-lg font-orbitron font-bold text-flash/20 leading-none animate-pulse">%</span>
                         </div>
-                        <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
                       </div>
                     )}
                   </div>
@@ -2156,7 +2158,7 @@ export default function SummonerPage() {
             })()}
             <div
               className={cn(
-                "relative overflow-hidden rounded-md",
+                "relative overflow-hidden rounded-md max-w-[480px]",
                 "bg-black/25 backdrop-blur-lg saturate-150",
                 "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
               )}
@@ -2208,7 +2210,10 @@ export default function SummonerPage() {
                       <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
                     )}
                     {linkedDiscord && (
-                      <span className="text-[10px] font-mono text-[#7289da]/50">{linkedDiscord.discord_username}</span>
+                      <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
+                        {linkedDiscord.discord_username}
+                      </span>
                     )}
                   </div>
 
@@ -2222,7 +2227,10 @@ export default function SummonerPage() {
                       <Skeleton className="h-8 w-[200px] bg-white/10" />
                     ) : (
                       <>
-                        <span className="text-[26px] font-bold font-mono text-flash tracking-wide leading-none">
+                        <span className={cn(
+                          "font-bold font-mono text-flash tracking-wide leading-none",
+                          (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
+                        )}>
                           {summonerInfo.name}
                         </span>
                         {summonerInfo.tag && (
@@ -2272,16 +2280,16 @@ export default function SummonerPage() {
 
           <div className="w-full mt-4">
             {/* ── Unified filter row ── */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
               {/* Queue — dropdown (many options) */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={cn(
-                    "font-mono text-[11px] tracking-[0.12em] uppercase px-4 py-2 rounded-sm transition-all duration-300 cursor-clicker flex items-center gap-1.5",
-                    "border",
+                    "group relative font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 h-[32px] rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 overflow-hidden",
+                    "border backdrop-blur-lg",
                     selectedQueue !== "All"
-                      ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
-                      : "text-flash/30 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20",
+                      ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                      : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
                   )}
                 >
                   {selectedQueue === "All" ? "Queue" : selectedQueue === "Ranked Solo/Duo" ? "Solo/Duo" : "Flex"}
@@ -2306,18 +2314,18 @@ export default function SummonerPage() {
               {/* Champion — dialog picker */}
               <div
                 className={cn(
-                  "font-mono text-[11px] tracking-[0.12em] uppercase px-4 rounded-sm transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[34px]",
-                  "border",
+                  "font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[32px]",
+                  "border backdrop-blur-lg",
                   selectedChampion
-                    ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
-                    : "text-flash/30 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20",
+                    ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                    : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
                 )}
               >
                 <ChampionPicker
                   champions={allChampions}
                   selectedChampion={selectedChampion}
                   onSelect={(champName) => setSelectedChampion(champName)}
-                  triggerClassName="!text-[11px] !tracking-[0.12em] !font-mono"
+                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-orbitron"
                 />
               </div>
 
@@ -2336,14 +2344,14 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
                     className={cn(
-                      "font-mono text-[11px] tracking-[0.12em] uppercase min-w-[34px] px-2.5 py-2 transition-all duration-300 cursor-clicker flex items-center justify-center",
-                      "border border-flash/[0.08] hover:border-flash/[0.15]",
-                      i === 0 && "rounded-l-sm",
-                      i === arr.length - 1 && "rounded-r-sm",
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[32px] px-2 h-[32px] transition-all duration-300 cursor-clicker flex items-center justify-center",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
                       i > 0 && "-ml-px",
                       (role.value === null ? selectedRole === null : selectedRole === role.value)
-                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)] z-10"
-                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
                     )}
                   >
                     {role.icon ?? role.label}
@@ -2363,14 +2371,14 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedResult(opt.value)}
                     className={cn(
-                      "font-mono text-[11px] tracking-[0.12em] uppercase px-3.5 py-2 transition-all duration-300 cursor-clicker",
-                      "border border-flash/[0.08] hover:border-flash/[0.15]",
-                      i === 0 && "rounded-l-sm",
-                      i === arr.length - 1 && "rounded-r-sm",
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase px-2.5 h-[32px] transition-all duration-300 cursor-clicker",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
                       i > 0 && "-ml-px",
                       selectedResult === opt.value
-                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)] z-10"
-                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
                     )}
                   >
                     {opt.label}
@@ -2389,14 +2397,14 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setRankQueueView(mode)}
                     className={cn(
-                      "font-mono text-[11px] tracking-[0.12em] uppercase min-w-[56px] text-center px-3.5 py-2 transition-all duration-300 cursor-clicker",
-                      "border border-flash/[0.08] hover:border-flash/[0.15]",
-                      i === 0 && "rounded-l-sm",
-                      i === arr.length - 1 && "rounded-r-sm",
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[48px] text-center px-3 h-[32px] transition-all duration-300 cursor-clicker",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
                       i > 0 && "border-l-0",
                       rankQueueView === mode
-                        ? "text-jade bg-jade/[0.06] border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08),inset_0_0_12px_rgba(0,217,146,0.04)]"
-                        : "text-flash/30 hover:text-flash/50 bg-black/20",
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
                     )}
                   >
                     {mode === "solo" ? "Solo" : "Flex"}
@@ -2671,7 +2679,7 @@ export default function SummonerPage() {
                                   ? "bg-black/30 backdrop-blur-lg saturate-150"
                                   : coloredMatchBg
                                     ? win
-                                      ? "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
+                                      ? (blueWinTint ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150" : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150")
                                       : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
                                     : "bg-black/18 backdrop-blur-lg saturate-150",
                                 "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
@@ -2679,7 +2687,7 @@ export default function SummonerPage() {
                                   ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                                   : coloredMatchBg
                                     ? win
-                                      ? "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                      ? (blueWinTint ? "hover:bg-[#5BA8E6]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]" : "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]")
                                       : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                                     : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                               )}
@@ -2735,7 +2743,7 @@ export default function SummonerPage() {
                                       isRemake
                                         ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
                                         : win
-                                          ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
+                                          ? (blueWinTint ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c]" : "bg-gradient-to-b from-[#00D18D] to-[#11382E]")
                                           : "bg-gradient-to-b from-[#c93232] to-[#420909]"
                                     )}
                                   />
@@ -2752,7 +2760,7 @@ export default function SummonerPage() {
                                               "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
                                               isRemake
                                                 ? "text-[#f5a623]"
-                                                : win ? "text-[#00D992]" : "text-[#d63336]"
+                                                : win ? (blueWinTint ? "text-[#5BA8E6]" : "text-[#00D992]") : "text-[#d63336]"
                                             )}
                                           >
                                             {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
@@ -2762,7 +2770,7 @@ export default function SummonerPage() {
                                             <span className={cn(
                                               "text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
                                               summonerInfo?.puuid === mvpWin
-                                                ? "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10"
+                                                ? (blueWinTint ? "text-[#8ec5ff] border-[#8ec5ff]/25 bg-[#8ec5ff]/10" : "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10")
                                                 : "text-[#ff6b6b] border-[#ff6b6b]/25 bg-[#ff6b6b]/10"
                                             )}>
                                               {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
@@ -2915,7 +2923,7 @@ export default function SummonerPage() {
                                                   return (
                                                     <div
                                                       className={cn(
-                                                        "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm border-liquirice/20 border shadow-md",
+                                                        "flex items-center justify-center h-6 w-[80px] text-[13px] font-orbitron font-bold tabular-nums rounded-[2px] border text-flash/70",
                                                         className
                                                       )}
                                                       style={style}

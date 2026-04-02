@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { getClickToExpandMatch, setClickToExpandMatch } from "@/lib/uiPrefs";
+import { getBlueWinTint, setBlueWinTint } from "@/lib/uiPrefs";
 
-export function useClickToExpandMatch() {
-  const [enabled, setEnabled] = useState(true);
+export function useBlueWinTint() {
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    setEnabled(getClickToExpandMatch());
-    const onChange = () => setEnabled(getClickToExpandMatch());
+    setEnabled(getBlueWinTint());
+
+    const onChange = () => setEnabled(getBlueWinTint());
+
     window.addEventListener("storage", onChange);
     window.addEventListener("lolData:uiPrefsChanged", onChange);
+
     return () => {
       window.removeEventListener("storage", onChange);
       window.removeEventListener("lolData:uiPrefsChanged", onChange);
@@ -16,7 +19,7 @@ export function useClickToExpandMatch() {
   }, []);
 
   const update = (v: boolean) => {
-    setClickToExpandMatch(v);
+    setBlueWinTint(v);
     setEnabled(v);
   };
 

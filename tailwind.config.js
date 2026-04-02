@@ -51,6 +51,10 @@ module.exports = {
   			proto: [
   				'proto',
   				'monospace', 'sans-serif'
+  			],
+  			rajdhani: [
+  				'Rajdhani',
+  				'sans-serif'
   			]
   		},
   		colors: {
@@ -164,6 +168,10 @@ module.exports = {
   				'50%': {
   					boxShadow: '0 0 8px rgba(0, 217, 146, 0.7), 0 0 3px rgba(0, 217, 146, 0.4)',
   				},
+  			},
+  			perfectKdaShift: {
+  				'0%, 100%': { backgroundPosition: '0% 50%' },
+  				'50%': { backgroundPosition: '100% 50%' },
   			},
   			'open-vertical': {
   				'0%': {
