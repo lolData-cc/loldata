@@ -26,6 +26,7 @@ type LiveGame = {
   participants: Participant[]
   gameType: string
   gameQueueConfigId: number
+  gameStartTime: number
 }
 
 type LiveViewerProps = {
@@ -64,6 +65,21 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
   }>({ 100: {}, 200: {} })
 
   const redTeam = game?.participants.filter(p => p.teamId === 200) || []
+
+  // Live game timer
+  const [elapsed, setElapsed] = useState("")
+  useEffect(() => {
+    if (!game?.gameStartTime) { setElapsed(""); return; }
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((Date.now() - game.gameStartTime) / 1000));
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      setElapsed(`${m}:${s.toString().padStart(2, "0")}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [game?.gameStartTime]);
 
   const generateAiHelp = async () => {
     if (!redTeam.length) return
@@ -161,32 +177,56 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
         </div>
 
         {/* Name */}
-        <span
-          className={cn(
-            "truncate text-[11px] font-mono tracking-wide cursor-clicker hover:underline min-w-0 flex-[1.2]",
-            isFocused ? "text-jade font-bold" : teamColor
-          )}
-          onClick={() => {
-            if (p.riotId) {
-              setOpen(false)
-              const [riotName, riotTag] = p.riotId.split("#")
-              navigate(`/summoners/${region}/${riotName.replace(/\s+/g, "+")}-${riotTag}`)
-            }
-          }}
-        >
-          {p.riotId?.split("#")[0] || p.summonerName}
-        </span>
+        {(() => {
+          const raw = (p.riotId || p.summonerName || "").trim();
+          const parts = raw.split("#");
+          const displayName = parts[0]?.trim();
+          const displayTag = parts[1]?.trim();
+          const isHidden = !displayName
+            || !raw
+            || displayName.toLowerCase() === "error"
+            || displayTag?.toLowerCase() === "error"
+            || raw.toLowerCase().includes("error");
+          if (isHidden) {
+            return (
+              <div className="w-[120px] shrink-0 flex items-center gap-1.5">
+                <span className="text-[10px] font-mono tracking-[0.1em] text-flash/20 italic">hidden</span>
+                <span
+                  className="text-[7px] font-orbitron font-bold px-1 py-[1px] rounded-[2px] tracking-wider border border-flash/15 text-flash/25"
+                  style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06))" }}
+                >
+                  STREAMER MODE
+                </span>
+              </div>
+            );
+          }
+          return (
+            <span
+              className={cn(
+                "truncate text-[11px] font-mono tracking-wide cursor-clicker hover:underline w-[120px] shrink-0",
+                isFocused ? "text-jade font-bold" : teamColor
+              )}
+              onClick={() => {
+                if (p.riotId) {
+                  setOpen(false)
+                  const [riotName, riotTag] = p.riotId.split("#")
+                  navigate(`/summoners/${region}/${riotName.replace(/\s+/g, "+")}-${riotTag}`)
+                }
+              }}
+            >
+              {displayName}
+            </span>
+          );
+        })()}
 
         {/* Rank */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
-          {rank?.rank && (
-            <img
-              src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(rank.rank)}.png`}
-              className="w-4 h-4 shrink-0"
-            />
-          )}
-          <span className="font-mono text-[9px] tracking-wider text-flash/40 whitespace-nowrap">
-            {rank?.rank || "..."} {rank?.lp != null ? rank.lp + " LP" : ""}
+          <img
+            src={rank?.rank ? `https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(rank.rank)}.png` : "/img/unranked.png"}
+            className="w-5 h-5 shrink-0 object-contain"
+          />
+          <span className="font-mono text-[11px] tracking-wide text-flash/50 whitespace-nowrap">
+            {rank?.rank || "..."} {rank?.lp != null ? <span className="text-flash/70">{rank.lp} LP</span> : ""}
           </span>
         </div>
 
@@ -194,15 +234,15 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
         <div className="shrink-0 text-right">
           {total > 0 ? (
             <div className="flex flex-col items-end">
-              <span className={cn("font-mono text-[10px] tabular-nums font-medium", wrColor)}>
+              <span className={cn("font-mono text-[11px] tabular-nums font-medium", wrColor)}>
                 {wr}%
               </span>
-              <span className="font-mono text-[8px] text-flash/20 tabular-nums whitespace-nowrap">
+              <span className="font-mono text-[9px] text-flash/25 tabular-nums whitespace-nowrap">
                 {total} games
               </span>
             </div>
           ) : (
-            <span className="font-mono text-[9px] text-flash/20">—</span>
+            <span className="font-mono text-[10px] text-flash/25">—</span>
           )}
         </div>
       </div>
@@ -224,7 +264,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
       )}
 
       <DialogContent
-        className="w-[75%] max-w-none bg-transparent border-none p-0 text-flash top-[3%] translate-y-0 [&>button:last-child]:hidden"
+        className="w-[65%] max-w-none bg-transparent border-none p-0 text-flash top-[15%] translate-y-0 [&>button:last-child]:hidden"
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-center gap-4 mb-4">
@@ -232,6 +272,12 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
             <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-red-400/80">Live Game</span>
           </div>
+          {elapsed && (
+            <>
+              <span className="text-red-400/20 text-[10px]">◈</span>
+              <span className="font-orbitron text-[14px] tracking-wider text-flash/70 tabular-nums">{elapsed}</span>
+            </>
+          )}
           {queueName && (
             <>
               <span className="text-red-400/20 text-[10px]">◈</span>
