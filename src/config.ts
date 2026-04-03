@@ -37,7 +37,7 @@ export function cdnSplashUrl(champName: string, skinNum = 0) {
 export const PERK_CDN = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
 
 /** Summoner spell images by ID — custom path on our CDN, fallback to ddragon */
-export function summonerSpellUrl(spellId: number | string) {
+export function summonerSpellUrl(spellId: number | string | undefined) {
   return `https://ddragon.leagueoflegends.com/cdn/${_cdnVersion}/img/spell/${SUMMONER_SPELL_MAP[Number(spellId)] ?? "SummonerFlash"}.png`;
 }
 
