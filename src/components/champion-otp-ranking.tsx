@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getRankImage } from "@/utils/rankIcons";
-import { cdnBaseUrl } from "@/config";
+import { cdnBaseUrl, PERK_CDN } from "@/config";
 
 const REGIONS = ["ALL", "EUW", "NA", "KR"] as const;
 
@@ -65,8 +65,8 @@ const KEYSTONE_ICON_PATHS: Record<number, string> = {
 
 function getKeystoneIconUrl(keystoneId: number): string {
   const path = KEYSTONE_ICON_PATHS[keystoneId];
-  if (path) return `${cdnBaseUrl()}/img/perk-images/Styles/${path}`;
-  return `${cdnBaseUrl()}/img/perk-images/Styles/7201_Precision.png`;
+  if (path) return `${PERK_CDN}/Styles/${path}`;
+  return `${PERK_CDN}/Styles/7201_Precision.png`;
 }
 
 // Secondary tree style ID → tree icon
@@ -80,7 +80,7 @@ const STYLE_ICON_PATHS: Record<number, string> = {
 
 function getStyleIconUrl(styleId: number): string {
   const path = STYLE_ICON_PATHS[styleId] ?? "7201_Precision.png";
-  return `${cdnBaseUrl()}/img/perk-images/Styles/${path}`;
+  return `${PERK_CDN}/Styles/${path}`;
 }
 
 

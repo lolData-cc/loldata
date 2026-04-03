@@ -1,7 +1,7 @@
-import { cdnBaseUrl } from "@/config";
+import { PERK_CDN } from "@/config";
 
 function getPerkBase() {
-  return `${cdnBaseUrl()}/img/perk-images`;
+  return PERK_CDN;
 }
 
 // ── Style (tree) icons ──────────────────────────────────────────────

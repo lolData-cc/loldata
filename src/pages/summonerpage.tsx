@@ -16,7 +16,7 @@ import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { cdnBaseUrl, cdnSplashUrl, getCdnVersion, normalizeChampName } from "@/config"
+import { cdnBaseUrl, cdnSplashUrl, getCdnVersion, normalizeChampName, summonerSpellUrl } from "@/config"
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
@@ -2813,12 +2813,12 @@ export default function SummonerPage() {
                                                 <>
                                                   <div className="flex flex-col">
                                                     <img
-                                                      src={`${cdnBaseUrl()}/img/summonerspells/${participant.summoner1Id}.png`}
+                                                      src={summonerSpellUrl(participant.summoner1Id)}
                                                       alt="Spell 1"
                                                       className="w-6 h-6 rounded-sm"
                                                     />
                                                     <img
-                                                      src={`${cdnBaseUrl()}/img/summonerspells/${participant.summoner2Id}.png`}
+                                                      src={summonerSpellUrl(participant.summoner2Id)}
                                                       alt="Spell 2"
                                                       className="w-6 h-6 rounded-sm"
                                                     />

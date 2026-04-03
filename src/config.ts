@@ -33,6 +33,34 @@ export function cdnSplashUrl(champName: string, skinNum = 0) {
   return `${CDN_ORIGIN}/img/champion/splash/${champName}_${skinNum}.jpg`;
 }
 
+/** Perk/rune images — not in dragontail, served from Riot's CDN */
+export const PERK_CDN = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
+
+/** Summoner spell images by ID — custom path on our CDN, fallback to ddragon */
+export function summonerSpellUrl(spellId: number | string) {
+  return `https://ddragon.leagueoflegends.com/cdn/${_cdnVersion}/img/spell/${SUMMONER_SPELL_MAP[Number(spellId)] ?? "SummonerFlash"}.png`;
+}
+
+const SUMMONER_SPELL_MAP: Record<number, string> = {
+  1: "SummonerBoost",       // Cleanse
+  3: "SummonerExhaust",     // Exhaust
+  4: "SummonerFlash",       // Flash
+  6: "SummonerHaste",       // Ghost
+  7: "SummonerHeal",        // Heal
+  11: "SummonerSmite",      // Smite
+  12: "SummonerTeleport",   // Teleport
+  13: "SummonerMana",       // Clarity
+  14: "SummonerDot",        // Ignite
+  21: "SummonerBarrier",    // Barrier
+  30: "SummonerPoroRecall", // To the King!
+  31: "SummonerPoroThrow",  // Poro Toss
+  32: "SummonerSnowball",   // Mark (ARAM)
+  39: "SummonerSnowURFSnowball_Mark", // Mark (URF)
+  54: "Summoner_UltBookPlaceholder",  // Placeholder
+  55: "Summoner_UltBookSmitePlaceholder", // Placeholder
+  2202: "SummonerFlash",    // Flash (alt)
+};
+
 // Static exports kept for backward compat — frozen at fallback version.
 // Prefer cdnBaseUrl() for dynamic version.
 export const CDN_BASE_URL = `${CDN_ORIGIN}/${FALLBACK_VERSION}`;

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { formatChampName } from "@/utils/formatchampname"
 import { formatRank } from "@/utils/rankConverter"
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl } from "@/config"
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import queueMap from "@/converters/queueMap"
@@ -231,8 +231,8 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
               />
             </div>
             <div className="flex flex-col gap-0.5">
-              <img src={`${cdnBaseUrl()}/img/summonerspells/${p.spell1Id}.png`} className="w-3.5 h-3.5 rounded-[2px]" />
-              <img src={`${cdnBaseUrl()}/img/summonerspells/${p.spell2Id}.png`} className="w-3.5 h-3.5 rounded-[2px]" />
+              <img src={summonerSpellUrl(p.spell1Id)} className="w-3.5 h-3.5 rounded-[2px]" />
+              <img src={summonerSpellUrl(p.spell2Id)} className="w-3.5 h-3.5 rounded-[2px]" />
             </div>
           </div>
 

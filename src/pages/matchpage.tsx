@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tabs"
 // Recharts removed — damage bars now use custom CSS
 import { KillMap } from "@/components/killmap";
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl } from "@/config";
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
 import { supabase } from "@/lib/supabaseClient";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
@@ -333,8 +333,8 @@ export default function MatchPage() {
             )}
           </div>
           <div className="flex flex-col gap-0.5">
-            <img src={`${cdnBaseUrl()}/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4 rounded-[2px]" />
-            <img src={`${cdnBaseUrl()}/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4 rounded-[2px]" />
+            <img src={summonerSpellUrl(p.summoner1Id)} className="w-4 h-4 rounded-[2px]" />
+            <img src={summonerSpellUrl(p.summoner2Id)} className="w-4 h-4 rounded-[2px]" />
           </div>
           {p.perks?.styles && p.perks.styles.length >= 2 && (
             <div className="flex flex-col gap-0.5">
