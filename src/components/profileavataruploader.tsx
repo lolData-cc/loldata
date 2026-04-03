@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
 import { cn } from "@/lib/utils";
+import { cdnBaseUrl } from "@/config";
 import { AvatarCropper } from "@/components/avatarcropper";
 import { useAuth } from "@/context/authcontext";
 
@@ -130,7 +131,7 @@ export function PremiumAvatarUploader() {
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <img src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png" alt="" className="w-full h-full object-cover opacity-30" />
+                <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
               )}
             </div>
             <span className="text-flash/60 text-sm">

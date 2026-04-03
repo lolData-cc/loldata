@@ -1,4 +1,6 @@
-const RANK_IMAGE_BASE_URL = "https://cdn.loldata.cc/15.13.1/ranks"
+import { cdnBaseUrl } from "@/config"
+
+const RANK_IMAGE_BASE_URL = () => `${cdnBaseUrl()}/ranks`
 
 function formatRank(rank: string): string {
   const tierOnly = rank.split(" ")[0] // es. "Diamond i" → "Diamond"
@@ -7,5 +9,5 @@ function formatRank(rank: string): string {
 
 export function getRankImage(rank: string | undefined): string {
   if (!rank || rank.toLowerCase() === "unranked") return "/img/unranked.png"
-  return `${RANK_IMAGE_BASE_URL}/${formatRank(rank)}.png`
+  return `${RANK_IMAGE_BASE_URL()}/${formatRank(rank)}.png`
 }

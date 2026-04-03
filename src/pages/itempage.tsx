@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, CDN_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +85,7 @@ export default function ItemPage() {
 
     // === Champion mapping (id -> DDragon championName)
     const [idToName, setIdToName] = useState<Record<number, string>>({});
-    const champPath = `${CDN_BASE_URL}/img/champion`;
+    const champPath = `${cdnBaseUrl()}/img/champion`;
 
     // animations
     const [animateIn, setAnimateIn] = useState(false);
@@ -133,15 +133,15 @@ export default function ItemPage() {
     // Fetch item JSON dal CDN
     useEffect(() => {
         if (!itemId) return;
-        fetch(`${CDN_BASE_URL}/data/en_US/item.json`)
+        fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
             .then((res) => res.json())
             .then((data) => setItemData(data.data[itemId || ""]))
             .catch(() => setItemData(null));
-    }, [itemId, CDN_BASE_URL]);
+    }, [itemId]);
 
     // Fetch champion mapping (una volta)
     useEffect(() => {
-        fetch(`${CDN_BASE_URL}/data/en_US/champion.json`)
+        fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
             .then((r) => r.json())
             .then((json) => {
                 const map: Record<number, string> = {};
@@ -153,7 +153,7 @@ export default function ItemPage() {
                 setIdToName(map);
             })
             .catch(() => setIdToName({}));
-    }, [CDN_BASE_URL]);
+    }, []);
 
     // Fetch stats dall’API Bun
     // === Stats ===
@@ -260,7 +260,7 @@ export default function ItemPage() {
                     <div className="flex flex-col justify-start p-3">
                         <div className="flex p-1 gap-2">
                             <img
-                                src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
+                                src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
                                 alt={name}
                                 className="w-20 h-20 rounded-sm border border-flash/20"
                             />
@@ -281,7 +281,7 @@ export default function ItemPage() {
                                             {buildFrom.map((id: string) => (
                                                 <Link key={id} to={`/items/${id}`}>
                                                     <img
-                                                        src={`${CDN_BASE_URL}/img/item/${id}.png`}
+                                                        src={`${cdnBaseUrl()}/img/item/${id}.png`}
                                                         alt={`from ${id}`}
                                                         className="w-8 h-8 rounded-sm border border-flash/20 hover:border-flash/60 transition-colors"
                                                         title={id}
@@ -298,7 +298,7 @@ export default function ItemPage() {
                                             {buildInto.map((id: string) => (
                                                 <img
                                                     key={id}
-                                                    src={`${CDN_BASE_URL}/img/item/${id}.png`}
+                                                    src={`${cdnBaseUrl()}/img/item/${id}.png`}
                                                     alt={`into ${id}`}
                                                     className="w-8 h-8 rounded-sm border border-flash/20"
                                                     title={id}

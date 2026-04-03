@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { cn } from "@/lib/utils"
-import { champPath, champDisplayName } from "@/config"
+import { cdnBaseUrl, champDisplayName } from "@/config"
 
 type Champion = {
   id: string
@@ -68,7 +68,7 @@ export function ChampionPicker({
         {selectedChampion ? (
           <>
             <img
-              src={`${champPath}/${selectedChampion}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${selectedChampion}.png`}
               alt={selectedChampion}
               className="w-4 h-4 rounded-sm"
               draggable={false}
@@ -187,7 +187,7 @@ export function ChampionPicker({
                       >
                         <div className="relative">
                           <img
-                            src={`${champPath}/${champ.name}.png`}
+                            src={`${cdnBaseUrl()}/img/champion/${champ.name}.png`}
                             alt={champ.name}
                             title={champ.name}
                             className="w-11 h-11 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"

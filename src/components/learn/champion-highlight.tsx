@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { champPath } from "@/config"
+import { cdnBaseUrl } from "@/config"
 import { normalizeChampName } from "@/config"
 
 type ChampData = {
@@ -26,7 +26,7 @@ export function ChampionHighlight({ best, worst, delay = 0 }: { best: ChampData;
           <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-jade/50 mb-2 block">BEST CHAMPION</span>
           <div className="flex items-center gap-2.5">
             <img
-              src={`${champPath}/${normalizeChampName(best.name)}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(best.name)}.png`}
               alt={best.name}
               className="w-9 h-9 rounded-sm border border-jade/20"
               onError={(e) => { e.currentTarget.style.display = "none" }}
@@ -51,7 +51,7 @@ export function ChampionHighlight({ best, worst, delay = 0 }: { best: ChampData;
           <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-red-400/50 mb-2 block">WORST CHAMPION</span>
           <div className="flex items-center gap-2.5">
             <img
-              src={`${champPath}/${normalizeChampName(worst.name)}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(worst.name)}.png`}
               alt={worst.name}
               className="w-9 h-9 rounded-sm border border-red-400/20"
               onError={(e) => { e.currentTarget.style.display = "none" }}

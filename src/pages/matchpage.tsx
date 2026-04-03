@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tabs"
 // Recharts removed — damage bars now use custom CSS
 import { KillMap } from "@/components/killmap";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
 import { supabase } from "@/lib/supabaseClient";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
@@ -281,7 +281,7 @@ export default function MatchPage() {
         return id > 0 ? (
           <img
             key={i}
-            src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+            src={`${cdnBaseUrl()}/img/item/${id}.png`}
             className="w-5 h-5 rounded-[3px] ring-1 ring-white/10"
           />
         ) : (
@@ -311,7 +311,7 @@ export default function MatchPage() {
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="relative w-8 h-8">
             <img
-              src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${p.championName}.png`}
               className="w-8 h-8 rounded-[4px] ring-1 ring-white/10"
             />
             {(isMvp || isAce) && (
@@ -333,8 +333,8 @@ export default function MatchPage() {
             )}
           </div>
           <div className="flex flex-col gap-0.5">
-            <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4 rounded-[2px]" />
-            <img src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4 rounded-[2px]" />
+            <img src={`${cdnBaseUrl()}/img/summonerspells/${p.summoner1Id}.png`} className="w-4 h-4 rounded-[2px]" />
+            <img src={`${cdnBaseUrl()}/img/summonerspells/${p.summoner2Id}.png`} className="w-4 h-4 rounded-[2px]" />
           </div>
           {p.perks?.styles && p.perks.styles.length >= 2 && (
             <div className="flex flex-col gap-0.5">
@@ -487,7 +487,7 @@ export default function MatchPage() {
         {/* Splash art */}
         {mvpPlayer && (
           <img
-            src={`https://cdn.loldata.cc/15.13.1/img/champion/${mvpPlayer.championName}_0.jpg`}
+            src={cdnSplashUrl(mvpPlayer.championName)}
             alt={mvpPlayer.championName}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[mvpPlayer.championName] || "15%"}` }}
@@ -676,7 +676,7 @@ export default function MatchPage() {
                         )}
                       >
                         <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
+                          src={`${cdnBaseUrl()}/img/champion/${p.championName}.png`}
                           className="w-6 h-6 rounded-[3px] ring-1 ring-white/10 shrink-0"
                         />
                         <span className={cn(

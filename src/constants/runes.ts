@@ -1,4 +1,8 @@
-const PERK_BASE = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
+import { cdnBaseUrl } from "@/config";
+
+function getPerkBase() {
+  return `${cdnBaseUrl()}/img/perk-images`;
+}
 
 // ── Style (tree) icons ──────────────────────────────────────────────
 
@@ -74,12 +78,12 @@ const STYLE_NAME_MAP: Record<number, string> = {
 
 export function getKeystoneIcon(perkId: number): string | null {
   const path = KEYSTONE_ICON_MAP[perkId];
-  return path ? `${PERK_BASE}/${path}` : null;
+  return path ? `${getPerkBase()}/${path}` : null;
 }
 
 export function getStyleIcon(styleId: number): string | null {
   const path = STYLE_ICON_MAP[styleId];
-  return path ? `${PERK_BASE}/${path}` : null;
+  return path ? `${getPerkBase()}/${path}` : null;
 }
 
 export function getKeystoneName(perkId: number): string | null {

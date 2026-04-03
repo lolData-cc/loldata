@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { CDN_BASE_URL } from "@/config"
+import { cdnBaseUrl, cdnSplashUrl, getCdnVersion } from "@/config"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_BASE_URL, normalizeChampSplash } from "@/config"
@@ -129,7 +129,7 @@ export default function ChampionDetailPage() {
   useEffect(() => {
     let cancelled = false
     // elenco completo champion per costruire le mappe
-    fetch(`https://cdn.loldata.cc/${patch}/data/en_US/champion.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
       .then(r => r.json())
       .then((all) => {
         if (cancelled) return
@@ -176,16 +176,7 @@ export default function ChampionDetailPage() {
 
   // latest patch
   useEffect(() => {
-    let cancelled = false
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then(r => r.json())
-      .then((versions: string[]) => {
-        if (!cancelled && Array.isArray(versions) && versions.length) {
-          setPatch(versions[0])
-        }
-      })
-      .catch(() => { })
-    return () => { cancelled = true }
+    setPatch(getCdnVersion())
   }, [])
 
   //set title
@@ -261,7 +252,7 @@ export default function ChampionDetailPage() {
   const splashUrl = useMemo(() => {
     if (!champId) return ""
     // splash
-    return `https://cdn.loldata.cc/15.13.1/img/champion/${normalizeChampSplash(champId)}_0.jpg`
+    return cdnSplashUrl(normalizeChampSplash(champId))
   }, [champId])
 
   const iconUrl = useMemo(() => {
@@ -517,8 +508,8 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
               <div className="relative shrink-0 ml-2">
                 <img
                   src={ab.key === "P"
-                    ? `${CDN_BASE_URL}/img/passive/${ab.image}`
-                    : `${CDN_BASE_URL}/img/spell/${ab.image}`
+                    ? `${cdnBaseUrl()}/img/passive/${ab.image}`
+                    : `${cdnBaseUrl()}/img/spell/${ab.image}`
                   }
                   alt={ab.name}
                   className={cn(

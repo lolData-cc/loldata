@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, CDN_BASE_URL, champPath, itemPath } from "@/config"
+import { API_BASE_URL, cdnBaseUrl } from "@/config"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Globe } from "lucide-react"
 
@@ -236,7 +236,7 @@ function OpponentPentagonDialog({
             {opp ? (
               <div className="flex items-center gap-2">
                 <img
-                  src={`${champPath}/${opp.name}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${opp.name}.png`}
                   alt={opp.name}
                   className="w-6 h-6 rounded-sm"
                 />
@@ -280,13 +280,13 @@ function OpponentPentagonDialog({
             {opponents.map((o) => (
               <div key={o.championId} className="relative">
                 <img
-                  src={`${champPath}/${o.name}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${o.name}.png`}
                   alt={o.name}
                   className="w-5 h-5 rounded-sm ring-1 ring-black"
                 />
                 {o.itemId && (
                   <img
-                    src={`${itemPath}/${o.itemId}.png`}
+                    src={`${cdnBaseUrl()}/img/item/${o.itemId}.png`}
                     alt={o.itemName ?? ""}
                     className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm ring-1 ring-black"
                   />
@@ -382,7 +382,7 @@ function OpponentPentagonDialog({
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
                           <img
-                            src={`${champPath}/${opp.name}.png`}
+                            src={`${cdnBaseUrl()}/img/champion/${opp.name}.png`}
                             alt={opp.name}
                             className="w-8 h-8 rounded-sm"
                           />
@@ -401,7 +401,7 @@ function OpponentPentagonDialog({
                           {opp.itemId ? (
                             <>
                               <img
-                                src={`${itemPath}/${opp.itemId}.png`}
+                                src={`${cdnBaseUrl()}/img/item/${opp.itemId}.png`}
                                 alt={opp.itemName ?? ""}
                                 className="w-5 h-5 rounded-sm"
                               />
@@ -525,7 +525,7 @@ function OpponentPentagonDialog({
                             onClick={() => handleItemSelect(it)}
                           >
                             <img
-                              src={`${itemPath}/${it.id}.png`}
+                              src={`${cdnBaseUrl()}/img/item/${it.id}.png`}
                               alt={it.name}
                               className="w-8 h-8 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
                             />
@@ -566,7 +566,7 @@ function OpponentPentagonDialog({
                             onClick={() => handleSelect(champ.name)}
                           >
                             <img
-                              src={`${champPath}/${champ.name}.png`}
+                              src={`${cdnBaseUrl()}/img/champion/${champ.name}.png`}
                               alt={champ.name}
                               className="w-10 h-10 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
                             />
@@ -930,7 +930,7 @@ const TIERS: { key: TierKey; label: string }[] = [
 ]
 
 const miniRankIcon = (tier: string) =>
-  `https://cdn.loldata.cc/15.13.1/img/miniranks/${tier.toLowerCase()}.png`
+  `${cdnBaseUrl()}/img/miniranks/${tier.toLowerCase()}.png`
 
 function RankFilterButton({
   value,
@@ -1079,7 +1079,7 @@ export function ChampionStats({
   const [itemsMeta, setItemsMeta] = useState<Record<string, { name: string; into?: string[]; gold?: { total: number; purchasable: boolean }; maps?: Record<string, boolean> }>>({})
   useEffect(() => {
     let cancelled = false
-    fetch(`${CDN_BASE_URL}/data/en_US/item.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
       .then((r) => r.json())
       .then((json: any) => {
         if (cancelled) return

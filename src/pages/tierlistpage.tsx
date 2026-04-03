@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, champPath, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
 import { Skeleton } from "@/components/ui/skeleton"
 import splashPositionMap from "@/converters/splashPositionMap"
 import {
@@ -94,6 +94,22 @@ export default function TierlistPage() {
     navigate(`/tierlist/${slug}`, { replace: true })
   }
 
+  // Champion ID → internal name map (for icon URLs when API returns empty champion_name)
+  const [champIdMap, setChampIdMap] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
+      .then(r => r.json())
+      .then(data => {
+        const map: Record<number, string> = {}
+        for (const c of Object.values<any>(data?.data ?? {})) {
+          map[Number(c.key)] = String(c.id)
+        }
+        setChampIdMap(map)
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -104,12 +120,16 @@ export default function TierlistPage() {
     return () => { cancelled = true }
   }, [role, apiRegion])
 
+  /** Resolve champion internal name from API data or ID map fallback */
+  const champName = (champ: TierChamp) =>
+    champ.champion_name || champIdMap[champ.champion_id] || ""
+
   const sorted = useMemo(() => {
     if (!data?.champions) return []
     let arr = [...data.champions]
     if (search.length >= 2) {
       const q = search.toLowerCase()
-      arr = arr.filter(c => c.champion_name.toLowerCase().includes(q) || champDisplayName(c.champion_name).toLowerCase().includes(q))
+      arr = arr.filter(c => champName(c).toLowerCase().includes(q) || champDisplayName(champName(c)).toLowerCase().includes(q))
     }
     if (sortBy === "winrate") arr.sort((a, b) => b.winrate - a.winrate)
     else if (sortBy === "pickrate") arr.sort((a, b) => b.pickrate - a.pickrate)
@@ -118,7 +138,8 @@ export default function TierlistPage() {
     return arr
   }, [data, sortBy, search])
 
-  const topChamp = data?.champions?.[0]?.champion_name ?? null
+  const topChampRaw = data?.champions?.[0]
+  const topChamp = topChampRaw ? (topChampRaw.champion_name || champIdMap[topChampRaw.champion_id] || null) : null
   const totalGames = data?.champions?.reduce((s, c) => s + c.games, 0) ?? 0
   const roleLabel = ROLES.find(r => r.key === role)?.label ?? role
 
@@ -132,7 +153,7 @@ export default function TierlistPage() {
             initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8 }}
-            src={`https://cdn.loldata.cc/15.13.1/img/champion/${normalizeChampSplash(topChamp)}_0.jpg`}
+            src={cdnSplashUrl(normalizeChampSplash(topChamp))}
             alt={topChamp}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[topChamp] || "15%"}` }}
@@ -300,7 +321,7 @@ export default function TierlistPage() {
                       {/* Champions flow */}
                       <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-black/20">
                         {champs.map((c, cIdx) => (
-                          <ChampCard key={c.champion_id} champ={c} idx={tIdx * 10 + cIdx} />
+                          <ChampCard key={c.champion_id} champ={c} idx={tIdx * 10 + cIdx} name={champName(c)} />
                         ))}
                       </div>
                     </motion.div>
@@ -319,7 +340,7 @@ export default function TierlistPage() {
 
 // ── Champion Card (compact, for inside tier bands) ──
 
-function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
+function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: string }) {
   const navigate = useNavigate()
   const tc = TIER_COLORS[champ.tier] ?? TIER_COLORS.C
   const wrColor = champ.winrate >= 54 ? "text-jade" : champ.winrate >= 52 ? "text-amber-400" : champ.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
@@ -330,7 +351,7 @@ function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: Math.min(idx * 0.02, 0.5), duration: 0.2 }}
-      onClick={() => navigate(`/champions/${champ.champion_name}`)}
+      onClick={() => navigate(`/champions/${name}`)}
       className={cn(
         "group relative flex flex-col items-center w-[68px] py-1.5 px-1 rounded-[3px] cursor-pointer",
         "bg-white/[0.03] transition-all duration-200",
@@ -345,8 +366,8 @@ function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
       {/* Icon */}
       <div className="relative mb-1">
         <img
-          src={`${champPath}/${normalizeChampName(champ.champion_name)}.png`}
-          alt={champ.champion_name}
+          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(name)}.png`}
+          alt={name}
           className={cn(
             "w-10 h-10 rounded-[2px] object-cover transition-transform duration-200 group-hover:scale-110",
             champ.tier === "S" && "ring-1 ring-amber-400/30",
@@ -368,7 +389,7 @@ function ChampCard({ champ, idx }: { champ: TierChamp; idx: number }) {
         "text-[8px] font-mono leading-tight truncate w-full text-center",
         isElite ? "text-flash/70" : "text-flash/35"
       )}>
-        {champDisplayName(champ.champion_name)}
+        {champDisplayName(name)}
       </span>
 
       {/* WR */}

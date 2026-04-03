@@ -6,7 +6,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 
 type Props = {
   riotId: string;
@@ -147,7 +147,7 @@ export function PlayerHoverCard({
               <div className="w-10 h-10 rounded bg-flash/20 animate-pulse" />
             ) : hoverData?.profileIconId ? (
               <img
-                src={`https://ddragon.leagueoflegends.com/cdn/${patch}/img/profileicon/${hoverData.profileIconId}.png`}
+                src={`${cdnBaseUrl()}/img/profileicon/${hoverData.profileIconId}.png`}
                 alt="Summoner Icon"
                 className="w-10 h-10 border border-flash/10"
               />

@@ -35,7 +35,7 @@ const splashPositionMap: Record<string, string> = {
   Elise: "10%",
   Evelynn: "10%",
   Ezreal: "10%",
-  Fiddlesticks: "10%",
+  Fiddlesticks: "40%",
   Fiora: "10%",
   Fizz: "25%",
   Galio: "5%",

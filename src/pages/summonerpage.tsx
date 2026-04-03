@@ -16,7 +16,7 @@ import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { champPath, CDN_BASE_URL, normalizeChampName } from "@/config"
+import { cdnBaseUrl, cdnSplashUrl, getCdnVersion, normalizeChampName } from "@/config"
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
@@ -818,7 +818,7 @@ export default function SummonerPage() {
   }, []);
 
   useEffect(() => {
-    fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load champion.json")
         return res.json()
@@ -859,9 +859,7 @@ export default function SummonerPage() {
   }, []);
 
   useEffect(() => {
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then(res => res.json())
-      .then((versions: string[]) => setLatestPatch(versions[0]))
+    setLatestPatch(getCdnVersion())
   }, [])
 
   // Cooldown countdown timer
@@ -1211,7 +1209,7 @@ export default function SummonerPage() {
                 {displayChamps.map((champ) => (
                   <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
                     <div className="flex items-center gap-3">
-                      <img src={`${champPath}/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
+                      <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
                       <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
                         <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
                         <div className="text-white font-thin text-[11px]">
@@ -1274,7 +1272,7 @@ export default function SummonerPage() {
                   <div key={`placeholder-${i}`} className="flex items-center px-3 w-full h-12">
                     <div className="flex items-center gap-3">
                       <img
-                        src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/29.png`}
+                        src={`${cdnBaseUrl()}/img/profileicon/29.png`}
                         alt="empty slot"
                         className="w-12 h-12 rounded-full grayscale"
                         style={{ opacity: 0.3 - i * 0.05 }}
@@ -1451,7 +1449,7 @@ export default function SummonerPage() {
             {topChampionsSeason.length > 0 && (
               <div className="absolute inset-x-0 top-0 h-[220px] overflow-hidden z-[2] pointer-events-none">
                 <img
-                  src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
+                  src={cdnSplashUrl(topChampionsSeason[0].champion)}
                   alt={`Splash art ${topChampionsSeason[0].champion}`}
                   className="w-full h-full object-cover opacity-15 filter grayscale brightness-150"
                   style={{
@@ -2023,7 +2021,7 @@ export default function SummonerPage() {
                     <div className="flex items-center gap-2 min-w-0">
                       {duo.profileIconId && (
                         <img
-                          src={`${CDN_BASE_URL}/img/profileicon/${duo.profileIconId}.png`}
+                          src={`${cdnBaseUrl()}/img/profileicon/${duo.profileIconId}.png`}
                           alt=""
                           className="w-5 h-5 rounded-sm shrink-0 opacity-80"
                         />
@@ -2177,7 +2175,7 @@ export default function SummonerPage() {
                   <img
                     src={
                       summonerInfo?.avatar_url
-                      ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
+                      ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }
                     className={cn(
                       "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
@@ -2187,7 +2185,7 @@ export default function SummonerPage() {
                     draggable={false}
                     onError={(e) => {
                       e.currentTarget.src =
-                        `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
+                        `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }}
                   />
                   {summonerInfo?.live && summonerInfo?.puuid && (
@@ -2570,7 +2568,7 @@ export default function SummonerPage() {
                   >
                     {/* summoner icon 29 as placeholder */}
                     <img
-                      src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png"
+                      src={`${cdnBaseUrl()}/img/profileicon/29.png`}
                       alt=""
                       className="w-12 h-12 rounded-md opacity-15 animate-pulse"
                     />
@@ -2800,7 +2798,7 @@ export default function SummonerPage() {
                                             <div className="flex space-x-1.5 relative">
                                               <div className="relative w-12 h-12">
                                                 <img
-                                                  src={`${champPath}/${normalizeChampName(championName)}.png`}
+                                                  src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`}
                                                   alt={championName}
                                                   className="w-12 h-12 rounded-md"
                                                 />
@@ -2815,12 +2813,12 @@ export default function SummonerPage() {
                                                 <>
                                                   <div className="flex flex-col">
                                                     <img
-                                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
+                                                      src={`${cdnBaseUrl()}/img/summonerspells/${participant.summoner1Id}.png`}
                                                       alt="Spell 1"
                                                       className="w-6 h-6 rounded-sm"
                                                     />
                                                     <img
-                                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
+                                                      src={`${cdnBaseUrl()}/img/summonerspells/${participant.summoner2Id}.png`}
                                                       alt="Spell 2"
                                                       className="w-6 h-6 rounded-sm"
                                                     />
@@ -2890,7 +2888,7 @@ export default function SummonerPage() {
                                                           {typeof itemId === "number" && itemId > 0 && (
                                                             <Link to={`/items/${itemId}`} className="cursor-clicker">
                                                               <img
-                                                                src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
+                                                                src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
                                                                 alt={`Item ${itemId}`}
                                                                 className="w-full h-full rounded-sm"
                                                               />
@@ -2905,7 +2903,7 @@ export default function SummonerPage() {
                                                     <div className="flex items-center justify-center ml-1">
                                                       <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
                                                         <img
-                                                          src={`${CDN_BASE_URL}/img/item/${participant.item6}.png`}
+                                                          src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`}
                                                           alt={`Trinket ${participant.item6}`}
                                                           className="w-full h-full rounded-full"
                                                         />
@@ -2972,7 +2970,7 @@ export default function SummonerPage() {
                                                     <li key={p.puuid} className="flex items-center gap-1">
                                                       <div className="relative w-4 h-4 shrink-0">
                                                         <img
-                                                          src={`${champPath}/${normalizeChampName(p.championName)}.png`}
+                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />
@@ -3078,7 +3076,7 @@ export default function SummonerPage() {
                                                       )}
                                                       <div className="relative w-4 h-4 shrink-0">
                                                         <img
-                                                          src={`${champPath}/${normalizeChampName(p.championName)}.png`}
+                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />

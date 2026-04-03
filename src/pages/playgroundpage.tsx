@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { cdnBaseUrl } from "@/config"
 
 type Champ = {
   id: string
@@ -12,9 +13,9 @@ type Champ = {
 
 type GameMode = "champion" | "icon"
 
-const DATA_URL = "https://cdn.loldata.cc/15.13.1/data/en_US/champion.json"
-const IMG_BASE = "https://cdn.loldata.cc/15.13.1/img/champion"
-const SPELL_IMG_BASE = "https://cdn.loldata.cc/15.13.1/img/spell"
+const DATA_URL = () => `${cdnBaseUrl()}/data/en_US/champion.json`
+const IMG_BASE = () => `${cdnBaseUrl()}/img/champion`
+const SPELL_IMG_BASE = () => `${cdnBaseUrl()}/img/spell`
 
 const START_PIXEL_SIZE = 40
 const PIXEL_STEP = 6
@@ -162,7 +163,7 @@ export default function PlaygroundPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(DATA_URL, {
+        const res = await fetch(DATA_URL(), {
           mode: "cors",
           headers: { accept: "application/json" },
         })
@@ -450,7 +451,7 @@ function ChampionGame({ champs }: { champs: Champ[] }) {
     img.crossOrigin = "anonymous"
     img.decoding = "async"
     img.loading = "eager"
-    img.src = `${IMG_BASE}/${answer.id}.png`
+    img.src = `${IMG_BASE()}/${answer.id}.png`
 
     img.onload = () => {
       imgObjRef.current = img
@@ -1138,7 +1139,7 @@ function IconGame({ champs }: { champs: Champ[] }) {
     img.crossOrigin = "anonymous"
     img.decoding = "async"
     img.loading = "eager"
-    img.src = `${SPELL_IMG_BASE}/${answer.spell.id}.png`
+    img.src = `${SPELL_IMG_BASE()}/${answer.spell.id}.png`
 
     img.onload = () => {
       imgObjRef.current = img

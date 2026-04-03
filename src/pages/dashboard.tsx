@@ -31,7 +31,7 @@ import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
 import { ChangePassword } from "@/components/changepassword";
-import { CDN_BASE_URL } from "@/config";
+import { cdnBaseUrl } from "@/config";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -79,7 +79,7 @@ export default function DashboardPage() {
   // Resolve avatar source
   const avatarSrc = avatarUrl
     ? avatarUrl
-    : `${CDN_BASE_URL}/img/profileicon/${iconId ?? 29}.png`
+    : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
   const displayName = nametag ?? email
 
   const validTabs = ["profile", "documentation", "billing", "preferences", "proApplications", "streamerApplications"];

@@ -6,7 +6,7 @@ import { OverviewSkeleton } from "@/components/learn/overview-skeleton"
 import { OrbitEmpty } from "@/components/learn/orbit-empty"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { normalizeChampName, champPath } from "@/config"
+import { normalizeChampName, cdnBaseUrl } from "@/config"
 
 type Props = { puuid: string | null; region: string | null; nametag: string | null }
 
@@ -230,7 +230,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                   "flex items-center gap-3 px-4 py-2.5 pl-5 transition-colors duration-150 hover:bg-jade/[0.02]",
                   i > 0 && "border-t border-flash/[0.03]"
                 )}>
-                  <img src={`${champPath}/${normalizeChampName(c.name)}.png`} alt="" className="w-8 h-8 rounded-sm border border-flash/[0.06]" onError={e => { e.currentTarget.style.display = "none" }} />
+                  <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.name)}.png`} alt="" className="w-8 h-8 rounded-sm border border-flash/[0.06]" onError={e => { e.currentTarget.style.display = "none" }} />
                   <span className="text-[12px] font-mono text-flash/65 w-28 truncate">{c.name}</span>
                   <div className="flex-1 flex items-center gap-4 justify-end">
                     <span className={cn("text-[12px] font-mono tabular-nums font-semibold", c.winrate >= 50 ? "text-jade/70" : "text-red-400/70")}>{c.winrate}%</span>
@@ -255,7 +255,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                 <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-jade/40 mb-2 block">BEST MATCHUPS</span>
                 {t.bestMatchups.map((m: any) => (
                   <div key={m.enemy} className="flex items-center gap-2 py-1.5">
-                    <img src={`${champPath}/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-jade/10" onError={e => { e.currentTarget.style.display = "none" }} />
+                    <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-jade/10" onError={e => { e.currentTarget.style.display = "none" }} />
                     <span className="text-[11px] font-mono text-flash/50 flex-1 truncate">{m.enemy}</span>
                     <span className="text-[11px] font-mono text-jade/60 tabular-nums font-semibold">{m.winrate}%</span>
                     <span className="text-[9px] font-mono text-flash/18">{m.wins}W {m.games - m.wins}L</span>
@@ -268,7 +268,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                 <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-red-400/40 mb-2 block">WORST MATCHUPS</span>
                 {t.worstMatchups.map((m: any) => (
                   <div key={m.enemy} className="flex items-center gap-2 py-1.5">
-                    <img src={`${champPath}/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-red-400/10" onError={e => { e.currentTarget.style.display = "none" }} />
+                    <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(m.enemy)}.png`} alt="" className="w-6 h-6 rounded-sm border border-red-400/10" onError={e => { e.currentTarget.style.display = "none" }} />
                     <span className="text-[11px] font-mono text-flash/50 flex-1 truncate">{m.enemy}</span>
                     <span className="text-[11px] font-mono text-red-400/60 tabular-nums font-semibold">{m.winrate}%</span>
                     <span className="text-[9px] font-mono text-flash/18">{m.wins}W {m.games - m.wins}L</span>

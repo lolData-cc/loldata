@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 import {
   TooltipProvider,
   Tooltip,
@@ -538,7 +538,7 @@ export function ProfilerLinker() {
             {isLinked && linkedSummonerDetails && linkedIconUrl ? (
               <img src={linkedIconUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <img src="https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png" alt="" className="w-full h-full object-cover opacity-30" />
+              <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
             )}
           </div>
           <div>

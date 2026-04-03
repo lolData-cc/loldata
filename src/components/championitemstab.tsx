@@ -5,7 +5,7 @@ import React from "react"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, CDN_BASE_URL } from "@/config"
+import { API_BASE_URL, cdnBaseUrl } from "@/config"
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -62,7 +62,7 @@ const slotLabel = (displayIndex: number) => {
 const fmtPct = (x: number, digits = 2) => `${x.toFixed(digits)}%`
 
 const itemIconUrl = (patch: string, itemId: number) =>
-  `https://cdn.loldata.cc/15.13.1/img/item/${itemId}.png`
+  `${cdnBaseUrl()}/img/item/${itemId}.png`
 
 // ─────────────────────────────────────────────────────────────
 // TECH CARD (matches champion-stats.tsx)
@@ -200,7 +200,7 @@ export function ChampionItemsTab({ champ, patch }: Props) {
   useEffect(() => {
     let cancelled = false
 
-    fetch(`${CDN_BASE_URL}/data/en_US/item.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return

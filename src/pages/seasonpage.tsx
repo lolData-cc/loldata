@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, champPath } from "@/config"
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl } from "@/config"
 import { getWinrateClass } from "@/utils/winratecolor"
 import { getKdaClass } from "@/utils/kdaColor"
 import { formatStat } from "@/utils/formatStat"
@@ -150,7 +150,7 @@ export default function SeasonPage() {
       <div className="relative w-screen left-1/2 -translate-x-1/2 h-[350px] overflow-hidden">
         {topChamp && (
           <img
-            src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChamp}_0.jpg`}
+            src={cdnSplashUrl(topChamp)}
             alt={topChamp}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[topChamp] || "15%"}` }}
@@ -302,7 +302,7 @@ function ChampionTable({
                   <td className="py-2.5 px-2">
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={`${champPath}/${c.champion}.png`}
+                        src={`${cdnBaseUrl()}/img/champion/${c.champion}.png`}
                         alt={c.champion}
                         className="w-8 h-8 rounded-full"
                       />
@@ -401,7 +401,7 @@ function MatchupPanel({ champion, matchups }: { champion: string; matchups: Matc
               {/* Opponent icon + name */}
               <div className="flex items-center gap-2 min-w-[130px]">
                 <img
-                  src={`${champPath}/${m.opponent}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${m.opponent}.png`}
                   alt={m.opponent}
                   className="w-6 h-6 rounded-full"
                 />

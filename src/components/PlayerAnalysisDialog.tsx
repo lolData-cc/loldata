@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { API_BASE_URL, CDN_BASE_URL, itemPath } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 import type { PlayerAnalysisResult } from "@/assets/types/riot";
 import { useAuth } from "@/context/authcontext";
 
@@ -235,7 +235,7 @@ function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
         {top5.map((c) => (
           <div key={c.championName} className="flex items-center gap-3 py-1">
             <img
-              src={`${CDN_BASE_URL}/img/champion/${c.championName}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${c.championName}.png`}
               alt={c.championName}
               className="w-7 h-7 rounded-sm border border-white/10"
             />
@@ -536,7 +536,7 @@ function BootsDistributionSection({ data }: { data: PlayerAnalysisResult }) {
             <div key={b.boots} className="flex items-center gap-3 py-1">
               {itemId ? (
                 <img
-                  src={`${itemPath}/${itemId}.png`}
+                  src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
                   alt={b.boots}
                   className="w-7 h-7 rounded-sm border border-white/10 shrink-0"
                 />

@@ -13,12 +13,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCdnVersion } from "@/config";
 
 // shadcn sheet picker
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { champDisplayName } from "@/config";
+import { champDisplayName, cdnBaseUrl } from "@/config";
 
 import {
   Accordion,
@@ -95,17 +96,12 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then((r) => r.json())
-      .then((versions: string[]) => {
-        if (Array.isArray(versions) && versions.length > 0) setLatestPatch(versions[0]);
-      })
-      .catch(() => { });
+    setLatestPatch(getCdnVersion());
   }, []);
 
   // fetch champions, senza ruoli – li useremo nello sheet
   useEffect(() => {
-    fetch(`https://cdn.loldata.cc/${latestPatch}/data/en_US/champion.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
       .then((r) => r.json())
       .then((data) => {
         const champs = Object.values<any>(data?.data ?? {});
@@ -116,7 +112,7 @@ export function ChampionPickerProvider({ children }: { children: ReactNode }) {
           return {
             id,
             label: String(c.name || id),
-            image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${id}.png`,
+            image: `${cdnBaseUrl()}/img/champion/${id}.png`,
           };
         });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
 
 const POLL_INTERVAL = 60_000;
@@ -257,11 +257,11 @@ export default function OverlayPage() {
                         />
                         {/* Champion image */}
                         <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/champion/${m.championName}.png`}
+                          src={`${cdnBaseUrl()}/img/champion/${m.championName}.png`}
                           alt=""
                           className="absolute inset-0 w-full h-full object-cover"
                           style={{ transform: "scale(1.3)" }}
-                          onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/15.13.1/img/profileicon/29.png"; }}
+                          onError={(e) => { (e.target as HTMLImageElement).src = `${cdnBaseUrl()}/img/profileicon/29.png`; }}
                         />
                         {/* Color tint overlay */}
                         <div className="absolute inset-0 z-10"

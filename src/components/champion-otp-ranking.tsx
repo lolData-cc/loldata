@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getRankImage } from "@/utils/rankIcons";
+import { cdnBaseUrl } from "@/config";
 
 const REGIONS = ["ALL", "EUW", "NA", "KR"] as const;
 
@@ -64,8 +65,8 @@ const KEYSTONE_ICON_PATHS: Record<number, string> = {
 
 function getKeystoneIconUrl(keystoneId: number): string {
   const path = KEYSTONE_ICON_PATHS[keystoneId];
-  if (path) return `https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/${path}`;
-  return `https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/7201_Precision.png`;
+  if (path) return `${cdnBaseUrl()}/img/perk-images/Styles/${path}`;
+  return `${cdnBaseUrl()}/img/perk-images/Styles/7201_Precision.png`;
 }
 
 // Secondary tree style ID → tree icon
@@ -79,7 +80,7 @@ const STYLE_ICON_PATHS: Record<number, string> = {
 
 function getStyleIconUrl(styleId: number): string {
   const path = STYLE_ICON_PATHS[styleId] ?? "7201_Precision.png";
-  return `https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/${path}`;
+  return `${cdnBaseUrl()}/img/perk-images/Styles/${path}`;
 }
 
 
@@ -186,7 +187,7 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
 
               {/* Icon */}
               <img
-                src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${p.profileIconId ?? 29}.png`}
+                src={`${cdnBaseUrl()}/img/profileicon/${p.profileIconId ?? 29}.png`}
                 alt=""
                 className="w-8 h-8 rounded-sm object-cover"
               />
@@ -246,7 +247,7 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
               <div className="w-10 flex items-center justify-center">
                 {p.firstItem ? (
                   <img
-                    src={`https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/item/${p.firstItem}.png`}
+                    src={`${cdnBaseUrl()}/img/item/${p.firstItem}.png`}
                     alt=""
                     className="w-6 h-6 rounded-sm border border-flash/10"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
