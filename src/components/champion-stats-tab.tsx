@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { API_BASE_URL, cdnBaseUrl } from "@/config"
+import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Globe } from "lucide-react"
 
@@ -929,8 +930,10 @@ const TIERS: { key: TierKey; label: string }[] = [
   { key: "CHALLENGER", label: "Challenger" },
 ]
 
-const miniRankIcon = (tier: string) =>
-  `${cdnBaseUrl()}/img/miniranks/${tier.toLowerCase()}.png`
+const miniRankIcon = (tier: string) => {
+  const folder = getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"
+  return `${cdnBaseUrl()}/img/${folder}/${tier.toLowerCase()}.png`
+}
 
 function RankFilterButton({
   value,

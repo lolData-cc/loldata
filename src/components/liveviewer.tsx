@@ -8,6 +8,7 @@ import { useEffect, useState } from "react"
 import { formatChampName } from "@/utils/formatchampname"
 import { formatRank } from "@/utils/rankConverter"
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config"
+import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import queueMap from "@/converters/queueMap"
@@ -286,7 +287,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
               <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
                 {!isStreamerMode && (
                   <img
-                    src={`${cdnBaseUrl()}/img/miniranks/${formatRank(rankStr!)}.png`}
+                    src={`${cdnBaseUrl()}/img/${getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"}/${formatRank(rankStr!)}.png`}
                     className="w-5 h-5 shrink-0 object-contain"
                   />
                 )}

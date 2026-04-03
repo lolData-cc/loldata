@@ -30,6 +30,7 @@ import { HideRemakesPreference } from "@/components/hideremakespreference";
 import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
+import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreference";
 import { ChangePassword } from "@/components/changepassword";
 import { cdnBaseUrl } from "@/config";
 import { cn } from "@/lib/utils";
@@ -261,6 +262,7 @@ export default function DashboardPage() {
                     <StatsBarPreference />
                     <ContextMenuActionsPreference />
                     <ClickToExpandPreference />
+                    <LegacyRankIconsPreference />
                   </div>
 
                   <div className="space-y-3">

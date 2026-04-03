@@ -11,6 +11,7 @@ export const UI_PREFS_KEYS = {
   useContextMenuActions: "lolData:useContextMenuActions",
   clickToExpandMatch: "lolData:clickToExpandMatch",
   blueWinTint: "lolData:blueWinTint",
+  legacyRankIcons: "lolData:legacyRankIcons",
 } as const;
 
 function safeWindow() {
@@ -202,5 +203,18 @@ export function setBlueWinTint(value: boolean) {
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.blueWinTint, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+export function getLegacyRankIcons(): boolean {
+  const w = safeWindow();
+  if (!w) return false;
+  return w.localStorage.getItem(UI_PREFS_KEYS.legacyRankIcons) === "1";
+}
+
+export function setLegacyRankIcons(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.legacyRankIcons, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }
