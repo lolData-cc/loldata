@@ -914,20 +914,18 @@ function SkeletonMatchupRow() {
 // RANK FILTER (dialog)
 // ─────────────────────────────────────────────────────────────
 
-type TierKey = "IRON" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" |
-  "EMERALD" | "DIAMOND" | "MASTER" | "GRANDMASTER" | "CHALLENGER"
+type TierKey = "EMERALD" | "EMERALD+" | "DIAMOND" | "DIAMOND+" |
+  "MASTER" | "MASTER+" | "GRANDMASTER" | "CHALLENGER"
 
-const TIERS: { key: TierKey; label: string }[] = [
-  { key: "IRON", label: "Iron" },
-  { key: "BRONZE", label: "Bronze" },
-  { key: "SILVER", label: "Silver" },
-  { key: "GOLD", label: "Gold" },
-  { key: "PLATINUM", label: "Platinum" },
-  { key: "EMERALD", label: "Emerald" },
-  { key: "DIAMOND", label: "Diamond" },
-  { key: "MASTER", label: "Master" },
-  { key: "GRANDMASTER", label: "Grandmaster" },
-  { key: "CHALLENGER", label: "Challenger" },
+const TIERS: { key: TierKey; label: string; icon: string }[] = [
+  { key: "EMERALD", label: "Emerald", icon: "emerald" },
+  { key: "EMERALD+", label: "Emerald+", icon: "emerald" },
+  { key: "DIAMOND", label: "Diamond", icon: "diamond" },
+  { key: "DIAMOND+", label: "Diamond+", icon: "diamond" },
+  { key: "MASTER", label: "Master", icon: "master" },
+  { key: "MASTER+", label: "Master+", icon: "master" },
+  { key: "GRANDMASTER", label: "Grandmaster", icon: "grandmaster" },
+  { key: "CHALLENGER", label: "Challenger", icon: "challenger" },
 ]
 
 const miniRankIcon = (tier: string) => {
@@ -943,93 +941,114 @@ function RankFilterButton({
   onChange: (v: TierKey | null) => void
 }) {
   const [open, setOpen] = useState(false)
+  const activeT = TIERS.find(t => t.key === value)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={cn(
-          "flex items-center gap-2 h-10 px-3 rounded-md border cursor-clicker",
-          "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
+          "flex items-center gap-2 h-8 px-3 rounded-sm border cursor-pointer",
+          "transition-all duration-200",
           "text-[10px] font-mono uppercase tracking-wider",
-          value ? "border-[#00D992]/50 text-[#00D992]" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+          value
+            ? "border-jade/30 bg-jade/[0.06] text-jade/80"
+            : "border-flash/[0.08] bg-flash/[0.02] text-flash/40 hover:border-jade/20 hover:text-flash/60"
         )}
       >
-        {value ? (
+        {activeT ? (
           <>
-            <img src={miniRankIcon(value)} alt={value} className="w-4 h-4" />
-            <span>{value}</span>
+            <img src={miniRankIcon(activeT.icon)} alt={activeT.label} className="w-4 h-4 object-contain" />
+            <span>{activeT.label}</span>
           </>
         ) : (
-          <span>All Ranks</span>
+          <>
+            <span className="text-[10px]">ELO:</span>
+            <span>DIAMOND+</span>
+          </>
         )}
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-[400px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
+      <DialogContent className="w-full max-w-[340px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
         <div className="w-full relative">
           <div
             className={cn(
-              "relative overflow-hidden rounded-md",
-              "bg-black/60 backdrop-blur-xl saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]"
+              "relative overflow-hidden rounded-sm",
+              "bg-[#060e10]/95 backdrop-blur-xl",
+              "border border-flash/[0.06]",
+              "shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
             )}
           >
-            <BorderBeam duration={8} size={120} />
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40"
+              style={{
+                background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.015) 3px, rgba(0,217,146,0.015) 4px)",
+              }}
+            />
 
             <div className="relative z-10 px-5 py-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-3 bg-jade rounded-full" />
-                  <span className="text-[11px] font-jetbrains text-flash/50 tracking-[0.2em] uppercase">
+                  <div className="w-1 h-3 bg-jade/40 rounded-full" />
+                  <span className="text-[10px] font-mono text-flash/40 tracking-[0.25em] uppercase">
                     Rank Filter
                   </span>
                 </div>
                 <button
                   type="button"
                   className={cn(
-                    "text-[9px] font-jetbrains uppercase tracking-[0.2em] cursor-clicker",
-                    "px-2 py-0.5 border border-white/[0.06] rounded-sm",
-                    "text-flash/30 hover:text-jade hover:border-jade/30 hover:bg-jade/5",
-                    "transition-all duration-150"
+                    "text-[9px] font-mono uppercase tracking-[0.15em] cursor-pointer",
+                    "px-2 py-0.5 rounded-sm",
+                    "text-flash/25 hover:text-jade/60",
+                    "transition-colors duration-150"
                   )}
                   onClick={() => { onChange(null); setOpen(false) }}
                 >
-                  Clear
+                  Reset
                 </button>
               </div>
 
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {TIERS.map((t) => {
                   const active = value === t.key
+                  const isPlus = t.key.endsWith("+")
                   return (
                     <button
                       key={t.key}
                       type="button"
                       onClick={() => { onChange(t.key); setOpen(false) }}
                       className={cn(
-                        "group flex flex-col items-center gap-1.5 py-3 px-1 rounded-sm cursor-clicker",
+                        "group flex items-center gap-2.5 py-2 px-3 rounded-sm cursor-pointer",
                         "border transition-all duration-150",
                         active
-                          ? "bg-jade/10 border-jade/30"
-                          : "bg-white/[0.02] border-transparent hover:bg-jade/10 hover:border-jade/20"
+                          ? "bg-jade/[0.08] border-jade/25"
+                          : "bg-flash/[0.015] border-transparent hover:bg-jade/[0.04] hover:border-jade/15"
                       )}
                     >
                       <img
-                        src={miniRankIcon(t.key)}
+                        src={miniRankIcon(t.icon)}
                         alt={t.label}
                         className={cn(
-                          "w-7 h-7 object-contain transition-opacity",
-                          active ? "opacity-100" : "opacity-50 group-hover:opacity-80"
+                          "w-6 h-6 object-contain transition-opacity shrink-0",
+                          active ? "opacity-100" : "opacity-40 group-hover:opacity-70"
                         )}
                       />
                       <span className={cn(
-                        "text-[8px] font-jetbrains uppercase tracking-[0.15em] transition-colors",
-                        active ? "text-jade" : "text-flash/35 group-hover:text-jade/70"
+                        "text-[11px] font-mono tracking-wide transition-colors",
+                        active ? "text-jade" : "text-flash/35 group-hover:text-flash/60",
+                        isPlus && "font-semibold"
                       )}>
                         {t.label}
                       </span>
                     </button>
                   )
                 })}
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-flash/[0.04]">
+                <span className="text-[9px] font-mono text-flash/20 tracking-wide">
+                  "+" includes all ranks above
+                </span>
               </div>
             </div>
           </div>
