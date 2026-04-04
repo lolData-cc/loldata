@@ -940,17 +940,121 @@ function RankFilterButton({
   value: TierKey | null
   onChange: (v: TierKey | null) => void
 }) {
+  const [open, setOpen] = useState(false)
+  const activeT = TIERS.find(t => t.key === value)
+
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 h-8 px-3 rounded-sm border",
-        "border-jade/20 bg-jade/[0.04]",
-        "text-[10px] font-mono uppercase tracking-wider text-jade/60"
-      )}
-    >
-      <img src={miniRankIcon("diamond")} alt="Diamond+" className="w-4 h-4 object-contain" />
-      <span>DIAMOND+</span>
-    </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        className={cn(
+          "flex items-center gap-2 h-8 px-3 rounded-sm border cursor-pointer",
+          "transition-all duration-200",
+          "text-[10px] font-mono uppercase tracking-wider",
+          value
+            ? "border-jade/30 bg-jade/[0.06] text-jade/80"
+            : "border-flash/[0.08] bg-flash/[0.02] text-flash/40 hover:border-jade/20 hover:text-flash/60"
+        )}
+      >
+        {activeT ? (
+          <>
+            <img src={miniRankIcon(activeT.icon)} alt={activeT.label} className="w-4 h-4 object-contain" />
+            <span>{activeT.label}</span>
+          </>
+        ) : (
+          <>
+            <span className="text-[10px]">ELO:</span>
+            <span>DIAMOND+</span>
+          </>
+        )}
+      </DialogTrigger>
+
+      <DialogContent className="w-full max-w-[340px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
+        <div className="w-full relative">
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-sm",
+              "bg-[#060e10]/95 backdrop-blur-xl",
+              "border border-flash/[0.06]",
+              "shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+            )}
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40"
+              style={{
+                background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.015) 3px, rgba(0,217,146,0.015) 4px)",
+              }}
+            />
+
+            <div className="relative z-10 px-5 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade/40 rounded-full" />
+                  <span className="text-[10px] font-mono text-flash/40 tracking-[0.25em] uppercase">
+                    Rank Filter
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    "text-[9px] font-mono uppercase tracking-[0.15em] cursor-pointer",
+                    "px-2 py-0.5 rounded-sm",
+                    "text-flash/25 hover:text-jade/60",
+                    "transition-colors duration-150"
+                  )}
+                  onClick={() => { onChange(null); setOpen(false) }}
+                >
+                  Reset
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {TIERS.map((t) => {
+                  const active = value === t.key
+                  const isPlus = t.key.endsWith("+")
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => { onChange(t.key); setOpen(false) }}
+                      className={cn(
+                        "group flex items-center gap-2.5 py-2 px-3 rounded-sm cursor-pointer",
+                        "border transition-all duration-150",
+                        active
+                          ? "bg-jade/[0.08] border-jade/25"
+                          : "bg-flash/[0.015] border-transparent hover:bg-jade/[0.04] hover:border-jade/15"
+                      )}
+                    >
+                      <img
+                        src={miniRankIcon(t.icon)}
+                        alt={t.label}
+                        className={cn(
+                          "w-6 h-6 object-contain transition-opacity shrink-0",
+                          active ? "opacity-100" : "opacity-40 group-hover:opacity-70"
+                        )}
+                      />
+                      <span className={cn(
+                        "text-[11px] font-mono tracking-wide transition-colors",
+                        active ? "text-jade" : "text-flash/35 group-hover:text-flash/60",
+                        isPlus && "font-semibold"
+                      )}>
+                        {t.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-flash/[0.04]">
+                <span className="text-[9px] font-mono text-flash/20 tracking-wide">
+                  "+" includes all ranks above
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
