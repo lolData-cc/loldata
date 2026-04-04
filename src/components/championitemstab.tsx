@@ -7,30 +7,13 @@ import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { API_BASE_URL, cdnBaseUrl } from "@/config"
 
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
-
-type ItemCardProps = {
-  itemId: number
-  name: string
-  tooltip: string
-  winrate: number
-  totalGames: number
-  iconUrl: string
-}
-
-type ItemRow = {
-  legendary_index: number
+type ItemData = {
   item_id: number
-  total_games: number
+  total_games?: number
+  games?: number
   wins: number
   winrate: number
-}
-
-type ApiResponse = {
-  championName: string
-  slots: Record<string, ItemRow[]>
+  pick_rate?: number
 }
 
 type Props = {
@@ -40,130 +23,16 @@ type Props = {
   tier?: string | null
 }
 
-type ItemMeta = {
-  name: string
-  plaintext?: string
-}
+type ItemMeta = { name: string; plaintext?: string }
 
-// ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
-
-const slotLabel = (displayIndex: number) => {
-  const map: Record<number, string> = {
-    1: "First Item",
-    2: "Second Item",
-    3: "Third Item",
-    4: "Fourth Item",
-    5: "Fifth Item",
-    6: "Sixth Item",
-  }
-  return map[displayIndex] ?? `Item ${displayIndex}`
-}
-
-const fmtPct = (x: number, digits = 2) => `${x.toFixed(digits)}%`
-
-const itemIconUrl = (patch: string, itemId: number) =>
-  `${cdnBaseUrl()}/img/item/${itemId}.png`
-
-// ─────────────────────────────────────────────────────────────
-// TECH CARD (matches champion-stats.tsx)
-// ─────────────────────────────────────────────────────────────
-
-function TechCard({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn("bg-liquirice border border-[#1A1A1A]", className)}>
-      {children}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────
-// SECTION HEADER (matches champion-stats.tsx)
-// ─────────────────────────────────────────────────────────────
-
-function SectionHeader({
-  title,
-  subtitle,
-}: {
-  title: string
-  subtitle?: string
-}) {
-  return (
-    <div className="mb-4 border-b border-[#00D992]/10 pb-2">
-      <div className="flex items-center gap-2">
-        <div className="w-1 h-4 bg-[#00D992]" />
-        <h3 className="text-[#E8EEF2] text-xs font-mono uppercase tracking-[0.25em]">
-          {title}
-        </h3>
-      </div>
-      {subtitle && (
-        <p className="text-[#E8EEF2]/25 text-[10px] font-mono mt-1 ml-3">
-          {subtitle}
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────
-// ITEM CARD (horizontal layout - compact card style)
-// ─────────────────────────────────────────────────────────────
-
-function ItemCard({
-  itemId,
-  name,
-  tooltip,
-  winrate,
-  totalGames,
-  iconUrl,
-}: ItemCardProps) {
-  return (
-    <Link
-      to={`/items/${itemId}`}
-      className="flex flex-col items-center p-3 bg-[#00D992]/[0.02] border border-[#00D992]/10 hover:border-[#00D992]/30 hover:bg-[#00D992]/[0.05] transition-all w-[120px] flex-shrink-0"
-      title={tooltip}
-    >
-      <img
-        src={iconUrl || "/placeholder.svg"}
-        alt={name}
-        className="w-10 h-10 border border-[#00D992]/30 grayscale-[20%] mb-2"
-        loading="lazy"
-        decoding="async"
-        onError={(e) => {
-          e.currentTarget.style.display = "none"
-        }}
-      />
-      <div className="text-[#E8EEF2] text-[10px] font-mono tracking-wide text-center truncate w-full">
-        {name}
-      </div>
-      <div className="text-[#00D992] text-xs font-mono font-bold tabular-nums mt-1">
-        {fmtPct(winrate, 1)}
-      </div>
-      <div className="text-[#E8EEF2]/25 text-[9px] font-mono">
-        {totalGames.toLocaleString()}
-      </div>
-    </Link>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────────────────────
+const fmtPct = (x: number, digits = 1) => `${x.toFixed(digits)}%`
 
 export function ChampionItemsTab({ champ, patch, role, tier }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [slots, setSlots] = useState<Record<string, ItemRow[]>>({})
+  const [items, setItems] = useState<ItemData[]>([])
   const [itemsMeta, setItemsMeta] = useState<Record<string, ItemMeta>>({})
 
-  // Fetch items per champ from backend
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -184,9 +53,29 @@ export function ChampionItemsTab({ champ, patch, role, tier }: Props) {
         if (!r.ok) throw new Error("Failed to load champion items")
         return r.json()
       })
-      .then((data: ApiResponse) => {
+      .then((data) => {
         if (cancelled) return
-        setSlots(data.slots || {})
+        // Handle both flat (snapshot) and slot-based (legacy) formats
+        if (data.slots) {
+          const allItems: ItemData[] = []
+          for (const items of Object.values<any[]>(data.slots)) {
+            allItems.push(...items)
+          }
+          // Deduplicate by item_id, keeping highest game count
+          const seen = new Map<number, ItemData>()
+          for (const item of allItems) {
+            const existing = seen.get(item.item_id)
+            const games = item.total_games ?? item.games ?? 0
+            if (!existing || games > (existing.total_games ?? existing.games ?? 0)) {
+              seen.set(item.item_id, item)
+            }
+          }
+          setItems(Array.from(seen.values()).sort((a, b) =>
+            (b.total_games ?? b.games ?? 0) - (a.total_games ?? a.games ?? 0)
+          ))
+        } else {
+          setItems([])
+        }
       })
       .catch((e: any) => {
         if (cancelled) return
@@ -196,143 +85,133 @@ export function ChampionItemsTab({ champ, patch, role, tier }: Props) {
         if (!cancelled) setLoading(false)
       })
 
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [champ.name, champ.key, role, tier])
 
-  // Fetch item.json from CDN for names
   useEffect(() => {
     let cancelled = false
-
     fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return
         const map: Record<string, ItemMeta> = {}
-
         Object.entries<any>(json.data || {}).forEach(([id, item]) => {
-          map[id] = {
-            name: item.name,
-            plaintext: item.plaintext,
-          }
+          map[id] = { name: item.name, plaintext: item.plaintext }
         })
-
         setItemsMeta(map)
       })
-      .catch(() => {
-        if (cancelled) return
-        setItemsMeta({})
-      })
-
-    return () => {
-      cancelled = true
-    }
+      .catch(() => { if (!cancelled) setItemsMeta({}) })
+    return () => { cancelled = true }
   }, [])
 
-  // Loading state
   if (loading) {
     return (
-      <TechCard className="p-6">
-        <div className="text-[#E8EEF2]/50 font-mono text-sm uppercase tracking-wider">
+      <div className="p-6 bg-liquirice border border-[#1A1A1A]">
+        <div className="text-flash/30 font-mono text-[11px] uppercase tracking-wider animate-pulse">
           Loading items...
         </div>
-      </TechCard>
+      </div>
     )
   }
 
-  // Error state
   if (error) {
     return (
-      <TechCard className="p-6">
-        <div className="text-red-400 font-mono text-sm">Error: {error}</div>
-      </TechCard>
+      <div className="p-6 bg-liquirice border border-[#1A1A1A]">
+        <div className="text-red-400/60 font-mono text-[11px]">{error}</div>
+      </div>
     )
   }
 
-  const slotEntries = Object.entries(slots).sort(
-    ([a], [b]) => Number(a) - Number(b)
-  )
-
-  // Empty state
-  if (slotEntries.length === 0) {
+  if (items.length === 0) {
     return (
-      <TechCard className="p-6">
-        <div className="text-[#E8EEF2] font-mono text-sm">
-          NO ITEM DATA AVAILABLE.
+      <div className="p-6 bg-liquirice border border-[#1A1A1A]">
+        <div className="text-flash/30 font-mono text-[11px] uppercase tracking-wider">
+          No item data available
         </div>
-        <div className="text-[#E8EEF2]/30 font-mono text-[10px] mt-2">
-          No item builds found for this champion.
-        </div>
-      </TechCard>
+      </div>
     )
   }
+
+  const totalGames = items.reduce((s, i) => s + (i.total_games ?? i.games ?? 0), 0) / items.length
 
   return (
-    <div className="w-full space-y-3">
-      {/* Custom scrollbar styles */}
-      <style>{`
-        .green-scrollbar::-webkit-scrollbar {
-          height: 6px;
-        }
-        .green-scrollbar::-webkit-scrollbar-track {
-          background: #0a0a0a;
-          border-radius: 3px;
-        }
-        .green-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(0, 217, 146, 0.3);
-          border-radius: 3px;
-        }
-        .green-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 217, 146, 0.5);
-        }
-      `}</style>
+    <div className="space-y-1">
+      <div className="px-1 mb-3 border-b border-jade/10 pb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-4 bg-jade" />
+          <h3 className="text-flash text-xs font-mono uppercase tracking-[0.25em]">
+            Most Built Items
+          </h3>
+        </div>
+        <p className="text-flash/20 text-[10px] font-mono mt-1 ml-3">
+          Legendary items sorted by pick rate
+        </p>
+      </div>
 
-      {/* Item slots - each section displays items horizontally */}
-      <div className="space-y-4">
-        {slotEntries.map(([slotKey, items], idx) => {
-          const displayIndex = idx + 1
-          const totalGamesInSlot = items.reduce(
-            (sum, it) => sum + it.total_games,
-            0
-          )
+      <div className="space-y-[2px]">
+        {items.map((item, idx) => {
+          const games = item.total_games ?? item.games ?? 0
+          const idStr = String(item.item_id)
+          const meta = itemsMeta[idStr]
+          const name = meta?.name ?? `Item ${idStr}`
+          const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+          const pickRate = item.pick_rate ?? 0
 
           return (
-            <TechCard key={slotKey} className="pt-5 px-0">
-              <div className="px-5">
-                <SectionHeader
-                  title={slotLabel(displayIndex)}
-                  subtitle={`${totalGamesInSlot.toLocaleString()} games analyzed`}
-                />
+            <Link
+              key={item.item_id}
+              to={`/items/${item.item_id}`}
+              className={cn(
+                "group flex items-center gap-3 px-3 py-2 rounded-sm",
+                "bg-flash/[0.015] border border-transparent",
+                "hover:bg-jade/[0.04] hover:border-jade/10",
+                "transition-all duration-150"
+              )}
+            >
+              {/* Rank number */}
+              <span className="text-[10px] font-mono text-flash/15 w-4 text-right shrink-0">
+                {idx + 1}
+              </span>
+
+              {/* Item icon */}
+              <img
+                src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                alt={name}
+                className="w-8 h-8 rounded-[2px] border border-flash/[0.08] shrink-0"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+              />
+
+              {/* Name + pick rate bar */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-mono text-flash/60 truncate group-hover:text-flash/80 transition-colors">
+                  {name}
+                </div>
+                {pickRate > 0 && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[120px]">
+                      <div
+                        className="h-full bg-jade/30 rounded-full"
+                        style={{ width: `${Math.min(pickRate, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-mono text-flash/20 tabular-nums">
+                      {fmtPct(pickRate)} pick
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div 
-                className="green-scrollbar flex gap-2 overflow-x-auto pb-3 px-5"
-                style={{
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: 'rgba(0, 217, 146, 0.3) #0a0a0a',
-                }}
-              >
-                {items.map((it) => {
-                  const idStr = String(it.item_id)
-                  const meta = itemsMeta[idStr]
-                  const displayName = meta?.name ?? idStr
-                  const tooltip = meta?.plaintext || displayName
-
-                  return (
-                    <ItemCard
-                      key={it.item_id}
-                      itemId={it.item_id}
-                      name={displayName}
-                      tooltip={tooltip}
-                      winrate={it.winrate}
-                      totalGames={it.total_games}
-                      iconUrl={itemIconUrl(patch, it.item_id)}
-                    />
-                  )
-                })}
+              {/* Winrate */}
+              <div className="text-right shrink-0">
+                <div className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>
+                  {fmtPct(item.winrate)}
+                </div>
+                <div className="text-[9px] font-mono text-flash/15 tabular-nums">
+                  {games.toLocaleString()} games
+                </div>
               </div>
-            </TechCard>
+            </Link>
           )
         })}
       </div>
