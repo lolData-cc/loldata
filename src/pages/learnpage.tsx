@@ -17,7 +17,9 @@ import { API_BASE_URL } from "@/config"
 
 dayjs.extend(relativeTime)
 
-const aiUrl = `${API_BASE_URL}/api/chat/ask`
+const aiUrl = import.meta.env.MODE === "development"
+  ? "http://localhost:3002/chat/ask"
+  : "https://ai.loldata.cc/chat/ask"
 
 // ── Rank utilities ──
 const tierOrder = [
