@@ -34,8 +34,10 @@ type ApiResponse = {
 }
 
 type Props = {
-  champ: { name: string }
+  champ: { name: string; key?: string }
   patch: string
+  role?: string | null
+  tier?: string | null
 }
 
 type ItemMeta = {
@@ -155,7 +157,7 @@ function ItemCard({
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────
 
-export function ChampionItemsTab({ champ, patch }: Props) {
+export function ChampionItemsTab({ champ, patch, role, tier }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [slots, setSlots] = useState<Record<string, ItemRow[]>>({})
@@ -172,6 +174,9 @@ export function ChampionItemsTab({ champ, patch }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         championName: champ.name,
+        championId: champ.key ? Number(champ.key) : undefined,
+        role: role ?? undefined,
+        tier: tier ?? undefined,
         maxPerSlot: 12,
       }),
     })
@@ -194,7 +199,7 @@ export function ChampionItemsTab({ champ, patch }: Props) {
     return () => {
       cancelled = true
     }
-  }, [champ.name])
+  }, [champ.name, champ.key, role, tier])
 
   // Fetch item.json from CDN for names
   useEffect(() => {
