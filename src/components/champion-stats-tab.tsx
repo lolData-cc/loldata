@@ -1086,9 +1086,13 @@ export function ChampionStats({
   type RuneCombo = { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; wins: number; winrate: number; pick_rate: number }
   const [runes, setRunes] = useState<RuneCombo[]>([])
 
-  // Item data (from snapshot)
+  // Item data (flat from snapshot)
   type ItemStat = { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }
   const [items, setItems] = useState<ItemStat[]>([])
+
+  // Build order data (per-slot, from champion_build_order RPC — needs backfill)
+  type BuildOrderItem = { legendary_index: number; item_id: number; games: number; wins: number; winrate: number }
+  const [buildOrder, setBuildOrder] = useState<BuildOrderItem[]>([])
 
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
   const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
@@ -1264,6 +1268,31 @@ export function ChampionStats({
         .catch(() => {})
     }
   }, [stats, champ.key, champ.id, role, tier])
+
+  // Fetch build order data (per-slot item winrates)
+  useEffect(() => {
+    if (!champ.key) return
+    const roleParam = role === "SUPPORT" ? "UTILITY" : role
+    // Query the champion_build_order RPC via Supabase
+    fetch(`${API_BASE_URL}/api/champion/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        championName: champ.id,
+        championId: Number(champ.key),
+        role: roleParam,
+        tier,
+        buildOrder: true,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.buildOrder) {
+          setBuildOrder(data.buildOrder)
+        }
+      })
+      .catch(() => {})
+  }, [champ.key, champ.id, role, tier])
 
   const floatingBar = (
     <FilterBar
@@ -1770,31 +1799,29 @@ export function ChampionStats({
         {runes.length > 0 && (
           <TechCard className="p-5">
             <SectionHeader title="Runes" subtitle="Keystone + secondary tree winrates" />
-            <div className="space-y-[2px]">
-              {runes.slice(0, 6).map((r, idx) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {runes.slice(0, 8).map((r, idx) => {
                 const wrColor = r.winrate >= 52 ? "text-jade" : r.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
                 const keystoneIcon = getKeystoneIcon(r.perk_keystone)
                 const keystoneName = getKeystoneName(r.perk_keystone) ?? `Keystone ${r.perk_keystone}`
                 const subStyleName = getStyleName(r.perk_sub_style) ?? ""
                 const subStyleIcon = getStyleIcon(r.perk_sub_style)
+                const isTop = idx === 0
                 return (
-                  <div key={idx} className="flex items-center gap-3 px-2 py-2 rounded-sm bg-flash/[0.015]">
+                  <div key={idx} className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-sm border transition-colors",
+                    isTop ? "bg-jade/[0.04] border-jade/15" : "bg-flash/[0.015] border-transparent"
+                  )}>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {keystoneIcon && <img src={keystoneIcon} alt="" className="w-6 h-6 rounded-full" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
-                      {subStyleIcon && <img src={subStyleIcon} alt="" className="w-4 h-4 rounded-full opacity-50" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                      {keystoneIcon && <img src={keystoneIcon} alt="" className={cn("rounded-full", isTop ? "w-8 h-8" : "w-6 h-6")} onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                      {subStyleIcon && <img src={subStyleIcon} alt="" className="w-4 h-4 rounded-full opacity-40" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-mono text-flash/50 truncate">{keystoneName}{subStyleName ? ` / ${subStyleName}` : ""}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[100px]">
-                          <div className="h-full bg-jade/30 rounded-full" style={{ width: `${Math.min(r.pick_rate, 100)}%` }} />
-                        </div>
-                        <span className="text-[9px] font-mono text-flash/20 tabular-nums">{r.pick_rate.toFixed(1)}% pick</span>
-                      </div>
+                      <div className={cn("font-mono truncate", isTop ? "text-[12px] text-flash/60" : "text-[10px] text-flash/40")}>{keystoneName}</div>
+                      <div className="text-[9px] font-mono text-flash/20">{subStyleName} · {r.pick_rate.toFixed(1)}% pick · {Number(r.games).toLocaleString()} games</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{r.winrate.toFixed(1)}%</span>
-                      <div className="text-[9px] font-mono text-flash/15 tabular-nums">{Number(r.games).toLocaleString()}</div>
+                      <span className={cn("font-mono font-semibold tabular-nums", wrColor, isTop ? "text-[15px]" : "text-[13px]")}>{r.winrate.toFixed(1)}%</span>
                     </div>
                   </div>
                 )
@@ -1803,40 +1830,82 @@ export function ChampionStats({
           </TechCard>
         )}
 
-        {/* ── Items ── */}
-        {items.length > 0 && (
-          <TechCard className="p-5">
-            <SectionHeader title="Most Built Items" subtitle="Legendary items by pick rate" />
-            <div className="space-y-[2px]">
-              {items.slice(0, 10).map((item, idx) => {
-                const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
-                return (
-                  <div key={item.item_id} className="flex items-center gap-3 px-2 py-1.5 rounded-sm bg-flash/[0.015]">
-                    <span className="text-[10px] font-mono text-flash/15 w-4 text-right">{idx + 1}</span>
-                    <img
-                      src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
-                      alt=""
-                      className="w-7 h-7 rounded-[2px] border border-flash/[0.08]"
-                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      {item.pick_rate > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[100px]">
-                            <div className="h-full bg-jade/30 rounded-full" style={{ width: `${Math.min(item.pick_rate, 100)}%` }} />
-                          </div>
-                          <span className="text-[9px] font-mono text-flash/20 tabular-nums">{item.pick_rate.toFixed(1)}%</span>
-                        </div>
-                      )}
+        {/* ── Item Build Path ── */}
+        {(() => {
+          // Group build order items by slot (legendary_index)
+          const slotGroups = new Map<number, BuildOrderItem[]>()
+          for (const bo of buildOrder) {
+            if (!slotGroups.has(bo.legendary_index)) slotGroups.set(bo.legendary_index, [])
+            slotGroups.get(bo.legendary_index)!.push(bo)
+          }
+          const slots = Array.from(slotGroups.entries()).sort(([a], [b]) => a - b).slice(0, 6)
+          const slotLabels = ["1st Item", "2nd Item", "3rd Item", "4th Item", "5th Item", "6th Item"]
+
+          // If build order data exists, show per-slot. Otherwise show flat items.
+          if (slots.length > 0) {
+            return (
+              <TechCard className="p-5">
+                <SectionHeader title="Item Build Path" subtitle="Winrate by build position" />
+                <div className="space-y-4">
+                  {slots.map(([slotIdx, slotItems]) => (
+                    <div key={slotIdx}>
+                      <div className="text-[10px] font-mono text-jade/40 uppercase tracking-[0.2em] mb-2">
+                        {slotLabels[slotIdx - 1] ?? `Item ${slotIdx}`}
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        {slotItems.slice(0, 8).map((item) => {
+                          const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                          return (
+                            <div key={item.item_id} className="flex flex-col items-center gap-1 p-2 rounded-sm bg-flash/[0.02] border border-flash/[0.04] min-w-[70px] shrink-0">
+                              <img
+                                src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                                alt=""
+                                className="w-8 h-8 rounded-[2px] border border-flash/[0.08]"
+                                onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                              />
+                              <span className={cn("text-[12px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
+                              <span className="text-[8px] font-mono text-flash/20">{Number(item.games).toLocaleString()}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
-                    <span className="text-[9px] font-mono text-flash/15 tabular-nums">{item.games.toLocaleString()}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </TechCard>
-        )}
+                  ))}
+                </div>
+              </TechCard>
+            )
+          }
+
+          // Fallback: flat item list
+          if (items.length > 0) {
+            return (
+              <TechCard className="p-5">
+                <SectionHeader title="Most Built Items" subtitle="Legendary items by pick rate" />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {items.slice(0, 12).map((item) => {
+                    const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                    return (
+                      <div key={item.item_id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm bg-flash/[0.015] border border-transparent hover:border-jade/10 transition-colors">
+                        <img
+                          src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                          alt=""
+                          className="w-7 h-7 rounded-[2px] border border-flash/[0.08] shrink-0"
+                          onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className={cn("text-[12px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</div>
+                          <div className="text-[9px] font-mono text-flash/20">{item.pick_rate > 0 ? `${item.pick_rate.toFixed(1)}% pick` : ""} · {item.games.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </TechCard>
+            )
+          }
+
+          return null
+        })()}
 
         <TechCard className="p-5">
           <SectionHeader title="Meta Position" subtitle="Estimated tier by rank bracket" />
