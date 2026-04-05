@@ -130,6 +130,7 @@ export default function ChampionDetailPage() {
   const [selectedOpponent, setSelectedOpponent] = useState<string | null>(null)
 
   const [keyToId, setKeyToId] = useState<Record<string, string>>({})
+  const [champDataMap, setChampDataMap] = useState<Record<string, { title: string; tags: string[] }>>({})
 
   const keyToIdSafe = (k: number | string) => keyToId[String(k)] || String(k)
 
@@ -147,11 +148,13 @@ export default function ChampionDetailPage() {
       .then((all) => {
         if (cancelled) return
         const k2i: Record<string, string> = {}
+        const cdm: Record<string, { title: string; tags: string[] }> = {}
         Object.values(all.data || {}).forEach((ch: any) => {
-          // ch.key è "122", ch.id è "Darius"
           k2i[ch.key] = ch.id
+          cdm[ch.id] = { title: ch.title ?? "", tags: ch.tags ?? [] }
         })
         setKeyToId(k2i)
+        setChampDataMap(cdm)
       })
       .catch(() => { })
     return () => { cancelled = true }
@@ -328,6 +331,9 @@ export default function ChampionDetailPage() {
                     className="h-14 w-14 rounded-md object-cover ring-1 ring-jade/30"
                   />
                   <div>
+                    {vsOpponent?.role && (
+                      <p className="text-[10px] text-jade/40 font-mono uppercase tracking-[0.2em] mb-0.5">{vsOpponent.role}</p>
+                    )}
                     <h1 className="text-xl font-semibold text-white">{champ.name}</h1>
                     <p className="text-xs text-white/50">{champ.title}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
@@ -354,17 +360,36 @@ export default function ChampionDetailPage() {
                 </div>
 
                 {/* Right — opponent (mirrored) */}
-                <div className="flex items-center gap-4 flex-row-reverse">
-                  <img
-                    src={`${cdnBaseUrl()}/img/champion/${vsOpponent.name}.png`}
-                    alt={vsOpponent.name}
-                    className="h-14 w-14 rounded-md object-cover ring-1 ring-red-400/30"
-                  />
-                  <div className="text-right">
-                    <h2 className="text-xl font-semibold text-white">{vsOpponent.name}</h2>
-                    <p className="text-xs text-red-400/40 font-mono uppercase tracking-wider">{vsOpponent.role ?? ""}</p>
-                  </div>
-                </div>
+                {(() => {
+                  const oppData = champDataMap[vsOpponent.name]
+                  return (
+                    <div className="flex items-center gap-4 flex-row-reverse">
+                      <img
+                        src={`${cdnBaseUrl()}/img/champion/${vsOpponent.name}.png`}
+                        alt={vsOpponent.name}
+                        className="h-14 w-14 rounded-md object-cover ring-1 ring-red-400/30"
+                      />
+                      <div className="text-right">
+                        {vsOpponent.role && (
+                          <p className="text-[10px] text-red-400/40 font-mono uppercase tracking-[0.2em] mb-0.5">{vsOpponent.role}</p>
+                        )}
+                        <h2 className="text-xl font-semibold text-white">{vsOpponent.name}</h2>
+                        {oppData?.title && (
+                          <p className="text-xs text-white/50">{oppData.title}</p>
+                        )}
+                        {oppData?.tags && oppData.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1.5 justify-end">
+                            {oppData.tags.map(t => (
+                              <span key={t} className="rounded bg-red-400/10 px-1.5 py-0.5 text-[10px] text-red-400/50 font-mono">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             ) : (
               /* Normal Layout */
