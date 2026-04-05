@@ -1220,23 +1220,29 @@ export function ChampionStats({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champ.key, selectedPatch, selectedRegion, role, tier, opponentsKey])
 
-  // Use rune data from snapshot if available, otherwise fetch from API
+  // Rune data: use snapshot when no opponents, fetch with opponent when VS is active
   useEffect(() => {
-    if (stats?.runes?.length) {
+    if (opponents.length === 0 && stats?.runes?.length) {
       setRunes(stats.runes as RuneCombo[])
       return
     }
     if (!champ.key) return
     const roleParam = role === "SUPPORT" ? "UTILITY" : role
+    const firstOppId = opponents.length > 0 ? opponents[0].championId : undefined
     fetch(`${API_BASE_URL}/api/champion/runes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ championId: Number(champ.key), role: roleParam, tier }),
+      body: JSON.stringify({
+        championId: Number(champ.key),
+        role: roleParam,
+        tier,
+        opponentId: firstOppId,
+      }),
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.runes) setRunes(data.runes) })
       .catch(() => {})
-  }, [stats, champ.key, role, tier])
+  }, [stats, champ.key, role, tier, opponentsKey])
 
   // Extract items from stats snapshot (already included in snapshot data)
   useEffect(() => {
