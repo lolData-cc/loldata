@@ -1214,8 +1214,12 @@ export function ChampionStats({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champ.key, selectedPatch, selectedRegion, role, tier, opponentsKey])
 
-  // Fetch rune data when champion/role/tier changes
+  // Use rune data from snapshot if available, otherwise fetch from API
   useEffect(() => {
+    if (stats?.runes?.length) {
+      setRunes(stats.runes as RuneCombo[])
+      return
+    }
     if (!champ.key) return
     const roleParam = role === "SUPPORT" ? "UTILITY" : role
     fetch(`${API_BASE_URL}/api/champion/runes`, {
@@ -1226,7 +1230,7 @@ export function ChampionStats({
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.runes) setRunes(data.runes) })
       .catch(() => {})
-  }, [champ.key, role, tier])
+  }, [stats, champ.key, role, tier])
 
   // Extract items from stats snapshot (already included in snapshot data)
   useEffect(() => {
