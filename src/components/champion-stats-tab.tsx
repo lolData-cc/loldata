@@ -1090,8 +1090,8 @@ export function ChampionStats({
   type ItemStat = { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }
   const [items, setItems] = useState<ItemStat[]>([])
 
-  // Build order data (per-slot, from champion_build_order RPC — needs backfill)
-  type BuildOrderItem = { legendary_index: number; item_id: number; games: number; wins: number; winrate: number }
+  // Build order data (per-slot legendary items)
+  type BuildOrderItem = { slot_index: number; item_id: number; games: number; wins: number; winrate: number; pick_rate?: number }
   const [buildOrder, setBuildOrder] = useState<BuildOrderItem[]>([])
 
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
@@ -1832,11 +1832,12 @@ export function ChampionStats({
 
         {/* ── Item Build Path ── */}
         {(() => {
-          // Group build order items by slot (legendary_index)
+          // Group build order items by slot
           const slotGroups = new Map<number, BuildOrderItem[]>()
           for (const bo of buildOrder) {
-            if (!slotGroups.has(bo.legendary_index)) slotGroups.set(bo.legendary_index, [])
-            slotGroups.get(bo.legendary_index)!.push(bo)
+            const idx = bo.slot_index ?? (bo as any).legendary_index ?? 0
+            if (!slotGroups.has(idx)) slotGroups.set(idx, [])
+            slotGroups.get(idx)!.push(bo)
           }
           const slots = Array.from(slotGroups.entries()).sort(([a], [b]) => a - b).slice(0, 6)
           const slotLabels = ["1st Item", "2nd Item", "3rd Item", "4th Item", "5th Item", "6th Item"]
