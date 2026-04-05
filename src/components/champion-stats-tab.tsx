@@ -1070,11 +1070,13 @@ export function ChampionStats({
   patch,
   keyToId,
   onVsChange,
+  initialVs,
 }: {
   champ: ChampInfo
   patch: string
   keyToId: Record<string, string>
   onVsChange?: (opp: { championId: number; name: string; role?: string } | null) => void
+  initialVs?: string | null
 }) {
   const [stats, setStats] = useState<StatsPayload | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1114,6 +1116,17 @@ export function ChampionStats({
     for (const [key, id] of Object.entries(keyToId)) map[id] = Number(key)
     return map
   }, [keyToId])
+
+  // Pre-fill VS opponent from URL param
+  useEffect(() => {
+    if (initialVs && Object.keys(idToKey).length > 0 && opponents.length === 0) {
+      const key = idToKey[initialVs]
+      if (key) {
+        // Find the most likely role for this opponent
+        setOpponents([{ championId: key, name: initialVs, role: "TOP", itemId: null, itemName: null }])
+      }
+    }
+  }, [initialVs, idToKey])
 
   // Item metadata for the item picker
   const [itemsMeta, setItemsMeta] = useState<Record<string, { name: string; into?: string[]; gold?: { total: number; purchasable: boolean }; maps?: Record<string, boolean> }>>({})

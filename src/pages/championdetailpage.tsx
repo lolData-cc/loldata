@@ -2,7 +2,7 @@
 
 // src/pages/champion-detail-page.tsx
 import React, { useEffect, useMemo, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { cdnBaseUrl, cdnSplashUrl, getCdnVersion } from "@/config"
@@ -98,6 +98,8 @@ const validTabs = ["overview", "statistics", "items", "matchups", "pros"] as con
 export default function ChampionDetailPage() {
   const { champId, tab } = useParams<{ champId: string; tab?: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const vsParam = searchParams.get("vs")
   const activeTab = validTabs.includes(tab as any) ? tab! : "overview"
   const [patch, setPatch] = useState("15.13.1")
   const [champ, setChamp] = useState<ChampInfo | null>(null)
@@ -111,7 +113,17 @@ export default function ChampionDetailPage() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  const [vsOpponent, setVsOpponent] = useState<{ championId: number; name: string; role?: string } | null>(null)
+  const [vsOpponent, setVsOpponentState] = useState<{ championId: number; name: string; role?: string } | null>(null)
+  const setVsOpponent = (opp: { championId: number; name: string; role?: string } | null) => {
+    setVsOpponentState(opp)
+    if (opp) {
+      searchParams.set("vs", opp.name)
+      setSearchParams(searchParams, { replace: true })
+    } else {
+      searchParams.delete("vs")
+      setSearchParams(searchParams, { replace: true })
+    }
+  }
   const [matchups, setMatchups] = useState<Matchup[]>([])
   const [matchupsLoading, setMatchupsLoading] = useState(false)
   const [matchupsError, setMatchupsError] = useState<string | null>(null)
@@ -425,7 +437,7 @@ export default function ChampionDetailPage() {
             {Object.keys(keyToId).length === 0 ? (
               <div className="text-neutral-400">LOADING CHAMPIONS…</div>
             ) : (
-              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} onVsChange={setVsOpponent} />
+              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} onVsChange={setVsOpponent} initialVs={vsParam} />
             )}
           </TabsContent>
 <TabsContent value="matchups">
