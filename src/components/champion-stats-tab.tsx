@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { API_BASE_URL, cdnBaseUrl } from "@/config"
+import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/constants/runes"
 import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Globe } from "lucide-react"
@@ -1768,24 +1769,29 @@ export function ChampionStats({
             <div className="space-y-[2px]">
               {runes.slice(0, 6).map((r, idx) => {
                 const wrColor = r.winrate >= 52 ? "text-jade" : r.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                const keystoneIcon = getKeystoneIcon(r.perk_keystone)
+                const keystoneName = getKeystoneName(r.perk_keystone) ?? `Keystone ${r.perk_keystone}`
+                const subStyleName = getStyleName(r.perk_sub_style) ?? ""
+                const subStyleIcon = getStyleIcon(r.perk_sub_style)
                 return (
-                  <div key={idx} className="flex items-center gap-3 px-2 py-1.5 rounded-sm bg-flash/[0.015]">
-                    <img
-                      src={`https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/${r.perk_keystone === 8010 ? "Precision/Conqueror/Conqueror" : r.perk_keystone === 8005 ? "Precision/PressTheAttack/PressTheAttack" : r.perk_keystone === 8008 ? "Precision/LethalTempo/LethalTempoTemp" : r.perk_keystone === 8021 ? "Precision/FleetFootwork/FleetFootwork" : r.perk_keystone === 8128 ? "Domination/DarkHarvest/DarkHarvest" : r.perk_keystone === 8112 ? "Domination/Electrocute/Electrocute" : r.perk_keystone === 8124 ? "Domination/Predator/Predator" : r.perk_keystone === 8230 ? "Sorcery/PhaseRush/PhaseRush" : r.perk_keystone === 8229 ? "Sorcery/ArcaneComet/ArcaneComet" : r.perk_keystone === 8214 ? "Sorcery/SummonAery/SummonAery" : r.perk_keystone === 8437 ? "Resolve/GraspOfTheUndying/GraspOfTheUndying" : r.perk_keystone === 8439 ? "Resolve/VeteranAftershock/VeteranAftershock" : r.perk_keystone === 8465 ? "Resolve/Guardian/Guardian" : "7201_Precision"}.png`}
-                      alt=""
-                      className="w-6 h-6 rounded-full"
-                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-                    />
+                  <div key={idx} className="flex items-center gap-3 px-2 py-2 rounded-sm bg-flash/[0.015]">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {keystoneIcon && <img src={keystoneIcon} alt="" className="w-6 h-6 rounded-full" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                      {subStyleIcon && <img src={subStyleIcon} alt="" className="w-4 h-4 rounded-full opacity-50" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="text-[11px] font-mono text-flash/50 truncate">{keystoneName}{subStyleName ? ` / ${subStyleName}` : ""}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
                         <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[100px]">
                           <div className="h-full bg-jade/30 rounded-full" style={{ width: `${Math.min(r.pick_rate, 100)}%` }} />
                         </div>
-                        <span className="text-[9px] font-mono text-flash/20 tabular-nums">{r.pick_rate.toFixed(1)}%</span>
+                        <span className="text-[9px] font-mono text-flash/20 tabular-nums">{r.pick_rate.toFixed(1)}% pick</span>
                       </div>
                     </div>
-                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{r.winrate.toFixed(1)}%</span>
-                    <span className="text-[9px] font-mono text-flash/15 tabular-nums">{r.games}</span>
+                    <div className="text-right shrink-0">
+                      <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{r.winrate.toFixed(1)}%</span>
+                      <div className="text-[9px] font-mono text-flash/15 tabular-nums">{Number(r.games).toLocaleString()}</div>
+                    </div>
                   </div>
                 )
               })}
