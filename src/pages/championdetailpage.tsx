@@ -111,6 +111,7 @@ export default function ChampionDetailPage() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  const [vsOpponent, setVsOpponent] = useState<{ championId: number; name: string; role?: string } | null>(null)
   const [matchups, setMatchups] = useState<Matchup[]>([])
   const [matchupsLoading, setMatchupsLoading] = useState(false)
   const [matchupsError, setMatchupsError] = useState<string | null>(null)
@@ -304,24 +305,76 @@ export default function ChampionDetailPage() {
         {/* Content — aligned to the center container width */}
         <div className="absolute bottom-4 inset-x-0 z-10 flex justify-center">
           <div className="w-full xl:w-[65%] min-[2560px]:w-[55%]">
-            <div className="flex items-center gap-4">
-              <img
-                src={iconUrl || "/placeholder.svg"}
-                alt={`${champ.name} icon`}
-                className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
-              />
-              <div>
-                <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
-                <p className="text-sm text-white/70">{champ.title}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {champ.tags?.map(t => (
-                    <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                      {t}
-                    </span>
-                  ))}
+            {vsOpponent ? (
+              /* VS Layout */
+              <div className="flex items-center justify-between">
+                {/* Left — our champion */}
+                <div className="flex items-center gap-4">
+                  <img
+                    src={iconUrl || "/placeholder.svg"}
+                    alt={champ.name}
+                    className="h-14 w-14 rounded-md object-cover ring-1 ring-jade/30"
+                  />
+                  <div>
+                    <h1 className="text-xl font-semibold text-white">{champ.name}</h1>
+                    <p className="text-xs text-white/50">{champ.title}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {champ.tags?.map(t => (
+                        <span key={t} className="rounded bg-jade/10 px-1.5 py-0.5 text-[10px] text-jade/60 font-mono">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Center — VS */}
+                <div className="flex flex-col items-center px-6">
+                  <span
+                    className="text-[32px] font-bold tracking-[0.2em] text-jade/50"
+                    style={{
+                      fontFamily: "'Orbitron', sans-serif",
+                      textShadow: "0 0 30px rgba(0,217,146,0.3), 0 0 60px rgba(0,217,146,0.1)",
+                    }}
+                  >
+                    VS
+                  </span>
+                </div>
+
+                {/* Right — opponent (mirrored) */}
+                <div className="flex items-center gap-4 flex-row-reverse">
+                  <img
+                    src={`${cdnBaseUrl()}/img/champion/${vsOpponent.name}.png`}
+                    alt={vsOpponent.name}
+                    className="h-14 w-14 rounded-md object-cover ring-1 ring-red-400/30"
+                  />
+                  <div className="text-right">
+                    <h2 className="text-xl font-semibold text-white">{vsOpponent.name}</h2>
+                    <p className="text-xs text-red-400/40 font-mono uppercase tracking-wider">{vsOpponent.role ?? ""}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Normal Layout */
+              <div className="flex items-center gap-4">
+                <img
+                  src={iconUrl || "/placeholder.svg"}
+                  alt={`${champ.name} icon`}
+                  className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
+                />
+                <div>
+                  <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
+                  <p className="text-sm text-white/70">{champ.title}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {champ.tags?.map(t => (
+                      <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -372,7 +425,7 @@ export default function ChampionDetailPage() {
             {Object.keys(keyToId).length === 0 ? (
               <div className="text-neutral-400">LOADING CHAMPIONS…</div>
             ) : (
-              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} />
+              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} onVsChange={setVsOpponent} />
             )}
           </TabsContent>
 <TabsContent value="matchups">

@@ -1069,10 +1069,12 @@ export function ChampionStats({
   champ,
   patch,
   keyToId,
+  onVsChange,
 }: {
   champ: ChampInfo
   patch: string
   keyToId: Record<string, string>
+  onVsChange?: (opp: { championId: number; name: string; role?: string } | null) => void
 }) {
   const [stats, setStats] = useState<StatsPayload | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1178,6 +1180,15 @@ export function ChampionStats({
   }
 
   const opponentsKey = JSON.stringify(opponents)
+
+  // Notify parent about VS opponent for hero display
+  useEffect(() => {
+    if (opponents.length === 1) {
+      onVsChange?.({ championId: opponents[0].championId, name: opponents[0].name, role: opponents[0].role ?? undefined })
+    } else {
+      onVsChange?.(null)
+    }
+  }, [opponentsKey])
 
   // Refetch when any filter changes (keep old data visible during load)
   useEffect(() => {
@@ -1642,59 +1653,6 @@ export function ChampionStats({
           50% { text-shadow: 0 0 40px rgba(0,217,146,0.6), 0 0 60px rgba(0,217,146,0.2); }
         }
       `}</style>
-
-      {/* VS Matchup Banner */}
-      {opponents.length === 1 && (() => {
-        const opp = opponents[0]
-        const oppChampId = champIdFromKey(opp.championId)
-        return (
-          <div className="stat-section relative overflow-hidden rounded-sm border border-jade/10 bg-liquirice" style={{ animationDelay: "0s" }}>
-            {/* Background scanlines */}
-            <div className="absolute inset-0 pointer-events-none opacity-30"
-              style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.015) 3px, rgba(0,217,146,0.015) 4px)" }} />
-            {/* Center glow */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(0,217,146,0.04)_0%,transparent_70%)]" />
-
-            <div className="relative z-10 flex items-center justify-between px-6 py-4">
-              {/* Left — Our champion */}
-              <div className="flex items-center gap-3" style={{ animation: "vsSlideLeft 0.5s ease-out forwards" }}>
-                <img
-                  src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`}
-                  alt={champ.name}
-                  className="w-12 h-12 rounded-sm border border-jade/20"
-                />
-                <div>
-                  <div className="text-[14px] font-mono font-semibold text-flash">{champ.name}</div>
-                  <div className="text-[10px] font-mono text-flash/30">{champ.tags?.join(" · ")}</div>
-                </div>
-              </div>
-
-              {/* Center — VS */}
-              <div className="flex flex-col items-center" style={{ animation: "vsPulse 2s ease-in-out infinite" }}>
-                <span className="text-[28px] font-bold tracking-[0.15em] text-jade/60" style={{ fontFamily: "'Orbitron', monospace" }}>VS</span>
-              </div>
-
-              {/* Right — Opponent (mirrored) */}
-              <div className="flex items-center gap-3 flex-row-reverse" style={{ animation: "vsSlideRight 0.5s ease-out forwards" }}>
-                <img
-                  src={`${cdnBaseUrl()}/img/champion/${oppChampId}.png`}
-                  alt={opp.name}
-                  className="w-12 h-12 rounded-sm border border-red-400/20"
-                />
-                <div className="text-right">
-                  <div className="text-[14px] font-mono font-semibold text-flash">{opp.name}</div>
-                  <div className="text-[10px] font-mono text-red-400/30">
-                    {opp.role ?? ""}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom accent line */}
-            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-red-400/30" />
-          </div>
-        )
-      })()}
 
       <div className="transition-opacity duration-300" style={{ opacity: loading ? 0.4 : 1 }}>
       {/* WINRATE / KDA / ECONOMY */}
