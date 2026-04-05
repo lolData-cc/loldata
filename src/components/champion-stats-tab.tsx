@@ -81,8 +81,10 @@ type StatsPayload = {
     patch: string | null
     queueId: number | null
     lastUpdatedUtc: string
-    role?: string | null // server suggested role (most played)
+    role?: string | null
   } | null
+  runes?: { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; wins: number; winrate: number; pick_rate: number }[] | null
+  items?: { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }[] | null
 }
 
 type RoleKey = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "SUPPORT"
@@ -1256,7 +1258,7 @@ export function ChampionStats({
             for (const items of Object.values<any[]>(data.slots)) allItems.push(...items)
             const seen = new Map<number, ItemStat>()
             for (const item of allItems) {
-              const games = item.total_games ?? item.games ?? 0
+              const games = (item as any).total_games ?? item.games ?? 0
               const existing = seen.get(item.item_id)
               if (!existing || games > (existing.games ?? 0)) {
                 seen.set(item.item_id, { item_id: item.item_id, games, wins: item.wins, winrate: item.winrate, pick_rate: item.pick_rate ?? 0 })
