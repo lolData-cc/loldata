@@ -41,7 +41,7 @@ const splashPositionMap: Record<string, string> = {
   Fizz: "25%",
   Galio: "5%",
   Gangplank: "10%",
-  Garen: "5%",
+  Garen: "27%",
   Gnar: "25%",
   Gragas: "15%",
   Graves: "10%",
