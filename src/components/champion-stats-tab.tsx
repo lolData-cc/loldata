@@ -1081,6 +1081,14 @@ export function ChampionStats({
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [availablePatches, setAvailablePatches] = useState<string[]>([])
 
+  // Rune data
+  type RuneCombo = { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; wins: number; winrate: number; pick_rate: number }
+  const [runes, setRunes] = useState<RuneCombo[]>([])
+
+  // Item data (from snapshot)
+  type ItemStat = { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }
+  const [items, setItems] = useState<ItemStat[]>([])
+
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
   const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
 
@@ -1204,6 +1212,53 @@ export function ChampionStats({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champ.key, selectedPatch, selectedRegion, role, tier, opponentsKey])
+
+  // Fetch rune data when champion/role/tier changes
+  useEffect(() => {
+    if (!champ.key) return
+    const roleParam = role === "SUPPORT" ? "UTILITY" : role
+    fetch(`${API_BASE_URL}/api/champion/runes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ championId: Number(champ.key), role: roleParam, tier }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.runes) setRunes(data.runes) })
+      .catch(() => {})
+  }, [champ.key, role, tier])
+
+  // Extract items from stats snapshot (already included in snapshot data)
+  useEffect(() => {
+    if (stats?.items) {
+      setItems(stats.items as ItemStat[])
+    } else {
+      // Fetch items separately if not in snapshot
+      if (!champ.key) return
+      const roleParam = role === "SUPPORT" ? "UTILITY" : role
+      fetch(`${API_BASE_URL}/api/champion/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ championName: champ.id, championId: Number(champ.key), role: roleParam, tier }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.slots) {
+            const allItems: ItemStat[] = []
+            for (const items of Object.values<any[]>(data.slots)) allItems.push(...items)
+            const seen = new Map<number, ItemStat>()
+            for (const item of allItems) {
+              const games = item.total_games ?? item.games ?? 0
+              const existing = seen.get(item.item_id)
+              if (!existing || games > (existing.games ?? 0)) {
+                seen.set(item.item_id, { item_id: item.item_id, games, wins: item.wins, winrate: item.winrate, pick_rate: item.pick_rate ?? 0 })
+              }
+            }
+            setItems(Array.from(seen.values()).sort((a, b) => b.games - a.games))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [stats, champ.key, champ.id, role, tier])
 
   const floatingBar = (
     <FilterBar
@@ -1705,6 +1760,73 @@ export function ChampionStats({
             ))}
           </div>
         </TechCard>
+
+        {/* ── Runes ── */}
+        {runes.length > 0 && (
+          <TechCard className="p-5">
+            <SectionHeader title="Runes" subtitle="Keystone + secondary tree winrates" />
+            <div className="space-y-[2px]">
+              {runes.slice(0, 6).map((r, idx) => {
+                const wrColor = r.winrate >= 52 ? "text-jade" : r.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                return (
+                  <div key={idx} className="flex items-center gap-3 px-2 py-1.5 rounded-sm bg-flash/[0.015]">
+                    <img
+                      src={`https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/${r.perk_keystone === 8010 ? "Precision/Conqueror/Conqueror" : r.perk_keystone === 8005 ? "Precision/PressTheAttack/PressTheAttack" : r.perk_keystone === 8008 ? "Precision/LethalTempo/LethalTempoTemp" : r.perk_keystone === 8021 ? "Precision/FleetFootwork/FleetFootwork" : r.perk_keystone === 8128 ? "Domination/DarkHarvest/DarkHarvest" : r.perk_keystone === 8112 ? "Domination/Electrocute/Electrocute" : r.perk_keystone === 8124 ? "Domination/Predator/Predator" : r.perk_keystone === 8230 ? "Sorcery/PhaseRush/PhaseRush" : r.perk_keystone === 8229 ? "Sorcery/ArcaneComet/ArcaneComet" : r.perk_keystone === 8214 ? "Sorcery/SummonAery/SummonAery" : r.perk_keystone === 8437 ? "Resolve/GraspOfTheUndying/GraspOfTheUndying" : r.perk_keystone === 8439 ? "Resolve/VeteranAftershock/VeteranAftershock" : r.perk_keystone === 8465 ? "Resolve/Guardian/Guardian" : "7201_Precision"}.png`}
+                      alt=""
+                      className="w-6 h-6 rounded-full"
+                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[100px]">
+                          <div className="h-full bg-jade/30 rounded-full" style={{ width: `${Math.min(r.pick_rate, 100)}%` }} />
+                        </div>
+                        <span className="text-[9px] font-mono text-flash/20 tabular-nums">{r.pick_rate.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{r.winrate.toFixed(1)}%</span>
+                    <span className="text-[9px] font-mono text-flash/15 tabular-nums">{r.games}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </TechCard>
+        )}
+
+        {/* ── Items ── */}
+        {items.length > 0 && (
+          <TechCard className="p-5">
+            <SectionHeader title="Most Built Items" subtitle="Legendary items by pick rate" />
+            <div className="space-y-[2px]">
+              {items.slice(0, 10).map((item, idx) => {
+                const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                return (
+                  <div key={item.item_id} className="flex items-center gap-3 px-2 py-1.5 rounded-sm bg-flash/[0.015]">
+                    <span className="text-[10px] font-mono text-flash/15 w-4 text-right">{idx + 1}</span>
+                    <img
+                      src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                      alt=""
+                      className="w-7 h-7 rounded-[2px] border border-flash/[0.08]"
+                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      {item.pick_rate > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-[3px] bg-flash/[0.04] rounded-full overflow-hidden max-w-[100px]">
+                            <div className="h-full bg-jade/30 rounded-full" style={{ width: `${Math.min(item.pick_rate, 100)}%` }} />
+                          </div>
+                          <span className="text-[9px] font-mono text-flash/20 tabular-nums">{item.pick_rate.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
+                    <span className="text-[9px] font-mono text-flash/15 tabular-nums">{item.games.toLocaleString()}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </TechCard>
+        )}
 
         <TechCard className="p-5">
           <SectionHeader title="Meta Position" subtitle="Estimated tier by rank bracket" />

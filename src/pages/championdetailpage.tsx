@@ -334,7 +334,6 @@ export default function ChampionDetailPage() {
             {[
               { value: "overview", label: "Overview" },
               { value: "statistics", label: "Statistics" },
-              { value: "items", label: "Items" },
               { value: "matchups", label: "Matchups" },
               { value: "pros", label: "Pros" },
             ].map(({ value, label }) => (
