@@ -1269,9 +1269,9 @@ export function ChampionStats({
       .catch(() => {})
   }, [stats, champ.key, role, tier, opponentsKey])
 
-  // Extract items from stats snapshot (already included in snapshot data)
+  // Extract items from stats snapshot (skip when VS is active — build order handles it)
   useEffect(() => {
-    if (stats?.items) {
+    if (opponents.length === 0 && stats?.items) {
       setItems(stats.items as ItemStat[])
     } else {
       // Fetch items separately if not in snapshot
@@ -1302,11 +1302,11 @@ export function ChampionStats({
     }
   }, [stats, champ.key, champ.id, role, tier])
 
-  // Fetch build order data (per-slot item winrates)
+  // Fetch build order data (per-slot item winrates, includes opponent if VS active)
   useEffect(() => {
     if (!champ.key) return
     const roleParam = role === "SUPPORT" ? "UTILITY" : role
-    // Query the champion_build_order RPC via Supabase
+    const firstOppId = opponents.length > 0 ? opponents[0].championId : undefined
     fetch(`${API_BASE_URL}/api/champion/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1316,6 +1316,7 @@ export function ChampionStats({
         role: roleParam,
         tier,
         buildOrder: true,
+        opponentId: firstOppId,
       }),
     })
       .then(r => r.ok ? r.json() : null)
@@ -1325,7 +1326,7 @@ export function ChampionStats({
         }
       })
       .catch(() => {})
-  }, [champ.key, champ.id, role, tier])
+  }, [champ.key, champ.id, role, tier, opponentsKey])
 
   const floatingBar = (
     <FilterBar
