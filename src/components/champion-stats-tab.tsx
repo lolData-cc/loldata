@@ -1095,6 +1095,7 @@ export function ChampionStats({
   // Build order data (per-slot legendary items)
   type BuildOrderItem = { slot_index: number; item_id: number; games: number; wins: number; winrate: number; pick_rate?: number }
   const [buildOrder, setBuildOrder] = useState<BuildOrderItem[]>([])
+  const [selectedSlot, setSelectedSlot] = useState(0)
 
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
   const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
@@ -1713,70 +1714,60 @@ export function ChampionStats({
         const slots = Array.from(slotGroups.entries()).sort(([a], [b]) => a - b).slice(0, 6)
         const slotLabels = ["1st Item", "2nd Item", "3rd Item", "4th Item", "5th Item", "6th Item"]
 
-        // If build order data exists, show per-slot. Otherwise show flat items.
-        if (slots.length > 0) {
-          return (
-            <TechCard className="p-5">
-              <SectionHeader title="Item Build Path" subtitle="Winrate by build position" />
-              <div className="space-y-4">
-                {slots.map(([slotIdx, slotItems]) => (
-                  <div key={slotIdx}>
-                    <div className="text-[10px] font-mono text-jade/40 uppercase tracking-[0.2em] mb-2">
-                      {slotLabels[slotIdx - 1] ?? `Item ${slotIdx}`}
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                      {slotItems.slice(0, 8).map((item) => {
-                        const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
-                        return (
-                          <div key={item.item_id} className="flex flex-col items-center gap-1 p-2 rounded-sm bg-flash/[0.02] border border-flash/[0.04] min-w-[70px] shrink-0">
-                            <img
-                              src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
-                              alt=""
-                              className="w-8 h-8 rounded-[2px] border border-flash/[0.08]"
-                              onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-                            />
-                            <span className={cn("text-[12px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
-                            <span className="text-[8px] font-mono text-flash/20">{Number(item.games).toLocaleString()}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
+        // Items to display: either build-order slot or flat items
+        const displayItems: { item_id: number; winrate: number; games: number; pick_rate?: number }[] =
+          slots.length > 0
+            ? (slotGroups.get(selectedSlot) ?? slotGroups.get(slots[0]?.[0] ?? 0) ?? [])
+            : items
+
+        if (displayItems.length === 0) return null
+
+        return (
+          <TechCard className="p-5">
+            <div className="flex items-center justify-between mb-4 border-b border-jade/10 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-jade" />
+                <h3 className="text-flash text-xs font-mono uppercase tracking-[0.25em]">Item Build Path</h3>
+              </div>
+              {slots.length > 0 && (
+                <div className="flex gap-1">
+                  {slots.map(([slotIdx]) => (
+                    <button
+                      key={slotIdx}
+                      type="button"
+                      onClick={() => setSelectedSlot(slotIdx)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-sm text-[9px] font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer",
+                        selectedSlot === slotIdx
+                          ? "bg-jade/[0.12] text-jade border border-jade/25"
+                          : "text-flash/25 border border-transparent hover:text-flash/50 hover:border-flash/[0.08]"
+                      )}
+                    >
+                      {slotLabels[slotIdx] ?? `${slotIdx + 1}th`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {displayItems.slice(0, 10).map((item) => {
+                const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                return (
+                  <div key={item.item_id} className="flex flex-col items-center gap-1.5 p-2.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04] hover:border-jade/15 min-w-[75px] shrink-0 transition-colors">
+                    <img
+                      src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                      alt=""
+                      className="w-9 h-9 rounded-[2px] border border-flash/[0.08]"
+                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                    />
+                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
+                    <span className="text-[8px] font-mono text-flash/20">{Number(item.games).toLocaleString()}</span>
                   </div>
-                ))}
-              </div>
-            </TechCard>
-          )
-        }
-
-        // Fallback: flat item list
-        if (items.length > 0) {
-          return (
-            <TechCard className="p-5">
-              <SectionHeader title="Most Built Items" subtitle="Legendary items by pick rate" />
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {items.slice(0, 12).map((item) => {
-                  const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
-                  return (
-                    <div key={item.item_id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm bg-flash/[0.015] border border-transparent hover:border-jade/10 transition-colors">
-                      <img
-                        src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
-                        alt=""
-                        className="w-7 h-7 rounded-[2px] border border-flash/[0.08] shrink-0"
-                        onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className={cn("text-[12px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</div>
-                        <div className="text-[9px] font-mono text-flash/20">{item.pick_rate > 0 ? `${item.pick_rate.toFixed(1)}% pick` : ""} · {item.games.toLocaleString()}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </TechCard>
-          )
-        }
-
-        return null
+                )
+              })}
+            </div>
+          </TechCard>
+        )
       })()}
       </div>
 
