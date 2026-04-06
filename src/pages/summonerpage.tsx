@@ -2115,7 +2115,6 @@ export default function SummonerPage() {
                     "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
                   )} />
                   <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
-                  <BorderBeam duration={8} size={100} />
 
                   <div className="relative z-10 flex items-stretch">
                     {/* Left — Avatar + Name */}
@@ -2192,32 +2191,32 @@ export default function SummonerPage() {
                     <div className="w-[1px] bg-gradient-to-b from-transparent via-flash/10 to-transparent my-3" />
 
                     {/* Right — Ranks */}
-                    <div className="flex items-center gap-4 px-6 py-4 shrink-0">
+                    <div className="flex items-center gap-2 px-4 py-3 shrink-0">
                       {/* Current Rank */}
-                      <div className="flex flex-col items-center gap-0.5 min-w-[110px]">
-                        <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-jade/30">Current</span>
+                      <div className="flex flex-col items-center gap-0 min-w-[130px]">
+                        <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-jade/30">Current</span>
                         <img
                           src={!currentRank || currentRank.toLowerCase() === "unranked" ? "/img/unranked.png" : getRankImage(currentRank)}
-                          alt="Rank" className="w-20 h-20" draggable={false}
+                          alt="Rank" className="w-28 h-28" draggable={false}
                           onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                         />
-                        <span className="text-[11px] font-mono font-semibold text-flash/60 tracking-wide">{currentRank}</span>
+                        <span className="text-[13px] font-mono font-bold text-flash/70 tracking-wide -mt-1">{currentRank}</span>
                         {currentRank && currentRank.toLowerCase() !== "unranked" && (
-                          <span className="text-[14px] font-orbitron font-bold text-jade/50 tabular-nums">{currentLp} <span className="text-[10px] text-jade/25">LP</span></span>
+                          <span className="text-[18px] font-orbitron font-bold text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
                         )}
                       </div>
 
                       {/* Peak Rank */}
-                      <div className="flex flex-col items-center gap-0.5 min-w-[110px] opacity-60">
-                        <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-flash/20">Peak</span>
+                      <div className="flex flex-col items-center gap-0 min-w-[130px]">
+                        <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
                         <img
                           src={!peakRank || peakRank.toLowerCase() === "unranked" ? "/img/unranked.png" : getRankImage(peakRank)}
-                          alt="Peak Rank" className="w-20 h-20" draggable={false}
+                          alt="Peak Rank" className="w-28 h-28 opacity-70" draggable={false}
                           onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                         />
-                        <span className="text-[11px] font-mono font-semibold text-flash/40 tracking-wide">{peakRank}</span>
+                        <span className="text-[13px] font-mono font-bold text-flash/50 tracking-wide -mt-1">{peakRank}</span>
                         {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                          <span className="text-[14px] font-orbitron font-bold text-flash/25 tabular-nums">{peakLp} <span className="text-[10px] text-flash/12">LP</span></span>
+                          <span className="text-[18px] font-orbitron font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
                         )}
                       </div>
                     </div>
