@@ -2096,183 +2096,132 @@ export default function SummonerPage() {
           }}
         >
 
-          <div className="flex flex-row-reverse justify-between items-start mt-[22px] mb-6 w-full min-w-full max-w-full">
-            {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
+          <div className="flex gap-4 items-stretch mt-[22px] mb-6 w-full">
+            {/* ── Profile Card — unified cyberpunk design ── */}
             {(() => {
               const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
               const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
               const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
               const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
               return (
-                <div className="flex items-center justify-center gap-0 h-full">
-                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
-                    <div className="relative w-28 h-28 flex items-center justify-center">
-                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <img
-                        src={
-                          !currentRank || currentRank.toLowerCase() === "unranked"
-                            ? "/img/unranked.png"
-                            : getRankImage(currentRank)
-                        }
-                        alt="Rank icon"
-                        className="w-28 h-28 z-10 relative"
-                        draggable={false}
-                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                      />
+                <div className={cn(
+                  "relative overflow-hidden rounded-sm flex-1",
+                  "bg-black/30 backdrop-blur-xl",
+                  "border border-flash/[0.06]",
+                )}>
+                  {/* Scanlines */}
+                  <div className="absolute inset-0 pointer-events-none opacity-30"
+                    style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.012) 3px, rgba(0,217,146,0.012) 4px)" }} />
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />
+
+                  <div className="relative z-10 flex items-stretch">
+                    {/* Left — Avatar + Name */}
+                    <div className="flex items-center gap-5 px-6 py-5 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="relative shrink-0 w-[100px] h-[100px]">
+                        <img
+                          src={summonerInfo?.avatar_url ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`}
+                          className={cn(
+                            "w-full h-full rounded-md select-none pointer-events-none object-cover",
+                            "border-2",
+                            summonerInfo?.live ? "border-red-500 shadow-[0_0_16px_rgba(239,68,68,0.35)]" : "border-flash/[0.08]"
+                          )}
+                          draggable={false}
+                          onError={(e) => { e.currentTarget.src = `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png` }}
+                        />
+                        {summonerInfo?.live && summonerInfo?.puuid && (
+                          <LiveViewer puuid={summonerInfo.puuid} riotId={`${summonerInfo.name}#${summonerInfo.tag}`} region={region!} />
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        {/* Badges */}
+                        <div className="flex items-center gap-2">
+                          {isPro && <span className="text-[7px] font-black px-[5px] py-[1px] rounded-[2px] tracking-wider" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>}
+                          {isStreamer && <span className="text-[7px] font-black px-[5px] py-[1px] rounded-[2px] tracking-wider" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>}
+                          {linkedDiscord && (
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-[#7289da]/50">
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
+                              {linkedDiscord.discord_username}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Name */}
+                        <div className="cursor-pointer" title="Click to copy"
+                          onClick={() => { if (summonerInfo) navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`); }}>
+                          {!summonerInfo ? <Skeleton className="h-7 w-[180px] bg-white/10" /> : (
+                            <>
+                              <span className={cn("font-bold font-mono text-flash tracking-wide leading-none",
+                                (summonerInfo.name?.length || 0) > 14 ? "text-[17px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[20px]" : "text-[24px]"
+                              )}>{summonerInfo.name}</span>
+                              {summonerInfo.tag && <span className="text-[15px] font-mono text-flash/25 ml-1">#{summonerInfo.tag}</span>}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Level · Region · Ladder */}
+                        <div className="flex items-center gap-2 text-[11px] font-mono">
+                          <span className="text-flash/30">Lv.{summonerInfo?.level}</span>
+                          <span className="text-flash/10">·</span>
+                          <span className="text-flash/30">{region?.toUpperCase()}</span>
+                          {summonerInfo?.ladderRank && (
+                            <>
+                              <span className="text-flash/10">·</span>
+                              <span className="text-jade/40 tracking-wide">#{summonerInfo.ladderRank.toLocaleString()}</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <UpdateButton onClick={refreshData} loading={loading} cooldown={onCooldown} cooldownSeconds={cooldownSeconds} />
+                          {summonerInfo?.puuid && region && (
+                            <PlayerAnalysisDialog puuid={summonerInfo.puuid} region={region}
+                              summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                              externalOpen={analyzeOpen} onExternalOpenChange={setAnalyzeOpen} />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center text-sm min-w-[180px]">
-                      <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
-                      {currentRank && currentRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-orbitron font-bold text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
-                    <div className="relative w-28 h-28 flex items-center justify-center">
-                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <img
-                        src={
-                          !peakRank || peakRank.toLowerCase() === "unranked"
-                            ? "/img/unranked.png"
-                            : getRankImage(peakRank)
-                        }
-                        alt="Highest Rank icon"
-                        className="w-32 h-32 z-10 relative opacity-70"
-                        draggable={false}
-                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                      />
-                    </div>
-                    <div className="flex flex-col items-center text-sm min-w-[180px]">
-                      <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
-                      {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-orbitron font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
-                      )}
+
+                    {/* Divider */}
+                    <div className="w-[1px] bg-flash/[0.06] my-4" />
+
+                    {/* Right — Ranks */}
+                    <div className="flex items-center gap-2 px-5 py-4 shrink-0">
+                      {/* Current Rank */}
+                      <div className="flex flex-col items-center gap-0.5 min-w-[110px]">
+                        <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-jade/30">Current</span>
+                        <img
+                          src={!currentRank || currentRank.toLowerCase() === "unranked" ? "/img/unranked.png" : getRankImage(currentRank)}
+                          alt="Rank" className="w-20 h-20" draggable={false}
+                          onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                        />
+                        <span className="text-[11px] font-mono font-semibold text-flash/60 tracking-wide">{currentRank}</span>
+                        {currentRank && currentRank.toLowerCase() !== "unranked" && (
+                          <span className="text-[14px] font-orbitron font-bold text-jade/50 tabular-nums">{currentLp} <span className="text-[10px] text-jade/25">LP</span></span>
+                        )}
+                      </div>
+
+                      {/* Peak Rank */}
+                      <div className="flex flex-col items-center gap-0.5 min-w-[110px] opacity-60">
+                        <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-flash/20">Peak</span>
+                        <img
+                          src={!peakRank || peakRank.toLowerCase() === "unranked" ? "/img/unranked.png" : getRankImage(peakRank)}
+                          alt="Peak Rank" className="w-20 h-20" draggable={false}
+                          onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                        />
+                        <span className="text-[11px] font-mono font-semibold text-flash/40 tracking-wide">{peakRank}</span>
+                        {peakRank && peakRank.toLowerCase() !== "unranked" && (
+                          <span className="text-[14px] font-orbitron font-bold text-flash/25 tabular-nums">{peakLp} <span className="text-[10px] text-flash/12">LP</span></span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })()}
-            <div
-              className={cn(
-                "relative overflow-hidden rounded-md max-w-[480px]",
-                "bg-black/25 backdrop-blur-lg saturate-150",
-                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
-              )}
-            >
-              {/* glossy overlays */}
-              <div className={cn(
-                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
-                "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
-              )} />
-              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
-
-              <div className="relative z-10 flex items-center gap-6 px-8 py-6">
-
-                {/* Avatar */}
-                <div className="relative shrink-0 w-[128px] h-[128px]">
-                  <img
-                    src={
-                      summonerInfo?.avatar_url
-                      ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
-                    }
-                    className={cn(
-                      "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
-                      summonerInfo?.live ? "border-red-500" : "border-transparent"
-                    )}
-                    style={summonerInfo?.live ? { boxShadow: "0 0 16px rgba(239,68,68,0.35), 0 0 4px rgba(239,68,68,0.5)" } : undefined}
-                    draggable={false}
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
-                    }}
-                  />
-                  {summonerInfo?.live && summonerInfo?.puuid && (
-                    <LiveViewer
-                      puuid={summonerInfo.puuid}
-                      riotId={`${summonerInfo.name}#${summonerInfo.tag}`}
-                      region={region!}
-                    />
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  {/* Badges */}
-                  <div className="flex items-center gap-2">
-                    {isPro && (
-                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
-                    )}
-                    {isStreamer && (
-                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
-                    )}
-                    {linkedDiscord && (
-                      <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
-                        {linkedDiscord.discord_username}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Name */}
-                  <div
-                    className="cursor-clicker"
-                    title="Click to copy"
-                    onClick={() => { if (summonerInfo) navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`); }}
-                  >
-                    {!summonerInfo ? (
-                      <Skeleton className="h-8 w-[200px] bg-white/10" />
-                    ) : (
-                      <>
-                        <span className={cn(
-                          "font-bold font-mono text-flash tracking-wide leading-none",
-                          (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
-                        )}>
-                          {summonerInfo.name}
-                        </span>
-                        {summonerInfo.tag && (
-                          <span className="text-[18px] font-mono text-flash/30 ml-1">#{summonerInfo.tag}</span>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Level · Region · Rank */}
-                  <div className="flex items-center gap-2.5 text-[12px] font-mono">
-                    <span className="text-flash/35">Level {summonerInfo?.level}</span>
-                    <span className="text-flash/15">·</span>
-                    <span className="text-flash/35">{region?.toUpperCase()}</span>
-                    {summonerInfo?.ladderRank && (
-                      <>
-                        <span className="text-flash/15">·</span>
-                        <span className="text-jade/50 tracking-[0.08em]">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <UpdateButton
-                      onClick={refreshData}
-                      loading={loading}
-                      cooldown={onCooldown}
-                      cooldownSeconds={cooldownSeconds}
-                    />
-                    {summonerInfo?.puuid && region && (
-                      <PlayerAnalysisDialog
-                        puuid={summonerInfo.puuid}
-                        region={region}
-                        summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                        externalOpen={analyzeOpen}
-                        onExternalOpenChange={setAnalyzeOpen}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-            </div>
 
           </div>
 
