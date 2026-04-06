@@ -2097,7 +2097,7 @@ export default function SummonerPage() {
         >
 
           <div className="flex gap-4 items-stretch mt-[22px] mb-6 w-full">
-            {/* ── Profile Card — unified cyberpunk design ── */}
+            {/* ── Profile Card — matches "This Season" glass style ── */}
             {(() => {
               const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
               const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
@@ -2105,18 +2105,21 @@ export default function SummonerPage() {
               const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
               return (
                 <div className={cn(
-                  "relative overflow-hidden rounded-sm flex-1",
-                  "bg-black/30 backdrop-blur-xl",
-                  "border border-flash/[0.06]",
+                  "relative overflow-hidden rounded-md flex-1",
+                  "bg-black/25 backdrop-blur-lg saturate-150",
+                  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
                 )}>
-                  {/* Scanlines */}
-                  <div className="absolute inset-0 pointer-events-none opacity-30"
-                    style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.012) 3px, rgba(0,217,146,0.012) 4px)" }} />
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />
+                  {/* Glossy overlays — matching This Season box */}
+                  <div className={cn(
+                    "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                    "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
+                  )} />
+                  <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
+                  <BorderBeam duration={8} size={100} />
 
                   <div className="relative z-10 flex items-stretch">
                     {/* Left — Avatar + Name */}
-                    <div className="flex items-center gap-5 px-6 py-5 flex-1 min-w-0">
+                    <div className="flex items-center gap-5 px-7 py-5 flex-1 min-w-0">
                       {/* Avatar */}
                       <div className="relative shrink-0 w-[100px] h-[100px]">
                         <img
@@ -2186,10 +2189,10 @@ export default function SummonerPage() {
                     </div>
 
                     {/* Divider */}
-                    <div className="w-[1px] bg-flash/[0.06] my-4" />
+                    <div className="w-[1px] bg-gradient-to-b from-transparent via-flash/10 to-transparent my-3" />
 
                     {/* Right — Ranks */}
-                    <div className="flex items-center gap-2 px-5 py-4 shrink-0">
+                    <div className="flex items-center gap-4 px-6 py-4 shrink-0">
                       {/* Current Rank */}
                       <div className="flex flex-col items-center gap-0.5 min-w-[110px]">
                         <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-jade/30">Current</span>
