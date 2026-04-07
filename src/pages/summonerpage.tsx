@@ -2319,7 +2319,7 @@ export default function SummonerPage() {
                         <img
                           src={cdnSplashUrl(m.champName)}
                           alt=""
-                          className="absolute inset-0 w-full h-full object-cover opacity-20"
+                          className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
                           style={{ objectPosition: "center 20%" }}
                           onError={(e) => { e.currentTarget.style.opacity = "0" }}
                         />
