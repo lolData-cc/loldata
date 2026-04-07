@@ -205,6 +205,7 @@ export default function SummonerPage() {
   const [topChampionsSeason, setTopChampionsSeason] = useState<ChampionStats[]>([]);
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
+  const [topMastery, setTopMastery] = useState<{ championId: number; champName: string; points: number; pct: number }[]>([]);
   const [seasonStatsTab, setSeasonStatsTab] = useState("season");
   const [rankQueueView, setRankQueueView] = useState<"solo" | "flex">("solo");
   const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
@@ -1024,6 +1025,34 @@ export default function SummonerPage() {
           await fetchMatches(name, tag, region, 0, false);
         } catch {}
       }, 3000);
+
+      // Fetch mastery data + champion names for profile card
+      Promise.all([
+        fetch(`${API_BASE_URL}/api/mastery/list`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, tag, region }),
+        }).then(r => r.ok ? r.json() : null),
+        fetch(`${cdnBaseUrl()}/data/en_US/champion.json`).then(r => r.json()).catch(() => null),
+      ]).then(([masteryData, champJson]) => {
+        const list = (masteryData?.masteryList ?? []) as { championId: number; championPoints: number }[];
+        if (list.length === 0) return;
+        // Build ID → name map
+        const idMap: Record<number, string> = {};
+        if (champJson?.data) {
+          for (const c of Object.values<any>(champJson.data)) {
+            idMap[Number(c.key)] = String(c.id);
+          }
+        }
+        const top3 = list.sort((a, b) => b.championPoints - a.championPoints).slice(0, 3);
+        const total = top3.reduce((s, c) => s + c.championPoints, 0);
+        setTopMastery(top3.map(c => ({
+          championId: c.championId,
+          champName: idMap[c.championId] ?? String(c.championId),
+          points: c.championPoints,
+          pct: total > 0 ? Math.round((c.championPoints / total) * 100) : 0,
+        })));
+      }).catch(() => {});
 
       // Fire-and-forget tracking calls — don't block the UI
       fetch(`${API_BASE_URL}/api/summoner/view`, {
@@ -2272,36 +2301,41 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* Mini stats strip — last 10 games */}
-              {recentDetailedStats && (
-                <div className="relative z-10 flex items-center gap-4 px-6 py-2.5 border-t border-white/[0.04]">
-                  <span className="text-[8px] font-mono text-flash/20 uppercase tracking-[0.2em]">Last {recentDetailedStats.games}</span>
-                  <div className="w-[1px] h-3 bg-flash/[0.06]" />
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono text-flash/25 uppercase">WR</span>
-                    <span className={cn("text-[12px] font-mono font-bold tabular-nums",
-                      recentDetailedStats.games > 0 && (recentDetailedStats.wins / recentDetailedStats.games * 100) >= 55 ? "text-jade" :
-                      recentDetailedStats.games > 0 && (recentDetailedStats.wins / recentDetailedStats.games * 100) >= 50 ? "text-flash/60" : "text-red-400/70"
-                    )}>{recentDetailedStats.games > 0 ? Math.round(recentDetailedStats.wins / recentDetailedStats.games * 100) : 0}%</span>
-                  </div>
-                  <div className="w-[1px] h-3 bg-flash/[0.06]" />
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono text-flash/25 uppercase">KDA</span>
-                    <span className="text-[12px] font-mono font-bold text-flash/50 tabular-nums">{recentDetailedStats.avgKda}</span>
-                  </div>
-                  <div className="w-[1px] h-3 bg-flash/[0.06]" />
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono text-flash/25 uppercase">CS/m</span>
-                    <span className="text-[12px] font-mono font-bold text-flash/50 tabular-nums">{recentDetailedStats.csPerMin}</span>
-                  </div>
-                  {recentDetailedStats.streakCount > 1 && (
-                    <>
-                      <div className="w-[1px] h-3 bg-flash/[0.06]" />
-                      <span className={cn("text-[11px] font-mono font-bold tabular-nums",
-                        recentDetailedStats.streakType === "W" ? "text-jade/60" : "text-red-400/60"
-                      )}>{recentDetailedStats.streakCount}{recentDetailedStats.streakType === "W" ? "W" : "L"} streak</span>
-                    </>
-                  )}
+              {/* Top 3 mastery champions */}
+              {topMastery.length > 0 && (
+                <div className="relative z-10 flex gap-[2px] border-t border-white/[0.04]">
+                  {topMastery.map((m, idx) => {
+                    const fmtPoints = m.points >= 1_000_000
+                      ? `${(m.points / 1_000_000).toFixed(1)}M`
+                      : m.points >= 1_000
+                        ? `${Math.round(m.points / 1_000)}k`
+                        : String(m.points);
+                    return (
+                      <div
+                        key={m.championId}
+                        className="relative flex-1 overflow-hidden"
+                        style={{ flexBasis: `${m.pct}%` }}
+                      >
+                        {/* Splash background */}
+                        <img
+                          src={cdnSplashUrl(m.champName)}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover opacity-20"
+                          style={{ objectPosition: "center 20%" }}
+                          onError={(e) => { e.currentTarget.style.opacity = "0" }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                        <div className="relative z-10 flex items-center gap-1.5 px-2.5 py-2">
+                          <img
+                            src={`${cdnBaseUrl()}/img/champion/${m.champName}.png`}
+                            alt={m.champName}
+                            className="w-5 h-5 rounded-[2px] border border-flash/[0.1]"
+                          />
+                          <span className="text-[11px] font-mono font-bold text-flash/70 tabular-nums">{fmtPoints}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
