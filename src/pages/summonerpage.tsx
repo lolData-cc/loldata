@@ -2314,7 +2314,6 @@ export default function SummonerPage() {
                       <div
                         key={m.championId}
                         className="relative flex-1 overflow-hidden"
-                        style={{ flexBasis: `${m.pct}%` }}
                       >
                         {/* Splash background */}
                         <img
