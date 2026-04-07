@@ -2301,40 +2301,32 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* Top 3 mastery champions */}
+              {/* Mastery banner — thin edge-to-edge strip at card bottom */}
               {topMastery.length > 0 && (
-                <div className="relative z-10 flex gap-[2px] border-t border-white/[0.04]">
-                  {topMastery.map((m, idx) => {
-                    const fmtPoints = m.points >= 1_000_000
-                      ? `${(m.points / 1_000_000).toFixed(1)}M`
-                      : m.points >= 1_000
-                        ? `${Math.round(m.points / 1_000)}k`
-                        : String(m.points);
-                    return (
-                      <div
-                        key={m.championId}
-                        className="relative flex-1 overflow-hidden"
-                      >
-                        {/* Splash background */}
+                <div className="relative z-10 flex h-[28px] overflow-hidden px-6 gap-1.5 pb-2">
+                  {topMastery.map((m, idx) => (
+                    <div key={m.championId} className="group relative flex-1 overflow-hidden rounded-[3px] cursor-clicker">
+                      <img
+                        src={cdnSplashUrl(m.champName)}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-40 transition-all duration-300"
+                        style={{ objectPosition: "center 25%" }}
+                        onError={(e) => { e.currentTarget.style.opacity = "0" }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="relative z-10 flex items-center gap-2 h-full px-2.5">
                         <img
-                          src={cdnSplashUrl(m.champName)}
-                          alt=""
-                          className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
-                          style={{ objectPosition: "center 20%" }}
-                          onError={(e) => { e.currentTarget.style.opacity = "0" }}
+                          src={`${cdnBaseUrl()}/img/champion/${m.champName}.png`}
+                          alt={m.champName}
+                          className="w-5 h-5 rounded-[2px]"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                        <div className="relative z-10 flex items-center gap-1.5 px-2.5 py-2">
-                          <img
-                            src={`${cdnBaseUrl()}/img/champion/${m.champName}.png`}
-                            alt={m.champName}
-                            className="w-5 h-5 rounded-[2px] border border-flash/[0.1]"
-                          />
-                          <span className="text-[11px] font-mono font-bold text-flash/70 tabular-nums">{fmtPoints}</span>
-                        </div>
+                        <span className="text-[10px] font-orbitron text-flash/40 group-hover:text-jade/70 truncate transition-colors duration-300">{m.champName}</span>
+                        <span className="text-[11px] font-orbitron font-bold text-flash/70 tabular-nums ml-auto">
+                          {m.points >= 1_000_000 ? `${(m.points / 1_000_000).toFixed(1)}M` : m.points >= 1_000 ? `${Math.round(m.points / 1_000)}k` : m.points}
+                        </span>
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -2665,14 +2657,14 @@ export default function SummonerPage() {
                     <section key={dayKey} className="space-y-1">
                       {/* HEADER DEL GIORNO */}
                       {!matchGroupingDisabled && (
-                      <div className="flex items-center justify-between px-4 py-2 rounded-md mt-2 text-xs font-thin" >
-                        <div className="uppercase text-flash/80 tracking-wide">
+                      <div className="flex items-center justify-between px-4 py-2.5 rounded-md mt-3 text-xs" >
+                        <div className="uppercase text-flash/70 tracking-[0.12em] font-mono font-medium text-[12px]">
                           {dayLabelFromKey(dayKey)}
                         </div>
                         <div className="flex items-center gap-3 font-semibold">
-                          <span className="text-jade">{wins}W</span>
-                          <span className="text-[#b11315]">{losses}L</span>
-                          <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>
+                          {wins > 0 && <span className="text-jade">{wins}W</span>}
+                          {losses > 0 && <span className="text-[#b11315]">{losses}L</span>}
+                          {wins > 0 && losses > 0 && <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>}
                           <Separator orientation="vertical" className="h-4 bg-[#48504E]" />
                           <span className="text-flash/70 uppercase">{playedLabel}</span>
                         </div>
