@@ -432,11 +432,10 @@ export default function MatchPage() {
           {(() => {
             const r = playerRanks[p.puuid];
             if (!r || !r.rank || r.rank === "Unranked") return null;
-            const tier = r.rank.split(" ")[0];
             return (
               <div className="flex items-center gap-1 mt-0.5">
                 <img src={getRankImage(r.rank)} alt="" className="w-4 h-4 object-contain" />
-                <span className="text-[10px] font-mono text-flash/40 truncate">{tier} {r.lp ? `${r.lp}LP` : ""}</span>
+                <span className="text-[10px] font-mono text-flash/40 truncate">{r.rank} {r.lp ? `${r.lp}LP` : ""}</span>
               </div>
             );
           })()}
