@@ -14,6 +14,7 @@ import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
 import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
+import { GuidesTab } from "@/components/guide/guides-tab";
 
 type SpellInfo = {
   id: string
@@ -93,7 +94,7 @@ function badgeClass(label: Badge): string {
 
 const fmtPct = (x: number) => `${x.toFixed(2)}%`
 
-const validTabs = ["overview", "statistics", "items", "matchups", "pros"] as const
+const validTabs = ["overview", "statistics", "items", "matchups", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
   const { champId, tab } = useParams<{ champId: string; tab?: string }>()
@@ -425,6 +426,7 @@ export default function ChampionDetailPage() {
               { value: "overview", label: "Overview" },
               { value: "statistics", label: "Statistics" },
               { value: "matchups", label: "Matchups" },
+              { value: "guides", label: "Guides" },
               { value: "pros", label: "OTPs" },
             ].map(({ value, label }) => (
               <TabsTrigger
@@ -476,6 +478,9 @@ export default function ChampionDetailPage() {
             <div className="">
               <ChampionItemsTab champ={champ} patch={patch} />
             </div>
+          </TabsContent>
+          <TabsContent value="guides">
+            {champ && <GuidesTab championId={champ.id} />}
           </TabsContent>
           <TabsContent value="pros">
             {champ && (
