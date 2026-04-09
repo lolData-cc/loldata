@@ -9,6 +9,7 @@ import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/
 import type { Guide, GuideSection, MatchupEntry, ThreatLevel, SynergyLevel } from "./types"
 import { THREAT_LEVELS, SYNERGY_LEVELS, SECTION_TEMPLATES } from "./types"
 import { Eye, EyeOff, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save } from "lucide-react"
+import { RuneTreeEditor } from "./rune-tree-editor"
 
 // ── Section type labels ──
 const SECTION_TYPE_LABELS: Record<GuideSection["type"], string> = {
@@ -227,7 +228,12 @@ function SectionEditor({ section, onChange, onRemove }: { section: GuideSection;
           {section.type === "introduction" && <IntroEditor section={section} onChange={onChange} />}
           {section.type === "matchups" && <MatchupEditor section={section} onChange={onChange} />}
           {(section.type === "build" || section.type === "recommended_items") && <BuildEditor section={section as any} onChange={onChange} />}
-          {section.type === "runes" && <div className="text-[11px] font-mono text-flash/30">Rune tree editor coming soon — edit JSON directly for now</div>}
+          {section.type === "runes" && (
+            <RuneTreeEditor
+              value={section}
+              onChange={(v) => onChange({ ...section, primary: v.primary, secondary: v.secondary, shards: v.shards })}
+            />
+          )}
           {section.type === "back_timings" && <BackTimingEditor section={section} onChange={onChange} />}
         </div>
       )}
