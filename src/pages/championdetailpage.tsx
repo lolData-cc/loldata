@@ -425,7 +425,7 @@ export default function ChampionDetailPage() {
               { value: "overview", label: "Overview" },
               { value: "statistics", label: "Statistics" },
               { value: "matchups", label: "Matchups" },
-              { value: "pros", label: "Pros" },
+              { value: "pros", label: "OTPs" },
             ].map(({ value, label }) => (
               <TabsTrigger
                 key={value}

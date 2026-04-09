@@ -543,6 +543,18 @@ function ChampionPickerContent({
           placeholder="Type a champion name…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              // Collect all visible champs across roles
+              const allVisible = Object.values(grouped).flat();
+              // Deduplicate by id
+              const unique = [...new Map(allVisible.map(c => [c.id, c])).values()];
+              if (unique.length === 1) {
+                onConfirm(unique[0]);
+                onClose();
+              }
+            }
+          }}
           className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
         />
       </div>

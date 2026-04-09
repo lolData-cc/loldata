@@ -4,12 +4,12 @@
 
 export const TOP_CHAMPIONS = [
   "Irelia", "Gragas", "Yasuo", "Pantheon", "Fiora", "Kennen", "Jayce", "Gangplank", "Yone", "Vladimir", "Olaf", "Kayle", "Darius", "Riven", "Jax", "Mordekaiser", "Volibear",
-  "Nasus", "Ornn", "Quinn", "Gwen", "Sett", "Renekton", "Aatrox", "Camille", "Malphite", "Tryndamere", "Garen", "Cho'Gath", "Gnar", "Dr. Mundo", "Shen", "Rumble", "Sion", "Teemo",
-  "K'sante", "Illaoi", "Singed", "Yorick", "Urgot", "Ambessa", "Heimerdinger", "Kled", "Zaahen"
+  "Nasus", "Ornn", "Quinn", "Gwen", "Sett", "Renekton", "Aatrox", "Camille", "Malphite", "Tryndamere", "Garen", "Chogath", "Gnar", "DrMundo", "Shen", "Rumble", "Sion", "Teemo",
+  "KSante", "Illaoi", "Singed", "Yorick", "Urgot", "Ambessa", "Heimerdinger", "Kled", "Zaahen"
 ]
 
 export const JNG_CHAMPIONS = [
-  "Lillia", "Ekko", "LeeSin", "Graves", "Zed", "Nidalee", "Viego", "Shaco", "Talon", "Pantheon", "Kha'Zix", "JarvanIV", "MasterYi", "Hecarim", "XinZhao", "Rengar", "Kayn", "Kindred",
+  "Lillia", "Ekko", "LeeSin", "Graves", "Zed", "Nidalee", "Viego", "Shaco", "Talon", "Pantheon", "Khazix", "JarvanIV", "MasterYi", "Hecarim", "XinZhao", "Rengar", "Kayn", "Kindred",
   "Diana", "Vi", "Amumu", "Elise", "Evelynn", "Sejuani", "Warwick", "Jax", "Volibear", "Sylas", "Nocturne", "Qiyana", "MonkeyKing", "Rammus", "Trundle", "Shyvana", "Aatrox", "Malphite",
   "Ivern", "Nunu", "Fiddlesticks", "DrMundo", "Zac", "Karthus", "Skarner", "Udyr", "BelVeth", "Naafiri", "RekSai", "Briar", "Zaahen"
 ]
@@ -22,7 +22,7 @@ export const MID_CHAMPIONS = [
 
 export const ADC_CHAMPIONS = [
   "Lucian", "Ezreal", "KaiSa", "Vayne", "Jhin", "Draven", "Caitlyn", "Varus", "Twitch", "Ashe", "Sivir", "MissFortune", "Xayah", "Tristana", "Smolder", "Kalista", "Aphelios", "Jinx", "Samira",
-  "Corki", "Nilah", "Ziggs", "Zeri", "Kog'Maw", "Yunara"
+  "Corki", "Nilah", "Ziggs", "Zeri", "KogMaw", "Yunara"
 ]
 
 export const SUP_CHAMPIONS = [
