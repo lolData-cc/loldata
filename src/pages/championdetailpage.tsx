@@ -129,7 +129,6 @@ export default function ChampionDetailPage() {
     if (!currentGuideId || !session?.user?.id) { setUserVote(0); return }
     supabase.from("guide_votes").select("vote").eq("guide_id", currentGuideId).eq("user_id", session.user.id).maybeSingle()
       .then(({ data }) => setUserVote(data?.vote ?? 0))
-      .catch(() => {})
   }, [currentGuideId, session?.user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVote = async (dir: 1 | -1) => {

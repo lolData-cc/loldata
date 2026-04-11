@@ -39,7 +39,7 @@ export function GuidesTab({ championId, initialGuideId, editRef, onGuideView }: 
             setViewMode("view")
             onGuideView?.(target)
             // Increment views
-            supabase.rpc("increment_guide_views", { guide_id: target.id }).catch(() => {})
+            supabase.rpc("increment_guide_views", { guide_id: target.id }).then(() => {})
           }
         }
         setLoading(false)
@@ -52,7 +52,7 @@ export function GuidesTab({ championId, initialGuideId, editRef, onGuideView }: 
     onGuideView?.(guide)
     navigate(`/champions/${championId}/guides/${guide.id}`, { replace: true })
     // Increment views
-    supabase.rpc("increment_guide_views", { guide_id: guide.id }).catch(() => {})
+    supabase.rpc("increment_guide_views", { guide_id: guide.id }).then(() => {})
   }
 
   const goBackToList = () => {

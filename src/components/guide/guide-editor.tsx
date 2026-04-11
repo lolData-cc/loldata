@@ -1251,6 +1251,7 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
 }) {
   const { session, nametag } = useAuth()
   const [title, setTitle] = useState(existingGuide?.title ?? `${championId} Guide`)
+  const [authorName, setAuthorName] = useState(existingGuide?.author_name ?? nametag ?? "")
   const [role, setRoleRaw] = useState(existingGuide?.role ?? "")
   const setRole = useCallback((r: string) => {
     setRoleRaw(r)
@@ -1314,7 +1315,7 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
       const guideData = {
         champion_id: championId,
         author_id: session.user.id,
-        author_name: nametag ?? session.user.email ?? "Anonymous",
+        author_name: authorName || nametag || session.user.email || "Anonymous",
         author_linked_account: linkedAccount || null,
         author_discord: discord || null,
         author_twitter: twitter || null,
@@ -1359,9 +1360,14 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
               className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[14px] font-mono text-flash/60 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
             <RolePicker value={role} onChange={setRole} />
           </div>
-          <input value={linkedAccount} onChange={e => setLinkedAccount(e.target.value)}
-            placeholder="Link your account (e.g. Wasureta#EUW) — users can click to view your profile"
-            className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-1.5 text-[10px] font-mono text-flash/35 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
+          <div className="flex gap-2">
+            <input value={authorName} onChange={e => setAuthorName(e.target.value)}
+              placeholder="Author name"
+              className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-1.5 text-[10px] font-mono text-flash/35 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
+            <input value={linkedAccount} onChange={e => setLinkedAccount(e.target.value)}
+              placeholder="Linked account (e.g. Wasureta#EUW)"
+              className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-1.5 text-[10px] font-mono text-flash/35 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
+          </div>
           <div className="flex gap-2">
             <input value={discord} onChange={e => setDiscord(e.target.value)}
               placeholder="Discord username"
