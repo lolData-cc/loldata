@@ -472,7 +472,7 @@ function MatchupEditor({ section, onChange }: { section: GuideSection & { type: 
             <div>
               <div className="text-[11px] font-orbitron text-flash/50 uppercase tracking-[0.15em] mb-2">Custom Runes</div>
               <RuneTreeEditor
-                value={e.runes ?? { primary: { tree: 8000, keystone: 8010, runes: [] }, secondary: { tree: 8400, runes: [] }, shards: [] }}
+                value={{ ...{ primary: { tree: 8000, keystone: 8010, runes: [] }, secondary: { tree: 8400, runes: [] }, shards: [] }, ...e.runes }}
                 onChange={(v) => updateEntry(expandedEntry.type, expandedEntry.idx, { runes: { primary: v.primary, secondary: v.secondary } })}
               />
             </div>
