@@ -52,6 +52,12 @@ const ICON_MAP = {
       <path d="M9.5 3.5l3 3" />
     </svg>
   ),
+  upvote: (
+    <svg viewBox="0 0 16 16" className="w-4 h-4 transition-transform duration-300 group-hover:-translate-y-[1px] group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 14h-.5a1.5 1.5 0 01-1.5-1.5v-3A1.5 1.5 0 014.5 8H5" />
+      <path d="M5 14V8l1.5-4.5a1 1 0 011-.7h.2a1 1 0 011 1.2L8 6h3.5a1.5 1.5 0 011.4 2l-1.2 5a1.5 1.5 0 01-1.4 1H5z" />
+    </svg>
+  ),
 } as const
 
 export type DiamondIcon = keyof typeof ICON_MAP

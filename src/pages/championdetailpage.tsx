@@ -17,6 +17,7 @@ import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
 import { GuidesTab } from "@/components/guide/guides-tab";
 import { useAuth } from "@/context/authcontext";
 import { DiamondButton } from "@/components/ui/diamond-button";
+import { supabase } from "@/lib/supabaseClient";
 
 type SpellInfo = {
   id: string
@@ -120,6 +121,34 @@ export default function ChampionDetailPage() {
   const { session } = useAuth()
   const [activeGuide, setActiveGuide] = useState<{ title: string; author: string; authorId: string; guideId: string; views: number; upvotes: number; discord?: string | null; twitter?: string | null; reddit?: string | null } | null>(null)
   const guideEditRef = React.useRef<(() => void) | null>(null)
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(0)
+  const currentGuideId = activeGuide?.guideId ?? null
+
+  // Load user's existing vote when guide ID changes
+  useEffect(() => {
+    if (!currentGuideId || !session?.user?.id) { setUserVote(0); return }
+    supabase.from("guide_votes").select("vote").eq("guide_id", currentGuideId).eq("user_id", session.user.id).maybeSingle()
+      .then(({ data }) => setUserVote(data?.vote ?? 0))
+      .catch(() => {})
+  }, [currentGuideId, session?.user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleVote = async (dir: 1 | -1) => {
+    if (!session?.user) { navigate("/login"); return }
+    if (!activeGuide) return
+    const newVote = userVote === dir ? 0 : dir
+    const prevVote = userVote
+    setUserVote(newVote)
+    // Optimistic update on displayed count
+    setActiveGuide(prev => prev ? { ...prev, upvotes: prev.upvotes + newVote - prevVote } : prev)
+    // Upsert vote
+    if (newVote === 0) {
+      await supabase.from("guide_votes").delete().eq("guide_id", activeGuide.guideId).eq("user_id", session.user.id)
+    } else {
+      await supabase.from("guide_votes").upsert({ guide_id: activeGuide.guideId, user_id: session.user.id, vote: newVote }, { onConflict: "guide_id,user_id" })
+    }
+    // Update guide upvotes count
+    await supabase.rpc("recalc_guide_upvotes", { gid: activeGuide.guideId })
+  }
   const setVsOpponent = (opp: { championId: number; name: string; role?: string } | null) => {
     setVsOpponentState(opp)
     if (opp) {
@@ -561,8 +590,23 @@ export default function ChampionDetailPage() {
       </Tabs>
 
       {/* Floating bottom-right buttons */}
-      <div className="fixed bottom-10 right-10 z-50 flex flex-col items-center gap-4">
-        {/* Edit guide button — shifts up when scroll-to-top appears */}
+      <div className="fixed bottom-10 right-10 z-50 flex flex-col items-center gap-3">
+        {/* Upvote */}
+        {activeGuide && (
+          <div className={cn(
+            "transition-all duration-300 ease-in-out",
+            showScrollTop ? "translate-y-0" : "translate-y-[calc(100%+16px)]"
+          )}>
+            <DiamondButton
+              color={userVote === 1 ? "jade" : undefined}
+              icon="upvote"
+              label={String(activeGuide.upvotes)}
+              onClick={() => handleVote(1)}
+            />
+          </div>
+        )}
+
+        {/* Edit guide button */}
         {activeGuide && session?.user?.id === activeGuide.authorId && (
           <div className={cn(
             "transition-all duration-300 ease-in-out",

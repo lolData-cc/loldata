@@ -247,6 +247,19 @@ export function RuneTreeEditor({ value, onChange, title, onTitleChange, descript
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(0,217,146,0.03)_0%,transparent_70%)]" />
 
       <div className="relative z-10 px-6 py-5">
+        {/* Description — full width above the tree */}
+        {onDescriptionChange && (
+          <div className="mb-4">
+            <div className="text-[11px] font-mono text-flash/35 uppercase tracking-[0.15em] mb-1.5">Description</div>
+            <textarea
+              value={description ?? ""}
+              onChange={e => onDescriptionChange(e.target.value)}
+              placeholder="When to use this rune page..."
+              className="w-full h-16 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-flash/40 placeholder:text-flash/15 resize-y focus:outline-none focus:border-jade/15 transition-colors"
+            />
+          </div>
+        )}
+
         <div className="flex gap-6">
           {/* Left — Rune trees (fixed width) */}
           <div className="flex gap-8 w-[580px] shrink-0">
@@ -288,19 +301,6 @@ export function RuneTreeEditor({ value, onChange, title, onTitleChange, descript
                   onChange={e => onTitleChange(e.target.value)}
                   placeholder="e.g. Runes vs Tanks"
                   className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[13px] font-orbitron text-flash/60 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors"
-                />
-              </div>
-            )}
-
-            {/* Editable description */}
-            {onDescriptionChange && (
-              <div>
-                <div className="text-[11px] font-mono text-flash/35 uppercase tracking-[0.15em] mb-1.5">Description</div>
-                <textarea
-                  value={description ?? ""}
-                  onChange={e => onDescriptionChange(e.target.value)}
-                  placeholder="When to use this rune page..."
-                  className="w-full h-16 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-flash/40 placeholder:text-flash/15 resize-y focus:outline-none focus:border-jade/15 transition-colors"
                 />
               </div>
             )}
