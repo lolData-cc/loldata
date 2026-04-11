@@ -1,12 +1,18 @@
 // Guide section types
 
-export type ThreatLevel = "extreme" | "major" | "even" | "minor" | "tiny"
-export type SynergyLevel = "ideal" | "strong" | "ok" | "low" | "none"
+export type ThreatLevel = "impossible" | "hard" | "skill" | "easy"
+export type SynergyLevel = "perfect" | "ideal" | "good" | "bad"
 
 export type MatchupEntry = {
   championId: string
   level: ThreatLevel | SynergyLevel
   note: string
+  ban?: boolean
+  items?: number[]
+  runes?: {
+    primary: { tree: number; keystone: number; runes: number[] }
+    secondary: { tree: number; runes: number[] }
+  }
 }
 
 export type IntroSection = {
@@ -87,6 +93,36 @@ export type BackTimingSection = {
   timings: { gold: number; items: number[]; note: string }[]
 }
 
+export type JungleCamp = "blue" | "gromp" | "wolves" | "raptors" | "red" | "krugs" | "scuttle_top" | "scuttle_bot"
+
+export type JunglePath = {
+  name: string
+  description?: string
+  side: "blue" | "red"
+  camps: JungleCamp[]
+  againstChampions?: string[]
+}
+
+export type JunglePathingSection = {
+  type: "jungle_pathing"
+  title: string
+  visible: boolean
+  paths: JunglePath[]
+}
+
+// Camp positions on minimap (percentage-based x,y)
+// Positions calibrated to ddragon map11.png (0,0 = top-left, 100,100 = bottom-right)
+export const CAMP_POSITIONS: Record<JungleCamp, { blue: { x: number; y: number }; red: { x: number; y: number }; label: string }> = {
+  gromp:       { blue: { x: 15, y: 43 }, red: { x: 85, y: 57 }, label: "Gromp" },
+  blue:        { blue: { x: 25, y: 47 }, red: { x: 75, y: 53 }, label: "Blue" },
+  wolves:      { blue: { x: 26, y: 56 }, red: { x: 74, y: 44 }, label: "Wolves" },
+  raptors:     { blue: { x: 48, y: 65 }, red: { x: 53, y: 36 }, label: "Raptors" },
+  red:         { blue: { x: 53, y: 74 }, red: { x: 48, y: 27 }, label: "Red" },
+  krugs:       { blue: { x: 56, y: 83 }, red: { x: 45, y: 16 }, label: "Krugs" },
+  scuttle_top: { blue: { x: 29, y: 36 }, red: { x: 29, y: 36 }, label: "Scuttle" },
+  scuttle_bot: { blue: { x: 70, y: 65 }, red: { x: 70, y: 65 }, label: "Scuttle" },
+}
+
 export type GuideSection =
   | IntroSection
   | MatchupSection
@@ -94,6 +130,7 @@ export type GuideSection =
   | RuneSection
   | RecommendedItemsSection
   | BackTimingSection
+  | JunglePathingSection
 
 export type Guide = {
   id: string
@@ -115,19 +152,17 @@ export type Guide = {
 }
 
 export const THREAT_LEVELS: { key: ThreatLevel; label: string; color: string }[] = [
-  { key: "extreme", label: "Extreme", color: "bg-red-600 text-white" },
-  { key: "major", label: "Major", color: "bg-red-500/80 text-white" },
-  { key: "even", label: "Even", color: "bg-amber-500/80 text-black" },
-  { key: "minor", label: "Minor", color: "bg-emerald-500/60 text-white" },
-  { key: "tiny", label: "Tiny", color: "bg-emerald-400/40 text-white" },
+  { key: "impossible", label: "Impossible", color: "bg-red-600 text-white" },
+  { key: "hard", label: "Hard", color: "bg-red-500/80 text-white" },
+  { key: "skill", label: "Skill", color: "bg-amber-500/80 text-black" },
+  { key: "easy", label: "Easy", color: "bg-emerald-500/60 text-white" },
 ]
 
 export const SYNERGY_LEVELS: { key: SynergyLevel; label: string; color: string }[] = [
-  { key: "ideal", label: "Ideal", color: "bg-jade text-black" },
-  { key: "strong", label: "Strong", color: "bg-jade/70 text-black" },
-  { key: "ok", label: "OK", color: "bg-jade/40 text-white" },
-  { key: "low", label: "Low", color: "bg-flash/20 text-flash/60" },
-  { key: "none", label: "None", color: "bg-flash/10 text-flash/40" },
+  { key: "perfect", label: "Perfect", color: "bg-jade text-black" },
+  { key: "ideal", label: "Ideal", color: "bg-jade/70 text-black" },
+  { key: "good", label: "Good", color: "bg-jade/40 text-white" },
+  { key: "bad", label: "Bad", color: "bg-flash/20 text-flash/60" },
 ]
 
 export const SECTION_TEMPLATES: Record<GuideSection["type"], () => GuideSection> = {
@@ -137,4 +172,5 @@ export const SECTION_TEMPLATES: Record<GuideSection["type"], () => GuideSection>
   runes: () => ({ type: "runes", title: "Runes", visible: true, pages: [{ name: "Default Runes", primary: { tree: 8000, keystone: 8010, runes: [] }, secondary: { tree: 8400, runes: [] }, shards: [] }] }),
   recommended_items: () => ({ type: "recommended_items", title: "Recommended Items", visible: true, items: [] }),
   back_timings: () => ({ type: "back_timings", title: "Buy When You Back", visible: true, timings: [] }),
+  jungle_pathing: () => ({ type: "jungle_pathing", title: "Jungle Path", visible: true, paths: [{ name: "Standard Clear", side: "blue" as const, camps: [], description: "" }] }),
 }

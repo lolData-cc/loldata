@@ -6,10 +6,83 @@ import { cn } from "@/lib/utils"
 import { cdnBaseUrl, getCdnVersion } from "@/config"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
-import type { Guide, GuideSection, MatchupEntry, ThreatLevel, SynergyLevel, BuildStep } from "./types"
-import { THREAT_LEVELS, SYNERGY_LEVELS, SECTION_TEMPLATES, normalizeBuildPage } from "./types"
+import type { Guide, GuideSection, MatchupEntry, ThreatLevel, SynergyLevel, BuildStep, JungleCamp, JunglePath } from "./types"
+import { THREAT_LEVELS, SYNERGY_LEVELS, SECTION_TEMPLATES, normalizeBuildPage, CAMP_POSITIONS } from "./types"
 import { Eye, EyeOff, GripVertical, ChevronDown, ChevronUp, Save, X, Search } from "lucide-react"
+import { RoleTopIcon, RoleJungleIcon, RoleMidIcon, RoleAdcIcon, RoleSupportIcon } from "@/components/ui/roleicons"
 import { RuneTreeEditor } from "./rune-tree-editor"
+import { CyberSelect } from "@/components/ui/cyber-select"
+
+const ROLE_ICONS: Record<string, React.FC<{ className?: string }>> = {
+  TOP: RoleTopIcon, JUNGLE: RoleJungleIcon, MID: RoleMidIcon, ADC: RoleAdcIcon, SUPPORT: RoleSupportIcon,
+}
+
+// ── Role Picker ──
+const ROLES = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const
+
+function RolePicker({ value, onChange }: { value: string; onChange: (role: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    // Position above the button
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) setPos({ top: rect.top - 8, left: rect.left + rect.width / 2 })
+    const handler = (e: MouseEvent) => {
+      if (popRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [open])
+
+  const ActiveIcon = value ? ROLE_ICONS[value] : null
+
+  return (
+    <>
+      <button ref={btnRef} type="button" onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center justify-center w-10 h-10 rounded-sm border transition-all cursor-pointer",
+          value ? "border-jade/20 text-jade/60 hover:border-jade/40 hover:text-jade" : "border-flash/[0.08] text-flash/25 hover:text-flash/50 hover:border-flash/[0.15]"
+        )}>
+        {ActiveIcon ? <ActiveIcon className="w-5 h-5" /> : <span className="text-[9px] font-mono uppercase">Role</span>}
+      </button>
+
+      {open && createPortal(
+        <div ref={popRef} className="fixed z-[999] flex items-center gap-1"
+          style={{ top: pos.top, left: pos.left, transform: "translate(-50%, -100%)" }}>
+          {ROLES.map((r, i) => {
+            const Icon = ROLE_ICONS[r]
+            const isActive = value === r
+            return (
+              <button key={r} type="button"
+                onClick={() => { onChange(isActive ? "" : r); setOpen(false) }}
+                className={cn(
+                  "p-1.5 rounded-sm transition-all cursor-pointer",
+                  isActive ? "text-jade scale-110" : "text-flash/30 hover:text-flash/70 hover:scale-110"
+                )}
+                style={{ animation: `fadeUp 0.15s ease-out ${i * 0.03}s both` }}
+                title={r}>
+                <Icon className="w-6 h-6" />
+              </button>
+            )
+          })}
+        </div>,
+        document.body
+      )}
+
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(6px) scale(0.9); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+    </>
+  )
+}
 
 // ── Champion search popup ──
 function ChampionSearch({ onSelect, onClose }: { onSelect: (champId: string) => void; onClose: () => void }) {
@@ -66,7 +139,7 @@ function ChampionSearch({ onSelect, onClose }: { onSelect: (champId: string) => 
 }
 
 // ── Item search popup ──
-function ItemSearch({ onSelect, onClose }: { onSelect: (itemId: number, itemName: string) => void; onClose: () => void }) {
+function ItemSearch({ onSelect, onClose, includeComponents, keepOpen }: { onSelect: (itemId: number, itemName: string) => void; onClose: () => void; includeComponents?: boolean; keepOpen?: boolean }) {
   const [q, setQ] = useState("")
   const [items, setItems] = useState<{ id: number; name: string }[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
@@ -77,9 +150,15 @@ function ItemSearch({ onSelect, onClose }: { onSelect: (itemId: number, itemName
       .then(data => {
         const list: { id: number; name: string }[] = []
         for (const [id, item] of Object.entries<any>(data?.data ?? {})) {
-          // Filter to completed items (no builds into, purchasable, costs >= 1000, available on SR)
-          if ((!item.into || item.into.length === 0) && item.gold?.purchasable !== false && (item.gold?.total ?? 0) >= 400 && item.maps?.["11"] !== false) {
-            list.push({ id: Number(id), name: item.name })
+          if (item.gold?.purchasable === false || item.maps?.["11"] === false) continue
+          if (includeComponents) {
+            // Show all purchasable SR items (including components, boots, etc)
+            if ((item.gold?.total ?? 0) >= 50) list.push({ id: Number(id), name: item.name })
+          } else {
+            // Filter to completed items only
+            if ((!item.into || item.into.length === 0) && (item.gold?.total ?? 0) >= 400) {
+              list.push({ id: Number(id), name: item.name })
+            }
           }
         }
         setItems(list.sort((a, b) => a.name.localeCompare(b.name)))
@@ -110,7 +189,7 @@ function ItemSearch({ onSelect, onClose }: { onSelect: (itemId: number, itemName
         <div className="relative z-10 max-h-[380px] overflow-y-auto p-3 scrollbar-hide">
           <div className="grid grid-cols-8 gap-1.5">
             {filtered.slice(0, 80).map(i => (
-              <button key={i.id} type="button" onClick={() => { onSelect(i.id, i.name); onClose() }}
+              <button key={i.id} type="button" onClick={() => { onSelect(i.id, i.name); if (!keepOpen) onClose() }}
                 className="flex flex-col items-center gap-1 p-1 rounded-sm hover:bg-jade/[0.08] hover:shadow-[0_0_8px_rgba(0,217,146,0.1)] transition-all cursor-pointer group">
                 <img src={`${cdnBaseUrl()}/img/item/${i.id}.png`} alt={i.name}
                   className="w-8 h-8 rounded-[2px] border border-flash/[0.06] group-hover:border-jade/20 transition-colors" />
@@ -132,7 +211,7 @@ function SectionHeader({ title, type, visible, collapsed, onTitleChange, onToggl
 }) {
   return (
     <div className="flex items-center gap-2 px-4 py-2.5 border-b border-flash/[0.04] bg-flash/[0.01]">
-      <GripVertical className="w-3.5 h-3.5 text-flash/12 cursor-grab shrink-0" />
+      <GripVertical className="w-3.5 h-3.5 text-flash/15 cursor-grab active:cursor-grabbing hover:text-flash/40 transition-colors shrink-0" />
       <div className="w-1 h-5 bg-jade/30 rounded-full shrink-0" />
       <span className="text-[9px] font-orbitron text-jade/30 uppercase tracking-[0.15em] shrink-0">{type}</span>
       <input
@@ -150,14 +229,51 @@ function SectionHeader({ title, type, visible, collapsed, onTitleChange, onToggl
   )
 }
 
+// ── Auto-resize textarea ──
+function useAutoResize(ref: React.RefObject<HTMLTextAreaElement | null>, value: string, minHeight: number) {
+  const prevHeight = useRef(minHeight)
+  useEffect(() => {
+    const el = ref.current; if (!el) return
+    // Measure by temporarily collapsing
+    const saved = el.style.transition
+    el.style.transition = "none"
+    el.style.height = "0px"
+    const target = Math.max(el.scrollHeight, minHeight)
+    // Restore to previous height instantly, then animate to target
+    el.style.height = `${prevHeight.current}px`
+    // Force reflow so the browser registers the starting height
+    el.offsetHeight // eslint-disable-line @typescript-eslint/no-unused-expressions
+    el.style.transition = "height 0.2s ease-out"
+    el.style.height = `${target}px`
+    prevHeight.current = target
+  }, [value, minHeight, ref])
+}
+
+function AutoTextarea({ value, onChange, placeholder, className, minHeight = 112 }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string; minHeight?: number
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useAutoResize(ref, value, minHeight)
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={cn("overflow-hidden resize-none", className)}
+      style={{ minHeight }}
+    />
+  )
+}
+
 // ── Intro Editor ──
 function IntroEditor({ section, onChange }: { section: GuideSection & { type: "introduction" }; onChange: (s: GuideSection) => void }) {
   return (
-    <textarea
+    <AutoTextarea
       value={section.content}
-      onChange={(e) => onChange({ ...section, content: e.target.value })}
+      onChange={(v) => onChange({ ...section, content: v })}
       placeholder="Write your introduction... Describe yourself, your experience with this champion, and what this guide covers."
-      className="w-full h-28 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[12px] font-mono text-flash/50 placeholder:text-flash/15 resize-y focus:outline-none focus:border-jade/15 transition-colors"
+      className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[12px] font-mono text-flash/50 placeholder:text-flash/15 resize-none focus:outline-none focus:border-jade/15"
     />
   )
 }
@@ -191,9 +307,16 @@ function BuildEditor({ section, onChange }: { section: GuideSection & { type: "r
 // ── Matchup Editor (with champion picker) ──
 function MatchupEditor({ section, onChange }: { section: GuideSection & { type: "matchups" }; onChange: (s: GuideSection) => void }) {
   const [showPicker, setShowPicker] = useState<"threats" | "synergies" | null>(null)
-  const [pendingLevel, setPendingLevel] = useState<string>("even")
+  const [pendingLevel, setPendingLevel] = useState<string>("skill")
   const [pendingNote, setPendingNote] = useState("")
   const [editingNoteIdx, setEditingNoteIdx] = useState<{ type: "threats" | "synergies"; idx: number } | null>(null)
+  const [expandedEntry, setExpandedEntry] = useState<{ type: "threats" | "synergies"; idx: number } | null>(null)
+  const [showMatchupItemPicker, setShowMatchupItemPicker] = useState(false)
+
+  const updateEntry = (type: "threats" | "synergies", idx: number, patch: Partial<MatchupEntry>) => {
+    if (type === "threats") onChange({ ...section, threats: section.threats.map((e, i) => i === idx ? { ...e, ...patch } : e) })
+    else onChange({ ...section, synergies: section.synergies.map((e, i) => i === idx ? { ...e, ...patch } : e) })
+  }
 
   const addChampion = (champId: string, type: "threats" | "synergies") => {
     const entry: MatchupEntry = { championId: champId, level: pendingLevel as any, note: pendingNote }
@@ -220,6 +343,10 @@ function MatchupEditor({ section, onChange }: { section: GuideSection & { type: 
     else onChange({ ...section, synergies: section.synergies.map((e, i) => i === idx ? { ...e, level: level as any } : e) })
   }
 
+  const toggleBan = (idx: number) => {
+    onChange({ ...section, threats: section.threats.map((e, i) => i === idx ? { ...e, ban: !e.ban } : e) })
+  }
+
   const renderGroup = (entries: MatchupEntry[], type: "threats" | "synergies") => {
     const levels = type === "threats" ? THREAT_LEVELS : SYNERGY_LEVELS
     const accent = type === "threats" ? "red-400" : "jade"
@@ -235,28 +362,34 @@ function MatchupEditor({ section, onChange }: { section: GuideSection & { type: 
             )}>+ Add</button>
         </div>
         <div className="space-y-1">
-          {entries.map((e, idx) => (
-            <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04] group">
-              <img src={`${cdnBaseUrl()}/img/champion/${e.championId}.png`} alt="" className="w-7 h-7 rounded-[2px] shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-mono text-flash/50">{e.championId}</div>
-                <input
-                  value={e.note}
-                  onChange={(ev) => updateNote(type, idx, ev.target.value)}
-                  placeholder="Add note..."
-                  className="w-full bg-transparent text-[9px] font-mono text-flash/30 placeholder:text-flash/15 focus:outline-none focus:text-flash/50 border-none"
-                />
+          {entries.map((e, idx) => {
+            const isExpanded = expandedEntry?.type === type && expandedEntry?.idx === idx
+            const hasExtras = (e.items?.length ?? 0) > 0 || !!e.runes
+            return (
+              <div key={idx}>
+                <div className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-sm bg-flash/[0.02] border group transition-all",
+                  isExpanded ? "border-jade/15" : "border-flash/[0.04]"
+                )}>
+                  <img src={`${cdnBaseUrl()}/img/champion/${e.championId}.png`} alt="" className="w-7 h-7 rounded-[2px] shrink-0" />
+                  <div className="text-[10px] font-mono text-flash/50 min-w-0 truncate flex-1">{e.championId}</div>
+                  {e.ban && <span className="text-[7px] font-orbitron font-bold text-red-400/60 uppercase tracking-wider shrink-0">BAN</span>}
+                  <CyberSelect
+                    value={e.level}
+                    onChange={(v) => updateLevel(type, idx, v)}
+                    options={levels.map(l => ({ value: l.key, label: l.label }))}
+                  />
+                  <button type="button" onClick={() => setExpandedEntry(isExpanded ? null : { type, idx })}
+                    className={cn("text-[8px] font-orbitron uppercase tracking-[0.1em] h-[24px] px-2 rounded-[2px] border transition-all cursor-pointer shrink-0",
+                      isExpanded ? "text-jade border-jade/30 bg-jade/10" : hasExtras ? "text-jade/40 border-jade/15" : "text-flash/15 border-flash/[0.04] hover:text-flash/30"
+                    )}>{isExpanded ? "CLOSE" : hasExtras ? "EDIT" : "+"}</button>
+                  <button type="button" onClick={() => removeEntry(type, idx)}
+                    className="text-red-400/0 group-hover:text-red-400/40 hover:!text-red-400/80 transition-colors cursor-pointer shrink-0">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <select value={e.level} onChange={(ev) => updateLevel(type, idx, ev.target.value)}
-                className="bg-[#0a1214] text-[8px] font-mono text-flash/40 border border-flash/[0.08] rounded-sm px-1.5 py-0.5 focus:outline-none focus:border-jade/20 cursor-pointer appearance-none">
-                {levels.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
-              </select>
-              <button type="button" onClick={() => removeEntry(type, idx)}
-                className="text-red-400/0 group-hover:text-red-400/40 hover:text-red-400/80 transition-colors cursor-pointer">
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     )
@@ -265,17 +398,87 @@ function MatchupEditor({ section, onChange }: { section: GuideSection & { type: 
   return (
     <div>
       {/* Level selector for next add */}
-      <div className="flex items-center gap-2 mb-3 text-[9px] font-mono text-flash/25">
-        <span>Default level:</span>
-        <select value={pendingLevel} onChange={e => setPendingLevel(e.target.value)}
-          className="bg-[#0a1214] border border-flash/[0.08] rounded-sm px-2 py-0.5 text-flash/40 focus:outline-none focus:border-jade/20 cursor-pointer appearance-none">
-          {[...THREAT_LEVELS, ...SYNERGY_LEVELS].map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
-        </select>
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-[9px] font-mono text-flash/25">Default level:</span>
+        <CyberSelect
+          value={pendingLevel}
+          onChange={setPendingLevel}
+          options={[...THREAT_LEVELS, ...SYNERGY_LEVELS].map(l => ({ value: l.key, label: l.label }))}
+          placeholder="Level"
+        />
       </div>
       <div className="grid grid-cols-2 gap-4">
         {renderGroup(section.threats, "threats")}
         {renderGroup(section.synergies, "synergies")}
       </div>
+
+      {/* Expanded matchup detail — full width below grid */}
+      {expandedEntry && (() => {
+        const entries = expandedEntry.type === "threats" ? section.threats : section.synergies
+        const e = entries[expandedEntry.idx]
+        if (!e) return null
+        return (
+          <div className="mt-3 p-4 rounded-sm border border-jade/15 bg-flash/[0.01] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img src={`${cdnBaseUrl()}/img/champion/${e.championId}.png`} alt="" className="w-8 h-8 rounded-[2px]" />
+                <span className="text-[12px] font-orbitron text-flash/60">{e.championId}</span>
+                <span className="text-[8px] font-mono text-flash/25 uppercase">— build & runes</span>
+              </div>
+              <button type="button" onClick={() => setExpandedEntry(null)}
+                className="text-[8px] font-orbitron text-flash/30 hover:text-flash/60 px-2 py-1 border border-flash/[0.06] rounded-sm transition-colors cursor-pointer">CLOSE</button>
+            </div>
+            {/* Ban toggle */}
+            {expandedEntry.type === "threats" && (
+              <button type="button" onClick={() => toggleBan(expandedEntry.idx)}
+                className={cn(
+                  "text-[9px] font-orbitron font-bold uppercase tracking-[0.12em] h-[28px] px-4 rounded-[2px] border transition-all cursor-pointer",
+                  e.ban
+                    ? "text-red-400 border-red-400/40 bg-red-400/10 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
+                    : "text-flash/25 border-flash/[0.08] hover:text-red-400/60 hover:border-red-400/25"
+                )}>
+                {e.ban ? "BANNED" : "MARK AS BAN"}
+              </button>
+            )}
+            {/* Description */}
+            <div>
+              <div className="text-[11px] font-orbitron text-flash/50 uppercase tracking-[0.15em] mb-1.5">Matchup Notes</div>
+              <textarea
+                value={e.note}
+                onChange={(ev) => updateNote(expandedEntry.type, expandedEntry.idx, ev.target.value)}
+                placeholder="Describe how to play this matchup..."
+                className="w-full h-20 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[12px] font-mono text-flash/45 placeholder:text-flash/15 resize-y focus:outline-none focus:border-jade/15 transition-colors"
+              />
+            </div>
+            {/* Items */}
+            <div>
+              <div className="text-[11px] font-orbitron text-flash/50 uppercase tracking-[0.15em] mb-2">Recommended Build</div>
+              <div className="flex gap-1.5 flex-wrap">
+                {(e.items ?? []).map((itemId, ii) => (
+                  <div key={ii} className="group/item relative">
+                    <img src={`${cdnBaseUrl()}/img/item/${itemId}.png`} alt="" className="w-9 h-9 rounded-[2px] border border-flash/[0.08]" />
+                    <button type="button" onClick={() => updateEntry(expandedEntry.type, expandedEntry.idx, { items: (e.items ?? []).filter((_: number, j: number) => j !== ii) })}
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[6px] flex items-center justify-center opacity-0 group-hover/item:opacity-100 cursor-pointer">x</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setShowMatchupItemPicker(true)}
+                  className="w-9 h-9 rounded-[2px] border border-dashed border-flash/[0.08] flex items-center justify-center text-flash/15 hover:text-jade/30 hover:border-jade/15 transition-colors cursor-pointer text-[11px]">+</button>
+              </div>
+              {showMatchupItemPicker && (
+                <ItemSearch includeComponents onSelect={(id) => { updateEntry(expandedEntry.type, expandedEntry.idx, { items: [...(e.items ?? []), id] }) }} onClose={() => setShowMatchupItemPicker(false)} />
+              )}
+            </div>
+            {/* Runes */}
+            <div>
+              <div className="text-[11px] font-orbitron text-flash/50 uppercase tracking-[0.15em] mb-2">Custom Runes</div>
+              <RuneTreeEditor
+                value={e.runes ?? { primary: { tree: 8000, keystone: 8010, runes: [] }, secondary: { tree: 8400, runes: [] }, shards: [] }}
+                onChange={(v) => updateEntry(expandedEntry.type, expandedEntry.idx, { runes: { primary: v.primary, secondary: v.secondary } })}
+              />
+            </div>
+          </div>
+        )
+      })()}
       {showPicker && (
         <ChampionSearch
           onSelect={(id) => addChampion(id, showPicker)}
@@ -292,56 +495,101 @@ function BackTimingEditor({ section, onChange }: { section: GuideSection & { typ
   const [pendingGold, setPendingGold] = useState("")
   const [pendingItems, setPendingItems] = useState<number[]>([])
   const [pendingNote, setPendingNote] = useState("")
+  const [editIdx, setEditIdx] = useState<number | null>(null)
 
-  const addTiming = () => {
+  const saveTiming = () => {
     const g = Number(pendingGold)
-    if (!g || pendingItems.length === 0) return
-    onChange({ ...section, timings: [...section.timings, { gold: g, items: pendingItems, note: pendingNote }] })
-    setPendingGold("")
-    setPendingItems([])
-    setPendingNote("")
+    if (!g) return
+    const timing = { gold: g, items: pendingItems, note: pendingNote }
+    if (editIdx !== null) {
+      // Update existing
+      const newTimings = [...section.timings]; newTimings[editIdx] = timing
+      onChange({ ...section, timings: newTimings })
+      setEditIdx(null)
+    } else {
+      // Add new
+      onChange({ ...section, timings: [...section.timings, timing] })
+    }
+    setPendingGold(""); setPendingItems([]); setPendingNote("")
+  }
+
+  const startEdit = (idx: number) => {
+    const t = section.timings[idx]
+    setPendingGold(String(t.gold))
+    setPendingItems([...t.items])
+    setPendingNote(t.note)
+    setEditIdx(idx)
+  }
+
+  const cancelEdit = () => {
+    setEditIdx(null); setPendingGold(""); setPendingItems([]); setPendingNote("")
   }
 
   return (
     <div>
-      <div className="space-y-1.5 mb-4">
+      <div className="space-y-2 mb-4">
         {section.timings.map((t, idx) => (
-          <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-sm bg-flash/[0.02] border border-flash/[0.04] group">
-            <span className="text-[13px] font-orbitron font-bold text-jade/50 tabular-nums min-w-[55px]">{t.gold}g</span>
-            <div className="flex gap-1">
-              {t.items.map((id, i) => <img key={i} src={`${cdnBaseUrl()}/img/item/${id}.png`} alt="" className="w-6 h-6 rounded-[2px]" />)}
+          <div key={idx}
+            className={cn(
+              "grid grid-cols-[60px_1px_120px_1px_1fr_auto] items-center gap-3 px-4 py-2.5 rounded-sm border group cursor-pointer transition-all",
+              editIdx === idx ? "border-jade/25 bg-jade/[0.03]" : "border-flash/[0.04] bg-flash/[0.02] hover:border-flash/[0.1]"
+            )}
+            onClick={() => startEdit(idx)}>
+            <span className="text-[15px] font-orbitron font-bold text-jade/50 tabular-nums">{t.gold}g</span>
+            <div className="w-[1px] self-stretch bg-flash/[0.06]" />
+            <div className="flex gap-1.5">
+              {t.items.map((id, i) => <img key={i} src={`${cdnBaseUrl()}/img/item/${id}.png`} alt="" className="w-7 h-7 rounded-[2px]" />)}
             </div>
-            <span className="text-[10px] font-mono text-flash/35 flex-1">{t.note}</span>
-            <button type="button" onClick={() => onChange({ ...section, timings: section.timings.filter((_, i) => i !== idx) })}
-              className="text-red-400/0 group-hover:text-red-400/40 hover:text-red-400/80 transition-colors cursor-pointer">
-              <X className="w-3 h-3" />
-            </button>
+            <div className="w-[1px] self-stretch bg-flash/[0.06]" />
+            <span className="text-[13px] font-mono text-flash/40">{t.note}</span>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {idx > 0 && (
+                <button type="button" onClick={(e) => { e.stopPropagation(); const t2 = [...section.timings]; [t2[idx - 1], t2[idx]] = [t2[idx], t2[idx - 1]]; onChange({ ...section, timings: t2 }) }}
+                  className="text-flash/20 hover:text-flash/50 transition-colors cursor-pointer"><ChevronUp className="w-3.5 h-3.5" /></button>
+              )}
+              {idx < section.timings.length - 1 && (
+                <button type="button" onClick={(e) => { e.stopPropagation(); const t2 = [...section.timings]; [t2[idx], t2[idx + 1]] = [t2[idx + 1], t2[idx]]; onChange({ ...section, timings: t2 }) }}
+                  className="text-flash/20 hover:text-flash/50 transition-colors cursor-pointer"><ChevronDown className="w-3.5 h-3.5" /></button>
+              )}
+              <button type="button" onClick={(e) => { e.stopPropagation(); onChange({ ...section, timings: section.timings.filter((_: any, i: number) => i !== idx) }); if (editIdx === idx) cancelEdit() }}
+                className="text-red-400/30 hover:text-red-400/80 transition-colors cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
-      {/* Add new timing */}
-      <div className="flex gap-2 items-center flex-wrap px-3 py-2 rounded-sm border border-dashed border-flash/[0.06]">
+      {/* Add / Edit timing */}
+      <div className="grid grid-cols-[60px_1px_120px_1px_1fr_auto] items-center gap-3 px-4 py-2.5 rounded-sm border border-dashed border-flash/[0.06]">
         <input value={pendingGold} onChange={e => setPendingGold(e.target.value)} placeholder="Gold" type="number"
-          className="w-16 bg-transparent text-[12px] font-orbitron text-jade/40 placeholder:text-flash/15 focus:outline-none border-b border-flash/[0.06] focus:border-jade/20 transition-colors" />
-        <div className="flex gap-1">
+          className="w-full bg-transparent text-[14px] font-orbitron text-jade/40 placeholder:text-flash/15 focus:outline-none border-b border-flash/[0.06] focus:border-jade/20 transition-colors" />
+        <div className="w-[1px] self-stretch bg-flash/[0.04]" />
+        <div className="flex gap-1.5">
           {pendingItems.map((id, i) => (
             <div key={i} className="relative group">
-              <img src={`${cdnBaseUrl()}/img/item/${id}.png`} alt="" className="w-6 h-6 rounded-[2px]" />
-              <button type="button" onClick={() => setPendingItems(prev => prev.filter((_, j) => j !== i))}
-                className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500/80 text-white text-[6px] flex items-center justify-center opacity-0 group-hover:opacity-100">x</button>
+              <img src={`${cdnBaseUrl()}/img/item/${id}.png`} alt="" className="w-7 h-7 rounded-[2px]" />
+              <button type="button" onClick={() => setPendingItems(prev => prev.filter((_: number, j: number) => j !== i))}
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[7px] flex items-center justify-center opacity-0 group-hover:opacity-100">x</button>
             </div>
           ))}
           <button type="button" onClick={() => setShowItemPicker(true)}
-            className="w-6 h-6 rounded-[2px] border border-dashed border-flash/[0.1] flex items-center justify-center text-flash/15 hover:text-jade/30 transition-colors cursor-pointer text-[10px]">+</button>
+            className="w-7 h-7 rounded-[2px] border border-dashed border-flash/[0.1] flex items-center justify-center text-flash/15 hover:text-jade/30 transition-colors cursor-pointer text-[11px]">+</button>
         </div>
+        <div className="w-[1px] self-stretch bg-flash/[0.04]" />
         <input value={pendingNote} onChange={e => setPendingNote(e.target.value)} placeholder="Note (e.g. Vampiric Sceptre + Potion)"
-          className="flex-1 bg-transparent text-[10px] font-mono text-flash/40 placeholder:text-flash/15 focus:outline-none border-b border-flash/[0.06] focus:border-jade/20 transition-colors" />
-        <button type="button" onClick={addTiming} disabled={!pendingGold || pendingItems.length === 0}
-          className={cn("text-[9px] font-mono px-2.5 py-1 rounded-sm border transition-colors",
-            pendingGold && pendingItems.length > 0 ? "text-jade/60 border-jade/20 hover:text-jade hover:border-jade/40 cursor-pointer" : "text-flash/15 border-flash/[0.04]"
-          )}>Add</button>
+          className="w-full bg-transparent text-[13px] font-mono text-flash/40 placeholder:text-flash/15 focus:outline-none border-b border-flash/[0.06] focus:border-jade/20 transition-colors" />
+        <div className="flex gap-1.5">
+          <button type="button" onClick={saveTiming} disabled={!pendingGold}
+            className={cn("text-[10px] font-mono px-3 py-1.5 rounded-sm border transition-colors",
+              pendingGold ? "text-jade/60 border-jade/20 hover:text-jade hover:border-jade/40 cursor-pointer" : "text-flash/15 border-flash/[0.04]"
+            )}>{editIdx !== null ? "Save" : "Add"}</button>
+          {editIdx !== null && (
+            <button type="button" onClick={cancelEdit}
+              className="text-[10px] font-mono px-2 py-1.5 text-flash/30 hover:text-flash/60 transition-colors cursor-pointer">Cancel</button>
+          )}
+        </div>
       </div>
-      {showItemPicker && <ItemSearch onSelect={(id) => { setPendingItems(prev => [...prev, id]); setShowItemPicker(false) }} onClose={() => setShowItemPicker(false)} />}
+      {showItemPicker && <ItemSearch includeComponents keepOpen onSelect={(id) => { setPendingItems(prev => [...prev, id]) }} onClose={() => setShowItemPicker(false)} />}
     </div>
   )
 }
@@ -418,6 +666,7 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
   const activePage = pages[activeIdx]
   const [pickerTarget, setPickerTarget] = useState<{ mode: "step"; stepIdx: number } | { mode: "new" } | null>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
+  useAutoResize(descRef, activePage?.description ?? "", 64)
   const [showChampPicker, setShowChampPicker] = useState(false)
   const [champList, setChampList] = useState<{ id: string; name: string }[]>([])
   const [champSearch, setChampSearch] = useState("")
@@ -565,7 +814,8 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
               value={activePage.description ?? ""}
               onChange={e => updatePage(activeIdx, { ...activePage, description: e.target.value })}
               placeholder="Describe this build path... Select text then click an item below to link it"
-              className="w-full h-16 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-flash/40 placeholder:text-flash/15 resize-y focus:outline-none focus:border-jade/15 transition-colors"
+              className="w-full overflow-hidden bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-flash/40 placeholder:text-flash/15 resize-none focus:outline-none focus:border-jade/15"
+              style={{ minHeight: 64 }}
             />
             {/* Item chips from build — click to link selected text */}
             {(() => {
@@ -660,7 +910,7 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
                   {!nextStep && (
                     <svg width={CONN} height={ITEM_SZ} className="shrink-0">
                       <line x1={0} y1={ITEM_SZ / 2} x2={CONN} y2={ITEM_SZ / 2}
-                        stroke="rgba(0,217,146,0.15)" strokeWidth={1} strokeDasharray="3 3" />
+                        stroke="rgba(0,217,146,0.25)" strokeWidth={1} strokeDasharray="3 3" />
                     </svg>
                   )}
                 </div>
@@ -747,23 +997,227 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
   )
 }
 
-// ── Section wrapper ──
-function SectionEditor({ section, onChange, onMoveUp, onMoveDown, isFirst, isLast }: {
-  section: GuideSection; onChange: (s: GuideSection) => void
-  onMoveUp: () => void; onMoveDown: () => void; isFirst: boolean; isLast: boolean
-}) {
-  const [collapsed, setCollapsed] = useState(false)
-  const typeLabel = { introduction: "Intro", matchups: "Matchups", build: "Build", runes: "Runes", recommended_items: "Items", back_timings: "Backs" }[section.type] ?? section.type
+// ── Jungle Path Editor ──
+const ALL_CAMPS: JungleCamp[] = ["blue", "gromp", "wolves", "raptors", "red", "krugs", "scuttle_top", "scuttle_bot"]
+const MINIMAP_URL = "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/map/map11.png"
+
+function JunglePathEditor({ section, onChange }: { section: GuideSection & { type: "jungle_pathing" }; onChange: (s: GuideSection) => void }) {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const paths = section.paths ?? []
+  const activePath = paths[activeIdx]
+  const [showChampPicker, setShowChampPicker] = useState(false)
+  const [champList, setChampList] = useState<{ id: string; name: string }[]>([])
+  const [champSearch, setChampSearch] = useState("")
+  const descRef = useRef<HTMLTextAreaElement>(null)
+  useAutoResize(descRef, activePath?.description ?? "", 64)
+
+  const updatePath = (idx: number, path: JunglePath) => {
+    const newPaths = [...paths]; newPaths[idx] = path
+    onChange({ ...section, paths: newPaths })
+  }
+  const addPath = () => {
+    const newPaths = [...paths, { name: `Path ${paths.length + 1}`, side: "blue" as const, camps: [] as JungleCamp[], description: "" }]
+    onChange({ ...section, paths: newPaths })
+    setActiveIdx(newPaths.length - 1)
+  }
+  const removePath = (idx: number) => {
+    if (paths.length <= 1) return
+    const newPaths = paths.filter((_: any, i: number) => i !== idx)
+    onChange({ ...section, paths: newPaths })
+    if (activeIdx >= newPaths.length) setActiveIdx(newPaths.length - 1)
+  }
+
+  const toggleCamp = (camp: JungleCamp) => {
+    const camps = activePath.camps
+    const existing = camps.indexOf(camp)
+    if (existing >= 0) {
+      updatePath(activeIdx, { ...activePath, camps: camps.filter(c => c !== camp) })
+    } else {
+      updatePath(activeIdx, { ...activePath, camps: [...camps, camp] })
+    }
+  }
+
+  const loadChamps = () => {
+    if (champList.length === 0) {
+      fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
+        .then(r => r.json())
+        .then(data => {
+          const list = Object.values<any>(data?.data ?? {}).map(c => ({ id: String(c.id), name: String(c.name) }))
+          setChampList(list.sort((a, b) => a.name.localeCompare(b.name)))
+        })
+        .catch(() => {})
+    }
+    setShowChampPicker(true)
+  }
+
+  if (!activePath) return null
 
   return (
-    <div className={cn(
-      "relative overflow-hidden rounded-sm border transition-all duration-300",
-      section.visible ? "border-flash/[0.06] bg-flash/[0.008]" : "border-flash/[0.03] opacity-40"
-    )}
-    style={{ animation: "sectionReveal 0.3s ease-out forwards" }}
+    <div>
+      {/* Tab bar */}
+      <div className="flex items-center gap-1.5 mb-4 border-b border-flash/[0.04] pb-2">
+        {paths.map((p, idx) => (
+          <button key={idx} type="button" onClick={() => setActiveIdx(idx)}
+            className={cn(
+              "group relative px-3 py-1.5 rounded-sm text-[10px] font-mono transition-all cursor-pointer",
+              activeIdx === idx ? "bg-jade/[0.1] text-jade/80 border border-jade/25" : "text-flash/30 hover:text-flash/60 border border-transparent hover:border-flash/[0.08]"
+            )}>
+            {p.name || `Path ${idx + 1}`}
+            {paths.length > 1 && (
+              <span onClick={(e) => { e.stopPropagation(); removePath(idx) }}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500/70 text-white text-[7px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">x</span>
+            )}
+          </button>
+        ))}
+        <button type="button" onClick={addPath}
+          className="text-[9px] font-orbitron text-jade/30 hover:text-jade/60 px-2.5 py-1.5 border border-dashed border-jade/15 hover:border-jade/30 rounded-sm transition-colors cursor-pointer">
+          + Path
+        </button>
+      </div>
+
+      {/* Name + side toggle + against */}
+      <div className="flex items-start gap-3 mb-4">
+        <input value={activePath.name} onChange={e => updatePath(activeIdx, { ...activePath, name: e.target.value })}
+          placeholder="e.g. Standard Full Clear"
+          className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[13px] font-orbitron text-flash/60 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
+        <button type="button" onClick={() => updatePath(activeIdx, { ...activePath, side: activePath.side === "blue" ? "red" : "blue" })}
+          className={cn(
+            "px-3 py-1.5 rounded-sm text-[10px] font-orbitron uppercase tracking-[0.1em] border transition-all cursor-pointer",
+            activePath.side === "blue" ? "text-blue-300/70 border-blue-400/20 bg-blue-500/10 hover:border-blue-400/40" : "text-red-300/70 border-red-400/20 bg-red-500/10 hover:border-red-400/40"
+          )}>
+          {activePath.side} side
+        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[9px] font-mono text-flash/25 uppercase">vs</span>
+          {(activePath.againstChampions ?? []).map(c => (
+            <div key={c} className="relative group">
+              <img src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c} className="w-7 h-7 rounded-[2px] border border-flash/[0.08]" />
+              <button type="button" onClick={() => updatePath(activeIdx, { ...activePath, againstChampions: (activePath.againstChampions ?? []).filter(x => x !== c) })}
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/70 text-white text-[7px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">x</button>
+            </div>
+          ))}
+          <button type="button" onClick={loadChamps}
+            className="w-7 h-7 rounded-[2px] border border-dashed border-jade/20 hover:border-jade/40 flex items-center justify-center text-jade/30 hover:text-jade/60 transition-colors cursor-pointer text-[12px]">+</button>
+        </div>
+      </div>
+
+      {/* Description */}
+      <textarea ref={descRef} value={activePath.description ?? ""}
+        onChange={e => updatePath(activeIdx, { ...activePath, description: e.target.value })}
+        placeholder="Describe this jungle path..."
+        className="w-full overflow-hidden bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-flash/40 placeholder:text-flash/15 resize-none focus:outline-none focus:border-jade/15 mb-4"
+        style={{ minHeight: 64 }} />
+
+      {/* Minimap — click to add/remove camps */}
+      <div className="relative w-[300px] h-[300px] rounded-sm overflow-hidden border border-flash/[0.08] bg-black/40">
+        <img src={MINIMAP_URL} alt="Map" className="w-full h-full object-cover opacity-50" draggable={false} />
+        <div className="absolute inset-0 bg-liquirice/20" />
+        <div className="absolute inset-0 pointer-events-none opacity-10"
+          style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.03) 3px, rgba(0,217,146,0.03) 4px)" }} />
+
+        {/* Path lines */}
+        <svg className="absolute inset-0 w-full h-full z-10 pointer-events-none">
+          {activePath.camps.map((camp, i) => {
+            if (i === 0) return null
+            const prev = CAMP_POSITIONS[activePath.camps[i - 1]][activePath.side]
+            const curr = CAMP_POSITIONS[camp][activePath.side]
+            return <line key={i} x1={`${prev.x}%`} y1={`${prev.y}%`} x2={`${curr.x}%`} y2={`${curr.y}%`}
+              stroke="rgba(0,217,146,0.3)" strokeWidth={1.5} strokeDasharray="4 3" />
+          })}
+        </svg>
+
+        {/* Camp clickable markers */}
+        {ALL_CAMPS.map(camp => {
+          const pos = CAMP_POSITIONS[camp][activePath.side]
+          const idx = activePath.camps.indexOf(camp)
+          const isSelected = idx >= 0
+          return (
+            <button key={camp} type="button" onClick={() => toggleCamp(camp)}
+              className="absolute z-20 cursor-pointer transition-all duration-200 hover:scale-110"
+              style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}>
+              <div className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center border transition-all",
+                isSelected
+                  ? "bg-black/80 border-jade/50 shadow-[0_0_10px_rgba(0,217,146,0.3)]"
+                  : "bg-black/40 border-flash/[0.15] hover:border-flash/30"
+              )}>
+                {isSelected ? (
+                  <span className="text-[11px] font-orbitron font-bold text-jade">{idx + 1}</span>
+                ) : (
+                  <span className="text-[7px] font-mono text-flash/30">{CAMP_POSITIONS[camp].label.slice(0, 2)}</span>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Champion picker portal */}
+      {showChampPicker && createPortal(
+        <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowChampPicker(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+            style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="relative z-10 px-4 py-2.5 border-b border-jade/10">
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-jade/30" />
+                <input value={champSearch} onChange={e => setChampSearch(e.target.value)} placeholder="Search enemy jungler..."
+                  className="flex-1 bg-transparent text-[12px] font-mono text-flash/60 placeholder:text-flash/20 focus:outline-none caret-jade" autoFocus />
+                <button type="button" onClick={() => setShowChampPicker(false)} className="text-flash/30 hover:text-flash/60 cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div className="relative z-10 max-h-[400px] overflow-y-auto p-3 scrollbar-hide">
+              <div className="grid grid-cols-8 gap-1.5">
+                {champList.filter(c => !champSearch || c.name.toLowerCase().includes(champSearch.toLowerCase())).slice(0, 80).map(c => (
+                  <button key={c.id} type="button" onClick={() => {
+                    updatePath(activeIdx, { ...activePath, againstChampions: [...(activePath.againstChampions ?? []).filter(x => x !== c.id), c.id] })
+                    setShowChampPicker(false); setChampSearch("")
+                  }}
+                    className="flex flex-col items-center gap-1 p-1 rounded-sm hover:bg-jade/[0.08] transition-all cursor-pointer group">
+                    <img src={`${cdnBaseUrl()}/img/champion/${c.id}.png`} alt={c.name}
+                      className="w-9 h-9 rounded-[3px] border border-flash/[0.06] group-hover:border-jade/20 transition-colors" />
+                    <span className="text-[6px] font-mono text-flash/20 group-hover:text-jade/40 truncate w-full text-center transition-colors">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+// ── Section wrapper ──
+function SectionEditor({ section, onChange, index, isDragOver, onDragStart, onDragOver, onDragEnd, onDrop }: {
+  section: GuideSection; onChange: (s: GuideSection) => void
+  index: number; isDragOver: boolean
+  onDragStart: (idx: number) => void; onDragOver: (idx: number) => void; onDragEnd: () => void; onDrop: (idx: number) => void
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+  const typeLabel = { introduction: "Intro", matchups: "Matchups", build: "Build", runes: "Runes", recommended_items: "Items", back_timings: "Backs", jungle_pathing: "Path" }[section.type] ?? section.type
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(index) }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; onDragOver(index) }}
+      onDragEnd={onDragEnd}
+      onDrop={(e) => { e.preventDefault(); onDrop(index) }}
+      className={cn(
+        "relative rounded-sm border transition-all duration-300 overflow-visible",
+        section.visible ? "border-flash/[0.06] bg-flash/[0.008]" : "border-flash/[0.03] opacity-40",
+        isDragOver && "border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.1)]"
+      )}
+      style={{ animation: "sectionReveal 0.3s ease-out forwards" }}
     >
-      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/15" />
-      <div className="absolute inset-0 pointer-events-none opacity-15"
+      {/* Drop indicator line */}
+      {isDragOver && <div className="absolute top-0 left-0 right-0 h-[2px] bg-jade shadow-[0_0_8px_rgba(0,217,146,0.5)] z-20" />}
+
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/15 rounded-l-sm" />
+      <div className="absolute inset-0 pointer-events-none opacity-15 rounded-sm overflow-hidden"
         style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,217,146,0.008) 4px, rgba(0,217,146,0.008) 5px)" }} />
 
       <SectionHeader
@@ -773,11 +1227,6 @@ function SectionEditor({ section, onChange, onMoveUp, onMoveDown, isFirst, isLas
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
 
-      {/* Move buttons */}
-      <div className="absolute right-12 top-2 flex gap-0.5">
-        {!isFirst && <button type="button" onClick={onMoveUp} className="text-flash/15 hover:text-flash/40 transition-colors" title="Move up"><ChevronUp className="w-3 h-3" /></button>}
-        {!isLast && <button type="button" onClick={onMoveDown} className="text-flash/15 hover:text-flash/40 transition-colors" title="Move down"><ChevronDown className="w-3 h-3" /></button>}
-      </div>
 
       {!collapsed && (
         <div className="relative z-10 p-4">
@@ -789,6 +1238,7 @@ function SectionEditor({ section, onChange, onMoveUp, onMoveDown, isFirst, isLas
             <MultiRuneEditor section={section} onChange={onChange} />
           )}
           {section.type === "back_timings" && <BackTimingEditor section={section} onChange={onChange} />}
+          {section.type === "jungle_pathing" && <JunglePathEditor section={section as any} onChange={onChange} />}
         </div>
       )}
     </div>
@@ -801,7 +1251,16 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
 }) {
   const { session, nametag } = useAuth()
   const [title, setTitle] = useState(existingGuide?.title ?? `${championId} Guide`)
-  const [role, setRole] = useState(existingGuide?.role ?? "")
+  const [role, setRoleRaw] = useState(existingGuide?.role ?? "")
+  const setRole = useCallback((r: string) => {
+    setRoleRaw(r)
+    setSections(prev => {
+      const hasJungle = prev.some(s => s.type === "jungle_pathing")
+      if (r === "JUNGLE" && !hasJungle) return [...prev, SECTION_TEMPLATES.jungle_pathing()]
+      if (r !== "JUNGLE" && hasJungle) return prev.filter(s => s.type !== "jungle_pathing")
+      return prev
+    })
+  }, [])
   const [linkedAccount, setLinkedAccount] = useState(existingGuide?.author_linked_account ?? "")
   const [discord, setDiscord] = useState(existingGuide?.author_discord ?? "")
   const [twitter, setTwitter] = useState(existingGuide?.author_twitter ?? "")
@@ -818,19 +1277,35 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
+  // Auto-inject jungle section for existing guides with role=JUNGLE
+  useEffect(() => {
+    if (role === "JUNGLE") {
+      setSections(prev => {
+        if (prev.some(s => s.type === "jungle_pathing")) return prev
+        return [...prev, SECTION_TEMPLATES.jungle_pathing()]
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
+  const handleDrop = useCallback((targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx) { setDragIdx(null); setDragOverIdx(null); return }
+    setSections(prev => {
+      const arr = [...prev]
+      const [moved] = arr.splice(dragIdx, 1)
+      arr.splice(targetIdx, 0, moved)
+      return arr
+    })
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }, [dragIdx])
+
   const updateSection = useCallback((idx: number, section: GuideSection) => {
     setSections(prev => prev.map((s, i) => i === idx ? section : s))
   }, [])
 
-  const moveSection = useCallback((idx: number, dir: -1 | 1) => {
-    setSections(prev => {
-      const arr = [...prev]
-      const target = idx + dir
-      if (target < 0 || target >= arr.length) return arr;
-      [arr[idx], arr[target]] = [arr[target], arr[idx]]
-      return arr
-    })
-  }, [])
+
 
   const save = async () => {
     if (!session?.user) { setError("You must be logged in"); return }
@@ -882,11 +1357,7 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
           <div className="flex gap-3">
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Guide title"
               className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[14px] font-mono text-flash/60 placeholder:text-flash/15 focus:outline-none focus:border-jade/15 transition-colors" />
-            <select value={role} onChange={e => setRole(e.target.value)}
-              className="bg-[#0a1214] border border-flash/[0.08] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/40 focus:outline-none focus:border-jade/20 cursor-pointer appearance-none">
-              <option value="">Role</option>
-              <option value="TOP">Top</option><option value="JUNGLE">Jungle</option><option value="MID">Mid</option><option value="ADC">ADC</option><option value="SUPPORT">Support</option>
-            </select>
+            <RolePicker value={role} onChange={setRole} />
           </div>
           <input value={linkedAccount} onChange={e => setLinkedAccount(e.target.value)}
             placeholder="Link your account (e.g. Wasureta#EUW) — users can click to view your profile"
@@ -911,10 +1382,12 @@ export function GuideEditor({ championId, existingGuide, onSave }: {
           key={`${section.type}-${idx}`}
           section={section}
           onChange={s => updateSection(idx, s)}
-          onMoveUp={() => moveSection(idx, -1)}
-          onMoveDown={() => moveSection(idx, 1)}
-          isFirst={idx === 0}
-          isLast={idx === sections.length - 1}
+          index={idx}
+          isDragOver={dragOverIdx === idx && dragIdx !== idx}
+          onDragStart={setDragIdx}
+          onDragOver={setDragOverIdx}
+          onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+          onDrop={handleDrop}
         />
       ))}
 

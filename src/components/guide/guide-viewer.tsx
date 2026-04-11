@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils"
 import { cdnBaseUrl } from "@/config"
 import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/constants/runes"
 import { getRuneIcon, getRuneName, getRuneTree } from "@/constants/rune-tree-data"
-import type { Guide, GuideSection, MatchupEntry, ThreatLevel, SynergyLevel, BuildStep } from "./types"
-import { normalizeBuildPage } from "./types"
+import type { Guide, GuideSection, MatchupEntry, ThreatLevel, SynergyLevel, BuildStep, JungleCamp, JunglePath } from "./types"
+import { normalizeBuildPage, CAMP_POSITIONS } from "./types"
 import { THREAT_LEVELS, SYNERGY_LEVELS } from "./types"
 import { MatchupDisplay } from "./matchup-display"
 import { Link } from "react-router-dom"
@@ -147,13 +147,13 @@ function BuildFlowConnector({ from, to, index }: { from: BuildStep; to: BuildSte
       {/* Base lines (always visible) */}
       {lines.map((l, i) => (
         <line key={`b${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-          stroke="rgba(0,217,146,0.15)" strokeWidth={1} />
+          stroke="rgba(0,217,146,0.25)" strokeWidth={1} />
       ))}
       {/* Pulse overlay lines */}
       {lines.map((l, i) => (
         <line key={`p${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
           stroke="rgba(0,217,146,0)" strokeWidth={2}>
-          <animate attributeName="stroke" values="rgba(0,217,146,0);rgba(0,217,146,0.8);rgba(0,217,146,0)" dur="0.4s" begin={`${delay}s`} fill="freeze" />
+          <animate attributeName="stroke" values="rgba(0,217,146,0);rgba(0,217,146,0.9);rgba(0,217,146,0)" dur="0.4s" begin={`${delay}s`} fill="freeze" />
           <animate attributeName="stroke-width" values="2;3;1" dur="0.4s" begin={`${delay}s`} fill="freeze" />
         </line>
       ))}
@@ -383,23 +383,308 @@ function RuneView({ primary, secondary }: { primary: { tree: number; keystone: n
   )
 }
 
+// ── Multi-Rune View ──
+function MultiRunePageView({ section }: { section: any }) {
+  const pages = section.pages ?? (section.primary ? [{ name: "Default", primary: section.primary, secondary: section.secondary }] : [])
+  const [activeIdx, setActiveIdx] = useState(0)
+  if (pages.length === 0) return null
+  const activePage = pages[activeIdx] ?? pages[0]
+
+  return (
+    <div>
+      {/* Tabs */}
+      {pages.length > 1 && (
+        <div className="flex items-center gap-0 mb-4 border-b border-flash/[0.06]">
+          {pages.map((p: any, idx: number) => {
+            const isActive = activeIdx === idx
+            return (
+              <button key={idx} type="button" onClick={() => setActiveIdx(idx)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors cursor-pointer",
+                  isActive ? "text-jade" : "text-flash/25 hover:text-flash/50"
+                )}>
+                {p.name || `Page ${idx + 1}`}
+                {(p.againstClasses ?? []).map((cls: string) => (
+                  <img key={cls} src={`https://cdn2.loldata.cc/img/class/${cls.toLowerCase()}.png`} alt={cls}
+                    className={cn("w-4 h-4 object-contain transition-opacity", isActive ? "opacity-70" : "opacity-30")} />
+                ))}
+                {(p.againstChampions ?? []).map((c: string) => (
+                  <img key={c} src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c}
+                    className={cn("w-4 h-4 rounded-[1px] border border-flash/[0.06] transition-opacity", isActive ? "opacity-70" : "opacity-30")} />
+                ))}
+                {isActive && (
+                  <motion.span layoutId="rune-tab-underline"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-jade shadow-[0_0_8px_rgba(0,217,146,0.5)]"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <AnimatePresence mode="wait">
+        <motion.div key={activeIdx}
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="flex gap-6">
+          {/* Left — info */}
+          <div className="flex-1 flex flex-col gap-3 min-w-0">
+            {/* Against badges */}
+            {((activePage.againstChampions ?? []).length > 0 || (activePage.againstClasses ?? []).length > 0) && (
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono text-flash/25 uppercase tracking-wider">vs</span>
+                {(activePage.againstClasses ?? []).map((cls: string) => (
+                  <img key={cls} src={`https://cdn2.loldata.cc/img/class/${cls.toLowerCase()}.png`} alt={cls}
+                    className="w-6 h-6 object-contain opacity-60" title={cls} />
+                ))}
+                {(activePage.againstChampions ?? []).map((c: string) => (
+                  <img key={c} src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c}
+                    className="w-6 h-6 rounded-[2px] border border-flash/[0.08] opacity-60" title={c} />
+                ))}
+              </div>
+            )}
+
+            {/* Description */}
+            {activePage.description && (
+              <p className="text-[14px] font-mono text-flash/50 leading-relaxed whitespace-pre-wrap">{activePage.description}</p>
+            )}
+
+            {/* Keystone summary */}
+            {activePage.primary && (() => {
+              const icon = getKeystoneIcon(activePage.primary.keystone)
+              const name = getKeystoneName(activePage.primary.keystone)
+              const primaryName = getStyleName(activePage.primary.tree)
+              const secondaryName = getStyleName(activePage.secondary?.tree)
+              return (
+                <div className="flex items-center gap-2 mt-2">
+                  {icon && <img src={icon} alt="" className="w-8 h-8 rounded-full border border-jade/30" />}
+                  <div>
+                    <div className="text-[13px] font-orbitron text-flash/60">{name}</div>
+                    <div className="text-[10px] font-mono text-flash/25">{primaryName} / {secondaryName}</div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Divider */}
+          <div className="w-[1px] bg-gradient-to-b from-transparent via-flash/[0.06] to-transparent shrink-0" />
+
+          {/* Right — rune tree */}
+          <div className="shrink-0">
+            <RuneView primary={activePage.primary} secondary={activePage.secondary} />
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  )
+}
+
 // ── Back Timings ──
 function BackTimingView({ timings }: { timings: { gold: number; items: number[]; note: string }[] }) {
   return (
     <div className="space-y-2">
       {timings.map((t, idx) => (
-        <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-sm bg-flash/[0.02] border border-flash/[0.04]">
-          <span className="text-[14px] font-orbitron font-bold text-jade/60 tabular-nums min-w-[60px]">{t.gold}g</span>
-          <div className="flex gap-1">
+        <div key={idx} className="grid grid-cols-[60px_1px_120px_1px_1fr] items-center gap-3 px-4 py-2.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04]">
+          <span className="text-[15px] font-orbitron font-bold text-jade/60 tabular-nums">{t.gold}g</span>
+          <div className="w-[1px] h-full bg-flash/[0.06]" />
+          <div className="flex gap-1.5">
             {t.items.map((itemId, i) => (
-              <img key={i} src={`${cdnBaseUrl()}/img/item/${itemId}.png`} alt="" className="w-6 h-6 rounded-[2px]" />
+              <img key={i} src={`${cdnBaseUrl()}/img/item/${itemId}.png`} alt="" className="w-7 h-7 rounded-[2px]" />
             ))}
           </div>
-          <span className="text-[11px] font-mono text-flash/40 flex-1">{t.note}</span>
+          <div className="w-[1px] h-full bg-flash/[0.06]" />
+          <span className="text-[13px] font-mono text-flash/45">{t.note}</span>
         </div>
       ))}
     </div>
   )
+}
+
+// ── Jungle Pathing ──
+const MINIMAP_URL = "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/map/map11.png"
+
+function JungleMapView({ path }: { path: JunglePath }) {
+  const camps = path.camps
+  const side = path.side
+
+  return (
+    <div className="relative w-[280px] h-[280px] shrink-0 rounded-sm overflow-hidden border border-flash/[0.06]"
+      style={{ perspective: "800px" }}>
+      {/* 3D tilted minimap */}
+      <div className="absolute inset-0" style={{ transform: "rotateX(8deg) scale(1.05)", transformOrigin: "center center" }}>
+        <img src={MINIMAP_URL} alt="Summoner's Rift" className="w-full h-full object-cover opacity-60" draggable={false} />
+        <div className="absolute inset-0 bg-liquirice/30" />
+      </div>
+
+      {/* Scanline overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-10"
+        style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.04) 3px, rgba(0,217,146,0.04) 4px)" }} />
+
+      {/* Path lines connecting camps in order */}
+      <svg className="absolute inset-0 w-full h-full z-10 pointer-events-none">
+        {camps.map((camp, i) => {
+          if (i === 0) return null
+          const prev = CAMP_POSITIONS[camps[i - 1]]
+          const curr = CAMP_POSITIONS[camp]
+          const p = prev[side], c = curr[side]
+          const delay = 0.3 + i * 0.12
+          return (
+            <line key={i}
+              x1={`${p.x}%`} y1={`${p.y}%`} x2={`${c.x}%`} y2={`${c.y}%`}
+              stroke="rgba(0,217,146,0.15)" strokeWidth={1.5} strokeDasharray="4 3">
+              <animate attributeName="stroke" values="rgba(0,217,146,0.15);rgba(0,217,146,0.7);rgba(0,217,146,0.25)" dur="0.4s" begin={`${delay}s`} fill="freeze" />
+            </line>
+          )
+        })}
+      </svg>
+
+      {/* Camp markers — numbered */}
+      {camps.map((camp, i) => {
+        const pos = CAMP_POSITIONS[camp][side]
+        const delay = 0.2 + i * 0.1
+        return (
+          <div key={i} className="absolute z-20 flex items-center justify-center"
+            style={{
+              left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)",
+              animation: `campPop 0.3s ease-out ${delay}s both`,
+            }}>
+            <div className="relative">
+              <div className="w-7 h-7 rounded-full bg-black/70 border border-jade/40 flex items-center justify-center shadow-[0_0_10px_rgba(0,217,146,0.3)]">
+                <span className="text-[11px] font-orbitron font-bold text-jade">{i + 1}</span>
+              </div>
+              <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="text-[7px] font-mono text-flash/30">{CAMP_POSITIONS[camp].label}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Side badge */}
+      <div className={cn(
+        "absolute top-2 right-2 z-20 px-2 py-0.5 rounded-sm text-[7px] font-orbitron uppercase tracking-[0.15em] border",
+        side === "blue" ? "text-blue-300/70 border-blue-400/20 bg-blue-500/10" : "text-red-300/70 border-red-400/20 bg-red-500/10"
+      )}>
+        {side} side
+      </div>
+
+      <style>{`
+        @keyframes campPop {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+function JunglePathView({ paths }: { paths: JunglePath[] }) {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [highlightedItemId, setHighlightedItemId] = useState<number | null>(null)
+  if (!paths || paths.length === 0) return null
+  const activePath = paths[activeIdx] ?? paths[0]
+
+  return (
+    <div>
+      {/* Tabs */}
+      {paths.length > 1 && (
+        <div className="flex items-center gap-0 mb-4 border-b border-flash/[0.06]">
+          {paths.map((p, idx) => {
+            const isActive = activeIdx === idx
+            return (
+              <button key={idx} type="button" onClick={() => setActiveIdx(idx)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors cursor-pointer",
+                  isActive ? "text-jade" : "text-flash/25 hover:text-flash/50"
+                )}>
+                {p.name || `Path ${idx + 1}`}
+                {(p.againstChampions ?? []).map(c => (
+                  <img key={c} src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c}
+                    className={cn("w-4 h-4 rounded-[1px] border border-flash/[0.06] transition-opacity", isActive ? "opacity-70" : "opacity-30")} />
+                ))}
+                {isActive && (
+                  <motion.span layoutId="path-tab-underline"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-jade shadow-[0_0_8px_rgba(0,217,146,0.5)]"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <AnimatePresence mode="wait">
+        <motion.div key={activeIdx}
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="flex gap-6">
+          {/* Map */}
+          <JungleMapView path={activePath} />
+
+          {/* Right — description & against */}
+          <div className="flex-1 flex flex-col gap-3 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="text-[14px] font-orbitron text-flash/60">{activePath.name}</h4>
+              {(activePath.againstChampions ?? []).length > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[8px] font-mono text-flash/20 uppercase">vs</span>
+                  {(activePath.againstChampions ?? []).map(c => (
+                    <img key={c} src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c}
+                      className="w-6 h-6 rounded-[2px] border border-flash/[0.08]" />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Camp order list */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {activePath.camps.map((camp, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-flash/[0.03] border border-flash/[0.06]">
+                    <span className="text-[10px] font-orbitron text-jade/60">{i + 1}</span>
+                    <span className="text-[10px] font-mono text-flash/40">{CAMP_POSITIONS[camp].label}</span>
+                  </div>
+                  {i < activePath.camps.length - 1 && (
+                    <span className="text-flash/15 text-[8px]">&rarr;</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Description */}
+            {activePath.description && (
+              <LinkedDescription text={activePath.description} onHover={setHighlightedItemId} />
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function isSectionEmpty(s: GuideSection): boolean {
+  if (s.type === "introduction") return !s.content?.trim()
+  if (s.type === "matchups") return s.threats.length === 0 && s.synergies.length === 0
+  if (s.type === "build") {
+    const pages = (s as any).pages ?? (s.items ? [{ items: s.items }] : [])
+    return pages.every((p: any) => {
+      const steps = p.steps ?? (p.items ? p.items.map((id: number) => ({ items: [id] })) : [])
+      return steps.length === 0
+    })
+  }
+  if (s.type === "runes") {
+    const pages = (s as any).pages ?? (s.primary ? [s] : [])
+    return pages.length === 0 || pages.every((p: any) => !p.primary?.keystone && (!p.primary?.runes || p.primary.runes.length === 0))
+  }
+  if (s.type === "recommended_items") return !s.items || s.items.length === 0
+  if (s.type === "back_timings") return s.timings.length === 0
+  if (s.type === "jungle_pathing") {
+    const paths = (s as any).paths ?? []
+    return paths.length === 0 || paths.every((p: any) => p.camps.length === 0)
+  }
+  return false
 }
 
 // ── Main Viewer ──
@@ -407,19 +692,15 @@ export function GuideViewer({ guide }: { guide: Guide }) {
   return (
     <div className="space-y-8">
       {/* Sections */}
-      {guide.sections.filter(s => s.visible).map((section, idx) => (
+      {guide.sections.filter(s => s.visible && !isSectionEmpty(s)).map((section, idx) => (
         <SectionCard key={idx} title={section.title}>
           {section.type === "introduction" && <IntroView content={section.content} />}
           {section.type === "matchups" && <MatchupDisplay threats={section.threats} synergies={section.synergies} championId={guide.champion_id} />}
           {section.type === "build" && <MultiBuildView section={section} />}
-          {section.type === "runes" && (section.pages ?? (section.primary ? [{ name: "Default", primary: section.primary!, secondary: section.secondary! }] : [])).map((page: any, i: number) => (
-            <div key={i} className={i > 0 ? "mt-4 pt-4 border-t border-flash/[0.04]" : ""}>
-              {page.name && <div className="text-[11px] font-orbitron text-flash/40 mb-2">{page.name}</div>}
-              <RuneView primary={page.primary} secondary={page.secondary} />
-            </div>
-          ))}
+          {section.type === "runes" && <MultiRunePageView section={section} />}
           {section.type === "recommended_items" && <BuildView items={section.items} />}
           {section.type === "back_timings" && <BackTimingView timings={section.timings} />}
+          {section.type === "jungle_pathing" && <JunglePathView paths={(section as any).paths} />}
         </SectionCard>
       ))}
     </div>
