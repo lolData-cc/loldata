@@ -74,7 +74,7 @@ export function DiamondButton({
   "aria-label": ariaLabel,
 }: DiamondButtonProps) {
   const c = COLOR_MAP[color]
-  const iconContent = typeof icon === "string" ? ICON_MAP[icon] : icon
+  const iconContent = typeof icon === "string" ? ICON_MAP[icon as DiamondIcon] : icon
 
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>

@@ -163,16 +163,16 @@ function IntroEditor({ section, onChange }: { section: GuideSection & { type: "i
 }
 
 // ── Build Editor (with item picker) ──
-function BuildEditor({ section, onChange }: { section: GuideSection & { type: "build" | "recommended_items" }; onChange: (s: GuideSection) => void }) {
+function BuildEditor({ section, onChange }: { section: GuideSection & { type: "recommended_items" }; onChange: (s: GuideSection) => void }) {
   const [showPicker, setShowPicker] = useState(false)
 
   return (
     <div>
       <div className="flex gap-1.5 flex-wrap mb-3">
-        {section.items.map((itemId, idx) => (
+        {(section.items ?? []).map((itemId, idx) => (
           <div key={idx} className="group relative">
             <img src={`${cdnBaseUrl()}/img/item/${itemId}.png`} alt="" className="w-10 h-10 rounded-[2px] border border-flash/[0.08] transition-transform group-hover:scale-105" />
-            <button type="button" onClick={() => onChange({ ...section, items: section.items.filter((_, i) => i !== idx) })}
+            <button type="button" onClick={() => onChange({ ...section, items: (section.items ?? []).filter((_: number, i: number) => i !== idx) })}
               className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               <X className="w-2.5 h-2.5" />
             </button>
@@ -183,7 +183,7 @@ function BuildEditor({ section, onChange }: { section: GuideSection & { type: "b
           <span className="text-[16px]">+</span>
         </button>
       </div>
-      {showPicker && <ItemSearch onSelect={(id) => onChange({ ...section, items: [...section.items, id] })} onClose={() => setShowPicker(false)} />}
+      {showPicker && <ItemSearch onSelect={(id) => onChange({ ...section, items: [...(section.items ?? []), id] })} onClose={() => setShowPicker(false)} />}
     </div>
   )
 }
@@ -463,7 +463,7 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
 
   const removeItemFromStep = (stepIdx: number, itemIdx: number) => {
     const newSteps = [...activePage.steps]
-    const newItems = newSteps[stepIdx].items.filter((_, i) => i !== itemIdx)
+    const newItems = newSteps[stepIdx].items.filter((_: number, i: number) => i !== itemIdx)
     if (newItems.length === 0) {
       // Remove the entire step
       newSteps.splice(stepIdx, 1)
