@@ -34,6 +34,7 @@ export function cdnSplashUrl(champName: string, skinNum = 0) {
 }
 
 /** Perk/rune images — not in dragontail, served from Riot's CDN */
+/** Perk/rune images — ddragon has correct paths for all runes */
 export const PERK_CDN = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
 
 /** Summoner spell images by ID — custom path on our CDN, fallback to ddragon */

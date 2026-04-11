@@ -31,6 +31,7 @@ import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
 import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreference";
+import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ChangePassword } from "@/components/changepassword";
 import { cdnBaseUrl } from "@/config";
 import { cn } from "@/lib/utils";
@@ -248,6 +249,13 @@ export default function DashboardPage() {
               {/* PREFERENCES TAB */}
               <TabsContent value="preferences" className="outline-none">
                 <div className="flex flex-col gap-6 p-4 px-6">
+                  {/* GENERAL */}
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: GENERAL ::</p>
+                    <AmbientLightPreference />
+                    <LegacyRankIconsPreference />
+                  </div>
+
                   <div className="space-y-3">
                     <p className={cn(
                       "text-[11px] font-mono tracking-[0.25em] uppercase transition-all duration-700",
@@ -262,7 +270,6 @@ export default function DashboardPage() {
                     <StatsBarPreference />
                     <ContextMenuActionsPreference />
                     <ClickToExpandPreference />
-                    <LegacyRankIconsPreference />
                   </div>
 
                   <div className="space-y-3">

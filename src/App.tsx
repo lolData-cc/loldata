@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef } from "react";
+import { useAmbientLight } from "@/hooks/useAmbientLight";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
@@ -117,6 +118,20 @@ function HomePage() {
   );
 }
 
+function AmbientLightOverlay() {
+  const { intensity } = useAmbientLight()
+  const { pathname } = useLocation()
+  if (intensity <= 0) return null
+  // Skip on homepage — the hero image has its own lighting
+  if (pathname === "/") return null
+  const opacity = intensity / 100 * 0.08 // max 8% opacity
+  return (
+    <div className="absolute inset-0 pointer-events-none z-0 top-[400px]" style={{
+      background: `radial-gradient(ellipse at 50% 0%, rgba(180,195,210,${opacity}) 0%, transparent 60%)`,
+    }} />
+  )
+}
+
 export function RootLayout({
   children,
 }: Readonly<{
@@ -150,9 +165,10 @@ export function RootLayout({
       />
       <div
         ref={scrollRef}
-        className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
+        className="relative font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
-        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 flex flex-col items-center">
+        <AmbientLightOverlay />
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 flex flex-col items-center relative z-[1]">
           <Navbar sticky={navbarSticky} />
           <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />
@@ -187,6 +203,7 @@ function App() {
                   </AuthGuard>
                 }
               />
+              <Route path="/champions/:champId/guides/:guideId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/champions/:champId/:tab?" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/matches/:matchId" element={<MatchPage />} />

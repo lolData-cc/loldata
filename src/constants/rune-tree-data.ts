@@ -33,19 +33,19 @@ export const RUNE_TREES: RuneTree[] = [
     ],
     rows: [
       [
-        { id: 9101, name: "Overheal", icon: "Styles/Precision/Overheal.png" },
+        { id: 9101, name: "Absorb Life", icon: "Styles/Precision/AbsorbLife/AbsorbLife.png" },
         { id: 9111, name: "Triumph", icon: "Styles/Precision/Triumph.png" },
         { id: 8009, name: "Presence of Mind", icon: "Styles/Precision/PresenceOfMind/PresenceOfMind.png" },
       ],
       [
         { id: 9104, name: "Legend: Alacrity", icon: "Styles/Precision/LegendAlacrity/LegendAlacrity.png" },
-        { id: 9105, name: "Legend: Tenacity", icon: "Styles/Precision/LegendTenacity/LegendTenacity.png" },
+        { id: 9105, name: "Legend: Haste", icon: "Styles/Precision/LegendHaste/LegendHaste.png" },
         { id: 9103, name: "Legend: Bloodline", icon: "Styles/Precision/LegendBloodline/LegendBloodline.png" },
       ],
       [
         { id: 8014, name: "Coup de Grace", icon: "Styles/Precision/CoupDeGrace/CoupDeGrace.png" },
         { id: 8017, name: "Cut Down", icon: "Styles/Precision/CutDown/CutDown.png" },
-        { id: 8299, name: "Last Stand", icon: "Styles/Precision/LastStand/LastStand.png" },
+        { id: 8299, name: "Last Stand", icon: "Styles/Sorcery/LastStand/LastStand.png" },
       ],
     ],
   },

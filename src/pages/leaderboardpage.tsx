@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { getRankImage } from "@/utils/rankIcons"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
+import { DiamondButton } from "@/components/ui/diamond-button"
 
 type Entry = {
   rank: number
@@ -356,17 +357,7 @@ export default function LeaderboardPage() {
             exit={{ opacity: 0, y: 20 }}
             className="fixed bottom-10 right-10 z-50"
           >
-            <button
-              aria-label="Scroll to top"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="group relative w-11 h-11 cursor-clicker"
-            >
-              <div className="absolute inset-0 rotate-45 rounded-[3px] border border-jade/30 bg-black/60 backdrop-blur-sm transition-all duration-300 group-hover:border-jade/60 group-hover:shadow-[0_0_14px_rgba(0,217,146,0.25)]" />
-              <svg viewBox="0 0 24 24" className="absolute inset-0 m-auto w-5 h-5 z-10 text-jade/60 group-hover:text-jade transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 15l-6-6-6 6" />
-              </svg>
-              <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[7px] font-mono text-jade/40 tracking-[0.2em] uppercase group-hover:text-jade/70 transition-colors">TOP</span>
-            </button>
+            <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
           </motion.div>
         )}
       </AnimatePresence>

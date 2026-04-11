@@ -18,6 +18,7 @@ import {
 import { KillMap } from "@/components/killmap";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
+import { DiamondButton } from "@/components/ui/diamond-button";
 import { supabase } from "@/lib/supabaseClient";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import {
@@ -573,23 +574,7 @@ export default function MatchPage() {
           PAGE CONTENT
           ═══════════════════════════════════════════════════════════ */}
       {/* Back button — sticky, left of content */}
-      <button
-        onClick={() => navigate(-1)}
-        className="fixed top-1/2 left-4 -translate-y-1/2 z-50 group w-9 h-9 cursor-clicker"
-      >
-        <span className={cn(
-          "absolute inset-0 rotate-45 rounded-[3px] border transition-all duration-300",
-          "bg-black/60 border-jade/30",
-          "group-hover:border-jade/70 group-hover:bg-jade/10",
-          "group-hover:shadow-[0_0_14px_rgba(0,217,146,0.25)]",
-          "shadow-[0_0_6px_rgba(0,217,146,0.1)]"
-        )} />
-        <span className="absolute inset-0 flex items-center justify-center">
-          <svg viewBox="0 0 10 10" className="w-3.5 h-3.5 text-jade transition-transform duration-300 group-hover:-translate-x-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="7,1 3,5 7,9" />
-          </svg>
-        </span>
-      </button>
+      <DiamondButton icon="back" label="BACK" onClick={() => navigate(-1)} className="fixed top-1/2 left-4 -translate-y-1/2 z-50" />
 
       <div className="w-[65%] mx-auto -mt-6 relative z-20">
 

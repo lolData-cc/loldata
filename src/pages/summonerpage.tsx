@@ -28,6 +28,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { DiamondButton } from "@/components/ui/diamond-button"
 // import { getPlayerBadges } from "@/utils/badges";
 import {
   DropdownMenu,
@@ -1323,13 +1324,14 @@ export default function SummonerPage() {
       {!techBgDisabled && <UltraTechBackground />}
 
       {(selectedQueue !== "All" || selectedChampion || selectedResult !== "all" || selectedRole || filterDuoPuuid) && (
-        <div
-          className={cn(
-            "fixed right-10 z-50 flex flex-col items-center gap-2 transition-all duration-300 w-11",
-            showScrollTop ? "bottom-[7.5rem]" : "bottom-10"
-          )}
-        >
-          <button
+        <div className={cn(
+          "fixed right-10 z-50 transition-all duration-300",
+          showScrollTop ? "bottom-[7.5rem]" : "bottom-10"
+        )}>
+          <DiamondButton
+            color="red"
+            icon={<X className="w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-110" />}
+            label="RESET"
             onClick={() => {
               setSelectedQueue("All");
               setSelectedChampion(null);
@@ -1338,27 +1340,7 @@ export default function SummonerPage() {
               setFilterDuoPuuid(null);
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="group relative w-11 h-11 cursor-clicker"
-          >
-            <span className={cn(
-              "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
-              "bg-black/60 border-[#c93232]/40",
-              "group-hover:border-[#c93232]/80 group-hover:bg-[#c93232]/10",
-              "group-hover:shadow-[0_0_18px_rgba(201,50,50,0.35),inset_0_0_8px_rgba(201,50,50,0.08)]",
-              "shadow-[0_0_8px_rgba(201,50,50,0.15)]"
-            )}>
-              <span
-                className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-                style={{
-                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(201,50,50,0.5) 3px, rgba(201,50,50,0.5) 4px)"
-                }}
-              />
-            </span>
-            <span className="absolute inset-0 flex items-center justify-center">
-              <X className="w-3.5 h-3.5 text-[#c93232] transition-transform duration-300 group-hover:scale-110" />
-            </span>
-          </button>
-          <span className="font-mono text-[7px] tracking-[0.2em] text-[#c93232]/50 uppercase select-none text-center leading-tight">REMOVE<br/>FILTER</span>
+          />
         </div>
       )}
       <div className="relative flex min-h-screen -mt-4 z-10">
@@ -3415,57 +3397,11 @@ export default function SummonerPage() {
         </AnimatePresence>
 
         {/* Cyber scroll-to-top */}
-        <div
-          className={cn(
-            "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
-            "transition-all duration-300 ease-in-out",
-            showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
-          )}
-        >
-          {/* Diamond button */}
-          <button
-            aria-label="Scroll to top"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="group relative w-11 h-11 cursor-clicker"
-          >
-            {/* Rotated square track */}
-            <span className={cn(
-              "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
-              "bg-black/60 border-jade/40",
-              "group-hover:border-jade/80 group-hover:bg-jade/10",
-              "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
-              "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
-            )}>
-              {/* Scanlines inside diamond */}
-              <span
-                className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-                style={{
-                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)"
-                }}
-              />
-            </span>
-
-            {/* Inner content — counter-rotated to stay upright */}
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
-              {/* Up chevron */}
-              <svg
-                viewBox="0 0 10 6"
-                className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="1,5 5,1 9,5" />
-              </svg>
-            </span>
-          </button>
-
-          {/* Label below */}
-          <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">
-            TOP
-          </span>
+        <div className={cn(
+          "fixed bottom-10 right-10 z-50 transition-all duration-300 ease-in-out",
+          showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
+        )}>
+          <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
         </div>
 
       </div>

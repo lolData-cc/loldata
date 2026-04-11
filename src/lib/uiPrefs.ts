@@ -12,6 +12,7 @@ export const UI_PREFS_KEYS = {
   clickToExpandMatch: "lolData:clickToExpandMatch",
   blueWinTint: "lolData:blueWinTint",
   legacyRankIcons: "lolData:legacyRankIcons",
+  ambientLight: "lolData:ambientLight",
 } as const;
 
 function safeWindow() {
@@ -216,5 +217,20 @@ export function setLegacyRankIcons(value: boolean) {
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.legacyRankIcons, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+/** Ambient light intensity: 0 (off) to 100 (max). Default 0. */
+export function getAmbientLight(): number {
+  const w = safeWindow();
+  if (!w) return 0;
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.ambientLight);
+  return val ? Number(val) : 0;
+}
+
+export function setAmbientLight(value: number) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.ambientLight, String(Math.max(0, Math.min(100, Math.round(value)))));
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }

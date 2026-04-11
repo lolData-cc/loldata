@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
@@ -8,15 +9,16 @@ import { cdnBaseUrl } from "@/config"
 import type { Guide } from "./types"
 import { GuideViewer } from "./guide-viewer"
 import { GuideEditor } from "./guide-editor"
-import { Plus, ArrowLeft } from "lucide-react"
+import { Plus } from "lucide-react"
 
 type ViewMode = "list" | "view" | "edit"
 
-export function GuidesTab({ championId }: { championId: string }) {
+export function GuidesTab({ championId, initialGuideId, editRef, onGuideView }: { championId: string; initialGuideId?: string; editRef?: React.MutableRefObject<(() => void) | null>; onGuideView?: (guide: Guide | null) => void }) {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [guides, setGuides] = useState<Guide[]>([])
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<ViewMode>("list")
+  const [viewMode, setViewMode] = useState<ViewMode>(initialGuideId ? "view" : "list")
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null)
 
   useEffect(() => {
@@ -27,7 +29,17 @@ export function GuidesTab({ championId }: { championId: string }) {
       .eq("champion_id", championId)
       .order("upvotes", { ascending: false })
       .then(({ data }) => {
-        setGuides((data ?? []) as Guide[])
+        const all = (data ?? []) as Guide[]
+        setGuides(all)
+        // Auto-open guide from URL
+        if (initialGuideId && !selectedGuide) {
+          const target = all.find(g => g.id === initialGuideId)
+          if (target) {
+            setSelectedGuide(target)
+            setViewMode("view")
+            onGuideView?.(target)
+          }
+        }
         setLoading(false)
       })
   }, [championId])
@@ -35,16 +47,26 @@ export function GuidesTab({ championId }: { championId: string }) {
   const openGuide = (guide: Guide) => {
     setSelectedGuide(guide)
     setViewMode("view")
+    onGuideView?.(guide)
+    navigate(`/champions/${championId}/guides/${guide.id}`, { replace: true })
+  }
+
+  const goBackToList = () => {
+    setViewMode("list")
+    setSelectedGuide(null)
+    onGuideView?.(null)
+    navigate(`/champions/${championId}/guides`, { replace: true })
   }
 
   const startEditing = (guide?: Guide) => {
     setSelectedGuide(guide ?? null)
     setViewMode("edit")
+    onGuideView?.(null)
+    navigate(`/champions/${championId}/guides`, { replace: true })
   }
 
   const handleSave = () => {
-    setViewMode("list")
-    setSelectedGuide(null)
+    goBackToList()
     // Refresh
     supabase
       .from("guides")
@@ -54,13 +76,13 @@ export function GuidesTab({ championId }: { championId: string }) {
       .then(({ data }) => setGuides((data ?? []) as Guide[]))
   }
 
+  // Clear edit ref when not viewing
+  if (editRef) editRef.current = null
+
   // ── Edit mode ──
   if (viewMode === "edit") {
     return (
       <div>
-        <button type="button" onClick={() => setViewMode("list")} className="flex items-center gap-1.5 text-[10px] font-mono text-flash/40 hover:text-jade/60 mb-4 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to guides
-        </button>
         <GuideEditor championId={championId} existingGuide={selectedGuide} onSave={handleSave} />
       </div>
     )
@@ -68,11 +90,10 @@ export function GuidesTab({ championId }: { championId: string }) {
 
   // ── View mode ──
   if (viewMode === "view" && selectedGuide) {
+    // Expose edit trigger to parent via ref
+    if (editRef) editRef.current = () => startEditing(selectedGuide)
     return (
       <div>
-        <button type="button" onClick={() => setViewMode("list")} className="flex items-center gap-1.5 text-[10px] font-mono text-flash/40 hover:text-jade/60 mb-4 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to guides
-        </button>
         <GuideViewer guide={selectedGuide} />
       </div>
     )

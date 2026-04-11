@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Check, Copy, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DiamondButton } from "@/components/ui/diamond-button";
 import { Label } from "@/components/ui/label";
 import { showCyberToast } from "@/lib/toast-utils";
 import { useAuth } from "@/context/authcontext";
@@ -529,37 +530,11 @@ export default function StreamersPage() {
       </AnimatePresence>
 
       {/* ═══ SCROLL TO TOP ═══ */}
-      <div
-        className={cn(
-          "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
-          "transition-all duration-300 ease-in-out",
-          showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
-        )}
-      >
-        <button
-          aria-label="Scroll to top"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="group relative w-11 h-11 cursor-clicker"
-        >
-          <span className={cn(
-            "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
-            "bg-black/60 border-jade/40",
-            "group-hover:border-jade/80 group-hover:bg-jade/10",
-            "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
-            "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
-          )}>
-            <span
-              className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-              style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)" }}
-            />
-          </span>
-          <span className="absolute inset-0 flex items-center justify-center">
-            <svg viewBox="0 0 10 6" className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="1,5 5,1 9,5" />
-            </svg>
-          </span>
-        </button>
-        <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">TOP</span>
+      <div className={cn(
+        "fixed bottom-10 right-10 z-50 transition-all duration-300 ease-in-out",
+        showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
+      )}>
+        <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
       </div>
     </div>
   );

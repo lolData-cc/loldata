@@ -15,6 +15,8 @@ import { ChampionItemsTab } from "@/components/championitemstab";
 import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
 import { GuidesTab } from "@/components/guide/guides-tab";
+import { useAuth } from "@/context/authcontext";
+import { DiamondButton } from "@/components/ui/diamond-button";
 
 type SpellInfo = {
   id: string
@@ -97,11 +99,11 @@ const fmtPct = (x: number) => `${x.toFixed(2)}%`
 const validTabs = ["overview", "statistics", "items", "matchups", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
-  const { champId, tab } = useParams<{ champId: string; tab?: string }>()
+  const { champId, tab, guideId } = useParams<{ champId: string; tab?: string; guideId?: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const vsParam = searchParams.get("vs")
-  const activeTab = validTabs.includes(tab as any) ? tab! : "overview"
+  const activeTab = guideId ? "guides" : (validTabs.includes(tab as any) ? tab! : "overview")
   const [patch, setPatch] = useState("15.13.1")
   const [champ, setChamp] = useState<ChampInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -115,6 +117,9 @@ export default function ChampionDetailPage() {
   }, [])
 
   const [vsOpponent, setVsOpponentState] = useState<{ championId: number; name: string; role?: string } | null>(null)
+  const { session } = useAuth()
+  const [activeGuide, setActiveGuide] = useState<{ title: string; author: string; authorId: string; guideId: string; views: number; upvotes: number; discord?: string | null; twitter?: string | null; reddit?: string | null } | null>(null)
+  const guideEditRef = React.useRef<(() => void) | null>(null)
   const setVsOpponent = (opp: { championId: number; name: string; role?: string } | null) => {
     setVsOpponentState(opp)
     if (opp) {
@@ -299,6 +304,16 @@ export default function ChampionDetailPage() {
 
   return (
     <main className="min-h-dvh w-full">
+      <style>{`
+        @keyframes morphIn {
+          0% { opacity: 0; transform: translateY(8px) scale(0.95); filter: blur(4px); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes morphOut {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-6px); }
+        }
+      `}</style>
       {/* Hero — full-width splash */}
       <div className="relative w-screen left-1/2 -translate-x-1/2 h-[360px] overflow-hidden -mt-6 mb-4">
         <img
@@ -393,24 +408,77 @@ export default function ChampionDetailPage() {
                 })()}
               </div>
             ) : (
-              /* Normal Layout */
-              <div className="flex items-center gap-4">
-                <img
-                  src={iconUrl || "/placeholder.svg"}
-                  alt={`${champ.name} icon`}
-                  className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
-                />
-                <div>
-                  <h1 className="text-2xl font-semibold text-white">{champ.name}</h1>
-                  <p className="text-sm text-white/70">{champ.title}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {champ.tags?.map(t => (
-                      <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                        {t}
+              /* Normal Layout — morphs when viewing a guide */
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={iconUrl || "/placeholder.svg"}
+                    alt={`${champ.name} icon`}
+                    className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
+                  />
+                  <div>
+                    <h1 className="text-2xl font-semibold text-white transition-all duration-500 ease-out" key={activeGuide ? "guide" : "champ"}>
+                      <span style={{ display: "inline-block", animation: activeGuide ? "morphIn 0.4s ease-out" : undefined }}>
+                        {activeGuide ? activeGuide.title : champ.name}
                       </span>
-                    ))}
+                    </h1>
+                    <div className="flex items-center gap-2 text-sm transition-all duration-500 ease-out" key={activeGuide ? "guide-author" : "champ-title"}>
+                      <span style={{ display: "inline-block", animation: activeGuide ? "morphIn 0.4s ease-out 0.05s both" : undefined }}
+                        className={activeGuide ? "text-jade/60" : "text-white/70"}>
+                        {activeGuide ? `by ${activeGuide.author}` : champ.title}
+                      </span>
+                      {activeGuide && (activeGuide.discord || activeGuide.twitter || activeGuide.reddit) && (
+                        <span className="flex items-center gap-2.5 ml-2" style={{ animation: "morphIn 0.4s ease-out 0.15s both" }}>
+                          {activeGuide.discord && (
+                            <span className="text-flash/30 hover:text-[#5865F2] transition-colors cursor-pointer" title={activeGuide.discord}>
+                              <svg viewBox="0 0 127.14 96.36" className="w-[18px] h-[14px]" fill="currentColor">
+                                <path d="M107.7 8.07A105.15 105.15 0 0081.47 0a72.06 72.06 0 00-3.36 6.83 97.68 97.68 0 00-29.11 0A72.37 72.37 0 0045.64 0a105.89 105.89 0 00-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0032.17 16.15 77.7 77.7 0 006.89-11.11 68.42 68.42 0 01-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0064.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 01-10.87 5.19 77 77 0 006.89 11.1 105.25 105.25 0 0032.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53.05s5-12.68 11.45-12.68S54 46.05 53.89 53.05 48.84 65.69 42.45 65.69zm42.24 0C78.41 65.69 73.25 60 73.25 53.05s5-12.68 11.44-12.68S96.23 46.05 96.12 53.05 91.08 65.69 84.69 65.69z"/>
+                              </svg>
+                            </span>
+                          )}
+                          {activeGuide.twitter && (
+                            <a href={`https://x.com/${activeGuide.twitter.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer"
+                              className="text-flash/30 hover:text-white transition-colors">
+                              <svg viewBox="0 0 24 24" className="w-[14px] h-[14px]" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                              </svg>
+                            </a>
+                          )}
+                          {activeGuide.reddit && (
+                            <a href={`https://reddit.com/user/${activeGuide.reddit.replace(/^u\//, "")}`} target="_blank" rel="noopener noreferrer"
+                              className="text-flash/30 hover:text-[#FF4500] transition-colors">
+                              <svg viewBox="0 0 20 20" className="w-[18px] h-[18px]" fill="currentColor">
+                                <path d="M15.8 4.8c.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.4 0-.7-.2-.9-.5l-2.1-.4-.7 3.4c1.7.1 3.2.6 4.3 1.4.3-.3.7-.5 1.1-.5.9 0 1.6.7 1.6 1.6 0 .6-.3 1.1-.8 1.4v.4c0 2.5-2.9 4.5-6.4 4.5s-6.4-2-6.4-4.5v-.4c-.5-.3-.8-.8-.8-1.4 0-.9.7-1.6 1.6-1.6.4 0 .8.2 1.1.5 1.1-.8 2.6-1.3 4.2-1.4l.8-3.8c0-.1.1-.2.1-.2h.2l2.4.5c.2-.4.6-.7 1.1-.7zM7 11.4c-.6 0-1.1.5-1.1 1.1s.5 1.1 1.1 1.1 1.1-.5 1.1-1.1-.5-1.1-1.1-1.1zm5 3.3c-.5.5-1.4.7-2 .7s-1.5-.2-2-.7c-.1-.1-.1-.3 0-.4.1-.1.3-.1.4 0 .4.4 1 .6 1.6.6s1.2-.2 1.6-.6c.1-.1.3-.1.4 0 .1.1.1.3 0 .4zm-.1-2.2c-.6 0-1.1-.5-1.1-1.1s.5-1.1 1.1-1.1 1.1.5 1.1 1.1-.5 1.1-1.1 1.1z"/>
+                              </svg>
+                            </a>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {!activeGuide && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {champ.tags?.map(t => (
+                          <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
+                {/* Guide stats — upvotes & views */}
+                {activeGuide && (
+                  <div className="flex items-center gap-3" style={{ animation: "morphIn 0.4s ease-out 0.1s both" }}>
+                    <div className="flex flex-col items-center gap-1 w-[60px] py-1.5 rounded-sm border border-jade/[0.15] bg-jade/[0.03]">
+                      <span className="text-[16px] font-orbitron font-bold text-jade/70 tabular-nums">{activeGuide.upvotes}</span>
+                      <span className="text-[7px] font-mono text-jade/30 uppercase tracking-[0.2em]">UPVOTES</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 w-[60px] py-1.5 rounded-sm border border-flash/[0.08] bg-black/30">
+                      <span className="text-[16px] font-orbitron font-bold text-flash/70 tabular-nums">{activeGuide.views}</span>
+                      <span className="text-[7px] font-mono text-flash/25 uppercase tracking-[0.2em]">VIEWS</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -418,7 +486,7 @@ export default function ChampionDetailPage() {
       </div>
 
       {/* Body */}
-      <Tabs value={activeTab} onValueChange={(v) => navigate(`/champions/${champId}/${v}`, { replace: true })}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveGuide(null); navigate(`/champions/${champId}/${v}`, { replace: true }) }}>
         {/* Cyber tab bar */}
         <div className="relative mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
           <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06] min-w-0 w-max sm:w-full">
@@ -480,7 +548,7 @@ export default function ChampionDetailPage() {
             </div>
           </TabsContent>
           <TabsContent value="guides">
-            {champ && <GuidesTab championId={champ.id} />}
+            {champ && <GuidesTab championId={champ.id} initialGuideId={guideId} editRef={guideEditRef} onGuideView={(g) => setActiveGuide(g ? { title: g.title, author: g.author_name ?? "Anonymous", authorId: g.author_id, guideId: g.id, views: g.views ?? 0, upvotes: g.upvotes ?? 0, discord: g.author_discord, twitter: g.author_twitter, reddit: g.author_reddit } : null)} />}
           </TabsContent>
           <TabsContent value="pros">
             {champ && (
@@ -492,38 +560,25 @@ export default function ChampionDetailPage() {
         </div>
       </Tabs>
 
-      {/* Cyber scroll-to-top */}
-      <div
-        className={cn(
-          "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
+      {/* Floating bottom-right buttons */}
+      <div className="fixed bottom-10 right-10 z-50 flex flex-col items-center gap-4">
+        {/* Edit guide button — shifts up when scroll-to-top appears */}
+        {activeGuide && session?.user?.id === activeGuide.authorId && (
+          <div className={cn(
+            "transition-all duration-300 ease-in-out",
+            showScrollTop ? "translate-y-0" : "translate-y-[calc(100%+16px)]"
+          )}>
+            <DiamondButton color="citrine" icon="edit" label="EDIT" onClick={() => guideEditRef.current?.()} />
+          </div>
+        )}
+
+        {/* Scroll to top */}
+        <div className={cn(
           "transition-all duration-300 ease-in-out",
           showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
-        )}
-      >
-        <button
-          aria-label="Scroll to top"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="group relative w-11 h-11 cursor-pointer"
-        >
-          <span className={cn(
-            "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
-            "bg-black/60 border-jade/40",
-            "group-hover:border-jade/80 group-hover:bg-jade/10",
-            "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
-            "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
-          )}>
-            <span
-              className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-              style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)" }}
-            />
-          </span>
-          <span className="absolute inset-0 flex items-center justify-center">
-            <svg viewBox="0 0 10 6" className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="1,5 5,1 9,5" />
-            </svg>
-          </span>
-        </button>
-        <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">TOP</span>
+        )}>
+          <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
+        </div>
       </div>
 
     </main>
