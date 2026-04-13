@@ -34,6 +34,12 @@ export type BuildStep = {
   items: number[]  // 1 item = mandatory, multiple = pick one
 }
 
+export type BootOption = {
+  itemId: number
+  againstChampions?: string[]
+  againstClasses?: string[]
+}
+
 export type BuildPage = {
   name: string
   description?: string  // Supports item links: [BT](3072) → hoverable text that highlights the item
@@ -41,6 +47,8 @@ export type BuildPage = {
   items?: number[]  // Legacy flat list (backward compat → each item becomes a single step)
   againstChampions?: string[]
   againstClasses?: string[]
+  showBoots?: boolean
+  boots?: BootOption[]
 }
 
 /** Normalize a BuildPage: convert legacy flat items to steps */
@@ -79,18 +87,24 @@ export type RuneSection = {
   shards?: number[]
 }
 
+export type RecommendedItem = {
+  itemId: number
+  description?: string
+}
+
 export type RecommendedItemsSection = {
   type: "recommended_items"
   title: string
   visible: boolean
-  items: number[]
+  items: number[]  // Legacy flat list
+  richItems?: RecommendedItem[]
 }
 
 export type BackTimingSection = {
   type: "back_timings"
   title: string
   visible: boolean
-  timings: { gold: number; items: number[]; note: string }[]
+  timings: { gold: number; items: number[]; note: string; ideal?: boolean }[]
 }
 
 export type JungleCamp = "blue" | "gromp" | "wolves" | "raptors" | "red" | "krugs" | "scuttle_top" | "scuttle_bot"

@@ -97,6 +97,47 @@ function BuildView({ items }: { items: number[] }) {
   return <BuildItemRow items={items} />
 }
 
+function RecommendedItemsView({ section }: { section: any }) {
+  const richItems: { itemId: number; description?: string }[] = section.richItems ??
+    (section.items ?? []).map((id: number) => ({ itemId: id }))
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(richItems.length > 0 ? 0 : null)
+
+  if (richItems.length === 0) return null
+
+  const ITEM_W = 56 // item card width approx
+  const GAP = 8
+  const totalW = richItems.length * ITEM_W + (richItems.length - 1) * GAP
+
+  return (
+    <div className="flex flex-col items-center gap-0">
+      {/* Items row — centered */}
+      <div className="flex gap-2 justify-center flex-wrap">
+        {richItems.map((item, idx) => (
+          <button key={idx} type="button" onClick={() => setSelectedIdx(selectedIdx === idx ? null : idx)}
+            className={cn(
+              "flex flex-col items-center gap-1 p-2 rounded-sm border transition-all cursor-pointer",
+              selectedIdx === idx
+                ? "border-jade/40 bg-jade/[0.05] shadow-[0_0_12px_rgba(0,217,146,0.15)]"
+                : "border-flash/[0.04] bg-flash/[0.02] hover:border-flash/[0.1]"
+            )}>
+            <img src={`${cdnBaseUrl()}/img/item/${item.itemId}.png`} alt=""
+              className={cn("w-10 h-10 rounded-[2px] border transition-all", selectedIdx === idx ? "border-jade/30" : "border-flash/[0.08]")} />
+          </button>
+        ))}
+      </div>
+
+      {/* Connector line + description */}
+      {selectedIdx !== null && richItems[selectedIdx]?.description && (
+        <div className="flex flex-col items-center w-full">
+          <div className="w-[1px] h-4 bg-jade/20" />
+          <div className="w-2 h-2 rotate-45 border border-jade/25 bg-jade/[0.08] -mt-[1px]" />
+          <p className="mt-2 w-full text-[14px] font-mono text-flash/50 leading-relaxed whitespace-pre-wrap">{richItems[selectedIdx].description}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ITEM_SIZE = 44 // w-11 = 44px
 const ITEM_GAP = 6   // gap-1.5 = 6px
 const CONN_W = 44     // horizontal connector width
@@ -307,8 +348,44 @@ function MultiBuildView({ section }: { section: any }) {
             </div>
           )}
 
-          {/* Build flow */}
-          <BuildFlowView steps={activePage.steps} highlightedItemId={highlightedItemId ?? undefined} />
+          {/* Build flow + boots centered */}
+          <div className="flex items-start gap-10 justify-center">
+            <BuildFlowView steps={activePage.steps} highlightedItemId={highlightedItemId ?? undefined} />
+
+            {activePage.showBoots && (activePage.boots?.length ?? 0) > 0 && (
+              <div className="shrink-0 flex flex-col gap-2.5 pt-1">
+                {activePage.boots!.map((boot: any, bi: number) => {
+                  const hasContext = (boot.againstClasses?.length ?? 0) > 0 || (boot.againstChampions?.length ?? 0) > 0
+                  return (
+                    <div key={bi} className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        <img src={`${cdnBaseUrl()}/img/item/${boot.itemId}.png`} alt=""
+                          className="w-10 h-10 rounded-[3px] border border-flash/[0.08]" />
+                        {!hasContext && (
+                          <span className="absolute -top-1.5 -right-1 text-[5px] font-orbitron font-bold text-jade/60 bg-jade/10 border border-jade/20 px-1 py-px rounded-[2px] uppercase tracking-wider leading-none">DEFAULT</span>
+                        )}
+                      </div>
+                      {hasContext && (
+                        <>
+                          <span className="text-[9px] font-mono text-flash/25 shrink-0">VS</span>
+                          <div className="flex gap-1.5">
+                            {(boot.againstClasses ?? []).map((cls: string) => (
+                              <img key={cls} src={`https://cdn2.loldata.cc/img/class/${cls.toLowerCase()}.png`} alt={cls}
+                                className="w-5 h-5 object-contain opacity-60" />
+                            ))}
+                            {(boot.againstChampions ?? []).map((c: string) => (
+                              <img key={c} src={`${cdnBaseUrl()}/img/champion/${c}.png`} alt={c}
+                                className="w-5 h-5 rounded-[2px] border border-flash/[0.06] opacity-60" />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -482,11 +559,15 @@ function MultiRunePageView({ section }: { section: any }) {
 }
 
 // ── Back Timings ──
-function BackTimingView({ timings }: { timings: { gold: number; items: number[]; note: string }[] }) {
+function BackTimingView({ timings }: { timings: { gold: number; items: number[]; note: string; ideal?: boolean }[] }) {
   return (
     <div className="space-y-2">
       {timings.map((t, idx) => (
-        <div key={idx} className="grid grid-cols-[60px_1px_120px_1px_1fr] items-center gap-3 px-4 py-2.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04]">
+        <div key={idx} className={cn(
+          "relative grid grid-cols-[60px_1px_120px_1px_1fr] items-center gap-3 px-4 py-2.5 rounded-sm",
+          t.ideal ? "border border-jade/30 bg-jade/[0.03] shadow-[0_0_8px_rgba(0,217,146,0.08)]" : "border border-flash/[0.04] bg-flash/[0.02]"
+        )}>
+          {t.ideal && <span className="absolute -top-2 left-3 z-10 text-[8px] font-orbitron font-bold text-jade/70 bg-[#0a1214] border border-jade/25 px-1.5 py-0.5 rounded-[2px] uppercase tracking-[0.15em] leading-none">IDEAL</span>}
           <span className="text-[15px] font-orbitron font-bold text-jade/60 tabular-nums">{t.gold}g</span>
           <div className="w-[1px] h-full bg-flash/[0.06]" />
           <div className="flex gap-1.5">
@@ -698,7 +779,7 @@ export function GuideViewer({ guide }: { guide: Guide }) {
           {section.type === "matchups" && <MatchupDisplay threats={section.threats} synergies={section.synergies} championId={guide.champion_id} />}
           {section.type === "build" && <MultiBuildView section={section} />}
           {section.type === "runes" && <MultiRunePageView section={section} />}
-          {section.type === "recommended_items" && <BuildView items={section.items} />}
+          {section.type === "recommended_items" && <RecommendedItemsView section={section} />}
           {section.type === "back_timings" && <BackTimingView timings={section.timings} />}
           {section.type === "jungle_pathing" && <JunglePathView paths={(section as any).paths} />}
         </SectionCard>

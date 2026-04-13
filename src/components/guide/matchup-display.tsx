@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { cdnBaseUrl, cdnSplashUrl } from "@/config"
@@ -15,14 +16,14 @@ const THREAT_NODES = [
   { key: "impossible", label: "Impossible", levels: ["impossible"], color: "rgba(215,216,217,0.7)", dimColor: "rgba(215,216,217,0.04)" },
   { key: "hard", label: "Hard", levels: ["hard"], color: "rgba(215,216,217,0.5)", dimColor: "rgba(215,216,217,0.03)" },
   { key: "skill", label: "Skill", levels: ["skill"], color: "rgba(215,216,217,0.35)", dimColor: "rgba(215,216,217,0.025)" },
-  { key: "easy", label: "Easy", levels: ["easy"], color: "rgba(215,216,217,0.2)", dimColor: "rgba(215,216,217,0.02)" },
+  { key: "easy", label: "Easy", levels: ["easy"], color: "rgba(215,216,217,0.4)", dimColor: "rgba(215,216,217,0.03)" },
 ]
 
 const SYNERGY_NODES = [
   { key: "perfect", label: "Perfect", levels: ["perfect"], color: "rgba(0,217,146,0.7)", dimColor: "rgba(0,217,146,0.04)" },
   { key: "ideal", label: "Ideal", levels: ["ideal"], color: "rgba(0,217,146,0.5)", dimColor: "rgba(0,217,146,0.03)" },
   { key: "good", label: "Good", levels: ["good"], color: "rgba(0,217,146,0.35)", dimColor: "rgba(0,217,146,0.025)" },
-  { key: "bad", label: "Bad", levels: ["bad"], color: "rgba(0,217,146,0.2)", dimColor: "rgba(0,217,146,0.02)" },
+  { key: "bad", label: "Bad", levels: ["bad"], color: "rgba(0,217,146,0.4)", dimColor: "rgba(0,217,146,0.03)" },
 ]
 
 // ── Mini rune view for dialog ──
@@ -469,18 +470,27 @@ export function MatchupDisplay({ threats, synergies, championId }: {
       </div>
 
       {/* ── Expanded champion list ── */}
-      {activeNode && activeEntries.length > 0 && (
-        <div className="mt-1">
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-flash/[0.06] to-transparent mb-3" />
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-            {activeEntries.map((entry, i) => (
-              <ChampCard key={`${entry.championId}-${i}`} entry={entry}
-                isThreat={THREAT_NODES.some(n => n.key === activeNode)}
-                championId={championId} />
-            ))}
-          </div>
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {activeNode && activeEntries.length > 0 && (
+          <motion.div
+            key={activeNode}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden mt-1"
+          >
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-flash/[0.06] to-transparent mb-3" />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 pb-1">
+              {[...activeEntries].sort((a, b) => (b.ban ? 1 : 0) - (a.ban ? 1 : 0)).map((entry, i) => (
+                <ChampCard key={`${entry.championId}-${i}`} entry={entry}
+                  isThreat={THREAT_NODES.some(n => n.key === activeNode)}
+                  championId={championId} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {threats.length === 0 && synergies.length === 0 && (
         <div className="text-center py-4 text-[10px] font-mono text-flash/15">No matchups added</div>
