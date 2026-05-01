@@ -22,6 +22,8 @@ type Entry = {
   winrate: number
   tier: "CHALLENGER" | "GRANDMASTER" | "MASTER"
   topChampions?: { championId: number; games: number; wins: number }[] | null
+  isPro?: boolean
+  isStreamer?: boolean
 }
 
 const REGIONS = ["EUW", "NA", "KR"] as const
@@ -194,14 +196,15 @@ export default function LeaderboardPage() {
       </div>
 
       {/* ── Table header ── */}
-      <div className="grid grid-cols-[48px_48px_1fr_120px_160px_60px_100px] items-center px-5 py-2.5 text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase border-b border-flash/[0.05]">
+      <div className="grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-2.5 text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase border-b border-flash/[0.05]">
         <span className="text-center">#</span>
         <span />
         <span>Player</span>
         <span className="text-center">Rank</span>
         <span className="text-center">Record</span>
-        <span className="text-right">WR</span>
+        <span />
         <span className="text-center">Top Champs</span>
+        <span className="text-right">WR</span>
       </div>
 
       {/* ── Error ── */}
@@ -213,14 +216,15 @@ export default function LeaderboardPage() {
       <div>
         {loading
           ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-              <div key={i} className="grid grid-cols-[48px_48px_1fr_120px_160px_60px_100px] items-center px-5 py-3 border-b border-flash/[0.03]">
+              <div key={i} className="grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 border-b border-flash/[0.03]">
                 <Skeleton className="w-6 h-4 bg-flash/5 mx-auto" />
                 <Skeleton className="w-9 h-9 rounded-[4px] bg-flash/5" />
                 <Skeleton className="h-4 w-36 bg-flash/5" />
                 <Skeleton className="w-20 h-4 bg-flash/5 mx-auto" />
-                <Skeleton className="w-28 h-4 bg-flash/5 mx-auto" />
-                <Skeleton className="w-10 h-4 bg-flash/5 ml-auto" />
+                <Skeleton className="w-20 h-4 bg-flash/5 mx-auto" />
+                <span />
                 <div className="flex gap-1 justify-center"><Skeleton className="w-6 h-6 rounded-full bg-flash/5" /><Skeleton className="w-6 h-6 rounded-full bg-flash/5" /><Skeleton className="w-6 h-6 rounded-full bg-flash/5" /></div>
+                <Skeleton className="w-10 h-4 bg-flash/5 ml-auto" />
               </div>
             ))
           : rows.map((r, i) => {
@@ -236,7 +240,7 @@ export default function LeaderboardPage() {
                   transition={{ duration: 0.25, delay: i * 0.015, ease: "easeOut" }}
                   onClick={() => handlePlayerClick(r)}
                   className={cn(
-                    "group relative grid grid-cols-[48px_48px_1fr_120px_160px_60px_100px] items-center px-5 py-3 cursor-clicker transition-all duration-300",
+                    "group relative grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 cursor-clicker transition-all duration-300",
                     "border-b border-flash/[0.03]",
                     "hover:bg-jade/[0.02] hover:border-flash/[0.06]",
                   )}
@@ -263,13 +267,22 @@ export default function LeaderboardPage() {
 
                   {/* Name */}
                   <div className="min-w-0 relative z-10">
-                    <span className="text-[13px] text-flash/75 font-mono truncate block group-hover:text-flash transition-colors duration-200">
-                      {(() => {
-                        const nt = r.nametag ?? r.summonerName ?? "Unknown"
-                        const [name, tag] = nt.includes("#") ? nt.split("#") : [nt, ""]
-                        return <>{name}<span className="text-flash/15 ml-0.5">#{tag}</span></>
-                      })()}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] text-flash/75 font-mono truncate group-hover:text-flash transition-colors duration-200">
+                        {(() => {
+                          const nt = r.nametag ?? r.summonerName ?? "Unknown"
+                          const [name, tag] = nt.includes("#") ? nt.split("#") : [nt, ""]
+                          return <>{name}<span className="text-flash/15 ml-0.5">#{tag}</span></>
+                        })()}
+                      </span>
+                      {r.isPro && (
+                        <span className="text-[7px] font-orbitron font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider shrink-0"
+                          style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                      )}
+                      {r.isStreamer && !r.isPro && (
+                        <span className="text-[7px] font-orbitron font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider shrink-0 text-purple-300 bg-purple-500/15 border border-purple-400/20">STR</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Tier + LP merged */}
@@ -277,39 +290,33 @@ export default function LeaderboardPage() {
                     <img src={getRankImage(r.tier)} alt={r.tier}
                       className="w-6 h-6 object-contain transition-transform duration-300 group-hover:scale-110" />
                     <div>
-                      <span className="font-orbitron font-bold tabular-nums text-[12px] text-flash/70">
+                      <span className="font-orbitron font-bold tabular-nums text-[14px] text-flash/70">
                         {r.leaguePoints.toLocaleString()}
                       </span>
-                      <span className="text-[8px] text-flash/20 ml-0.5">LP</span>
+                      <span className="text-[9px] text-flash/25 ml-0.5">LP</span>
                     </div>
                   </div>
 
-                  {/* W/L ratio bar */}
-                  <div className="relative z-10 px-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-mono text-jade/50 tabular-nums">{r.wins}W</span>
-                      <div className="flex-1 h-[4px] rounded-full bg-red-400/15 overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${total > 0 ? (r.wins / total) * 100 : 50}%`,
-                            background: r.winrate >= 60 ? "rgba(0,217,146,0.6)" : r.winrate >= 52 ? "rgba(0,217,146,0.35)" : "rgba(215,216,217,0.25)",
-                          }} />
-                      </div>
-                      <span className="text-[10px] font-mono text-red-400/35 tabular-nums">{r.losses}L</span>
+                  {/* W/L record */}
+                  <div className="relative z-10">
+                    {/* Numbers */}
+                    <div className="flex items-baseline justify-center gap-0.5 mb-1">
+                      <span className="text-[12px] font-orbitron font-bold text-jade/60 tabular-nums">{r.wins}</span>
+                      <span className="text-[8px] font-mono text-flash/12 mx-1">/</span>
+                      <span className="text-[12px] font-orbitron font-bold text-red-400/40 tabular-nums">{r.losses}</span>
+                    </div>
+                    {/* Single bar — jade portion = wins, rest = transparent */}
+                    <div className="relative h-[2px] w-full rounded-full overflow-hidden">
+                      <div className="absolute inset-0 bg-flash/[0.04]" />
+                      <div className="absolute left-0 top-0 bottom-0 rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${total > 0 ? (r.wins / total) * 100 : 50}%`,
+                          background: r.winrate >= 60 ? "rgba(0,217,146,0.5)" : r.winrate >= 52 ? "rgba(0,217,146,0.3)" : r.winrate >= 48 ? "rgba(215,216,217,0.2)" : "rgba(239,68,68,0.25)",
+                        }} />
                     </div>
                   </div>
 
-                  {/* WR */}
-                  <span className={cn(
-                    "text-right text-[12px] font-mono font-semibold tabular-nums relative z-10",
-                    r.winrate >= 70 ? "text-orange-400" : r.winrate >= 60 ? "text-jade" : r.winrate >= 52 ? "text-flash/50" : "text-red-400/50"
-                  )}
-                  style={r.winrate >= 70 ? {
-                    textShadow: "0 0 8px rgba(251,146,60,0.6)",
-                  } : undefined}>
-                    {r.winrate}%
-                  </span>
-
+                  <span />
                   {/* Top Champions */}
                   <div className="flex gap-1 justify-center relative z-10">
                     {(r.topChampions ?? []).slice(0, 3).map((c, ci) => {
@@ -324,6 +331,17 @@ export default function LeaderboardPage() {
                       )
                     })}
                   </div>
+
+                  {/* WR */}
+                  <span className={cn(
+                    "text-right text-[12px] font-mono font-semibold tabular-nums relative z-10",
+                    r.winrate >= 70 ? "text-orange-400" : r.winrate >= 60 ? "text-jade" : r.winrate >= 52 ? "text-flash/50" : "text-red-400/50"
+                  )}
+                  style={r.winrate >= 70 ? {
+                    textShadow: "0 0 8px rgba(251,146,60,0.6)",
+                  } : undefined}>
+                    {r.winrate}%
+                  </span>
                 </motion.div>
               )
             })}
