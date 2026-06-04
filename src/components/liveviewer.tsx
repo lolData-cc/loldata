@@ -287,7 +287,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
               <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
                 {!isStreamerMode && (
                   <img
-                    src={`${cdnBaseUrl()}/img/${getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"}/${formatRank(rankStr!)}.png`}
+                    src={`https://cdn2.loldata.cc/${getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"}/${formatRank(rankStr!)}.png`}
                     className="w-5 h-5 shrink-0 object-contain"
                   />
                 )}

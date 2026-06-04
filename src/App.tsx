@@ -15,6 +15,7 @@ import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
 import { LiveViewerProvider } from "./context/liveviewercontext";
 import { LiveToastOnBoot } from "@/components/livetoastonboot"
+import { HardwareAccelerationWarning } from "@/components/hardwareaccelerationwarning"
 import { DotPattern } from "@/components/ui/dot-pattern"
 if (typeof window !== "undefined") {
   window.history.scrollRestoration = "manual";
@@ -46,6 +47,8 @@ import TotalMasteryPage from "./pages/totalmastery";
 import PrivacyPolicyPage from "@/pages/privacypolicypage";
 import TermsOfServicePage from "@/pages/termsofservicepage";
 import StreamersPage from "@/pages/streamerspage";
+import ScoutCreateLobbyPage from "@/pages/scoutcreatelobbypage";
+import ScoutLobbyPage from "@/pages/scoutlobbypage";
 //
 
 declare global {
@@ -190,6 +193,7 @@ function App() {
             />
 
             <LiveToastOnBoot />
+            <HardwareAccelerationWarning />
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
               <Route path="/summoners/:region/:slug/season" element={<RootLayout><SeasonPage /></RootLayout>} />
@@ -220,6 +224,24 @@ function App() {
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
               <Route path="/terms" element={<RootLayout><TermsOfServicePage /></RootLayout>} />
               <Route path="/streamers" element={<RootLayout><StreamersPage /></RootLayout>} />
+              <Route
+                path="/scout/new"
+                element={
+                  <AuthGuard>
+                    <RootLayout>
+                      <ScoutCreateLobbyPage />
+                    </RootLayout>
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/scout/:slug"
+                element={
+                  <RootLayout>
+                    <ScoutLobbyPage />
+                  </RootLayout>
+                }
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>
