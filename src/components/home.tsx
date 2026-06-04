@@ -153,7 +153,7 @@ export const HomeYasuo: React.FC<Props> = ({ onDiscover }) => {
       <div
         ref={heroRef}
         onMouseMove={handleMouseMove}
-        className="relative w-full mx-auto max-w-screen-2xl h-[70vh] md:h-[80vh] lg:h-[93vh] overflow-hidden rounded-lg"
+        className="relative w-full mx-auto max-w-screen-2xl h-[calc(100vh-60px)] md:h-[80vh] lg:h-[93vh] overflow-hidden rounded-lg"
       >
         {/* ── Layer 0: Flickering grid ── */}
         <FlickeringGrid
@@ -324,7 +324,7 @@ export const HomeYasuo: React.FC<Props> = ({ onDiscover }) => {
             {/* Label below */}
             <span className="
               absolute -bottom-6 left-1/2 -translate-x-1/2
-              font-mono text-[8px] tracking-[0.3em] text-jade/30 uppercase whitespace-nowrap
+              font-mono text-[8px] sm:text-[10px] tracking-[0.3em] text-jade/30 uppercase whitespace-nowrap
               group-hover:text-jade/60 transition-colors
             ">
               Discover

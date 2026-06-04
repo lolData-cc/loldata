@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { cn } from "@/lib/utils"
-import { champPath } from "@/config"
+import { cdnBaseUrl, champDisplayName } from "@/config"
 
 type Champion = {
   id: string
@@ -16,11 +16,13 @@ type Champion = {
 export function ChampionPicker({
   champions,
   onSelect,
+  selectedChampion = null,
   triggerLabel = "CHAMPION",
   triggerClassName,
 }: {
   champions: Champion[]
   onSelect: (championId: string | null) => void
+  selectedChampion?: string | null
   triggerLabel?: string
   triggerClassName?: string
 }) {
@@ -41,7 +43,8 @@ export function ChampionPicker({
     return champions.filter((c) => {
       const name = (c.name ?? "").toLowerCase()
       const id = (c.id ?? "").toLowerCase()
-      return name.includes(q) || id.includes(q)
+      const display = champDisplayName(c.name).toLowerCase()
+      return name.includes(q) || id.includes(q) || display.includes(q)
     })
   }, [champions, trimmed])
 
@@ -59,10 +62,22 @@ export function ChampionPicker({
       }}
     >
       <DialogTrigger className={cn(
-        "flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-thin tracking-wide cursor-clicker",
+        "flex items-center space-x-2 hover:text-gray-300 transition-colors text-sm font-thin tracking-wide cursor-clicker h-full",
         triggerClassName
       )}>
-        <span>{triggerLabel}</span>
+        {selectedChampion ? (
+          <>
+            <img
+              src={`${cdnBaseUrl()}/img/champion/${selectedChampion}.png`}
+              alt={selectedChampion}
+              className="w-4 h-4 rounded-sm"
+              draggable={false}
+            />
+            <span className="text-jade/80">{selectedChampion.toUpperCase()}</span>
+          </>
+        ) : (
+          <span>{triggerLabel}</span>
+        )}
       </DialogTrigger>
 
       <DialogContent className="w-full max-w-[520px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
@@ -172,14 +187,14 @@ export function ChampionPicker({
                       >
                         <div className="relative">
                           <img
-                            src={`${champPath}/${champ.name}.png`}
+                            src={`${cdnBaseUrl()}/img/champion/${champ.name}.png`}
                             alt={champ.name}
                             title={champ.name}
                             className="w-11 h-11 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
                           />
                         </div>
                         <span className="text-[9px] font-jetbrains text-flash/40 group-hover:text-jade/80 truncate max-w-[60px] transition-colors">
-                          {champ.name}
+                          {champDisplayName(champ.name)}
                         </span>
                       </button>
                     ))}

@@ -5,7 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Input } from "@/components/ui/input"
 import { showCyberToast } from "@/lib/toast-utils"
-import { SITE_URL } from "@/config"
+import { SITE_URL, API_BASE_URL } from "@/config"
 import {
   Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog"
@@ -40,6 +40,7 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [discordLoading, setDiscordLoading] = useState(false)
+  const [riotLoading, setRiotLoading] = useState(false)
   const [phase, setPhase] = useState<"hidden" | "glitch" | "visible">("hidden")
   const [transitioning, setTransitioning] = useState(false)
 
@@ -224,6 +225,23 @@ export default function LoginPage() {
       setDiscordLoading(false)
     }
   }, [discordLoading])
+
+  // Riot RSO
+  const loginWithRiot = useCallback(async () => {
+    if (riotLoading) return
+    setRiotLoading(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/riot/url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch (err: any) {
+      showCyberToast({ title: "Riot login failed", description: err?.message ?? "Unknown error", tag: "ERR", variant: "error" })
+      setRiotLoading(false)
+    }
+  }, [riotLoading])
 
   // Enter key submits
   function onKeyDown(e: React.KeyboardEvent) {
@@ -612,43 +630,76 @@ export default function LoginPage() {
                   <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 15%, transparent), transparent)` }} />
                 </div>
 
-                {/* Discord button */}
-                <button
-                  type="button"
-                  onClick={loginWithDiscord}
-                  disabled={discordLoading}
-                  className="w-full cursor-pointer select-none group disabled:opacity-50 disabled:pointer-events-none"
-                  style={{
-                    background: "transparent",
-                    border: "1px solid color-mix(in srgb, #d7d8d9 15%, transparent)",
-                    borderRadius: "2px",
-                    padding: "10px 0",
-                    color: "color-mix(in srgb, #d7d8d9 50%, transparent)",
-                    fontSize: "11px",
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, #5865F2 40%, transparent)"
-                    e.currentTarget.style.background = "rgba(88,101,242,0.06)"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 15%, transparent)"
-                    e.currentTarget.style.background = "transparent"
-                  }}
-                >
-                  <span className="flex items-center justify-center gap-2.5">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 127.14 96.36"
-                      className="w-4 h-4 fill-current text-flash/40 group-hover:text-[#5865F2] transition-colors duration-200"
-                    >
-                      <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.15,105.15,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21a105.73,105.73,0,0,0,31.77,16.15,77.7,77.7,0,0,0,6.85-11.08,68.42,68.42,0,0,1-10.79-5.18c.91-.66,1.8-1.35,2.66-2a75.57,75.57,0,0,0,66.58,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.81,5.19,77,77,0,0,0,6.85,11.08A105.25,105.25,0,0,0,126.6,80.23C129.24,51.37,121.13,27.53,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S53.89,46,53.89,53,48.73,65.69,42.45,65.69Zm42.24,0c-6.27,0-11.43-5.7-11.43-12.71S78.41,40.23,84.69,40.23,96.12,46,96.12,53,90.95,65.69,84.69,65.69Z" />
-                    </svg>
-                    {discordLoading ? "Redirecting..." : "Continue with Discord"}
-                  </span>
-                </button>
+                {/* OAuth buttons row */}
+                <div className="flex gap-2">
+                  {/* Discord */}
+                  <button
+                    type="button"
+                    onClick={loginWithDiscord}
+                    disabled={discordLoading}
+                    className="flex-1 cursor-pointer select-none group disabled:opacity-50 disabled:pointer-events-none"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid color-mix(in srgb, #d7d8d9 15%, transparent)",
+                      borderRadius: "2px",
+                      padding: "10px 0",
+                      color: "color-mix(in srgb, #d7d8d9 50%, transparent)",
+                      fontSize: "11px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in srgb, #5865F2 40%, transparent)"
+                      e.currentTarget.style.background = "rgba(88,101,242,0.06)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 15%, transparent)"
+                      e.currentTarget.style.background = "transparent"
+                    }}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" className="w-4 h-4 fill-current text-flash/40 group-hover:text-[#5865F2] transition-colors duration-200">
+                        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.15,105.15,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21a105.73,105.73,0,0,0,31.77,16.15,77.7,77.7,0,0,0,6.85-11.08,68.42,68.42,0,0,1-10.79-5.18c.91-.66,1.8-1.35,2.66-2a75.57,75.57,0,0,0,66.58,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.81,5.19,77,77,0,0,0,6.85,11.08A105.25,105.25,0,0,0,126.6,80.23C129.24,51.37,121.13,27.53,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S53.89,46,53.89,53,48.73,65.69,42.45,65.69Zm42.24,0c-6.27,0-11.43-5.7-11.43-12.71S78.41,40.23,84.69,40.23,96.12,46,96.12,53,90.95,65.69,84.69,65.69Z" />
+                      </svg>
+                      {discordLoading ? "..." : "Discord"}
+                    </span>
+                  </button>
+
+                  {/* Riot */}
+                  <button
+                    type="button"
+                    onClick={loginWithRiot}
+                    disabled={riotLoading}
+                    className="flex-1 cursor-pointer select-none group disabled:opacity-50 disabled:pointer-events-none"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid color-mix(in srgb, #d7d8d9 15%, transparent)",
+                      borderRadius: "2px",
+                      padding: "10px 0",
+                      color: "color-mix(in srgb, #d7d8d9 50%, transparent)",
+                      fontSize: "11px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in srgb, #c8292e 40%, transparent)"
+                      e.currentTarget.style.background = "rgba(200,41,46,0.06)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 15%, transparent)"
+                      e.currentTarget.style.background = "transparent"
+                    }}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 fill-current text-flash/40 group-hover:text-[#c8292e] transition-colors duration-200">
+                        <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z"/>
+                      </svg>
+                      {riotLoading ? "..." : "Riot Games"}
+                    </span>
+                  </button>
+                </div>
 
                 {/* Terms footer */}
                 <p className="text-[10px] text-flash/20 text-center mt-6 leading-relaxed">

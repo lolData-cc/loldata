@@ -16,6 +16,8 @@ export type Participant = {
   totalMinionsKilled: number
   neutralMinionsKilled: number
   goldEarned: number
+  totalDamageDealtToChampions: number
+  visionScore: number
   teamId: number
   timePlayed: number
   soloKills: number
@@ -104,6 +106,11 @@ export type SummonerInfo = {
   live: boolean
   peakRank?: string
   peakLp?: number
+  flexRank?: string
+  flexLp?: number
+  peakFlexRank?: string
+  peakFlexLp?: number
+  ladderRank?: number | null
 }
 
 export type ChampionStats = {

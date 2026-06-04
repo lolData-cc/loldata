@@ -1,7 +1,7 @@
 // totalmastery.tsx
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, getCdnVersion } from "@/config";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -132,10 +132,7 @@ export default function TotalMasteryPage() {
 
     // fetch latest patch
     useEffect(() => {
-        fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-            .then((res) => res.json())
-            .then((versions: string[]) => setLatestPatch(versions?.[0] ?? "15.13.1"))
-            .catch(() => { });
+        setLatestPatch(getCdnVersion());
     }, []);
 
     // fetch champion map (id -> name)

@@ -2,12 +2,13 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, champPath } from "@/config"
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl } from "@/config"
 import { getWinrateClass } from "@/utils/winratecolor"
 import { getKdaClass } from "@/utils/kdaColor"
 import { formatStat } from "@/utils/formatStat"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { Tabs, TabsTrigger, TabsList } from "@/components/ui/tabs"
+import { DiamondButton } from "@/components/ui/diamond-button"
 import type { ChampionStats, SummonerInfo } from "@/assets/types/riot"
 
 const tabTriggerClass =
@@ -36,9 +37,18 @@ type SeasonData = {
 export default function SeasonPage() {
   const navigate = useNavigate()
   const { region, slug } = useParams()
-  const [name, tag] = slug?.split("-") ?? []
+  const _dashIdx = slug?.lastIndexOf("-") ?? -1
+  const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
+  const tag = _dashIdx > 0 ? slug!.slice(_dashIdx + 1) : ""
 
   const [summoner, setSummoner] = useState<SummonerInfo | null>(null)
+
+  useEffect(() => {
+    if (name && tag) {
+      document.title = `${name}#${tag} - lolData`;
+    }
+    return () => { document.title = "lolData"; };
+  }, [name, tag])
   const [season, setSeason] = useState<SeasonData>({ champs: [], matchups: {} })
   const [solo, setSolo] = useState<SeasonData>({ champs: [], matchups: {} })
   const [flex, setFlex] = useState<SeasonData>({ champs: [], matchups: {} })
@@ -117,31 +127,15 @@ export default function SeasonPage() {
       {/* ═══════════════════════════════════════════════
           STICKY BACK BUTTON (diamond, like match page)
           ═══════════════════════════════════════════════ */}
-      <button
-        onClick={() => navigate(-1)}
-        className="fixed top-1/2 left-4 -translate-y-1/2 z-50 group w-9 h-9 cursor-clicker"
-      >
-        <span className={cn(
-          "absolute inset-0 rotate-45 rounded-[3px] border transition-all duration-300",
-          "bg-black/60 border-jade/30",
-          "group-hover:border-jade/70 group-hover:bg-jade/10",
-          "group-hover:shadow-[0_0_14px_rgba(0,217,146,0.25)]",
-          "shadow-[0_0_6px_rgba(0,217,146,0.1)]"
-        )} />
-        <span className="absolute inset-0 flex items-center justify-center">
-          <svg viewBox="0 0 10 10" className="w-3.5 h-3.5 text-jade transition-transform duration-300 group-hover:-translate-x-[2px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="7,1 3,5 7,9" />
-          </svg>
-        </span>
-      </button>
+      <DiamondButton icon="back" label="BACK" onClick={() => navigate(-1)} className="fixed top-1/2 left-4 -translate-y-1/2 z-50" />
 
       {/* ═══════════════════════════════════════════════
           HERO BANNER
           ═══════════════════════════════════════════════ */}
-      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[280px] overflow-hidden">
+      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[350px] overflow-hidden">
         {topChamp && (
           <img
-            src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChamp}_0.jpg`}
+            src={cdnSplashUrl(topChamp)}
             alt={topChamp}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `center ${splashPositionMap[topChamp] || "15%"}` }}
@@ -293,7 +287,7 @@ function ChampionTable({
                   <td className="py-2.5 px-2">
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={`${champPath}/${c.champion}.png`}
+                        src={`${cdnBaseUrl()}/img/champion/${c.champion}.png`}
                         alt={c.champion}
                         className="w-8 h-8 rounded-full"
                       />
@@ -392,7 +386,7 @@ function MatchupPanel({ champion, matchups }: { champion: string; matchups: Matc
               {/* Opponent icon + name */}
               <div className="flex items-center gap-2 min-w-[130px]">
                 <img
-                  src={`${champPath}/${m.opponent}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${m.opponent}.png`}
                   alt={m.opponent}
                   className="w-6 h-6 rounded-full"
                 />

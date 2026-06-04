@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { cdnBaseUrl, getCdnVersion } from "@/config"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -64,19 +65,14 @@ export default function ChampionPage() {
   const [latestPatch, setLatestPatch] = useState<string>("15.13.1")
   const [items, setItems] = useState<Item[]>([])
 
-  // Get latest DDragon patch (fallback stays to 15.13.1 on error)
+  // Use CDN version resolved at startup
   useEffect(() => {
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then((res) => res.json())
-      .then((versions: string[]) => {
-        if (Array.isArray(versions) && versions.length) setLatestPatch(versions[0])
-      })
-      .catch(() => {})
+    setLatestPatch(getCdnVersion())
   }, [])
 
   // Load champions and build items
   useEffect(() => {
-    fetch(`https://cdn.loldata.cc/${latestPatch}/data/en_US/champion.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
       .then((res) => res.json())
       .then((data) => {
         const champs = Object.values<any>(data.data)
@@ -84,7 +80,7 @@ export default function ChampionPage() {
         const list: Item[] = sorted.map((c: any) => ({
           id: String(c.id),
           label: c.id,
-          image: `https://cdn.loldata.cc/${latestPatch}/img/champion/${c.id}.png`, // icone quadrate
+          image: `${cdnBaseUrl()}/img/champion/${c.id}.png`, // icone quadrate
         }))
         setItems(list)
       })

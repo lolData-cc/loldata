@@ -18,35 +18,51 @@ module.exports = {
   		fontFamily: {
   			jetbrains: [
   				'JetBrains Mono',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			geist: [
   				'geist',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			gtamerica: [
   				'gtamerica',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			revxneue: [
   				'revxneue',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			vivala: [
   				'vivala',
-  				'monospace'
+  				'monospace', 'sans-serif'
+  			],
+  			orbitron: [
+  				'Orbitron',
+  				'sans-serif'
   			],
   			scifi: [
   				'scifi',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			mechano: [
   				'mechano',
-  				'monospace'
+  				'monospace', 'sans-serif'
   			],
   			proto: [
   				'proto',
-  				'monospace'
+  				'monospace', 'sans-serif'
+  			],
+  			rajdhani: [
+  				'Rajdhani',
+  				'sans-serif'
+  			],
+  			cinzel: [
+  				'cinzel',
+  				'serif'
+  			],
+  			chakrapetch: [
+  				'chakrapetch',
+  				'sans-serif'
   			]
   		},
   		colors: {
@@ -61,6 +77,7 @@ module.exports = {
   		animation: {
   			pulseGlow: 'pulseGlow 10s ease-in-out infinite',
   			glow: 'glowPulse 3s ease-in-out infinite',
+			heatmapPulse: 'heatmapPulse 2s ease-in-out infinite',
   			glitch: 'glitch 1s infinite',
   			'rotate-outline': 'rotateOutline 2s linear infinite',
   			jerk: 'jerk 0.5s infinite',
@@ -151,6 +168,18 @@ module.exports = {
   					backgroundPosition: 'right center',
   					filter: 'brightness(1.3)'
   				}
+  			},
+  			heatmapPulse: {
+  				'0%, 100%': {
+  					boxShadow: '0 0 4px rgba(0, 217, 146, 0.3), 0 0 1px rgba(0, 217, 146, 0.2)',
+  				},
+  				'50%': {
+  					boxShadow: '0 0 8px rgba(0, 217, 146, 0.7), 0 0 3px rgba(0, 217, 146, 0.4)',
+  				},
+  			},
+  			perfectKdaShift: {
+  				'0%, 100%': { backgroundPosition: '0% 50%' },
+  				'50%': { backgroundPosition: '100% 50%' },
   			},
   			'open-vertical': {
   				'0%': {

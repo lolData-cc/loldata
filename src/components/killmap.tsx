@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { cdnBaseUrl } from "@/config";
 import type { Participant } from "@/assets/types/riot";
 import {
   Tooltip,
@@ -13,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MAP_MAX = 14870;
 const MAP_SIZE = 300;
-const MINIMAP_URL = "https://ddragon.leagueoflegends.com/cdn/14.24.1/img/map/map11.png";
+const getMinimapUrl = () => `${cdnBaseUrl()}/img/map/map11.png`;
 const EVENTS_PER_PAGE = 7;
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -179,7 +180,7 @@ function BuildPanel({ participantId, timeline, scrollRef }: {
                   {Object.entries(boughtCounts).map(([id, count]) => (
                     <div key={`buy-${id}`} className="relative w-7 h-7">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+                        src={`${cdnBaseUrl()}/img/item/${id}.png`}
                         className="w-7 h-7 rounded ring-1 ring-white/10"
                       />
                       {count > 1 && (
@@ -192,7 +193,7 @@ function BuildPanel({ participantId, timeline, scrollRef }: {
                   {group.sold.map((id, i) => (
                     <div key={`sold-${id}-${i}`} className="relative w-7 h-7 opacity-40">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+                        src={`${cdnBaseUrl()}/img/item/${id}.png`}
                         className="w-7 h-7 rounded grayscale ring-1 ring-white/5"
                       />
                       <span className="absolute -bottom-0.5 -right-0.5 text-[7px] bg-rose-900/80 text-rose-300 rounded px-0.5 leading-none font-mono">
@@ -365,11 +366,11 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
       const isBlueKill = killer?.teamId === 100;
       return (
         <div className="flex items-center gap-2">
-          {killer && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
           <span className={isBlueKill ? "text-cyan-300" : "text-rose-300"}>{killer?.riotIdGameName ?? "Unknown"}</span>
           <span className="text-flash/20">///</span>
           <span className={!isBlueKill ? "text-cyan-300" : "text-rose-300"}>{victim?.riotIdGameName ?? "Unknown"}</span>
-          {victim && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${victim.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
         </div>
       );
     }
@@ -380,7 +381,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
       const monsterName = getMonsterDisplayName(event.monsterType, event.monsterSubType);
       return (
         <div className="flex items-center gap-2">
-          {killer && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
           <span className={isBlue ? "text-cyan-300" : "text-rose-300"}>{killer?.riotIdGameName ?? (isBlue ? "Blue" : "Red")}</span>
           <span className="text-flash/20">///</span>
           <span className={getMonsterColor(event.monsterType)}>{monsterName}</span>
@@ -436,11 +437,11 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
 
     return (
       <div className="flex items-center gap-2 min-w-0">
-        {killer && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
         <span className={cn("truncate text-[11px]", isBlueKill ? "text-cyan-300/90" : "text-rose-300/90")}>{killer?.riotIdGameName ?? "Unknown"}</span>
         <span className="text-flash/15 text-[10px] shrink-0 tracking-widest">&gt;</span>
         <span className={cn("truncate text-[11px]", !isBlueKill ? "text-cyan-300/90" : "text-rose-300/90")}>{victim?.riotIdGameName ?? "Unknown"}</span>
-        {victim && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${victim.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
         {assists > 0 && <span className="text-flash/15 text-[9px] shrink-0 tracking-wider">+{assists}</span>}
       </div>
     );
@@ -453,7 +454,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
 
     return (
       <div className="flex items-center gap-2 min-w-0">
-        {killer && <img src={`https://cdn.loldata.cc/15.13.1/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
         <span className={cn("truncate text-[11px]", isBlue ? "text-cyan-300/90" : "text-rose-300/90")}>{killer?.riotIdGameName ?? (isBlue ? "Blue" : "Red")}</span>
         <span className="text-flash/15 text-[10px] shrink-0 tracking-widest">&gt;</span>
         <span className={cn("shrink-0 text-[11px]", getMonsterColor(event.monsterType))}>{monsterName}</span>
@@ -499,7 +500,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
               )}
             >
               <img
-                src={`https://cdn.loldata.cc/15.13.1/img/champion/${p.championName}.png`}
+                src={`${cdnBaseUrl()}/img/champion/${p.championName}.png`}
                 className="w-6 h-6 rounded-[3px]"
               />
             </button>
@@ -537,7 +538,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
           style={{ width: MAP_SIZE, height: MAP_SIZE }}
         >
           <img
-            src={MINIMAP_URL}
+            src={getMinimapUrl()}
             alt="Summoner's Rift"
             className="w-full h-full object-cover brightness-[0.55] contrast-[1.1]"
             draggable={false}

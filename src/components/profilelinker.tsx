@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
 import {
   TooltipProvider,
   Tooltip,
@@ -20,6 +20,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { LoadingDots } from "./ui/loading-dots";
+import { useAuth } from "@/context/authcontext";
 
 type LolRegion = "EUW" | "NA" | "KR";
 
@@ -51,6 +52,7 @@ const GET_SUMMONER_URL = `${API_BASE_URL}/api/summoner`;
 const PROFILE_ICON_BASE = "https://cdn2.loldata.cc/16.1.1/img/profileicon";
 
 export function ProfilerLinker() {
+  const { refreshProfile } = useAuth();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   const [name, setName] = useState("");
@@ -60,6 +62,8 @@ export function ProfilerLinker() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [rsoLoading, setRsoLoading] = useState(false);
   const [step, setStep] = useState<"preview" | "verifyIcon">("preview");
   const [currentSummoner, setCurrentSummoner] = useState<Summoner | null>(null);
   const [verifyingIcon, setVerifyingIcon] = useState(false);
@@ -132,6 +136,89 @@ export function ProfilerLinker() {
       }
     })();
   }, []);
+
+  // Riot RSO callback — detect ?code= param or saved code from sessionStorage
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let code = params.get("code");
+
+    // Also check sessionStorage (saved by AuthGuard before redirect to login)
+    if (!code) {
+      code = sessionStorage.getItem("riot_rso_code");
+      if (code) sessionStorage.removeItem("riot_rso_code");
+    }
+    if (!code) return;
+
+    // Remove code from URL to prevent re-processing on refresh
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, "", cleanUrl);
+
+    (async () => {
+      setRsoLoading(true);
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const userId = auth?.user?.id;
+
+        const res = await fetch(`${API_BASE_URL}/api/auth/riot/callback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, userId, mode: userId ? "link" : "login" }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          showCyberToast({ title: "Riot link failed", description: errText, variant: "error", tag: "ERR" });
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.mode === "login" && data.verifyUrl) {
+          // Login mode: verify the magic link to create a Supabase session
+          const { error: verifyErr } = await supabase.auth.verifyOtp({
+            token_hash: data.hashed_token,
+            type: "magiclink",
+          });
+          if (verifyErr) {
+            console.error("Magic link verify error:", verifyErr);
+            showCyberToast({ title: "Login failed", description: verifyErr.message, variant: "error", tag: "ERR" });
+            return;
+          }
+          showCyberToast({ title: "Logged in with Riot", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        // Link mode
+        showCyberToast({ title: "Riot account linked", description: `${data.nametag} (${data.region.toUpperCase()})`, variant: "status" });
+        await refreshProfile();
+        window.location.reload();
+      } catch (err) {
+        console.error("RSO callback error:", err);
+        showCyberToast({ title: "Link failed", description: "Something went wrong.", variant: "error", tag: "ERR" });
+      } finally {
+        setRsoLoading(false);
+      }
+    })();
+  }, []);
+
+  async function handleRiotSignIn() {
+    setRsoLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/riot/url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error("Failed to get Riot auth URL:", err);
+      showCyberToast({ title: "Failed to connect", variant: "error", tag: "ERR" });
+      setRsoLoading(false);
+    }
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -337,6 +424,8 @@ export function ProfilerLinker() {
         region,
       });
 
+      await refreshProfile();
+
       showCyberToast({
         title: "Profile linked",
         description:
@@ -443,159 +532,69 @@ export function ProfilerLinker() {
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
       <div className="relative z-[2] px-4 py-3 pl-5">
-        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: LEAGUE PROFILE ::</p>
-
-        {initialLoading ? (
-          /* ── Stable loading skeleton ── */
-          <div className="space-y-3">
-            <h4 className="text-flash/80 text-sm font-medium">◈ LOL PROFILE</h4>
-            <div className="space-y-1.5">
-              <div className="h-3.5 w-32 rounded-[2px] bg-flash/5 animate-pulse" />
-              <div className="h-3 w-48 rounded-[2px] bg-flash/5 animate-pulse" />
-            </div>
+        {/* Content */}
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+            {isLinked && linkedSummonerDetails && linkedIconUrl ? (
+              <img src={linkedIconUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
+            )}
           </div>
-        ) : (
-          /* ── Loaded content ── */
-          <>
-            <div className="flex justify-between gap-4 items-start">
-              <div className="space-y-2">
-                <h4 className="text-flash/80 text-sm font-medium">◈ LOL PROFILE</h4>
-
-              {isLinked && linkedSummoner && linkedSummonerDetails ? (
-                // stato collegato: gamename#tag + region + rank
-                <div className="mt-2 flex flex-col">
-                  <span className="text-flash text-sm font-semibold">
-                    {linkedSummonerDetails.name}
-                    <span className="text-flash/60 text-xs">
-                      #{linkedSummonerDetails.tag}
-                    </span>
-                  </span>
-                  <span className="text-[11px] text-flash/60">
-                    Region: {linkedSummoner.region} • Rank:{" "}
-                    {linkedSummonerDetails.rank} ({linkedSummonerDetails.lp} LP)
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <p className="text-flash/40 text-xs">
-                    Connect your Riot ID to unlock personalized gameplay analytics.
-                  </p>
-
-                  {isLinked && linkedSummoner && (
-                    <div className="mt-2 inline-flex items-center gap-2 rounded-[2px] border border-jade/20 px-3 py-1 text-[10px] text-jade font-mono">
-                      <span className="w-2 h-2 rounded-full bg-jade animate-pulse" />
-                      <span>
-                        Linked:{" "}
-                        <span className="font-semibold">
-                          {linkedSummoner.nametag}
-                        </span>{" "}
-                        ({linkedSummoner.region})
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* colonna destra: status allineato alla fine */}
-            <div className="text-right">
-              {isLinked ? (
-                <span className="text-[9px] uppercase tracking-[0.2em] text-jade/60 font-mono">
-                  ◈ VERIFIED
+          <div>
+            {initialLoading ? (
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-32 rounded-[2px] bg-flash/5 animate-pulse" />
+                <div className="h-3 w-48 rounded-[2px] bg-flash/5 animate-pulse" />
+              </div>
+            ) : isLinked && linkedSummoner && linkedSummonerDetails ? (
+              <>
+                <span className="text-flash/90 text-sm font-medium block">
+                  {linkedSummonerDetails.name}<span className="text-flash/40">#{linkedSummonerDetails.tag}</span>
                 </span>
-              ) : (
-                <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">
-                  UNLINKED
+                <span className="text-[11px] text-flash/40 font-mono">
+                  {linkedSummoner.region.toUpperCase()} / {linkedSummonerDetails.rank} / {linkedSummonerDetails.lp} LP
                 </span>
-              )}
-            </div>
+              </>
+            ) : (
+              <span className="text-flash/40 text-sm">
+                Connect your Riot account for personalized analytics.
+              </span>
+            )}
           </div>
+        </div>
 
-            <div className="my-2 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
+        {/* Divider */}
+        <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-          <form onSubmit={handleSearch} className="space-y-3">
-            <div className="grid grid-cols-[2fr,1fr,1fr] gap-3 items-end">
-              <div className="space-y-1">
-                <Label className="text-[10px] text-flash/30 font-mono tracking-[0.15em] uppercase">Riot ID</Label>
-                <div className="flex items-center gap-1 rounded-[2px] border border-flash/10 bg-black/40 px-3 py-1.5">
-                  <input
-                    type="text"
-                    placeholder="SummonerName"
-                    value={name}
-                    onChange={(e) => {
-                      const value = e.target.value;
-
-                      if (value.includes("#")) {
-                        const [rawName, rawTag = ""] = value.split("#");
-
-                        setName(rawName.trim());
-                        setTag(rawTag.trim());
-
-                        tagInputRef.current?.focus();
-                      } else {
-                        setName(value);
-                      }
-                    }}
-                    className="bg-transparent text-sm text-flash flex-1 outline-none"
-                  />
-                  <span className="text-jade/40 text-xs font-mono">#</span>
-                  <input
-                    type="text"
-                    placeholder="TAG"
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value)}
-                    ref={tagInputRef}
-                    className="bg-transparent text-sm text-flash w-16 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[10px] text-flash/30 font-mono tracking-[0.15em] uppercase">Region</Label>
-                <select
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value as LolRegion)}
-                  className="w-full rounded-[2px] border border-flash/10 bg-black/40 px-3 py-1.5 text-sm text-flash outline-none cursor-clicker"
-                >
-                  <option value="EUW">EUW</option>
-                  <option value="NA">NA</option>
-                  <option value="KR">KR</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                {isLinked && (
-                  <button
-                    type="button"
-                    onClick={handleUnlink}
-                    className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 transition-colors disabled:opacity-60 disabled:pointer-events-none"
-                  >
-                    UNLINK
-                  </button>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loadingSearch}
-                  className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center transition-colors"
-                >
-                  <span className="relative inline-flex items-center justify-center w-full">
-                    <span className={loadingSearch ? "opacity-0" : "opacity-100"}>
-                      {isLinked ? "RE-LINK" : "◈ LINK"}
-                    </span>
-
-                    {loadingSearch && (
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <LoadingDots />
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </form>
-          </>
-        )}
+        {/* Buttons below divider */}
+        <div className="flex justify-between items-center pt-2">
+          <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
+            {isLinked ? "◈ LINKED" : "◈ NOT LINKED"}
+          </span>
+          <div className="flex items-center gap-2">
+            {isLinked && (
+              <button
+                type="button"
+                onClick={handleUnlink}
+                className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 transition-colors"
+              >
+                UNLINK
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRiotSignIn}
+              disabled={rsoLoading}
+              className="px-3 py-1.5 rounded-[2px] cursor-clicker border border-[#c8292e]/40 bg-[#c8292e]/10 hover:bg-[#c8292e]/20 text-[#e8484d] hover:text-[#ff5f63] text-[11px] tracking-[0.1em] uppercase transition-colors disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
+                <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z"/>
+              </svg>
+              {rsoLoading ? "CONNECTING..." : isLinked ? "RE-LINK" : "LINK"}
+            </button>
+          </div>
+        </div>
       </div>
 
       <Dialog

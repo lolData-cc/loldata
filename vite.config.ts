@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/loldata-ai": {
-        target: "https://ai.loldata.cc",
+        target: "http://localhost:3002",
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/api\/loldata-ai$/, "/chat/ask"),

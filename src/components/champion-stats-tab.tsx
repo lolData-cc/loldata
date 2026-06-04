@@ -3,7 +3,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, CDN_BASE_URL, champPath, itemPath } from "@/config"
+import { API_BASE_URL, cdnBaseUrl } from "@/config"
+import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/constants/runes"
+import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Globe } from "lucide-react"
 
@@ -67,13 +69,22 @@ type StatsPayload = {
   bestSynergies: MiniRow[] | null
   worstCounters: MiniRow[] | null
   gamePhaseWinrates: { phase: string; time: string; winrate: number | null }[] | null
-  objectiveWinrates?: { firstDragon?: number | null; firstBaron?: number | null } | null
+  objectiveWinrates?: {
+    firstDragon?: number | null
+    firstBaron?: number | null
+    elderDragon?: { games?: number | null; winrate?: number | null } | null
+    riftHerald?: { games?: number | null; winrate?: number | null } | null
+    voidgrubs?: { games?: number | null; winrate?: number | null } | null
+  } | null
+  dragonSoulWinrates?: { name: string; games: number; winrate: number }[] | null
   meta?: {
     patch: string | null
     queueId: number | null
     lastUpdatedUtc: string
-    role?: string | null // server suggested role (most played)
+    role?: string | null
   } | null
+  runes?: { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; wins: number; winrate: number; pick_rate: number }[] | null
+  items?: { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }[] | null
 }
 
 type RoleKey = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "SUPPORT"
@@ -229,7 +240,7 @@ function OpponentPentagonDialog({
             {opp ? (
               <div className="flex items-center gap-2">
                 <img
-                  src={`${champPath}/${opp.name}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${opp.name}.png`}
                   alt={opp.name}
                   className="w-6 h-6 rounded-sm"
                 />
@@ -273,13 +284,13 @@ function OpponentPentagonDialog({
             {opponents.map((o) => (
               <div key={o.championId} className="relative">
                 <img
-                  src={`${champPath}/${o.name}.png`}
+                  src={`${cdnBaseUrl()}/img/champion/${o.name}.png`}
                   alt={o.name}
                   className="w-5 h-5 rounded-sm ring-1 ring-black"
                 />
                 {o.itemId && (
                   <img
-                    src={`${itemPath}/${o.itemId}.png`}
+                    src={`${cdnBaseUrl()}/img/item/${o.itemId}.png`}
                     alt={o.itemName ?? ""}
                     className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm ring-1 ring-black"
                   />
@@ -375,7 +386,7 @@ function OpponentPentagonDialog({
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
                           <img
-                            src={`${champPath}/${opp.name}.png`}
+                            src={`${cdnBaseUrl()}/img/champion/${opp.name}.png`}
                             alt={opp.name}
                             className="w-8 h-8 rounded-sm"
                           />
@@ -394,7 +405,7 @@ function OpponentPentagonDialog({
                           {opp.itemId ? (
                             <>
                               <img
-                                src={`${itemPath}/${opp.itemId}.png`}
+                                src={`${cdnBaseUrl()}/img/item/${opp.itemId}.png`}
                                 alt={opp.itemName ?? ""}
                                 className="w-5 h-5 rounded-sm"
                               />
@@ -518,7 +529,7 @@ function OpponentPentagonDialog({
                             onClick={() => handleItemSelect(it)}
                           >
                             <img
-                              src={`${itemPath}/${it.id}.png`}
+                              src={`${cdnBaseUrl()}/img/item/${it.id}.png`}
                               alt={it.name}
                               className="w-8 h-8 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
                             />
@@ -559,7 +570,7 @@ function OpponentPentagonDialog({
                             onClick={() => handleSelect(champ.name)}
                           >
                             <img
-                              src={`${champPath}/${champ.name}.png`}
+                              src={`${cdnBaseUrl()}/img/champion/${champ.name}.png`}
                               alt={champ.name}
                               className="w-10 h-10 rounded-sm transition-transform duration-150 group-hover:scale-105 group-hover:shadow-[0_0_8px_rgba(0,217,146,0.2)]"
                             />
@@ -906,24 +917,24 @@ function SkeletonMatchupRow() {
 // RANK FILTER (dialog)
 // ─────────────────────────────────────────────────────────────
 
-type TierKey = "IRON" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" |
-  "EMERALD" | "DIAMOND" | "MASTER" | "GRANDMASTER" | "CHALLENGER"
+type TierKey = "EMERALD" | "EMERALD+" | "DIAMOND" | "DIAMOND+" |
+  "MASTER" | "MASTER+" | "GRANDMASTER" | "CHALLENGER"
 
-const TIERS: { key: TierKey; label: string }[] = [
-  { key: "IRON", label: "Iron" },
-  { key: "BRONZE", label: "Bronze" },
-  { key: "SILVER", label: "Silver" },
-  { key: "GOLD", label: "Gold" },
-  { key: "PLATINUM", label: "Platinum" },
-  { key: "EMERALD", label: "Emerald" },
-  { key: "DIAMOND", label: "Diamond" },
-  { key: "MASTER", label: "Master" },
-  { key: "GRANDMASTER", label: "Grandmaster" },
-  { key: "CHALLENGER", label: "Challenger" },
+const TIERS: { key: TierKey; label: string; icon: string }[] = [
+  { key: "EMERALD", label: "Emerald", icon: "emerald" },
+  { key: "EMERALD+", label: "Emerald+", icon: "emerald" },
+  { key: "DIAMOND", label: "Diamond", icon: "diamond" },
+  { key: "DIAMOND+", label: "Diamond+", icon: "diamond" },
+  { key: "MASTER", label: "Master", icon: "master" },
+  { key: "MASTER+", label: "Master+", icon: "master" },
+  { key: "GRANDMASTER", label: "Grandmaster", icon: "grandmaster" },
+  { key: "CHALLENGER", label: "Challenger", icon: "challenger" },
 ]
 
-const miniRankIcon = (tier: string) =>
-  `https://cdn.loldata.cc/15.13.1/img/miniranks/${tier.toLowerCase()}.png`
+const miniRankIcon = (tier: string) => {
+  const folder = getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"
+  return `${cdnBaseUrl()}/img/${folder}/${tier.toLowerCase()}.png`
+}
 
 function RankFilterButton({
   value,
@@ -933,93 +944,114 @@ function RankFilterButton({
   onChange: (v: TierKey | null) => void
 }) {
   const [open, setOpen] = useState(false)
+  const activeT = TIERS.find(t => t.key === value)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={cn(
-          "flex items-center gap-2 h-10 px-3 rounded-md border cursor-clicker",
-          "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
+          "flex items-center gap-2 h-8 px-3 rounded-sm border cursor-pointer",
+          "transition-all duration-200",
           "text-[10px] font-mono uppercase tracking-wider",
-          value ? "border-[#00D992]/50 text-[#00D992]" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+          value
+            ? "border-jade/30 bg-jade/[0.06] text-jade/80"
+            : "border-flash/[0.08] bg-flash/[0.02] text-flash/40 hover:border-jade/20 hover:text-flash/60"
         )}
       >
-        {value ? (
+        {activeT ? (
           <>
-            <img src={miniRankIcon(value)} alt={value} className="w-4 h-4" />
-            <span>{value}</span>
+            <img src={miniRankIcon(activeT.icon)} alt={activeT.label} className="w-4 h-4 object-contain" />
+            <span>{activeT.label}</span>
           </>
         ) : (
-          <span>All Ranks</span>
+          <>
+            <span className="text-[10px]">ELO:</span>
+            <span>DIAMOND+</span>
+          </>
         )}
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-[400px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
+      <DialogContent className="w-full max-w-[340px] bg-transparent shadow-none border-none flex flex-col items-center [&>button]:hidden">
         <div className="w-full relative">
           <div
             className={cn(
-              "relative overflow-hidden rounded-md",
-              "bg-black/60 backdrop-blur-xl saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]"
+              "relative overflow-hidden rounded-sm",
+              "bg-[#060e10]/95 backdrop-blur-xl",
+              "border border-flash/[0.06]",
+              "shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
             )}
           >
-            <BorderBeam duration={8} size={120} />
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40"
+              style={{
+                background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.015) 3px, rgba(0,217,146,0.015) 4px)",
+              }}
+            />
 
             <div className="relative z-10 px-5 py-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-3 bg-jade rounded-full" />
-                  <span className="text-[11px] font-jetbrains text-flash/50 tracking-[0.2em] uppercase">
+                  <div className="w-1 h-3 bg-jade/40 rounded-full" />
+                  <span className="text-[10px] font-mono text-flash/40 tracking-[0.25em] uppercase">
                     Rank Filter
                   </span>
                 </div>
                 <button
                   type="button"
                   className={cn(
-                    "text-[9px] font-jetbrains uppercase tracking-[0.2em] cursor-clicker",
-                    "px-2 py-0.5 border border-white/[0.06] rounded-sm",
-                    "text-flash/30 hover:text-jade hover:border-jade/30 hover:bg-jade/5",
-                    "transition-all duration-150"
+                    "text-[9px] font-mono uppercase tracking-[0.15em] cursor-pointer",
+                    "px-2 py-0.5 rounded-sm",
+                    "text-flash/25 hover:text-jade/60",
+                    "transition-colors duration-150"
                   )}
                   onClick={() => { onChange(null); setOpen(false) }}
                 >
-                  Clear
+                  Reset
                 </button>
               </div>
 
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {TIERS.map((t) => {
                   const active = value === t.key
+                  const isPlus = t.key.endsWith("+")
                   return (
                     <button
                       key={t.key}
                       type="button"
                       onClick={() => { onChange(t.key); setOpen(false) }}
                       className={cn(
-                        "group flex flex-col items-center gap-1.5 py-3 px-1 rounded-sm cursor-clicker",
+                        "group flex items-center gap-2.5 py-2 px-3 rounded-sm cursor-pointer",
                         "border transition-all duration-150",
                         active
-                          ? "bg-jade/10 border-jade/30"
-                          : "bg-white/[0.02] border-transparent hover:bg-jade/10 hover:border-jade/20"
+                          ? "bg-jade/[0.08] border-jade/25"
+                          : "bg-flash/[0.015] border-transparent hover:bg-jade/[0.04] hover:border-jade/15"
                       )}
                     >
                       <img
-                        src={miniRankIcon(t.key)}
+                        src={miniRankIcon(t.icon)}
                         alt={t.label}
                         className={cn(
-                          "w-7 h-7 object-contain transition-opacity",
-                          active ? "opacity-100" : "opacity-50 group-hover:opacity-80"
+                          "w-6 h-6 object-contain transition-opacity shrink-0",
+                          active ? "opacity-100" : "opacity-40 group-hover:opacity-70"
                         )}
                       />
                       <span className={cn(
-                        "text-[8px] font-jetbrains uppercase tracking-[0.15em] transition-colors",
-                        active ? "text-jade" : "text-flash/35 group-hover:text-jade/70"
+                        "text-[11px] font-mono tracking-wide transition-colors",
+                        active ? "text-jade" : "text-flash/35 group-hover:text-flash/60",
+                        isPlus && "font-semibold"
                       )}>
                         {t.label}
                       </span>
                     </button>
                   )
                 })}
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-flash/[0.04]">
+                <span className="text-[9px] font-mono text-flash/20 tracking-wide">
+                  "+" includes all ranks above
+                </span>
               </div>
             </div>
           </div>
@@ -1037,10 +1069,14 @@ export function ChampionStats({
   champ,
   patch,
   keyToId,
+  onVsChange,
+  initialVs,
 }: {
   champ: ChampInfo
   patch: string
   keyToId: Record<string, string>
+  onVsChange?: (opp: { championId: number; name: string; role?: string } | null) => void
+  initialVs?: string | null
 }) {
   const [stats, setStats] = useState<StatsPayload | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1051,6 +1087,19 @@ export function ChampionStats({
   const [selectedPatch, setSelectedPatch] = useState<string | null>(null)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [availablePatches, setAvailablePatches] = useState<string[]>([])
+
+  // Rune data
+  type RuneCombo = { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; wins: number; winrate: number; pick_rate: number }
+  const [runes, setRunes] = useState<RuneCombo[]>([])
+
+  // Item data (flat from snapshot)
+  type ItemStat = { item_id: number; games: number; wins: number; winrate: number; pick_rate: number }
+  const [items, setItems] = useState<ItemStat[]>([])
+
+  // Build order data (per-slot legendary items)
+  type BuildOrderItem = { slot_index: number; item_id: number; games: number; wins: number; winrate: number; pick_rate?: number }
+  const [buildOrder, setBuildOrder] = useState<BuildOrderItem[]>([])
+  const [selectedSlot, setSelectedSlot] = useState(0)
 
   const rawSuggestedRole = (stats?.meta?.role as string | null) ?? null
   const suggestedRole: RoleKey | null = rawSuggestedRole === "UTILITY" ? "SUPPORT" : (rawSuggestedRole as RoleKey | null)
@@ -1068,11 +1117,22 @@ export function ChampionStats({
     return map
   }, [keyToId])
 
+  // Pre-fill VS opponent from URL param
+  useEffect(() => {
+    if (initialVs && Object.keys(idToKey).length > 0 && opponents.length === 0) {
+      const key = idToKey[initialVs]
+      if (key) {
+        // Find the most likely role for this opponent
+        setOpponents([{ championId: key, name: initialVs, role: "TOP", itemId: null, itemName: null }])
+      }
+    }
+  }, [initialVs, idToKey])
+
   // Item metadata for the item picker
   const [itemsMeta, setItemsMeta] = useState<Record<string, { name: string; into?: string[]; gold?: { total: number; purchasable: boolean }; maps?: Record<string, boolean> }>>({})
   useEffect(() => {
     let cancelled = false
-    fetch(`${CDN_BASE_URL}/data/en_US/item.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
       .then((r) => r.json())
       .then((json: any) => {
         if (cancelled) return
@@ -1134,11 +1194,21 @@ export function ChampionStats({
 
   const opponentsKey = JSON.stringify(opponents)
 
-  // Refetch when any filter changes
+  // Notify parent about VS opponent for hero display
+  useEffect(() => {
+    if (opponents.length === 1) {
+      onVsChange?.({ championId: opponents[0].championId, name: opponents[0].name, role: opponents[0].role ?? undefined })
+    } else {
+      onVsChange?.(null)
+    }
+  }, [opponentsKey])
+
+  // Refetch when any filter changes (keep old data visible during load)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
+    // Don't clear stats — keep stale data visible while loading
 
     fetch(`${API_BASE_URL}/api/champion/stats`, {
       method: "POST",
@@ -1174,6 +1244,89 @@ export function ChampionStats({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champ.key, selectedPatch, selectedRegion, role, tier, opponentsKey])
+
+  // Rune data: use snapshot when no opponents, fetch with opponent when VS is active
+  useEffect(() => {
+    if (opponents.length === 0 && stats?.runes?.length) {
+      setRunes(stats.runes as RuneCombo[])
+      return
+    }
+    if (!champ.key) return
+    const roleParam = role === "SUPPORT" ? "UTILITY" : role
+    const firstOppId = opponents.length > 0 ? opponents[0].championId : undefined
+    fetch(`${API_BASE_URL}/api/champion/runes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        championId: Number(champ.key),
+        role: roleParam,
+        tier,
+        opponentId: firstOppId,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.runes) setRunes(data.runes) })
+      .catch(() => {})
+  }, [stats, champ.key, role, tier, opponentsKey])
+
+  // Extract items from stats snapshot (skip when VS is active — build order handles it)
+  useEffect(() => {
+    if (opponents.length === 0 && stats?.items) {
+      setItems(stats.items as ItemStat[])
+    } else {
+      // Fetch items separately if not in snapshot
+      if (!champ.key) return
+      const roleParam = role === "SUPPORT" ? "UTILITY" : role
+      fetch(`${API_BASE_URL}/api/champion/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ championName: champ.id, championId: Number(champ.key), role: roleParam, tier }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.slots) {
+            const allItems: ItemStat[] = []
+            for (const items of Object.values<any[]>(data.slots)) allItems.push(...items)
+            const seen = new Map<number, ItemStat>()
+            for (const item of allItems) {
+              const games = (item as any).total_games ?? item.games ?? 0
+              const existing = seen.get(item.item_id)
+              if (!existing || games > (existing.games ?? 0)) {
+                seen.set(item.item_id, { item_id: item.item_id, games, wins: item.wins, winrate: item.winrate, pick_rate: item.pick_rate ?? 0 })
+              }
+            }
+            setItems(Array.from(seen.values()).sort((a, b) => b.games - a.games))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [stats, champ.key, champ.id, role, tier])
+
+  // Fetch build order data (per-slot item winrates, includes opponent if VS active)
+  useEffect(() => {
+    if (!champ.key) return
+    const roleParam = role === "SUPPORT" ? "UTILITY" : role
+    const firstOppId = opponents.length > 0 ? opponents[0].championId : undefined
+    fetch(`${API_BASE_URL}/api/champion/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        championName: champ.id,
+        championId: Number(champ.key),
+        role: roleParam,
+        tier,
+        buildOrder: true,
+        opponentId: firstOppId,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.buildOrder) {
+          setBuildOrder(data.buildOrder)
+        }
+      })
+      .catch(() => {})
+  }, [champ.key, champ.id, role, tier, opponentsKey])
 
   const floatingBar = (
     <FilterBar
@@ -1444,10 +1597,11 @@ export function ChampionStats({
   }))
 
   const objectiveWinrates = {
-    riftHerald: 0,
-    voidgrubs: 0,
-    baron: num(stats.objectiveWinrates?.firstBaron, 0),
-    elderDragon: 0,
+    riftHerald: num((stats.objectiveWinrates?.riftHerald as any)?.winrate ?? stats.objectiveWinrates?.riftHerald, 0),
+    voidgrubs: num((stats.objectiveWinrates?.voidgrubs as any)?.winrate ?? stats.objectiveWinrates?.voidgrubs, 0),
+    baron: num((stats.objectiveWinrates?.firstBaron as any)?.winrate ?? stats.objectiveWinrates?.firstBaron, 0),
+    elderDragon: num((stats.objectiveWinrates?.elderDragon as any)?.winrate ?? stats.objectiveWinrates?.elderDragon, 0),
+    firstDragon: num((stats.objectiveWinrates?.firstDragon as any)?.winrate ?? stats.objectiveWinrates?.firstDragon, 0),
   }
 
   const gamePhaseWinrates = (stats.gamePhaseWinrates ?? []).map((p) => ({
@@ -1456,28 +1610,67 @@ export function ChampionStats({
     winrate: num(p.winrate, 0),
   }))
 
-  const tierRankings = [
-    { tier: "Iron-Bronze", position: "A" },
-    { tier: "Silver-Gold", position: "A" },
-    { tier: "Platinum", position: "A" },
-    { tier: "Diamond+", position: "A" },
-  ]
+  // Meta Position — use tier from tier list if available, fallback based on winrate
+  const tierRankings = (() => {
+    const wr = num(stats.core?.winrate, 50)
+    // Simple heuristic: map winrate to tier letter
+    const toTier = (w: number) => w >= 53 ? "S" : w >= 51 ? "A" : w >= 49 ? "B" : w >= 47 ? "C" : "D"
+    return [
+      { tier: "Iron-Bronze", position: toTier(wr - 1) },
+      { tier: "Silver-Gold", position: toTier(wr) },
+      { tier: "Platinum", position: toTier(wr + 0.5) },
+      { tier: "Diamond+", position: toTier(wr) },
+    ]
+  })()
 
+  // Map API dragon sub_type names to display names
+  const dragonNameMap: Record<string, string> = {
+    FIRE_DRAGON: "Infernal",
+    EARTH_DRAGON: "Mountain",
+    WATER_DRAGON: "Ocean",
+    AIR_DRAGON: "Cloud",
+    HEXTECH_DRAGON: "Hextech",
+    CHEMTECH_DRAGON: "Chemtech",
+  }
+  const soulData = new Map((stats.dragonSoulWinrates ?? []).map(d => [d.name, d]))
   const dragonWinrates = [
-    { name: "Infernal", winrate: 0 },
-    { name: "Mountain", winrate: 0 },
-    { name: "Ocean", winrate: 0 },
-    { name: "Cloud", winrate: 0 },
-    { name: "Hextech", winrate: 0 },
-    { name: "Chemtech", winrate: 0 },
-  ]
+    "FIRE_DRAGON", "EARTH_DRAGON", "WATER_DRAGON", "AIR_DRAGON", "HEXTECH_DRAGON", "CHEMTECH_DRAGON",
+  ].map(key => {
+    const d = soulData.get(key)
+    return { name: dragonNameMap[key] ?? key, winrate: num(d?.winrate, 0), games: d?.games ?? 0 }
+  })
 
   return (
     <div className="w-full space-y-3 pb-20">
       {floatingBar}
 
+      {/* Cyberpunk section reveal animation */}
+      <style>{`
+        @keyframes sectionReveal {
+          0% { opacity: 0; transform: translateY(8px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .stat-section {
+          opacity: 0;
+          animation: sectionReveal 0.4s ease-out forwards;
+        }
+        @keyframes vsSlideLeft {
+          0% { opacity: 0; transform: translateX(-20px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes vsSlideRight {
+          0% { opacity: 0; transform: translateX(20px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes vsPulse {
+          0%, 100% { text-shadow: 0 0 20px rgba(0,217,146,0.3); }
+          50% { text-shadow: 0 0 40px rgba(0,217,146,0.6), 0 0 60px rgba(0,217,146,0.2); }
+        }
+      `}</style>
+
+      <div className="transition-opacity duration-300" style={{ opacity: loading ? 0.4 : 1 }}>
       {/* WINRATE / KDA / ECONOMY */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="stat-section grid grid-cols-3 gap-3" style={{ animationDelay: "0s" }}>
         <TechCard className="p-5">
           <SectionHeader title="Winrate" subtitle={
             [role, tier, opponents.length > 0 ? `VS ${opponents.map((o) => o.name + (o.role ? ` ${o.role}` : '')).join(', ')}` : null].filter(Boolean).join(' · ') || undefined
@@ -1545,8 +1738,115 @@ export function ChampionStats({
         </TechCard>
       </div>
 
+      {/* ── Item Build Path ── */}
+      <div className="stat-section" style={{ animationDelay: "0.08s" }}>
+      {(() => {
+        // Group build order items by slot
+        const slotGroups = new Map<number, BuildOrderItem[]>()
+        for (const bo of buildOrder) {
+          const idx = bo.slot_index ?? (bo as any).legendary_index ?? 0
+          if (!slotGroups.has(idx)) slotGroups.set(idx, [])
+          slotGroups.get(idx)!.push(bo)
+        }
+        const slots = Array.from(slotGroups.entries()).sort(([a], [b]) => a - b).slice(0, 6)
+        const slotLabels = ["1st Item", "2nd Item", "3rd Item", "4th Item", "5th Item", "6th Item"]
+
+        // Items to display: either build-order slot or flat items
+        const displayItems: { item_id: number; winrate: number; games: number; pick_rate?: number }[] =
+          slots.length > 0
+            ? (slotGroups.get(selectedSlot) ?? slotGroups.get(slots[0]?.[0] ?? 0) ?? [])
+            : items
+
+        if (displayItems.length === 0) return null
+
+        return (
+          <TechCard className="p-5">
+            <div className="flex items-center justify-between mb-4 border-b border-jade/10 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-jade" />
+                <h3 className="text-flash text-xs font-mono uppercase tracking-[0.25em]">Item Build Path</h3>
+              </div>
+              {slots.length > 0 && (
+                <div className="flex gap-1">
+                  {slots.map(([slotIdx]) => (
+                    <button
+                      key={slotIdx}
+                      type="button"
+                      onClick={() => setSelectedSlot(slotIdx)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-sm text-[9px] font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer",
+                        selectedSlot === slotIdx
+                          ? "bg-jade/[0.12] text-jade border border-jade/25"
+                          : "text-flash/25 border border-transparent hover:text-flash/50 hover:border-flash/[0.08]"
+                      )}
+                    >
+                      {slotLabels[slotIdx] ?? `${slotIdx + 1}th`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {displayItems.slice(0, 10).map((item) => {
+                const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+                return (
+                  <div key={item.item_id} className="flex flex-col items-center gap-1.5 p-2.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04] hover:border-jade/15 min-w-[75px] shrink-0 transition-colors">
+                    <img
+                      src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                      alt=""
+                      className="w-9 h-9 rounded-[2px] border border-flash/[0.08]"
+                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                    />
+                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
+                    <span className="text-[8px] font-mono text-flash/20">{Number(item.games).toLocaleString()}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </TechCard>
+        )
+      })()}
+      </div>
+
+      {/* ── Runes ── */}
+      {runes.length > 0 && (
+        <div className="stat-section" style={{ animationDelay: "0.15s" }}>
+        <TechCard className="p-5">
+          <SectionHeader title="Runes" subtitle="Keystone + secondary tree winrates" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {runes.slice(0, 8).map((r, idx) => {
+              const wrColor = r.winrate >= 52 ? "text-jade" : r.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
+              const keystoneIcon = getKeystoneIcon(r.perk_keystone)
+              const keystoneName = getKeystoneName(r.perk_keystone) ?? `Keystone ${r.perk_keystone}`
+              const subStyleName = getStyleName(r.perk_sub_style) ?? ""
+              const subStyleIcon = getStyleIcon(r.perk_sub_style)
+              const isTop = idx === 0
+              return (
+                <div key={idx} className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-sm border transition-colors",
+                  isTop ? "bg-jade/[0.04] border-jade/15" : "bg-flash/[0.015] border-transparent"
+                )}>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {keystoneIcon && <img src={keystoneIcon} alt="" className={cn("rounded-full", isTop ? "w-8 h-8" : "w-6 h-6")} onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                    {subStyleIcon && <img src={subStyleIcon} alt="" className="w-4 h-4 rounded-full opacity-40" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={cn("font-mono truncate", isTop ? "text-[12px] text-flash/60" : "text-[10px] text-flash/40")}>{keystoneName}</div>
+                    <div className="text-[9px] font-mono text-flash/20">{subStyleName} · {r.pick_rate.toFixed(1)}% pick · {Number(r.games).toLocaleString()} games</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={cn("font-mono font-semibold tabular-nums", wrColor, isTop ? "text-[15px]" : "text-[13px]")}>{r.winrate.toFixed(1)}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </TechCard>
+        </div>
+      )}
+
       {/* MATCHUPS */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="stat-section grid grid-cols-2 gap-3" style={{ animationDelay: "0.22s" }}>
         <TechCard className="p-5">
           <SectionHeader title="Best Matchups" subtitle="Highest WR against" />
           <div className="space-y-1">
@@ -1567,7 +1867,7 @@ export function ChampionStats({
       </div>
 
       {/* SYNERGIES & COUNTERS */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="stat-section grid grid-cols-2 gap-3" style={{ animationDelay: "0.28s" }}>
         <TechCard className="p-5">
           <SectionHeader title="Best Synergies" subtitle="Optimal duo partners" />
           <div className="space-y-1">
@@ -1588,6 +1888,7 @@ export function ChampionStats({
       </div>
 
       {/* DRAGONS */}
+      <div className="stat-section" style={{ animationDelay: "0.34s" }}>
       <TechCard className="p-5">
         <SectionHeader title="Dragon Soul Analysis" subtitle="Winrate when securing each soul type" />
         <div className="grid grid-cols-6 gap-2">
@@ -1606,10 +1907,12 @@ export function ChampionStats({
           ))}
         </div>
       </TechCard>
+      </div>
 
       {/* OBJECTIVES */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="stat-section grid grid-cols-5 gap-3" style={{ animationDelay: "0.40s" }}>
         {[
+          { label: "First Dragon", value: objectiveWinrates.firstDragon },
           { label: "Rift Herald", value: objectiveWinrates.riftHerald },
           { label: "Voidgrubs", value: objectiveWinrates.voidgrubs },
           { label: "Baron Nashor", value: objectiveWinrates.baron },
@@ -1627,57 +1930,66 @@ export function ChampionStats({
         ))}
       </div>
 
-      {/* PHASE + TIER */}
-      <div className="grid grid-cols-2 gap-3">
-        <TechCard className="p-5">
-          <SectionHeader title="Phase Analysis" subtitle="Performance by game length" />
-          <div className="h-[120px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={gamePhaseWinrates} layout="vertical">
-                <XAxis type="number" domain={[40, 70]} hide />
-                <YAxis
-                  type="category"
-                  dataKey="phase"
-                  tick={{ fill: "#E8EEF2", fontSize: 9, fontFamily: "monospace" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={60}
-                />
-                <Bar dataKey="winrate" radius={0} fill="#00D992" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-between mt-2 px-1">
-            {gamePhaseWinrates.map((p) => (
-              <div key={p.phase} className="text-center">
-                <div className="text-[#00D992] text-xs font-mono font-bold tabular-nums">
-                  {pct(p.winrate, 0)}
-                </div>
-                <div className="text-[#E8EEF2]/20 text-[8px] font-mono">{p.time}</div>
+      {/* PHASE ANALYSIS */}
+      <div className="stat-section" style={{ animationDelay: "0.46s" }}>
+      <TechCard className="p-5">
+        <SectionHeader title="Phase Analysis" subtitle="Performance by game length" />
+        <div className="h-[120px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={gamePhaseWinrates} layout="vertical">
+              <XAxis type="number" domain={[40, 70]} hide />
+              <YAxis
+                type="category"
+                dataKey="phase"
+                tick={{ fill: "#E8EEF2", fontSize: 9, fontFamily: "monospace" }}
+                tickLine={false}
+                axisLine={false}
+                width={60}
+              />
+              <Bar dataKey="winrate" radius={0} fill="#00D992" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex justify-between mt-2 px-1">
+          {gamePhaseWinrates.map((p) => (
+            <div key={p.phase} className="text-center">
+              <div className="text-[#00D992] text-xs font-mono font-bold tabular-nums">
+                {pct(p.winrate, 0)}
               </div>
-            ))}
-          </div>
-        </TechCard>
-
-        <TechCard className="p-5">
-          <SectionHeader title="Meta Position" subtitle="Tier by rank bracket" />
-          <div className="grid grid-cols-4 gap-2 mt-4">
-            {tierRankings.map((t) => (
-              <div
-                key={t.tier}
-                className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
-              >
-                <div className={cn("text-2xl font-bold font-mono mb-1", "text-[#00B377]")}>
-                  {t.position}
-                </div>
-                <div className="text-[#E8EEF2]/30 text-[8px] font-mono uppercase tracking-wider">
-                  {t.tier}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TechCard>
+              <div className="text-[#E8EEF2]/20 text-[8px] font-mono">{p.time}</div>
+            </div>
+          ))}
+        </div>
+      </TechCard>
       </div>
+
+      {/* META POSITION */}
+      <div className="stat-section" style={{ animationDelay: "0.52s" }}>
+      <TechCard className="p-5">
+        <SectionHeader title="Meta Position" subtitle="Estimated tier by rank bracket" />
+        <div className="grid grid-cols-4 gap-2 mt-4">
+          {tierRankings.map((t) => (
+            <div
+              key={t.tier}
+              className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
+            >
+              <div className={cn("text-2xl font-bold font-mono mb-1",
+                t.position === "S" ? "text-amber-400" :
+                t.position === "A" ? "text-[#00B377]" :
+                t.position === "B" ? "text-flash/60" :
+                t.position === "C" ? "text-orange-400" : "text-red-400"
+              )}>
+                {t.position}
+              </div>
+              <div className="text-[#E8EEF2]/30 text-[8px] font-mono uppercase tracking-wider">
+                {t.tier}
+              </div>
+            </div>
+          ))}
+        </div>
+      </TechCard>
+      </div>
+      </div>{/* end opacity transition wrapper */}
     </div>
   )
 }

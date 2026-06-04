@@ -389,7 +389,7 @@ export function DiscordLinker() {
 
   // ===== UI =====
   return (
-    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden h-[180px]">
+    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
       {/* Left accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
       {/* Scanlines */}
@@ -403,12 +403,11 @@ export function DiscordLinker() {
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
 
       <div className="relative z-[2] px-4 py-3 pl-5">
-        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DISCORD ::</p>
 
         <div className="flex gap-4 items-center">
           {/* Discord avatar — same size/position as the Avatar card */}
           {isLinked && effectiveDiscord && (
-            <div className="w-20 h-20 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
+            <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
               {effectiveDiscord.avatarUrl && !avatarBroken ? (
                 <img
                   src={effectiveDiscord.avatarUrl}
@@ -427,7 +426,7 @@ export function DiscordLinker() {
           <div className="flex-1 min-w-0">
             {/* Title + status row */}
             <div className="flex items-center justify-between gap-3">
-              <h4 className="text-flash/80 text-sm font-medium">◈ DISCORD PROFILE</h4>
+              <h4 className="text-flash/80 text-sm font-medium">Discord</h4>
               {loadingState ? (
                 <span className="text-[9px] uppercase tracking-[0.2em] text-flash/30 font-mono">LOADING…</span>
               ) : isLinked ? (
@@ -478,7 +477,7 @@ export function DiscordLinker() {
                       type="button"
                       onClick={handleUnlinkDiscord}
                       disabled={disconnecting}
-                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
                     >
                       {disconnecting ? "UNLINKING…" : "UNLINK"}
                     </button>
@@ -487,7 +486,7 @@ export function DiscordLinker() {
                       type="button"
                       onClick={handleLinkDiscord}
                       disabled={linking}
-                      className="px-3 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-60 disabled:pointer-events-none transition-colors"
                     >
                       {linking ? "LINKING…" : "◈ LINK"}
                     </button>

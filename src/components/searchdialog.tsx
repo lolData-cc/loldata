@@ -1,5 +1,5 @@
 // #region imports
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import type React from "react"
 import { useNavigate } from "react-router-dom"
 import {
@@ -32,7 +32,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, Star, Zap } from 'lucide-react'
 import { formatRank } from "@/utils/rankConverter"
+import { getRankImage } from "@/utils/rankIcons"
 import { API_BASE_URL } from "@/config"
+import { supabase } from "@/lib/supabaseClient"
 import { BorderBeam } from "./ui/border-beam"
 import { SavedProfiles } from "./savedprofiles"
 import { showCyberToast } from "@/lib/toast-utils"
@@ -53,7 +55,79 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [regionPopoverOpen, setRegionPopoverOpen] = useState(false)
   const [savedProfiles, setSavedProfiles] = useState<any[]>([])
 
-  // #endergion
+  // Autocomplete debounce + abort
+  const abortRef = useRef<AbortController | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fetchAutocomplete = useCallback(async (query: string) => {
+    // Cancel any in-flight request
+    abortRef.current?.abort()
+
+    const [partialName] = query.split("#")
+    if (partialName.trim().length < 2) {
+      setSuggestions([])
+      setLoadingSuggestions(false)
+      return
+    }
+
+    setLoadingSuggestions(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const searchTerm = partialName.trim()
+
+    // Fetch API results + pro players in parallel
+    const [apiRes, proRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/autocomplete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query.trim(), region: region.toUpperCase() }),
+        signal: controller.signal,
+      }).then((r) => r.json()).catch((err) => {
+        if (err.name !== "AbortError") console.error("Autocomplete fetch:", err)
+        return { results: [] }
+      }),
+      supabase
+        .from("pro_players")
+        .select("username, nickname, profile_image_url, team")
+        .or(`nickname.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%`)
+        .limit(3)
+        .then(({ data }) => data ?? []),
+    ])
+
+    if (controller.signal.aborted) return
+
+    // Build pro suggestions (shown first)
+    const proSuggestions = proRes.map((p: any) => {
+      const [name, tag] = (p.username || "").split("#")
+      return {
+        name: name || "",
+        tag: tag || "",
+        rank: null,
+        icon_id: null,
+        region: region.toUpperCase(),
+        _isPro: true,
+        _nickname: p.nickname,
+        _avatar: p.profile_image_url,
+        _team: p.team,
+      }
+    })
+
+    // Deduplicate: remove API results that match a pro
+    const proKeys = new Set(proSuggestions.map((p: any) => `${p.name}#${p.tag}`.toLowerCase()))
+    const apiFiltered = (apiRes.results ?? []).filter((s: any) => !proKeys.has(`${s.name}#${s.tag}`.toLowerCase()))
+
+    setSuggestions([...proSuggestions, ...apiFiltered])
+    setLoadingSuggestions(false)
+  }, [region])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   // #region functions
   const handleSearch = () => {
@@ -73,7 +147,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     if (!name) return;
     if (!tag) tag = "EUW";
 
-    const formattedName = name.replace(/\s+/g, "");
+    const formattedName = name.replace(/\s+/g, "+");
     const formattedTag = tag.toUpperCase();
     const slug = `${formattedName}-${formattedTag}`;
 
@@ -236,25 +310,21 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     const value = e.target.value
                     setInput(value)
 
+                    // Clear previous debounce
+                    if (debounceRef.current) clearTimeout(debounceRef.current)
+
                     const [partialName] = value.split("#")
-                    if (partialName.length < 4) {
+                    if (partialName.trim().length < 2) {
+                      abortRef.current?.abort()
                       setSuggestions([])
+                      setLoadingSuggestions(false)
                       return
                     }
 
-                    setLoadingSuggestions(true)
-                    fetch(`${API_BASE_URL}/api/autocomplete`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        query: partialName.trim(),
-                        region: region.toUpperCase()
-                      }),
-                    })
-                      .then((res) => res.json())
-                      .then((data) => setSuggestions(data.results))
-                      .catch((err) => console.error("Autocomplete fetch:", err))
-                      .finally(() => setLoadingSuggestions(false))
+                    // Debounce 400ms to reduce requests during typing
+                    debounceRef.current = setTimeout(() => {
+                      fetchAutocomplete(value)
+                    }, 400)
                   }}
                   className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 w-[80%]"
                 />
@@ -311,9 +381,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                 {suggestions.map((sugg, idx) => (
                   <div
                     key={idx}
-                    className="cursor-clicker h-16 bg-liquirice/90 border border-flash/10 hover:border-flash/30 text-flash px-7 py-2 rounded-md flex justify-between items-center"
+                    className={`cursor-clicker h-16 bg-liquirice/90 border text-flash px-7 py-2 rounded-md flex justify-between items-center ${sugg._isPro ? "border-jade/20 hover:border-jade/40" : "border-flash/10 hover:border-flash/30"}`}
                     onClick={() => {
-                      const formattedName = sugg.name.replace(/\s+/g, "")
+                      const formattedName = sugg.name.replace(/\s+/g, "+")
                       const formattedTag = sugg.tag.toUpperCase()
                       const slug = `${formattedName}-${formattedTag}`
 
@@ -325,37 +395,76 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                       setSuggestions([])
                     }}
                   >
-                    <div className="flex justify-between gap-4 items-center">
-                      <div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-flash text-sm font-medium">{sugg.name}</span>
-                          <span className="text-flash/50 text-[11px] font-medium">#{sugg.tag}</span>
+                    {sugg._isPro ? (
+                      /* Pro player result */
+                      <div className="flex items-center gap-3">
+                        {sugg._avatar ? (
+                          <img src={sugg._avatar} alt="" className="w-9 h-9 rounded-md object-cover border border-jade/20" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-black/40 border border-jade/15 flex items-center justify-center">
+                            <svg viewBox="0 0 64 52" className="w-5 h-4">
+                              <circle cx="32" cy="16" r="9" fill="rgba(0,217,146,0.15)" stroke="rgba(0,217,146,0.25)" strokeWidth="1" />
+                              <path d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="rgba(0,217,146,0.1)" stroke="rgba(0,217,146,0.2)" strokeWidth="1" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-flash text-sm font-bold">{sugg._nickname || sugg.name}</span>
+                            <span
+                              className="text-[7px] font-black px-[4px] py-[1px] rounded-[2px] tracking-wide shrink-0"
+                              style={{
+                                background: "linear-gradient(135deg, #00d992, #00b8ff)",
+                                color: "#040A0C",
+                              }}
+                            >
+                              PRO
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-flash/50 text-[12px] font-mono">{sugg.name}#{sugg.tag}</span>
+                            {sugg._team && <span className="text-jade/50 text-[11px] font-mono">· {sugg._team}</span>}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex justify-between gap-2">
-                        <img
-                          src={`https://cdn.loldata.cc/15.13.1/img/miniranks/${formatRank(sugg.rank)}.png`}
-                          className="w-4 h-4 rounded-sm"
-                        />
-                        <span className="text-xs text-flash/40 font-jetbrains">
-                          {sugg.rank}
-                        </span>
+                    ) : (
+                      /* Normal result */
+                      <div className="flex items-center">
+                        <div className="w-[200px] shrink-0 flex items-center gap-1 min-w-0">
+                          <span className="text-flash text-sm font-medium truncate">{sugg.name}</span>
+                          <span className="text-flash/50 text-[11px] font-medium shrink-0">#{sugg.tag}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <img
+                            src={getRankImage(sugg.rank)}
+                            alt={sugg.rank ?? "Unranked"}
+                            className="w-5 h-5 object-contain"
+                          />
+                          <span className="text-xs text-flash/40 font-jetbrains whitespace-nowrap">
+                            {sugg.rank ?? "Unranked"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex items-center gap-4">
-                      <div
-                        onClick={(e) => handleToggleSaveProfile(e, sugg)}
-                        className={`relative z-10 rounded-sm p-1 cursor-pointer transition ${isProfileSaved(sugg) ? "bg-jade/20" : "hover:bg-jade/20"
-                          }`}
-                      >
-                        <Star className="h-4 w-4 text-jade" />
-                      </div>
-                      <img
-                        src={`https://cdn2.loldata.cc/16.1.1/img/profileicon/${sugg.icon_id}.png`}
-                        alt="icon"
-                        className="w-8 h-8 rounded-full"
-                      />
+                      {!sugg._isPro && (
+                        <div
+                          onClick={(e) => handleToggleSaveProfile(e, sugg)}
+                          className={`relative z-10 rounded-sm p-1 cursor-pointer transition ${isProfileSaved(sugg) ? "bg-jade/20" : "hover:bg-jade/20"}`}
+                        >
+                          <Star className="h-4 w-4 text-jade" />
+                        </div>
+                      )}
+                      {sugg._isPro ? (
+                        sugg._avatar ? null : null
+                      ) : (
+                        <img
+                          src={`https://cdn2.loldata.cc/16.1.1/img/profileicon/${sugg.icon_id}.png`}
+                          alt="icon"
+                          className="w-8 h-8 rounded-full"
+                        />
+                      )}
                     </div>
                   </div>
                 ))}

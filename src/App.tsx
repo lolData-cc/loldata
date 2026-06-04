@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef } from "react";
+import { useAmbientLight } from "@/hooks/useAmbientLight";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
@@ -14,8 +15,10 @@ import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
 import { LiveViewerProvider } from "./context/liveviewercontext";
 import { LiveToastOnBoot } from "@/components/livetoastonboot"
+import { HardwareAccelerationWarning } from "@/components/hardwareaccelerationwarning"
 import { DotPattern } from "@/components/ui/dot-pattern"
 if (typeof window !== "undefined") {
+  window.history.scrollRestoration = "manual";
   // @ts-expect-error: expose supabase on window for console debugging
   window.supabase = supabase
 }
@@ -28,6 +31,8 @@ import ChampionDetailPage from "./pages/championdetailpage";
 import StreamersInfiniteCarousel from "./components/streeamerscarousel";
 import { PricingPlans } from "./components/pricingplans";
 import AuthCallback from "./auth/callback";
+import RiotCallbackPage from "./pages/riotcallback";
+import OverlayPage from "./pages/overlaypage";
 import WordShiftOnScroll from "./components/features1";
 import { LearnPageFeature } from "./components/learnpagefeature";
 import { SearchPageFeature } from "./components/searchpagefeature";
@@ -36,10 +41,14 @@ import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
 import { HomeYasuo } from "./components/home";
 import LeaderboardPage from "@/pages/leaderboardpage";
+import TierlistPage from "@/pages/tierlistpage";
 import PlaygroundPage from "./pages/playgroundpage";
 import TotalMasteryPage from "./pages/totalmastery";
 import PrivacyPolicyPage from "@/pages/privacypolicypage";
 import TermsOfServicePage from "@/pages/termsofservicepage";
+import StreamersPage from "@/pages/streamerspage";
+import ScoutCreateLobbyPage from "@/pages/scoutcreatelobbypage";
+import ScoutLobbyPage from "@/pages/scoutlobbypage";
 //
 
 declare global {
@@ -88,7 +97,7 @@ function HomePage() {
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10">
-        <div className="flex flex-col space-y-16">
+        <div className="flex flex-col space-y-8 md:space-y-16">
           <div>
             <HomeYasuo onDiscover={handleDiscover} />
             <div ref={learnRef} id="learn">
@@ -112,6 +121,20 @@ function HomePage() {
   );
 }
 
+function AmbientLightOverlay() {
+  const { intensity } = useAmbientLight()
+  const { pathname } = useLocation()
+  if (intensity <= 0) return null
+  // Skip on homepage — the hero image has its own lighting
+  if (pathname === "/") return null
+  const opacity = intensity / 100 * 0.08 // max 8% opacity
+  return (
+    <div className="absolute inset-0 pointer-events-none z-0 top-[400px]" style={{
+      background: `radial-gradient(ellipse at 50% 0%, rgba(180,195,210,${opacity}) 0%, transparent 60%)`,
+    }} />
+  )
+}
+
 export function RootLayout({
   children,
 }: Readonly<{
@@ -119,7 +142,8 @@ export function RootLayout({
 }>) {
   const { pathname } = useLocation()
   const navbarSticky = pathname === "/"
-  const contentMargin = pathname === "/" ? "mt-0" : "mt-10"
+  const noTopMargin = pathname === "/" || pathname === "/streamers"
+  const contentMargin = noTopMargin ? "mt-0" : "mt-4"
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll to top on route change
@@ -144,9 +168,10 @@ export function RootLayout({
       />
       <div
         ref={scrollRef}
-        className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
+        className="relative font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
-        <div className="xl:w-[65%] xl:px-0 w-full px-4 flex flex-col items-center">
+        <AmbientLightOverlay />
+        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 flex flex-col items-center relative z-[1]">
           <Navbar sticky={navbarSticky} />
           <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />
@@ -168,6 +193,7 @@ function App() {
             />
 
             <LiveToastOnBoot />
+            <HardwareAccelerationWarning />
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
               <Route path="/summoners/:region/:slug/season" element={<RootLayout><SeasonPage /></RootLayout>} />
@@ -181,18 +207,41 @@ function App() {
                   </AuthGuard>
                 }
               />
+              <Route path="/champions/:champId/guides/:guideId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/champions/:champId/:tab?" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/matches/:matchId" element={<MatchPage />} />
               <Route path="/champions" element={<ChampionPage />} />
               <Route path="/leaderboards" element={<RootLayout><LeaderboardPage /></RootLayout>} />
+              <Route path="/tierlist/:role?" element={<RootLayout><TierlistPage /></RootLayout>} />
               <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/auth/riot/callback" element={<RiotCallbackPage />} />
+              <Route path="/overlay/:region/:slug" element={<OverlayPage />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
               <Route path="/terms" element={<RootLayout><TermsOfServicePage /></RootLayout>} />
+              <Route path="/streamers" element={<RootLayout><StreamersPage /></RootLayout>} />
+              <Route
+                path="/scout/new"
+                element={
+                  <AuthGuard>
+                    <RootLayout>
+                      <ScoutCreateLobbyPage />
+                    </RootLayout>
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/scout/:slug"
+                element={
+                  <RootLayout>
+                    <ScoutLobbyPage />
+                  </RootLayout>
+                }
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>

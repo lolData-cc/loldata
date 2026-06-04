@@ -1,3 +1,5 @@
+import React from "react"
+import { createPortal } from "react-dom"
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
 import { motion, AnimatePresence } from "framer-motion"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
@@ -6,15 +8,16 @@ import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { LiveViewer } from "@/components/liveviewer"
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronUp, RotateCw, Search, BarChart3, Flag, SlidersHorizontal, X } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
+import { RoleTopIcon, RoleJungleIcon, RoleMidIcon, RoleAdcIcon, RoleSupportIcon } from "@/components/ui/roleicons"
 import { getWinrateClass } from '@/utils/winratecolor'
 import { ChampionPicker } from "@/components/championpicker"
 import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { champPath, CDN_BASE_URL } from "@/config"
+import { cdnBaseUrl, cdnSplashUrl, getCdnVersion, normalizeChampName, summonerSpellUrl } from "@/config"
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
@@ -26,6 +29,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { DiamondButton } from "@/components/ui/diamond-button"
 // import { getPlayerBadges } from "@/utils/badges";
 import {
   DropdownMenu,
@@ -41,11 +45,21 @@ import { API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
 import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
+import { useDisableMatchGrouping } from "@/hooks/useDisableMatchGrouping"
+import { useEnableColoredMatchBg } from "@/hooks/useEnableColoredMatchBg"
+import { useBlueWinTint } from "@/hooks/useBlueWinTint"
+import { useEnableMatchCentering } from "@/hooks/useEnableMatchCentering"
+import { useHideRemakeMatches } from "@/hooks/useHideRemakeMatches"
+import { useStatsBarPrefs } from "@/hooks/useStatsBarPrefs"
+import { useContextMenuActions } from "@/hooks/useContextMenuActions"
+import { useClickToExpandMatch } from "@/hooks/useClickToExpandMatch"
+import { useAuth } from "@/context/authcontext"
 import { Error404 } from "@/components/error404";
 import { Tabs, TabsTrigger, TabsContent, TabsList } from "@/components/ui/tabs";
 import { AnimatedTabsList } from "@/components/animated-tabs-list";
 
 import { PlayerHoverCard } from "@/components/playerhovercard";
+import { TeamLogo } from "@/components/teamlogo";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
 import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
@@ -63,8 +77,6 @@ const itemKeys: (keyof Participant)[] = [
   "item6"
 ];
 
-const COOLDOWN_MS = 300_000
-const STORAGE_KEY = "loldata:updateTimestamp"
 
 
 function getMatchTimestamp(m: MatchWithWin["match"]["info"]) {
@@ -111,6 +123,16 @@ function formatPlayedTime(totalSeconds: number) {
 export default function SummonerPage() {
   const { disabled: techBgDisabled } = useDisableTechBackground()
   const { disabled: matchTransitionDisabled } = useDisableMatchTransition()
+  const { disabled: matchGroupingDisabled } = useDisableMatchGrouping()
+  const { enabled: coloredMatchBg } = useEnableColoredMatchBg()
+  const { enabled: blueWinTint } = useBlueWinTint()
+  const { enabled: matchCenteringEnabled } = useEnableMatchCentering()
+  const { enabled: hideRemakes } = useHideRemakeMatches()
+  const { hidden: statsBarHidden, visibleStats } = useStatsBarPrefs()
+  const { enabled: contextMenuMode } = useContextMenuActions()
+  const { enabled: clickToExpand } = useClickToExpandMatch()
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
+  const { session: authSession, isAdmin } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
   const [enteringMatchId, setEnteringMatchId] = useState<string | null>(null)
@@ -130,16 +152,16 @@ export default function SummonerPage() {
   async function fetchAnalysis(matchId: string) {
     const entry = analysisMap[matchId];
 
-    // Already fetched â" just toggle open/closed
+    // Already fetched — just toggle open/closed
     if (entry && !entry.loading) {
       setAnalysisMap(prev => ({ ...prev, [matchId]: { ...prev[matchId], open: !prev[matchId].open } }));
       return;
     }
 
-    // Currently loading â" do nothing
+    // Currently loading — do nothing
     if (entry?.loading) return;
 
-    // First time â" fetch and open
+    // First time — fetch and open
     setAnalysisMap(prev => ({ ...prev, [matchId]: { loading: true, data: null, open: true } }));
     try {
       const res = await fetch(`${API_BASE_URL}/api/match/analysis`, {
@@ -155,29 +177,59 @@ export default function SummonerPage() {
   }
   const [loading, setLoading] = useState(false)
   const [onCooldown, setOnCooldown] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminType, setAdminType] = useState<"pro" | "streamer">("pro");
+  const [adminFields, setAdminFields] = useState({ nickname: "", team: "", firstName: "", lastName: "", nationality: "", twitchLogin: "" });
+  const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
+  const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
+  const [proPlayerInfo, setProPlayerInfo] = useState<{
+    id: string; username: string; first_name: string | null; last_name: string | null;
+    nickname: string | null; team: string | null; nationality: string | null;
+    profile_image_url: string | null;
+  } | null>(null);
+  const [proTeamLogo, setProTeamLogo] = useState<string | null>(null);
+  const [proLinkedAccounts, setProLinkedAccounts] = useState<string[]>([]);
   const { region, slug } = useParams()
-  const [name, tag] = slug?.split("-") ?? []
+  const _dashIdx = slug?.lastIndexOf("-") ?? -1
+  const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
+  const tag = _dashIdx > 0 ? slug!.slice(_dashIdx + 1) : ""
   const [latestPatch, setLatestPatch] = useState("15.13.1")
   const [topChampions, setTopChampions] = useState<ChampionStats[]>([])
   const [summonerInfo, setSummonerInfo] = useState<SummonerWithAvatar | null>(null)
   const [selectedChampion, setSelectedChampion] = useState<string | null>(null)
+  const [selectedResult, setSelectedResult] = useState<"all" | "wins" | "losses">("all")
+  const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  const [filterDuoPuuid, setFilterDuoPuuid] = useState<string | null>(null)
   const [allChampions, setAllChampions] = useState<{ id: string; name: string }[]>([])
   const [championMap, setChampionMap] = useState<Record<number, string>>({});
   const [championMapReverse, setChampionMapReverse] = useState<Record<string, number>>({});
   const [topChampionsSeason, setTopChampionsSeason] = useState<ChampionStats[]>([]);
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
+  const [splitTotals, setSplitTotals] = useState<{ games: number; wins: number; losses: number } | null>(null);
+  const [seasonOrSplitView, setSeasonOrSplitView] = useState<"season" | "split">("season");
+  const [topMastery, setTopMastery] = useState<{ championId: number; champName: string; points: number; pct: number }[]>([]);
   const [seasonStatsTab, setSeasonStatsTab] = useState("season");
+  const [rankQueueView, setRankQueueView] = useState<"solo" | "flex">("solo");
   const [premiumPlan, setPremiumPlan] = useState<null | "premium" | "elite">(null)
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [matchesCentered, setMatchesCentered] = useState(false);
   const [showAllDuos, setShowAllDuos] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [matchCtxMenu, setMatchCtxMenu] = useState<{ x: number; y: number; matchId: string; isJungler: boolean } | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
 
   const [linkedDiscord, setLinkedDiscord] = useState<{
     discord_username: string | null;
@@ -339,7 +391,6 @@ export default function SummonerPage() {
   const filteredMatches = matches.filter((m) => {
     const matchQueueId = m.match.info.queueId;
 
-    // Niente filtro queue quando Ã¨ "All"
     const isCorrectQueue =
       selectedQueue === "All"
         ? true
@@ -347,7 +398,29 @@ export default function SummonerPage() {
 
     const isCorrectChampion = selectedChampion ? m.championName === selectedChampion : true;
 
-    return isCorrectQueue && isCorrectChampion;
+    const isCorrectResult =
+      selectedResult === "all"
+        ? true
+        : selectedResult === "wins" ? m.win : !m.win;
+
+    const isCorrectRole =
+      !selectedRole
+        ? true
+        : (() => {
+            const pos = (m.match.info.participants ?? []).find(
+              (p: any) => p.puuid === summonerInfo?.puuid
+            )?.teamPosition?.toUpperCase();
+            return pos === selectedRole;
+          })();
+
+    const isCorrectDuo =
+      !filterDuoPuuid
+        ? true
+        : m.match.info.participants.some((p: any) => p.puuid === filterDuoPuuid);
+
+    const isNotHiddenRemake = hideRemakes ? m.match.info.gameDuration >= 300 : true;
+
+    return isCorrectQueue && isCorrectChampion && isCorrectResult && isCorrectRole && isCorrectDuo && isNotHiddenRemake;
   });
 
   const loadMore = useCallback(async () => {
@@ -370,18 +443,39 @@ export default function SummonerPage() {
     const month = now.getMonth(); // 0 = gennaio
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // inizializza un record per ogni giorno del mese
+    // Build cache key from player identity + month
+    const cacheKey = summonerInfo?.puuid
+      ? `lolData:heatmap:${summonerInfo.puuid}:${year}-${month}`
+      : null;
+
+    // Read cached data
+    type CachedDay = { games: number; wins: number };
+    let cached: CachedDay[] | null = null;
+    if (cacheKey) {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) cached = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+
+    // inizializza un record per ogni giorno del mese (start from cache if available)
     const stats: DayWinrateCell[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
+      const c = cached?.[day - 1];
       stats.push({
         date: new Date(year, month, day),
-        games: 0,
-        wins: 0,
+        games: c?.games ?? 0,
+        wins: c?.wins ?? 0,
         winrate: null,
       });
     }
 
-    // accumula stats usando TUTTE le partite del mese corrente
+    // accumula stats usando TUTTE le partite del mese corrente, taking max with cache
+    const liveStats: { games: number; wins: number }[] = Array.from(
+      { length: daysInMonth },
+      () => ({ games: 0, wins: 0 })
+    );
+
     for (const m of matches) {
       const ts = getMatchTimestamp(m.match.info);
       if (!ts) continue;
@@ -389,10 +483,17 @@ export default function SummonerPage() {
       const d = new Date(ts);
       if (d.getFullYear() !== year || d.getMonth() !== month) continue;
 
-      const dayIndex = d.getDate() - 1; // 0-based index
-      const cell = stats[dayIndex];
-      cell.games += 1;
-      if (m.win) cell.wins += 1;
+      const dayIndex = d.getDate() - 1;
+      liveStats[dayIndex].games += 1;
+      if (m.win) liveStats[dayIndex].wins += 1;
+    }
+
+    // Merge: take the max of cache vs live for each day
+    for (let i = 0; i < daysInMonth; i++) {
+      if (liveStats[i].games >= stats[i].games) {
+        stats[i].games = liveStats[i].games;
+        stats[i].wins = liveStats[i].wins;
+      }
     }
 
     // calcola winrate
@@ -404,19 +505,27 @@ export default function SummonerPage() {
       }
     });
 
+    // Persist to cache
+    if (cacheKey) {
+      try {
+        const toCache = stats.map(s => ({ games: s.games, wins: s.wins }));
+        localStorage.setItem(cacheKey, JSON.stringify(toCache));
+      } catch { /* quota exceeded — ignore */ }
+    }
+
     return stats;
-  }, [matches]);
+  }, [matches, summonerInfo?.puuid]);
 
   const githubWeeks = useMemo(() => {
     if (!monthlyDayStats.length) return [];
 
-    // parto dal primo giorno del mese (lo hai giÃ  calcolato cosÃ¬ in monthlyDayStats)
+    // parto dal primo giorno del mese (lo hai già calcolato così in monthlyDayStats)
     const first = monthlyDayStats[0].date;
     const year = first.getFullYear();
     const month = first.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    // 0 = lunedÃ¬, 6 = domenica (cosÃ¬ hai le righe tipo "lunâ"dom")
+    // 0 = lunedì, 6 = domenica (così hai le righe tipo "lun-dom")
     const weekdayOfFirst = (firstDay.getDay() + 6) % 7;
 
     const cells: (DayWinrateCell | null)[] = [];
@@ -497,7 +606,7 @@ export default function SummonerPage() {
       });
     });
 
-    // trasformiamo in array, filtriamo solo chi ha piÃ¹ di 1 game
+    // trasformiamo in array, filtriamo solo chi ha più di 1 game
     return Object.entries(duosMap)
       .filter(([_, data]) => data.games > 1)
       .map(([puuid, data]) => ({
@@ -506,7 +615,7 @@ export default function SummonerPage() {
         losses: data.games - data.wins,
         winrate: Math.round((data.wins / data.games) * 100),
       }))
-      .sort((a, b) => b.games - a.games); // ordina per piÃ¹ partite giocate insieme
+      .sort((a, b) => b.games - a.games); // ordina per più partite giocate insieme
   }, [matches, summonerInfo]);
 
 
@@ -562,13 +671,25 @@ export default function SummonerPage() {
       if (items.length >= 13) {
         const thirteenth = items[12] as HTMLElement; // 0-based index
         const rect = thirteenth.getBoundingClientRect();
-        // se il top dellâelemento Ã¨ sopra la viewport, vuol dire che lâabbiamo superato
+        // se il top dell—elemento è sopra la viewport, vuol dire che l—abbiamo superato
         setShowScrollTop(rect.top < 0);
+      }
+      if (matchCenteringEnabled) {
+        const matchItems = listRef.current.querySelectorAll(":scope > section > ul > li");
+        if (matchItems.length >= 12) {
+          const target = matchItems[11] as HTMLElement;
+          const rectTarget = target.getBoundingClientRect();
+          setMatchesCentered(rectTarget.top + (rectTarget.height * 0.25) < 0);
+        } else {
+          setMatchesCentered(false);
+        }
+      } else {
+        setMatchesCentered(false);
       }
     }
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [matchCenteringEnabled]);
 
   useEffect(() => {
     setNextOffset(0);
@@ -618,17 +739,95 @@ export default function SummonerPage() {
 
   useEffect(() => {
     if (!slug) return;
-    const [name, tag] = slug.split("-");
+    const di = slug.lastIndexOf("-");
+    const name = di > 0 ? slug.slice(0, di).replace(/\+/g, " ") : slug;
+    const tag = di > 0 ? slug.slice(di + 1) : "";
     if (!name || !tag) return;
 
     checkUserFlags(name, tag).then(({ isPro, isStreamer }) => {
       setIsPro(isPro);
       setIsStreamer(isStreamer);
     });
+
+    // Fetch full pro player details for this summoner
+    // Check both pro_players.username and pro_player_accounts.username
+    const nametag = `${name}#${tag}`;
+
+    async function fetchProInfo() {
+      const cols = "id, username, first_name, last_name, nickname, team, nationality, profile_image_url";
+
+      // 1. Direct match on pro_players.username
+      const { data: directRows } = await supabase
+        .from("pro_players")
+        .select(cols)
+        .ilike("username", nametag)
+        .limit(1);
+
+      let proData = directRows?.[0] ?? null;
+
+      // 2. If not found, check pro_player_accounts
+      if (!proData) {
+        const { data: accRows } = await supabase
+          .from("pro_player_accounts")
+          .select("pro_player_id")
+          .ilike("username", nametag)
+          .limit(1);
+        if (accRows?.[0]) {
+          const { data: playerRows } = await supabase
+            .from("pro_players")
+            .select(cols)
+            .eq("id", accRows[0].pro_player_id)
+            .limit(1);
+          proData = playerRows?.[0] ?? null;
+        }
+      }
+
+      if (proData) {
+        setProPlayerInfo(proData);
+        // Fetch team logo
+        if (proData.team) {
+          const { data: teamData } = await supabase.from("teams").select("logo_url").eq("name", proData.team).maybeSingle();
+          setProTeamLogo(teamData?.logo_url ?? null);
+        } else { setProTeamLogo(null); }
+        // Fetch linked accounts (primary + additional)
+        const { data: accData } = await supabase
+          .from("pro_player_accounts")
+          .select("username")
+          .eq("pro_player_id", proData.id);
+        const allAccounts = [proData.username, ...(accData ?? []).map((a: { username: string }) => a.username)];
+        setProLinkedAccounts(allAccounts);
+      } else {
+        setProPlayerInfo(null);
+        setProTeamLogo(null);
+        setProLinkedAccounts([]);
+      }
+    }
+    fetchProInfo();
   }, [slug]);
 
   useEffect(() => {
-    fetch("https://cdn.loldata.cc/15.13.1/data/en_US/champion.json")
+    // Load pro usernames from both pro_players and pro_player_accounts
+    Promise.all([
+      supabase.from("pro_players").select("username"),
+      supabase.from("pro_player_accounts").select("username"),
+    ]).then(([{ data: proData }, { data: accData }]) => {
+      const names = new Set<string>();
+      for (const r of proData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      for (const r of accData ?? []) if (r.username) names.add(r.username.toLowerCase());
+      setProUsernames(names);
+    });
+    supabase
+      .from("streamers")
+      .select("lol_nametag")
+      .then(({ data }) => {
+        if (data) {
+          setStreamerUsernames(new Set(data.filter((r) => r.lol_nametag).map((r) => r.lol_nametag.toLowerCase())));
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load champion.json")
         return res.json()
@@ -669,57 +868,64 @@ export default function SummonerPage() {
   }, []);
 
   useEffect(() => {
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
-      .then(res => res.json())
-      .then((versions: string[]) => setLatestPatch(versions[0]))
+    setLatestPatch(getCdnVersion())
   }, [])
 
+  // Cooldown countdown timer
   useEffect(() => {
-    const last = localStorage.getItem(STORAGE_KEY)
-    if (last) {
-      const diff = Date.now() - Number(last)
-      if (diff < COOLDOWN_MS) {
-        setOnCooldown(true)
-        setTimeout(() => setOnCooldown(false), COOLDOWN_MS - diff)
-      }
+    if (cooldownSeconds <= 0) {
+      setOnCooldown(false)
+      return
     }
-  }, [])
+    setOnCooldown(true)
+    const interval = setInterval(() => {
+      setCooldownSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setOnCooldown(false)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cooldownSeconds > 0]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!name || !tag) return
     refreshData()
-  }, [name, tag])
-
-  useEffect(() => {
-    if (name && tag && region) {
-      fetchSummonerInfo(name, tag, region)
-    }
   }, [name, tag, region])
 
   useEffect(() => {
     if (!summonerInfo?.puuid || !region) return;
-    let cancelled = false;
 
-    (async () => {
-      const okAll = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
-      const okSolo = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
-      const okFlex = await fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
-
-      if (cancelled) return;
-
-      if (!(okAll && okSolo && okFlex)) {
-        const id = setInterval(async () => {
-          if (cancelled) { clearInterval(id); return; }
-          const doneAll = topChampionsSeason.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_all");
-          const doneSolo = topChampionsSolo.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_solo");
-          const doneFlex = topChampionsFlex.length > 0 || await fetchSeasonStats(summonerInfo!.puuid, region!, "ranked_flex");
-          if (doneAll && doneSolo && doneFlex) clearInterval(id);
-        }, 2000);
-      }
-    })();
-
-    return () => { cancelled = true; };
+    // Fetch all three season stat groups — no polling needed,
+    // data is populated during match ingestion by the backend.
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+    fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+    fetchSplitStats(summonerInfo.puuid, region, "ranked_all");
   }, [summonerInfo?.puuid, region]);
+
+  // Poll for matches when ingestion is in progress (first-time search)
+  useEffect(() => {
+    if (!isIngesting || !name || !tag || !region) return;
+    const id = setInterval(() => {
+      fetchMatches(name, tag, region, 0, false);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isIngesting, name, tag, region]);
+
+  // Also re-fetch season stats once ingestion completes
+  useEffect(() => {
+    if (!isIngesting && summonerInfo?.puuid && region && matches.length > 0) {
+      // Matches just appeared — refresh season stats
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
+      fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+      fetchSplitStats(summonerInfo.puuid, region, "ranked_all");
+    }
+  }, [isIngesting, matches.length]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -738,10 +944,50 @@ export default function SummonerPage() {
     // riesegui quando cambia la dimensione della lista o lo stato di loading/hasMore
   }, [loadMore, filteredMatches.length, hasMore, loading]);
 
+  // ── Context menu dismiss ──
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const dismiss = () => setCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("click", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [ctxMenu]);
+
+  // ── Match context menu dismiss ──
+  useEffect(() => {
+    if (!matchCtxMenu) return;
+    const dismiss = () => setMatchCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("click", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [matchCtxMenu]);
+
+  // ── Global context menu override ──
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      e.preventDefault();
+      setCtxMenu({ x: e.clientX, y: e.clientY });
+    };
+    document.addEventListener("contextmenu", handler);
+    return () => document.removeEventListener("contextmenu", handler);
+  }, []);
+
   async function refreshData() {
 
     if (!region) {
-      console.error("â Region mancante in refreshData")
+      console.error("— Region mancante in refreshData")
       return
     }
 
@@ -751,46 +997,92 @@ export default function SummonerPage() {
     setSummonerInfo(null);
     setMatches([]);
     setTopChampionsSeason([]);
+    setSplitTotals(null);
+    setTopChampionsSolo([]);
+    setTopChampionsFlex([]);
     setHasMore(true);
     setNextOffset(0);
     setIsLoadingMore(false);
+    setIsIngesting(false);
+    setSelectedChampion(null);
+    setSelectedQueue("All" as QueueType);
+    setSelectedResult("all");
+    setSelectedRole(null);
+    setRankQueueView("solo");
 
     try {
-      const found = await fetchSummonerInfo(name, tag, region)
+      // Fire summoner info and matches in parallel — summoner endpoint
+      // no longer blocks on match ingestion, so both can run concurrently
+      const [summonerResult] = await Promise.all([
+        fetchSummonerInfo(name, tag, region),
+        fetchMatches(name, tag, region, 0, false),
+      ])
 
-      if (!found) {
+      if (!summonerResult.found) {
         navigate("/404", {
           state: {
             message: "Summoner not found",
-            subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
+            subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
           },
           replace: true,
         })
         return
       }
 
-      await fetchMatches(name, tag, region, 0, false)
+      // Re-fetch matches after a short delay to catch
+      // any additional matches ingested in background
+      setTimeout(async () => {
+        try {
+          await fetchMatches(name, tag, region, 0, false);
+        } catch {}
+      }, 3000);
 
-      await fetch(`${API_BASE_URL}/api/summoner/view`, {
+      // Fetch mastery data + champion names for profile card
+      Promise.all([
+        fetch(`${API_BASE_URL}/api/mastery/list`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, tag, region }),
+        }).then(r => r.ok ? r.json() : null),
+        fetch(`${cdnBaseUrl()}/data/en_US/champion.json`).then(r => r.json()).catch(() => null),
+      ]).then(([masteryData, champJson]) => {
+        const list = (masteryData?.masteryList ?? []) as { championId: number; championPoints: number }[];
+        if (list.length === 0) return;
+        // Build ID → name map
+        const idMap: Record<number, string> = {};
+        if (champJson?.data) {
+          for (const c of Object.values<any>(champJson.data)) {
+            idMap[Number(c.key)] = String(c.id);
+          }
+        }
+        const top3 = list.sort((a, b) => b.championPoints - a.championPoints).slice(0, 3);
+        const total = top3.reduce((s, c) => s + c.championPoints, 0);
+        setTopMastery(top3.map(c => ({
+          championId: c.championId,
+          champName: idMap[c.championId] ?? String(c.championId),
+          points: c.championPoints,
+          pct: total > 0 ? Math.round((c.championPoints / total) * 100) : 0,
+        })));
+      }).catch(() => {});
+
+      // Fire-and-forget tracking calls — don't block the UI
+      fetch(`${API_BASE_URL}/api/summoner/view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, tag }),
       }).catch(console.error)
 
-      await fetch(`${API_BASE_URL}/api/profile/views`, {
+      fetch(`${API_BASE_URL}/api/profile/views`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, tag }),
-      })
-        .then(res => res.json())
-        //.then(data => setViews(data.views))
-        .catch(console.error)
+      }).catch(console.error)
     } catch (err) {
-      console.error("â Error loading summoner data:", err)
+      console.error("— Error loading summoner data:", err)
       navigate("/404", {
         state: {
           message: "Summoner not found",
-          subtitle: `No data found for "${name}#${tag}" â" maybe you misspelled the name or tag?`,
+          subtitle: `No data found for "${name}#${tag}" — maybe you misspelled the name or tag?`,
         },
         replace: true,
       })
@@ -798,9 +1090,6 @@ export default function SummonerPage() {
     }
 
     setLoading(false)
-    localStorage.setItem(STORAGE_KEY, Date.now().toString())
-    setOnCooldown(true)
-    setTimeout(() => setOnCooldown(false), COOLDOWN_MS)
   }
 
   function LoadingSquares() {
@@ -832,7 +1121,7 @@ export default function SummonerPage() {
   }
 
 
-  async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<boolean> {
+  async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<{ found: boolean; cooldownRemaining: number }> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/summoner`, {
         method: "POST",
@@ -840,15 +1129,19 @@ export default function SummonerPage() {
         body: JSON.stringify({ name, tag, region }),
       })
 
-      if (!res.ok) return false
+      if (!res.ok) return { found: false, cooldownRemaining: 0 }
 
       const data = await res.json()
-      if (!data.summoner) return false
+      if (!data.summoner) return { found: false, cooldownRemaining: 0 }
 
       setSummonerInfo(data.summoner as SummonerInfo)
-      return true
+
+      const cd = data.cooldownRemaining ?? 0
+      if (cd > 0) setCooldownSeconds(cd)
+
+      return { found: true, cooldownRemaining: cd }
     } catch {
-      return false
+      return { found: false, cooldownRemaining: 0 }
     }
   }
 
@@ -860,15 +1153,21 @@ export default function SummonerPage() {
     });
     const data = await res.json();
 
+    // Track ingestion state — keep polling while backend says ingesting
+    setIsIngesting(Boolean(data.ingesting));
+
     setHasMore(Boolean(data.hasMore));
     setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
 
     setTopChampions(data.topChampions || []);
 
-    if (append) {
-      setMatches(prev => [...prev, ...(data.matches || [])]);
-    } else {
-      setMatches(data.matches || []);
+    // Always update matches if we got any (even partial during ingestion)
+    if (data.matches && data.matches.length > 0) {
+      if (append) {
+        setMatches(prev => [...prev, ...data.matches]);
+      } else {
+        setMatches(data.matches);
+      }
     }
   }
 
@@ -877,21 +1176,43 @@ export default function SummonerPage() {
     region: string,
     queueGroup: "ranked_all" | "ranked_solo" | "ranked_flex" = "ranked_all"
   ) {
-    const res = await fetch(`${API_BASE_URL}/api/season_stats`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ puuid, region, queueGroup }),
-    });
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/season_stats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puuid, region, queueGroup }),
+      });
 
-    if (res.status === 200) {
-      const data = await res.json();
-      if (queueGroup === "ranked_all") setTopChampionsSeason(data.topChampions || []);
-      if (queueGroup === "ranked_solo") setTopChampionsSolo(data.topChampions || []);
-      if (queueGroup === "ranked_flex") setTopChampionsFlex(data.topChampions || []);
-      return true;
+      if (res.ok) {
+        const data = await res.json();
+        if (queueGroup === "ranked_all") setTopChampionsSeason(data.topChampions || []);
+        if (queueGroup === "ranked_solo") setTopChampionsSolo(data.topChampions || []);
+        if (queueGroup === "ranked_flex") setTopChampionsFlex(data.topChampions || []);
+      }
+    } catch (err) {
+      console.error("Error fetching season stats:", err);
     }
-    if (res.status === 202) return false;
-    return false;
+  }
+
+  async function fetchSplitStats(
+    puuid: string,
+    region: string,
+    queueGroup: "ranked_all" | "ranked_solo" | "ranked_flex" = "ranked_all"
+  ) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/split_stats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puuid, region, queueGroup }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.splitTotals) setSplitTotals(data.splitTotals);
+      }
+    } catch (err) {
+      console.error("Error fetching split stats:", err);
+    }
   }
 
 
@@ -914,16 +1235,18 @@ export default function SummonerPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(row);
     }
-    return map; // mantiene lâordine dâinserimento
+    return map; // mantiene l—ordine d—inserimento
   }, [filteredMatches]);
 
 
 
   function StatsList({ champs }: { champs: ChampionStats[] }) {
-    const isLoading = !champs || champs.length === 0;
+    const isEmpty = !champs || champs.length === 0;
+    // Show skeleton only while initial page is loading or ingesting
+    const showSkeleton = isEmpty && (loading || isIngesting);
     return (
       <div className="flex flex-col gap-3 mx-2 mt-3">
-        {isLoading ? (
+        {showSkeleton ? (
           Array.from({ length: 5 }).map((_, idx) => (
             <div key={idx} className="grid items-center px-4 py-1 animate-pulse">
               <div className="flex items-center gap-3 w-full">
@@ -935,68 +1258,93 @@ export default function SummonerPage() {
               </div>
             </div>
           ))
+        ) : isEmpty ? (
+          <div className="text-center py-6 text-flash/40 text-sm">
+            No ranked games this season
+          </div>
         ) : (
-          champs.slice(0, 5).map((champ) => (
-            <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
-              <div className="flex items-center gap-3">
-                <img src={`${champPath}/${champ.champion}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
-                <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
-                  <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
-                  <div className="text-white font-thin text-[11px]">
-                    {(() => {
-                      const num = Number(champ.csPerMin);
-                      const rounded = Math.round(num * 10) / 10;
-                      return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
-                    })()}{" "}CS/({champ.avgGold})
+          (() => {
+            const displayChamps = champs.slice(0, 5);
+            return (
+              <>
+                {displayChamps.map((champ) => (
+                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
+                    <div className="flex items-center gap-3">
+                      <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
+                      <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
+                        <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
+                        <div className="text-white font-thin text-[11px]">
+                          {(() => {
+                            const num = Number(champ.csPerMin);
+                            const rounded = Math.round(num * 10) / 10;
+                            return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
+                          })()}{" "}CS/({champ.avgGold})
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Center KDA column — visible only at xl+ */}
+                    <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
+                      <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
+                      <div>
+                        {formatStat(champ.kills / champ.games)}/
+                        {formatStat(champ.deaths / champ.games)}/
+                        {formatStat(champ.assists / champ.games)}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
+                      {/* KDA with tooltip — visible only below xl */}
+                      <div className="xl:hidden">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {/* Winrate with tooltip for matches — visible below xl */}
+                      <div className="xl:hidden">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {champ.games} matches
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {/* Winrate + matches text — visible at xl+ */}
+                      <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                      <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Center KDA column â" visible only at xl+ */}
-              <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
-                <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
-                <div>
-                  {formatStat(champ.kills / champ.games)}/
-                  {formatStat(champ.deaths / champ.games)}/
-                  {formatStat(champ.assists / champ.games)}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
-                {/* KDA with tooltip â" visible only below xl */}
-                <div className="xl:hidden">
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {/* Winrate with tooltip for matches â" visible below xl */}
-                <div className="xl:hidden">
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {champ.games} matches
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {/* Winrate + matches text â" visible at xl+ */}
-                <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
-                <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
-              </div>
-            </div>
-          ))
+                ))}
+                {/* Placeholder slots when fewer than 5 champions */}
+                {displayChamps.length < 5 && Array.from({ length: 5 - displayChamps.length }).map((_, i) => (
+                  <div key={`placeholder-${i}`} className="flex items-center px-3 w-full h-12">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`${cdnBaseUrl()}/img/profileicon/29.png`}
+                        alt="empty slot"
+                        className="w-12 h-12 rounded-full grayscale"
+                        style={{ opacity: 0.3 - i * 0.05 }}
+                      />
+                      <div className="h-2 w-16 rounded bg-flash/5" style={{ opacity: 0.3 - i * 0.05 }} />
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()
         )}
       </div>
     );
@@ -1005,8 +1353,120 @@ export default function SummonerPage() {
   return (
     <div className="relative z-0">
       {!techBgDisabled && <UltraTechBackground />}
+
+      {(selectedQueue !== "All" || selectedChampion || selectedResult !== "all" || selectedRole || filterDuoPuuid) && (
+        <div className={cn(
+          "fixed right-10 z-50 transition-all duration-300",
+          showScrollTop ? "bottom-[7.5rem]" : "bottom-10"
+        )}>
+          <DiamondButton
+            color="red"
+            icon={<X className="w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-110" />}
+            label="RESET"
+            onClick={() => {
+              setSelectedQueue("All");
+              setSelectedChampion(null);
+              setSelectedResult("all");
+              setSelectedRole(null);
+              setFilterDuoPuuid(null);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+        </div>
+      )}
       <div className="relative flex min-h-screen -mt-4 z-10">
-        <div className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center">
+        <div
+          className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center transition-opacity duration-700 ease-in-out"
+          style={{ opacity: matchesCentered ? 0 : 1 }}
+        >
+
+          {/* ═══ PRO PLAYER CARD — floating layout ═══ */}
+          {proPlayerInfo && (
+            <div className="w-[90%] mt-5 mb-2 flex items-start gap-4 px-1">
+              {/* Player image — left, prominent */}
+              {proPlayerInfo.profile_image_url ? (
+                <img
+                  src={proPlayerInfo.profile_image_url}
+                  alt=""
+                  className="shrink-0 w-[88px] h-[88px] rounded-lg object-cover shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,217,146,0.1)]"
+                />
+              ) : (
+                <div className="shrink-0 w-[88px] h-[88px] rounded-lg bg-black/50 border border-jade/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden relative">
+                  {/* Scanlines */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.03) 3px, rgba(0,217,146,0.03) 4px)" }} />
+                  {/* Corner brackets */}
+                  <div className="absolute top-0 left-0 w-3 h-3"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute top-0 right-0 w-3 h-3"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute bottom-0 left-0 w-3 h-3"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/20" /></div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/20" /></div>
+                  {/* Silhouette + diamond */}
+                  <div className="relative flex flex-col items-center gap-1">
+                    <svg viewBox="0 0 64 52" className="w-10 h-8">
+                      <circle cx="32" cy="16" r="9" fill="rgba(0,217,146,0.12)" stroke="rgba(0,217,146,0.2)" strokeWidth="1" />
+                      <path d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.15)" strokeWidth="1" />
+                    </svg>
+                    <span className="text-jade/25 text-[8px] font-orbitron tracking-[0.2em]">◈</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Right side — info stack */}
+              <div className="flex flex-col gap-0.5 min-w-0 pt-0.5">
+                {/* Team icon + team name — top header */}
+                {proPlayerInfo.team && (
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    {proTeamLogo && <TeamLogo src={proTeamLogo} className="w-3.5 h-3.5 object-contain" />}
+                    <span className="text-[10px] font-mono text-jade/60 tracking-[0.15em] uppercase">{proPlayerInfo.team}</span>
+                  </div>
+                )}
+
+                {/* Nickname — biggest */}
+                <div className="text-2xl font-bold font-mono text-flash leading-tight tracking-wide">
+                  {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
+                </div>
+
+                {/* Name + surname + nationality + accounts */}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {(proPlayerInfo.first_name || proPlayerInfo.last_name) && (
+                    <span className="text-[11px] font-mono text-flash/45">
+                      {[proPlayerInfo.first_name, proPlayerInfo.last_name].filter(Boolean).join(" ")}
+                    </span>
+                  )}
+                  {proPlayerInfo.nationality && (
+                    <>
+                      {(proPlayerInfo.first_name || proPlayerInfo.last_name) && <span className="text-flash/15">·</span>}
+                      <span className="text-[10px] font-mono text-flash/35 uppercase">{proPlayerInfo.nationality}</span>
+                    </>
+                  )}
+                  {proLinkedAccounts.length > 1 && (
+                    <>
+                      <span className="text-flash/15">·</span>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[9px] font-mono tracking-[0.08em] text-jade/35 hover:text-jade/60 transition-colors cursor-clicker">
+                              +{proLinkedAccounts.length - 1} acc
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="p-0 bg-transparent border-none shadow-none">
+                            <div className="bg-[#0a0f14] border border-jade/15 rounded-[4px] px-3 py-2 min-w-[140px]">
+                              <div className="text-[9px] font-mono text-jade/50 tracking-[0.15em] uppercase mb-1.5">Accounts</div>
+                              <div className="flex flex-col gap-1">
+                                {proLinkedAccounts.map((acc, i) => (
+                                  <div key={i} className="text-[11px] font-mono text-flash/70">{acc}</div>
+                                ))}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div
             className={cn(
               "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
@@ -1027,54 +1487,129 @@ export default function SummonerPage() {
             <BorderBeam duration={8} size={100} />
 
             {/* contenuto */}
+            {/* Splash art — absolute from card top, doesn't affect layout */}
+            {topChampionsSeason.length > 0 && (
+              <div className="absolute inset-x-0 top-0 h-[220px] overflow-hidden z-[2] pointer-events-none">
+                <img
+                  src={cdnSplashUrl(topChampionsSeason[0].champion)}
+                  alt={`Splash art ${topChampionsSeason[0].champion}`}
+                  className="w-full h-full object-cover opacity-15 filter grayscale brightness-150"
+                  style={{
+                    objectPosition: "top center",
+                    maskImage: "linear-gradient(to bottom, black 0%, black 40%, transparent 85%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 40%, transparent 85%)",
+                  }}
+                />
+              </div>
+            )}
             <div className="relative z-10">
-              <div className="relative w-full h-32 overflow-hidden mt-6">
-                {topChampionsSeason.length > 0 && (
-                  <img
-                    src={`https://cdn.loldata.cc/15.13.1/img/champion/${topChampionsSeason[0].champion}_0.jpg`}
-                    alt={`Splash art ${topChampionsSeason[0].champion}`}
-                    className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale brightness-150"
-                    style={{ objectPosition: "top center" }}
-                  />
-                )}
+              <div className="relative w-full h-32 mt-2">
 
-                <div className="relative z-10 px-4 py-2">
-                  <span className="text-flash/70">THIS SEASON</span>
-
-                  <div className="flex mt-14 px-3 gap-4">
-                    <div className="flex">
-                      <span className="text-2xl text-jade">{summonerInfo?.wins}</span>
-                      <span>WINS</span>
-                    </div>
-
-                    <div className="flex">
-                      <span className="text-2xl text-[#b11315]">{summonerInfo?.losses}</span>
-                      <span>LOSSES</span>
-                    </div>
-
-                    {summonerInfo && (
-                      <div className="flex items-center gap-1">
-                        {(() => {
-                          const totalGames = summonerInfo.wins + summonerInfo.losses;
-                          const winrate =
-                            totalGames > 0 ? Math.round((summonerInfo.wins / totalGames) * 100) : 0;
-
-                          return (
-                            <>
-                              <span className={`text-2xl ${getWinrateClass(winrate, totalGames)}`}>
-                                {winrate}%
-                              </span>
-                              <span>WINRATE</span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
+                <div className="relative z-10 px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSeasonOrSplitView("season")}
+                      className={cn(
+                        "text-[10px] font-mono tracking-[0.25em] uppercase transition-colors cursor-clicker",
+                        seasonOrSplitView === "season"
+                          ? "text-flash/60"
+                          : "text-flash/20 hover:text-flash/40"
+                      )}
+                    >
+                      This Season
+                    </button>
+                    <span className="text-flash/15 text-[10px]">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setSeasonOrSplitView("split")}
+                      className={cn(
+                        "text-[10px] font-mono tracking-[0.25em] uppercase transition-colors cursor-clicker",
+                        seasonOrSplitView === "split"
+                          ? "text-flash/60"
+                          : "text-flash/20 hover:text-flash/40"
+                      )}
+                    >
+                      This Split
+                    </button>
+                    <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
+                    {recentDetailedStats?.roleDistribution?.[0] && (() => {
+                      const roleMap: Record<string, React.ReactNode> = {
+                        TOP: <RoleTopIcon className="w-7 h-7" />,
+                        JNG: <RoleJungleIcon className="w-7 h-7" />,
+                        MID: <RoleMidIcon className="w-7 h-7" />,
+                        ADC: <RoleAdcIcon className="w-7 h-7" />,
+                        SUP: <RoleSupportIcon className="w-7 h-7" />,
+                      };
+                      return (
+                        <div className="text-flash/20">
+                          {roleMap[recentDetailedStats.roleDistribution[0].role] ?? null}
+                        </div>
+                      );
+                    })()}
                   </div>
+
+                  {(() => {
+                    const isSplit = seasonOrSplitView === "split";
+                    const dataReady = isSplit ? splitTotals !== null : summonerInfo !== null;
+                    const wins = isSplit ? splitTotals?.wins ?? 0 : summonerInfo?.wins ?? 0;
+                    const losses = isSplit ? splitTotals?.losses ?? 0 : summonerInfo?.losses ?? 0;
+                    const totalGames = wins + losses;
+                    const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+
+                    return (
+                      <div className="flex items-end gap-5 mt-12">
+                        {/* Wins */}
+                        <div className="flex flex-col items-center">
+                          {dataReady ? (
+                            <span className="text-3xl font-orbitron font-bold text-jade tabular-nums leading-none">{wins}</span>
+                          ) : (
+                            <span className="text-3xl font-orbitron font-bold text-jade/30 tabular-nums leading-none animate-pulse">--</span>
+                          )}
+                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-8 w-[1px] bg-flash/10 mb-1" />
+
+                        {/* Losses */}
+                        <div className="flex flex-col items-center">
+                          {dataReady ? (
+                            <span className="text-3xl font-orbitron font-bold text-[#b11315] tabular-nums leading-none">{losses}</span>
+                          ) : (
+                            <span className="text-3xl font-orbitron font-bold text-[#b11315]/30 tabular-nums leading-none animate-pulse">--</span>
+                          )}
+                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-8 w-[1px] bg-flash/10 mb-1" />
+
+                        {/* Winrate */}
+                        {dataReady ? (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-baseline gap-0.5">
+                              <span className={`text-3xl font-orbitron font-bold tabular-nums leading-none ${getWinrateClass(winrate, totalGames)}`}>{winrate}</span>
+                              <span className={`text-lg font-orbitron font-bold leading-none ${getWinrateClass(winrate, totalGames)}`}>%</span>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-3xl font-orbitron font-bold text-flash/20 tabular-nums leading-none animate-pulse">--</span>
+                              <span className="text-lg font-orbitron font-bold text-flash/20 leading-none animate-pulse">%</span>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
-              {/* â"â" PERFORMANCE OVERVIEW â"â" */}
+              {/* ———— PERFORMANCE OVERVIEW ———— */}
               {!recentDetailedStats && (
                 <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
                   <div className="flex items-start gap-1">
@@ -1129,9 +1664,9 @@ export default function SummonerPage() {
                   <div className="px-3 pt-2 pb-4 font-jetbrains">
                     <div className="flex items-start gap-1">
 
-                      {/* Radar chart â" left */}
+                      {/* Radar chart — left */}
                       <TooltipProvider delayDuration={0}>
-                        <div className="shrink-0 -ml-2 relative">
+                        <div className="shrink-0 -ml-2 relative mt-[22px]">
                           <svg width="190" height="190" viewBox="0 0 220 220">
                             {/* Grid hexagons */}
                             {[0.25, 0.5, 0.75, 1].map(s => (
@@ -1152,7 +1687,7 @@ export default function SummonerPage() {
                               return (
                                 <Tooltip key={i}>
                                   <TooltipTrigger asChild>
-                                    <g className="cursor-pointer">
+                                    <g className="cursor-clicker">
                                       <circle cx={dx} cy={dy} r="10" fill="transparent" />
                                       <circle cx={dx} cy={dy} r="5" fill="#00d992" fillOpacity="0.12" />
                                       <circle cx={dx} cy={dy} r="2.5" fill="#00d992" fillOpacity="0.9" />
@@ -1184,8 +1719,8 @@ export default function SummonerPage() {
                         </div>
                       </TooltipProvider>
 
-                      {/* Stats panel â" right */}
-                      <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                      {/* Stats panel — right */}
+                      <div className="flex flex-col gap-[7px] pt-6 flex-1 min-w-0">
                         {[
                           { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
                           { label: "CS/MIN", value: recentDetailedStats.csPerMin },
@@ -1197,8 +1732,8 @@ export default function SummonerPage() {
                           <div key={s.label} className="flex items-baseline justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
                             <span className="text-[10px] text-flash/35 uppercase tracking-wider">{s.label}</span>
                             <div className="flex items-baseline gap-1.5">
-                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
                               {s.sub && <span className="text-[10px] text-flash/25">{s.sub}</span>}
+                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
                             </div>
                           </div>
                         ))}
@@ -1207,23 +1742,18 @@ export default function SummonerPage() {
 
                     </div>
 
-                    {/* Full-width footer rows */}
-                    {recentDetailedStats.roleDistribution.length > 0 && (
-                      <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
-                        {recentDetailedStats.roleDistribution.map((r, i) => (
-                          <span key={r.role} className="text-[11px] tabular-nums">
-                            <span className={i === 0 ? "text-jade" : "text-flash/40"}>{r.role}</span>
-                            <span className="text-flash/20 ml-1">{r.pct}%</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
+                    {/* MVP badge */}
                     {recentBadgeLabel && (
-                      <div className="flex items-center justify-between px-1 pt-2 mt-1 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-flash/25">{recentBadgeCount}/{recentDetailedStats.games} MVP</span>
-                        <span className="text-[11px] font-bold text-jade tracking-widest drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]">
-                          {recentBadgeLabel}
+                      <div className="flex justify-end px-1 mt-2">
+                        <span
+                          className="text-[9px] font-orbitron font-bold tracking-[0.15em] px-2 py-[2px] rounded-[2px]"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(0,217,146,0.12), rgba(0,184,255,0.08))",
+                            color: "#00d992",
+                            boxShadow: "0 0 8px rgba(0,217,146,0.2)",
+                          }}
+                        >
+                          {recentBadgeCount}/{recentDetailedStats.games} MVP · {recentBadgeLabel}
                         </span>
                       </div>
                     )}
@@ -1236,10 +1766,11 @@ export default function SummonerPage() {
 
 
           <div
+            id="season-stats"
             className={cn(
               "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
               "bg-black/25 backdrop-blur-lg saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.02)]"
             )}
           >
             <GlassOverlays />
@@ -1261,25 +1792,27 @@ export default function SummonerPage() {
               >
                 <nav className="flex flex-col min-h-[400px]">
                   <div className="px-3 pt-3">
-                    <TabsList className="flex justify-center w-[90%] mx-auto bg-transparent h-auto p-0 gap-6 border-b border-white/8">
-                      <TabsTrigger
-                        value="season"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Season
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="solo"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Solo/Duo
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="flex"
-                        className="font-jetbrains text-[11px] tracking-[0.15em] uppercase px-1 py-2.5 rounded-none bg-transparent text-flash/35 transition-all border-b-2 border-transparent data-[state=active]:text-jade data-[state=active]:border-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-flash/55"
-                      >
-                        Flex
-                      </TabsTrigger>
+                    <TabsList className="flex justify-center w-[90%] mx-auto bg-transparent h-auto p-0 gap-5 border-b border-flash/[0.06]">
+                      {([
+                        { value: "season", label: "Season" },
+                        { value: "solo", label: "Solo/Duo" },
+                        { value: "flex", label: "Flex" },
+                      ] as const).map((tab) => (
+                        <TabsTrigger
+                          key={tab.value}
+                          value={tab.value}
+                          className={cn(
+                            "group relative font-mono text-[10px] tracking-[0.2em] uppercase px-1 py-2.5 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker",
+                            "text-flash/30 hover:text-flash/50",
+                            "data-[state=active]:text-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          )}
+                        >
+                          <span className="hidden group-data-[state=active]:inline text-jade/40 mr-0.5">[</span>
+                          {tab.label}
+                          <span className="hidden group-data-[state=active]:inline text-jade/40 ml-0.5">]</span>
+                          <span className="absolute bottom-0 left-0 right-0 h-px bg-jade/60 scale-x-0 group-data-[state=active]:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_6px_rgba(0,217,146,0.3)]" />
+                        </TabsTrigger>
+                      ))}
                     </TabsList>
                   </div>
 
@@ -1369,6 +1902,9 @@ export default function SummonerPage() {
                           const dayNumber = cell.date.getDate();
                           const baseClasses = "w-3 h-3 rounded-[2px] cursor-default";
 
+                          const dayName = cell.date.toLocaleDateString("en-US", { weekday: "short" });
+                          const monthDay = cell.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
                           // Celle senza partite
                           if (!cell.games || cell.winrate == null) {
                             return (
@@ -1376,43 +1912,73 @@ export default function SummonerPage() {
                                 <TooltipTrigger asChild>
                                   <div className={cn(baseClasses, "bg-white/5")} />
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <div className="flex flex-col gap-[2px] leading-snug">
-                                    <span className="uppercase tracking-wide text-flash/60">Day {dayNumber}</span>
-                                    <span className="text-flash/60">
-                                      {cell.games} {cell.games === 1 ? "game" : "games"}
-                                    </span>
+                                <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
+                                  <div className="relative bg-[#0a0f14] border border-flash/10 rounded-[3px] px-3 py-2 min-w-[100px]">
+                                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-flash/20 rounded-l-[3px]" />
+                                    <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
+                                    <div className="mt-1 text-[11px] text-flash/30 font-mono">No games</div>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
                             );
                           }
 
-                          // Celle con partite: calcolo colore
-                          const rawT = cell.winrate / 100;
-                          const t = Math.max(0.2, Math.min(1, rawT)); // almeno 20% di intensitÃ 
+                          // Cells with games: color based on winrate
+                          // 0% = red, 50% = muted neutral, 100% = jade green
+                          const wr = cell.winrate;
+                          const isHighWr = wr >= 70 && cell.games >= 3;
+                          let bgColor: string;
+                          let shadow: string | undefined;
 
-                          // base leggermente piÃ¹ chiara (verde molto scuro ma leggibile)
-                          const start = { r: 0x0C, g: 0x40, b: 0x32 }; // #0C4032
-                          const end = { r: 0x00, g: 0xD9, b: 0x92 };   // jade
+                          if (wr < 50) {
+                            // Red side: lerp from deep red to muted
+                            const t = wr / 50; // 0→1
+                            const r = Math.round(180 - 100 * t);  // 180→80
+                            const g = Math.round(40 + 40 * t);    // 40→80
+                            const b = Math.round(50 + 30 * t);    // 50→80
+                            bgColor = `rgb(${r}, ${g}, ${b})`;
+                          } else {
+                            // Green side: lerp from muted to jade
+                            const t = (wr - 50) / 50; // 0→1
+                            const r = Math.round(80 - 80 * t);    // 80→0
+                            const g = Math.round(80 + 137 * t);   // 80→217
+                            const b = Math.round(80 + 66 * t);    // 80→146
+                            bgColor = `rgb(${r}, ${g}, ${b})`;
+                          }
 
-                          const r = Math.round(start.r + (end.r - start.r) * t);
-                          const g = Math.round(start.g + (end.g - start.g) * t);
-                          const b = Math.round(start.b + (end.b - start.b) * t);
-                          const bgColor = `rgb(${r}, ${g}, ${b})`;
+                          if (isHighWr) {
+                            shadow = `0 0 6px rgba(0, 217, 146, 0.6), 0 0 2px rgba(0, 217, 146, 0.3)`;
+                          }
 
                           return (
                             <Tooltip key={idx}>
                               <TooltipTrigger asChild>
-                                <div className={baseClasses} style={{ backgroundColor: bgColor }} />
+                                <div
+                                  className={cn(baseClasses, isHighWr && "animate-heatmapPulse")}
+                                  style={{ backgroundColor: bgColor, boxShadow: shadow }}
+                                />
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <div className="flex flex-col gap-[2px] leading-snug">
-                                  <span className="uppercase tracking-wide text-flash/60">Day {dayNumber}</span>
-                                  <span className="font-jetbrains text-flash/70">{cell.winrate}% WR</span>
-                                  <span className="text-flash/60">
-                                    {cell.games} {cell.games === 1 ? "game" : "games"}
-                                  </span>
+                              <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
+                                <div className="relative bg-[#0a0f14] border border-jade/15 rounded-[3px] px-3 py-2 min-w-[120px]">
+                                  <div className={cn(
+                                    "absolute left-0 top-0 bottom-0 w-[2px] rounded-l-[3px]",
+                                    cell.winrate >= 60 ? "bg-jade" : cell.winrate >= 50 ? "bg-jade/50" : "bg-[#c93232]"
+                                  )} />
+                                  <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
+                                  <div className="mt-1.5 flex items-baseline gap-2">
+                                    <span className={cn(
+                                      "text-base font-bold font-mono leading-none",
+                                      cell.winrate >= 60 ? "text-jade" : cell.winrate >= 50 ? "text-flash/70" : "text-[#c93232]"
+                                    )}>{cell.winrate}%</span>
+                                    <span className="text-[10px] text-flash/30 font-mono uppercase">WR</span>
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1.5 text-[10px] font-mono text-flash/50">
+                                    <span className="text-jade/70">{cell.wins}W</span>
+                                    <span className="text-flash/20">·</span>
+                                    <span className="text-[#c93232]/70">{cell.games - cell.wins}L</span>
+                                    <span className="text-flash/20">·</span>
+                                    <span>{cell.games} {cell.games === 1 ? "game" : "games"}</span>
+                                  </div>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -1468,7 +2034,7 @@ export default function SummonerPage() {
                             width:
                               summonerInfo?.puuid && matches.length > 0
                                 ? `${recentRating}%`
-                                : "40%", // minimo visivo se non ci sono dati
+                                : "40%",
                           }}
                         />
                       </div>
@@ -1503,7 +2069,7 @@ export default function SummonerPage() {
                 <div className="px-4 pb-2 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.07]">
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest">#</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest uppercase">Player</span>
-                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W â" L</span>
+                  <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">W ◆ L</span>
                   <span className="text-[10px] font-mono text-flash/30 tracking-widest text-right">WR</span>
                 </div>
 
@@ -1511,7 +2077,13 @@ export default function SummonerPage() {
                 {visibleDuos.map((duo, i) => (
                   <div
                     key={duo.puuid}
-                    className="px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] hover:bg-white/[0.02] transition-colors"
+                    onClick={() => setFilterDuoPuuid(duo.puuid === filterDuoPuuid ? null : duo.puuid)}
+                    className={cn(
+                      "px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] transition-colors cursor-clicker",
+                      filterDuoPuuid === duo.puuid
+                        ? "bg-jade/10 border-jade/20"
+                        : "hover:bg-white/[0.02]"
+                    )}
                   >
                     {/* Rank */}
                     <span className="text-[10px] font-mono text-flash/30 leading-none tabular-nums">
@@ -1522,32 +2094,34 @@ export default function SummonerPage() {
                     <div className="flex items-center gap-2 min-w-0">
                       {duo.profileIconId && (
                         <img
-                          src={`${CDN_BASE_URL}/img/profileicon/${duo.profileIconId}.png`}
+                          src={`${cdnBaseUrl()}/img/profileicon/${duo.profileIconId}.png`}
                           alt=""
                           className="w-5 h-5 rounded-sm shrink-0 opacity-80"
                         />
                       )}
                       {duo.riotId.includes("#") ? (
-                        <PlayerHoverCard
-                          riotId={duo.riotId}
-                          region={region!}
-                          championId={duo.lastChampionName ? championMapReverse[duo.lastChampionName] : undefined}
-                          profileIconId={duo.profileIconId ?? undefined}
-                          patch={latestPatch}
-                          isCurrentUser={duo.puuid === summonerInfo?.puuid}
-                          championMap={championMap}
-                        >
-                          <span className="truncate text-flash/85 text-xs cursor-clicker">{duo.riotId}</span>
-                        </PlayerHoverCard>
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <PlayerHoverCard
+                            riotId={duo.riotId}
+                            region={region!}
+                            championId={duo.lastChampionName ? championMapReverse[duo.lastChampionName] : undefined}
+                            profileIconId={duo.profileIconId ?? undefined}
+                            patch={latestPatch}
+                            isCurrentUser={duo.puuid === summonerInfo?.puuid}
+                            championMap={championMap}
+                          >
+                            <span className="truncate text-flash/85 text-xs cursor-clicker">{duo.riotId}</span>
+                          </PlayerHoverCard>
+                        </span>
                       ) : (
                         <span className="truncate text-flash/85 text-xs">{duo.riotId}</span>
                       )}
                     </div>
 
-                    {/* W â" L */}
+                    {/* W ◆ L */}
                     <div className="flex items-center justify-end gap-1 font-mono text-xs tabular-nums">
                       <span className="text-jade">{duo.wins}W</span>
-                      <span className="text-flash/30">Â·</span>
+                      <span className="text-flash/30">·</span>
                       <span className="text-[#b11315]">{duo.losses}L</span>
                     </div>
 
@@ -1571,9 +2145,14 @@ export default function SummonerPage() {
                   <button
                     type="button"
                     onClick={() => setShowAllDuos(v => !v)}
-                    className="w-full py-2.5 text-[10px] font-mono text-flash/30 hover:text-flash/55 tracking-[0.2em] uppercase transition-colors cursor-clicker"
+                    className="group w-full py-2.5 text-[10px] font-mono text-flash/25 hover:text-jade/60 tracking-[0.25em] uppercase transition-all duration-300 cursor-clicker flex items-center justify-center gap-2"
                   >
-                    {showAllDuos ? 'â² collapse' : `â¼ ${duoStats.length - 3} more`}
+                    <span className="h-px flex-1 max-w-[3rem] bg-flash/[0.06] group-hover:bg-jade/20 transition-colors" />
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-jade/40 group-hover:text-jade/70 transition-colors">{showAllDuos ? '[-]' : '[+]'}</span>
+                      {showAllDuos ? 'collapse' : `${duoStats.length - 3} more`}
+                    </span>
+                    <span className="h-px flex-1 max-w-[3rem] bg-flash/[0.06] group-hover:bg-jade/20 transition-colors" />
                   </button>
                 )}
               </div>
@@ -1583,206 +2162,103 @@ export default function SummonerPage() {
 
         </div>
 
-        <div className="w-4/5">
+        <div
+          className="w-full transition-transform duration-700 ease-in-out"
+          style={{
+            transform: matchesCentered ? "translateX(-20%)" : "translateX(0)",
+          }}
+        >
 
-          <div className="flex justify-between items-start mt-4 w-full min-w-full max-w-full">
-            {/* SEZIONE SINISTRA: nuove icone */}
-            <div className="flex flex-col items-center gap-1">
-              <span>CURRENT RANK</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
-
-                <img
-                  src={
-                    !summonerInfo?.rank || summonerInfo.rank.toLowerCase() === "unranked"
-                      ? "/img/unranked.png"
-                      : getRankImage(summonerInfo.rank)
-                  }
-                  alt="Rank icon"
-                  className="w-32 h-32 z-10 relative"
-                  draggable={false}
-                  onError={(e) => {
-                    e.currentTarget.src = "/img/unranked.png";
-                  }}
-                />
-
-
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#BFC5C6]"> {summonerInfo?.rank} </span>
-                {summonerInfo?.rank &&
-                  summonerInfo.rank.toLowerCase() !== "unranked" && (
-                    <span className="text-[#5B5555]">{summonerInfo.lp} LP</span>
-                  )}
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[#E3E3E3]">HIGHEST RANK</span>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                {/* Cerchio dietro */}
-                <div className="absolute w-24 h-24 bg-cement rounded-full z-0 border border-[#2B2A2B] shadow-md" />
-
-                {/* Immagine sopra */}
-                <img
-                  src={
-                    !summonerInfo?.peakRank || summonerInfo.peakRank?.toLowerCase() === "unranked"
-                      ? "/img/unranked.png"
-                      : getRankImage(summonerInfo.peakRank)
-                  }
-                  alt="Highest Rank icon"
-                  className="w-32 h-32 z-10 relative"
-                  draggable={false}
-                  onError={(e) => {
-                    e.currentTarget.src = "/img/unranked.png";
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#BFC5C6]">{summonerInfo?.peakRank}</span>
-                {summonerInfo?.rank &&
-                  summonerInfo.rank.toLowerCase() !== "unranked" && (
-                    <span className="text-[#5B5555]">{summonerInfo.peakLp} LP</span>
-                  )}
-              </div>
-            </div>
-            <div className="flex items-end justify-end"
-
-            >
-
-              <div className="relative z-10 flex justify-end items-center">
-                {/* LATO TESTO */}
-                <div className="flex flex-col pr-4">
-                  <div className="uppercase select-none">
-                    {(isPro || isStreamer) && (
-                      <div className="flex justify-end mb-2 items-center space-x-2">
-                        {isPro && (
-                          <div className="relative rounded-sm overflow-hidden px-1.5">
-                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-blue-500 via-cyan-300 to-green-300" />
-                            <div className="relative text-black text-sm text-center z-10">PRO</div>
-                          </div>
-                        )}
-
-                        {isStreamer && (
-                          <div className="relative rounded-sm overflow-hidden px-1.5">
-                            <div className="absolute inset-0 animate-glow bg-gradient-to-r from-purple-600 via-pink-500 to-red-400" />
-                            <div className="relative text-black text-sm z-10">STREAMER</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {linkedDiscord && (
-                      <div className="flex justify-end mb-1">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-flash/20 bg-black/50 px-2.5 py-1">
-                          <span className="text-[10px] text-flash/50 tracking-[0.18em]">
-                            DISCORD
-                          </span>
-                          <span className="text-xs text-flash/80 font-medium">
-                            {linkedDiscord.discord_username ?? "Connected user"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <p className="text-[#5B5555] text-sm justify-end text-right font-thin">
-                      LEVEL {summonerInfo?.level} | {region}
-                    </p>
-
-                    <div
-                      className={cn(
-                        "flex justify-end cursor-clicker",
-                        ((summonerInfo?.name?.length || 0) + (summonerInfo?.tag?.length || 0) > 16)
-                          ? "text-[17px]"
-                          : "text-2xl"
-                      )}
-                      title="CLICK TO COPY"
-                      onClick={() => {
-                        if (summonerInfo) {
-                          navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`)
+          <div className="flex flex-row-reverse justify-between items-start mt-[22px] mb-6 w-full min-w-full max-w-full">
+            {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
+            {(() => {
+              const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
+              const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
+              const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
+              const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
+              return (
+                <div className="flex items-center justify-center gap-0 h-full">
+                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
+                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
+                      <img
+                        src={
+                          !currentRank || currentRank.toLowerCase() === "unranked"
+                            ? "/img/unranked.png"
+                            : getRankImage(currentRank)
                         }
-                      }}
-                    >
-                      {!summonerInfo ? (
-                        <div className="flex justify-end w-[180px]">
-                          <Skeleton className="h-6 w-[70%] bg-white/10" />
-                        </div>
-                      ) : (
-                        <span className="text-right">
-                          <span
-                            className={
-                              premiumPlan === "premium" || premiumPlan === "elite"
-                                ? "bg-clip-text text-transparent animate-glow"
-                                : "text-[#D7D8D9] animate-glow"
-                            }
-                            style={
-                              premiumPlan === "premium"
-                                ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                                : premiumPlan === "elite"
-                                  ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                                  : undefined
-                            }
-                          >
-                            {summonerInfo.name}
-                          </span>
-
-                          {summonerInfo.tag && (
-                            <span
-                              className={
-                                premiumPlan === "premium" || premiumPlan === "elite"
-                                  ? "ml-0.5 bg-clip-text text-transparent animate-glow"
-                                  : "ml-0.5 text-[#BCC9C6] animate-glow"
-                              }
-                              style={
-                                premiumPlan === "premium"
-                                  ? { backgroundImage: "linear-gradient(90deg,#d4843d,#ffde90)", WebkitBackgroundClip: "text" }
-                                  : premiumPlan === "elite"
-                                    ? { backgroundImage: "linear-gradient(90deg,#ff1a1a,#7a0000)", WebkitBackgroundClip: "text" }
-                                    : undefined
-                              }
-                            >
-                              #{summonerInfo.tag}
-                            </span>
-                          )}
-                        </span>
+                        alt="Rank icon"
+                        className="w-28 h-28 z-10 relative"
+                        draggable={false}
+                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center text-sm min-w-[180px]">
+                      <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
+                      {currentRank && currentRank.toLowerCase() !== "unranked" && (
+                        <span className="text-[16px] font-geist font-black text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
                       )}
                     </div>
-
-                    <div className="w-[100%] h-px mt-2 bg-white/15 rounded" />
-                    <div className="mt-2 flex justify-end items-center gap-2">
-
-                      {summonerInfo?.puuid && region && (
-                        <PlayerAnalysisDialog
-                          puuid={summonerInfo.puuid}
-                          region={region}
-                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                        />
-                      )}
-
-                      <UpdateButton
-                        onClick={refreshData}
-                        loading={loading}
-                        cooldown={onCooldown}
-                        className=" hover:bg-jade/30"
+                  </div>
+                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
+                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
+                      <img
+                        src={
+                          !peakRank || peakRank.toLowerCase() === "unranked"
+                            ? "/img/unranked.png"
+                            : getRankImage(peakRank)
+                        }
+                        alt="Highest Rank icon"
+                        className="w-32 h-32 z-10 relative opacity-70"
+                        draggable={false}
+                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
                       />
+                    </div>
+                    <div className="flex flex-col items-center text-sm min-w-[180px]">
+                      <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
+                      {peakRank && peakRank.toLowerCase() !== "unranked" && (
+                        <span className="text-[16px] font-geist font-black text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
+                      )}
                     </div>
                   </div>
                 </div>
+              );
+            })()}
+            <div
+              className={cn(
+                "relative overflow-hidden rounded-md max-w-[440px]",
+                "bg-black/25 backdrop-blur-lg saturate-150",
+                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              )}
+            >
+              {/* glossy overlays */}
+              <div className={cn(
+                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
+                "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
+              )} />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
 
-                {/* LATO AVATAR */}
-                <div className="relative w-32 h-32">
+              <div className="relative z-10 flex items-center gap-5 px-6 py-4">
+
+                {/* Avatar */}
+                <div className="relative shrink-0 w-[96px] h-[96px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
-                      ?? `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                      ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }
                     className={cn(
-                      "w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
-                      summonerInfo?.live ? "border-[#00D992]" : "border-transparent"
+                      "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
+                      summonerInfo?.live ? "border-red-500" : "border-transparent"
                     )}
+                    style={summonerInfo?.live ? { boxShadow: "0 0 16px rgba(239,68,68,0.35), 0 0 4px rgba(239,68,68,0.5)" } : undefined}
                     draggable={false}
                     onError={(e) => {
                       e.currentTarget.src =
-                        `https://ddragon.leagueoflegends.com/cdn/${latestPatch}/img/profileicon/${summonerInfo?.profileIconId}.png`
+                        `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }}
                   />
                   {summonerInfo?.live && summonerInfo?.puuid && (
@@ -1793,98 +2269,413 @@ export default function SummonerPage() {
                     />
                   )}
                 </div>
+
+                {/* Info */}
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  {/* Badges */}
+                  <div className="flex items-center gap-2">
+                    {isPro && (
+                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                    )}
+                    {isStreamer && (
+                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
+                    )}
+                    {linkedDiscord && (
+                      <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
+                        {linkedDiscord.discord_username}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div
+                    className="cursor-clicker"
+                    title="Click to copy"
+                    onClick={() => { if (summonerInfo) navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`); }}
+                  >
+                    {!summonerInfo ? (
+                      <Skeleton className="h-8 w-[200px] bg-white/10" />
+                    ) : (
+                      <>
+                        <span className={cn(
+                          "font-bold font-mono text-flash tracking-wide leading-none",
+                          (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
+                        )}>
+                          {summonerInfo.name}
+                        </span>
+                        {summonerInfo.tag && (
+                          <span className="text-[18px] font-mono text-flash/30 ml-1">#{summonerInfo.tag}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Level · Region · Rank */}
+                  <div className="flex items-center gap-2.5 text-[12px] font-mono">
+                    <span className="text-flash/35">Level {summonerInfo?.level}</span>
+                    <span className="text-flash/15">·</span>
+                    <span className="text-flash/35">{region?.toUpperCase()}</span>
+                    {summonerInfo?.ladderRank && (
+                      <>
+                        <span className="text-flash/15">·</span>
+                        <span className="text-jade/50 tracking-[0.08em]">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <UpdateButton
+                      onClick={refreshData}
+                      loading={loading}
+                      cooldown={onCooldown}
+                      cooldownSeconds={cooldownSeconds}
+                    />
+                    {summonerInfo?.puuid && region && (
+                      <PlayerAnalysisDialog
+                        puuid={summonerInfo.puuid}
+                        region={region}
+                        summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                        externalOpen={analyzeOpen}
+                        onExternalOpenChange={setAnalyzeOpen}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Mastery banner — thin edge-to-edge strip at card bottom */}
+              {topMastery.length > 0 && (
+                <div className="relative z-10 flex h-[28px] overflow-hidden px-6 gap-1.5 pb-2">
+                  {topMastery.map((m, idx) => (
+                    <div key={m.championId} className="group relative flex-1 overflow-hidden rounded-[3px] cursor-clicker">
+                      <img
+                        src={cdnSplashUrl(m.champName)}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-40 transition-all duration-300"
+                        style={{ objectPosition: "center 25%" }}
+                        onError={(e) => { e.currentTarget.style.opacity = "0" }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="relative z-10 flex items-center gap-2 h-full px-2.5">
+                        <img
+                          src={`${cdnBaseUrl()}/img/champion/${m.champName}.png`}
+                          alt={m.champName}
+                          className="w-5 h-5 rounded-[2px]"
+                        />
+                        <span className="text-[10px] font-orbitron text-flash/40 group-hover:text-jade/70 truncate transition-colors duration-300">{m.champName}</span>
+                        <span className="text-[11px] font-orbitron font-bold text-flash/70 tabular-nums ml-auto">
+                          {m.points >= 1_000_000 ? `${(m.points / 1_000_000).toFixed(1)}M` : m.points >= 1_000 ? `${Math.round(m.points / 1_000)}k` : m.points}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
 
           </div>
 
-          <div className="max-w-4xl mx-auto mt-4">
-            <nav
-              className={cn(
-                "relative w-full h-8 px-8 rounded-md text-flash font-jetbrains overflow-hidden",
-                // vetro scuro puro
-                "bg-black/20 backdrop-blur-lg saturate-150",
-                // edge ultra sottile solo via shadow
-                "shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-              )}
-            >
-              <div className="relative z-10 flex items-center h-full justify-between">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors font-thin cursor-clicker">
-                    <span className="text-sm tracking-wide cursor-clicker">
-                      {selectedQueue === "All" ? "ALL QUEUES" : selectedQueue.toUpperCase()}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
+          <div className="w-full mt-4">
+            {/* ── Unified filter row ── */}
+            <div className="flex items-center gap-2">
+              {/* Queue — dropdown (many options) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    "group relative font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 h-[32px] rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 overflow-hidden",
+                    "border backdrop-blur-lg",
+                    selectedQueue !== "All"
+                      ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                      : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
+                  )}
+                >
+                  {selectedQueue === "All" ? "Queue" : selectedQueue === "Ranked Solo/Duo" ? "Solo/Duo" : "Flex"}
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 text-sm bg-black/60 backdrop-blur-xl border-white/10">
+                  {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
+                    <DropdownMenuItem
+                      key={queue}
+                      onClick={() => setSelectedQueue(queue)}
+                      className={cn(
+                        "cursor-clicker uppercase font-mono text-[11px] tracking-[0.1em]",
+                        selectedQueue === queue ? "text-jade font-semibold" : "text-flash/50"
+                      )}
+                    >
+                      {queue}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-48 text-sm bg-black/40 backdrop-blur-lg border-white/10"
-                  >
-                    {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
-                      <DropdownMenuItem
-                        key={queue}
-                        onClick={() => setSelectedQueue(queue)}
-                        className={cn(
-                          "cursor-clicker uppercase font-jetbrains",
-                          selectedQueue === queue ? "text-jade font-semibold" : "text-flash/70"
-                        )}
-                      >
-                        {queue}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <div className="space-x-2 flex items-center">
-                  <ChampionPicker
-                    champions={allChampions}
-                    onSelect={(champName) => setSelectedChampion(champName)}
-                  />
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </DropdownMenu>
-
-                <Separator orientation="vertical" className="h-4 bg-white/10" />
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 hover:text-gray-300 transition-colors">
-                    <span className="text-sm font-medium tracking-wide">LOREM IPSUM</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </DropdownMenu>
+              {/* Champion — dialog picker */}
+              <div
+                className={cn(
+                  "font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[32px]",
+                  "border backdrop-blur-lg",
+                  selectedChampion
+                    ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                    : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
+                )}
+              >
+                <ChampionPicker
+                  champions={allChampions}
+                  selectedChampion={selectedChampion}
+                  onSelect={(champName) => setSelectedChampion(champName)}
+                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-orbitron"
+                />
               </div>
-            </nav>
 
+              {/* Role — segmented buttons */}
+              <div className="flex items-center gap-0">
+                {([
+                  { value: null, label: "Role", icon: null },
+                  { value: "TOP", label: "Top", icon: <RoleTopIcon className="w-4 h-4" /> },
+                  { value: "JUNGLE", label: "Jng", icon: <RoleJungleIcon className="w-4 h-4" /> },
+                  { value: "MIDDLE", label: "Mid", icon: <RoleMidIcon className="w-4 h-4" /> },
+                  { value: "BOTTOM", label: "Adc", icon: <RoleAdcIcon className="w-4 h-4" /> },
+                  { value: "UTILITY", label: "Sup", icon: <RoleSupportIcon className="w-4 h-4" /> },
+                ] as { value: string | null; label: string; icon: React.ReactNode }[]).map((role, i, arr) => (
+                  <button
+                    key={role.label}
+                    type="button"
+                    onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
+                    className={cn(
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[32px] px-2 h-[32px] transition-all duration-300 cursor-clicker flex items-center justify-center",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
+                      i > 0 && "-ml-px",
+                      (role.value === null ? selectedRole === null : selectedRole === role.value)
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
+                    )}
+                  >
+                    {role.icon ?? role.label}
+                  </button>
+                ))}
+              </div>
 
-            {loading ? (
+              {/* Result — segmented buttons */}
+              <div className="flex items-center gap-0">
+                {([
+                  { value: "all" as const, label: "All" },
+                  { value: "wins" as const, label: "W" },
+                  { value: "losses" as const, label: "L" },
+                ]).map((opt, i, arr) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSelectedResult(opt.value)}
+                    className={cn(
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase px-2.5 h-[32px] transition-all duration-300 cursor-clicker",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
+                      i > 0 && "-ml-px",
+                      selectedResult === opt.value
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Rank queue toggle */}
+              <div className="flex items-center gap-0">
+                {(["solo", "flex"] as const).map((mode, i, arr) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setRankQueueView(mode)}
+                    className={cn(
+                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[48px] text-center px-3 h-[32px] transition-all duration-300 cursor-clicker",
+                      "border border-flash/10 backdrop-blur-lg",
+                      i === 0 && "rounded-l-[2px]",
+                      i === arr.length - 1 && "rounded-r-[2px]",
+                      i > 0 && "border-l-0",
+                      rankQueueView === mode
+                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
+                        : "text-flash/40 hover:text-flash/70 bg-black/40",
+                    )}
+                  >
+                    {mode === "solo" ? "Solo" : "Flex"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Stats summary bar ── */}
+            {!statsBarHidden && !loading && !isIngesting && filteredMatches.length > 0 && (() => {
+              const puuid = summonerInfo?.puuid
+              const stats = filteredMatches.reduce((acc, m) => {
+                const me = m.match.info.participants.find((p: any) => p.puuid === puuid)
+                if (!me) return acc
+                acc.wins += m.win ? 1 : 0
+                acc.losses += m.win ? 0 : 1
+                acc.kills += me.kills ?? 0
+                acc.deaths += me.deaths ?? 0
+                acc.assists += me.assists ?? 0
+                acc.cs += (me.totalMinionsKilled ?? 0) + (me.neutralMinionsKilled ?? 0)
+                acc.damage += me.totalDamageDealtToChampions ?? 0
+                acc.vision += me.visionScore ?? 0
+                acc.durationMin += (m.match.info.gameDuration ?? 0) / 60
+                // Team total kills for KP
+                const teamId = me.teamId
+                const teamKills = m.match.info.participants
+                  .filter((p: any) => p.teamId === teamId)
+                  .reduce((sum: number, p: any) => sum + (p.kills ?? 0), 0)
+                acc.teamKills += teamKills
+                acc.count++
+                return acc
+              }, { wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, cs: 0, damage: 0, vision: 0, durationMin: 0, teamKills: 0, count: 0 })
+
+              const n = stats.count || 1
+              const wr = Math.round((stats.wins / (stats.wins + stats.losses || 1)) * 100)
+              const avgK = (stats.kills / n).toFixed(1)
+              const avgD = (stats.deaths / n).toFixed(1)
+              const avgA = (stats.assists / n).toFixed(1)
+              const kda = stats.deaths === 0 ? "Perfect" : ((stats.kills + stats.assists) / stats.deaths).toFixed(2)
+              const csMin = stats.durationMin > 0 ? (stats.cs / stats.durationMin).toFixed(1) : "0"
+              const avgDmg = Math.round(stats.damage / n).toLocaleString()
+              const avgVis = (stats.vision / n).toFixed(1)
+              const kp = stats.teamKills > 0 ? Math.round(((stats.kills + stats.assists) / stats.teamKills) * 100) : 0
+
+              // SVG donut params
+              const r = 20, cx = 24, cy = 24
+              const circ = 2 * Math.PI * r
+              const winArc = (wr / 100) * circ
+              const kdaNum = stats.deaths === 0 ? 99 : (stats.kills + stats.assists) / stats.deaths
+              const kdaColor = kdaNum >= 4 ? "text-jade" : kdaNum >= 3 ? "text-amber-400" : kdaNum >= 2 ? "text-flash/70" : "text-rose-400"
+
+              // Collect visible stat sections with separators
+              const sections: React.ReactNode[] = []
+              if (visibleStats.kda) {
+                sections.push(
+                  <div key="kda" className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className={cn("text-[14px] font-bold tabular-nums tracking-tight leading-none", kdaColor)}>{kda}</span>
+                      <span className="text-[9px] text-flash/25 tracking-[0.1em] uppercase leading-none">KDA</span>
+                    </div>
+                    <span className="text-[9px] text-flash/40 tabular-nums leading-none mt-1">
+                      {avgK}<span className="text-flash/15"> / </span><span className="text-red-400/50">{avgD}</span><span className="text-flash/15"> / </span>{avgA}
+                    </span>
+                  </div>
+                )
+              }
+              if (visibleStats.kp) {
+                sections.push(
+                  <div key="kp" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{kp}%</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">KP</span>
+                  </div>
+                )
+              }
+              if (visibleStats.csm) {
+                sections.push(
+                  <div key="csm" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{csMin}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">CS/M</span>
+                  </div>
+                )
+              }
+              if (visibleStats.dmg) {
+                sections.push(
+                  <div key="dmg" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgDmg}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">DMG</span>
+                  </div>
+                )
+              }
+              if (visibleStats.vis) {
+                sections.push(
+                  <div key="vis" className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgVis}</span>
+                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">VIS</span>
+                  </div>
+                )
+              }
+
+              return (
+                <div className="mt-3 flex items-center gap-4">
+                  {/* Win rate ring */}
+                  <div className="relative shrink-0">
+                    <svg width="52" height="52" viewBox="0 0 48 48">
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="3.5" />
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(185,30,30,0.45)" strokeWidth="3.5"
+                        strokeDasharray={circ} strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round" />
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00d992" strokeWidth="3.5"
+                        strokeDasharray={`${winArc} ${circ - winArc}`} strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round"
+                        style={{ filter: "drop-shadow(0 0 5px rgba(0,217,146,0.5))" }} />
+                      <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="central"
+                        className="font-mono text-[11px] font-bold"
+                        fill={wr >= 55 ? "#00d992" : wr < 45 ? "#f87171" : "rgba(255,255,255,0.5)"}>
+                        {wr}%
+                      </text>
+                      <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="central"
+                        className="font-mono text-[7px]" fill="rgba(255,255,255,0.25)">
+                        {stats.wins}W {stats.losses}L
+                      </text>
+                    </svg>
+                  </div>
+
+                  {/* Stats row — flat, evenly distributed with separators */}
+                  <div className="flex-1 flex items-center justify-between font-mono">
+                    {sections.map((section, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
+                        {section}
+                      </React.Fragment>
+                    ))}
+
+                    {sections.length > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
+
+                    {/* Games count — always shown */}
+                    <span className="text-[9px] text-flash/20 tracking-[0.15em] uppercase">LAST {stats.count} GAMES</span>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {loading || isIngesting ? (
               <ul className="space-y-3 mt-4">
+                {isIngesting && !loading && (
+                  <div className="text-center py-4 mb-2">
+                    <div className="text-flash/60 text-sm font-mono animate-pulse">
+                      Fetching match history for the first time...
+                    </div>
+                    <div className="text-flash/30 text-xs mt-1">
+                      This may take a moment
+                    </div>
+                  </div>
+                )}
                 {Array.from({ length: 10 }).map((_, idx) => (
                   <li
                     key={idx}
                     className={cn(
                       "flex items-center gap-4 p-3 rounded-md h-28",
-                      // vetro scuro identico alle card
                       "bg-black/22 backdrop-blur-lg saturate-150",
-                      // edge ultra sottile solo via shadow (NO alone)
                       "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
                     )}
                   >
-                    {/* champ icon */}
-                    <Skeleton className="w-12 h-12 rounded-md bg-white/10" />
+                    {/* summoner icon 29 as placeholder */}
+                    <img
+                      src={`${cdnBaseUrl()}/img/profileicon/29.png`}
+                      alt=""
+                      className="w-12 h-12 rounded-md opacity-15 animate-pulse"
+                    />
 
-                    {/* testo */}
+                    {/* skeleton text */}
                     <div className="flex flex-col gap-2 w-full">
                       <Skeleton className="h-4 w-1/2 bg-white/10" />
                       <Skeleton className="h-4 w-1/3 bg-white/10" />
@@ -1896,7 +2687,10 @@ export default function SummonerPage() {
               <Error404 />
             ) : (
               <div ref={listRef} className="space-y-1 mt-4">
-                {[...groupedByDay.entries()].map(([dayKey, rows]) => {
+                {(matchGroupingDisabled
+                  ? [["all", filteredMatches] as const]
+                  : [...groupedByDay.entries()]
+                ).map(([dayKey, rows]) => {
                   const wins = rows.filter(r => r.win).length;
                   const losses = rows.length - wins;
                   const wr = rows.length > 0 ? Math.round((wins / rows.length) * 100) : 0;
@@ -1906,21 +2700,23 @@ export default function SummonerPage() {
                   return (
                     <section key={dayKey} className="space-y-1">
                       {/* HEADER DEL GIORNO */}
-                      <div className="flex items-center justify-between px-4 py-2 rounded-md mt-2 text-xs font-thin" >
-                        <div className="uppercase text-flash/80 tracking-wide">
+                      {!matchGroupingDisabled && (
+                      <div className="flex items-center justify-between px-4 py-2.5 rounded-md mt-3 text-xs" >
+                        <div className="uppercase text-flash/70 tracking-[0.12em] font-mono font-medium text-[12px]">
                           {dayLabelFromKey(dayKey)}
                         </div>
                         <div className="flex items-center gap-3 font-semibold">
-                          <span className="text-jade">{wins}W</span>
-                          <span className="text-[#b11315]">{losses}L</span>
-                          <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>
+                          {wins > 0 && <span className="text-jade">{wins}W</span>}
+                          {losses > 0 && <span className="text-[#b11315]">{losses}L</span>}
+                          {wins > 0 && losses > 0 && <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>}
                           <Separator orientation="vertical" className="h-4 bg-[#48504E]" />
                           <span className="text-flash/70 uppercase">{playedLabel}</span>
                         </div>
                       </div>
+                      )}
 
                       {/* LISTA MATCH DI QUEL GIORNO */}
-                      <ul className="space-y-3">
+                      <ul className="flex flex-col gap-1">
                         {rows.map((row) => {
                           const { match, win, championName } = row;
 
@@ -1958,31 +2754,80 @@ export default function SummonerPage() {
                             !!summonerInfo?.puuid &&
                             (summonerInfo.puuid === mvpWin || summonerInfo.puuid === mvpLose);
 
+                          const isRemake = match.info.gameDuration < 300;
+
+                          const matchTs = getMatchTimestamp(match.info);
 
                           return (
-                            <li
+                            <div
                               key={match.metadata.matchId}
                               className={cn(
-                                "relative overflow-hidden rounded-md p-2 text-flash transition",
-                                "bg-black/18 backdrop-blur-lg saturate-150",
-                                "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
-                                "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                clickToExpand
+                                  ? (expandedMatchId === match.metadata.matchId ? "match-card-expanded" : "match-card-collapsed")
+                                  : "match-card-group"
                               )}
+                              onClick={clickToExpand ? (e) => {
+                                // Don't toggle if clicking a button/link inside
+                                if ((e.target as HTMLElement).closest("button, a")) return;
+                                setExpandedMatchId(prev => prev === match.metadata.matchId ? null : match.metadata.matchId);
+                              } : undefined}
                             >
+                            <li
+                              className={cn(
+                                "relative overflow-hidden rounded-md p-2 text-flash transition",
+                                isRemake
+                                  ? "bg-black/30 backdrop-blur-lg saturate-150"
+                                  : coloredMatchBg
+                                    ? win
+                                      ? (blueWinTint ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150" : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150")
+                                      : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+                                    : "bg-black/18 backdrop-blur-lg saturate-150",
+                                "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
+                                isRemake
+                                  ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                  : coloredMatchBg
+                                    ? win
+                                      ? (blueWinTint ? "hover:bg-[#5BA8E6]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]" : "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]")
+                                      : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                    : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                              )}
+                              {...(contextMenuMode ? {
+                                onContextMenu: (e: React.MouseEvent) => {
+                                  e.preventDefault();
+                                  setMatchCtxMenu({ x: e.clientX, y: e.clientY, matchId, isJungler });
+                                }
+                              } : {})}
+                            >
+                              {isRemake && (
+                                <>
+                                  {/* Diagonal warning stripes */}
+                                  <div
+                                    className="pointer-events-none absolute inset-0 z-[1] opacity-[0.07]"
+                                    style={{
+                                      backgroundImage: "repeating-linear-gradient(-45deg, #f5a623 0px, #f5a623 8px, transparent 8px, transparent 20px)",
+                                    }}
+                                  />
+                                  {/* Yellow border glow */}
+                                  <div className="pointer-events-none absolute inset-0 z-[1] rounded-md shadow-[inset_0_0_0_1px_rgba(245,166,35,0.15)]" />
+                                </>
+                              )}
+
                               <div
                                 className={cn(
                                   "pointer-events-none absolute -top-28 left-0 h-60 w-full z-[1]",
-                                  "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.018),rgba(255,255,255,0)_72%)]"
+                                  isRemake
+                                    ? "bg-[radial-gradient(circle_at_18%_18%,rgba(245,166,35,0.03),rgba(255,255,255,0)_72%)]"
+                                    : "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.018),rgba(255,255,255,0)_72%)]"
                                 )}
                               />
 
                               <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
 
                               <div className="flex items-center justify-center h-full relative z-10">
-                                <div className="w-[95%]">
+                                <div className="w-full">
 
 
-                                  {isSelfMvpOrAce && (
+                                  {isSelfMvpOrAce && !coloredMatchBg && (
                                     <div
                                       className="absolute inset-0 z-0 mvpAceGlow"
                                       style={{ ['--glow-blue' as any]: '#0058ff', ['--glow-mint' as any]: '#9fffc3' }}
@@ -1990,17 +2835,20 @@ export default function SummonerPage() {
                                   )}
 
 
-                                  {/* â BORDO COLORATO */}
+
+                                  {/* — BORDO COLORATO */}
                                   <div
                                     className={cn(
                                       "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
-                                      win
-                                        ? "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
-                                        : "bg-gradient-to-b from-[#c93232] to-[#420909]"
+                                      isRemake
+                                        ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
+                                        : win
+                                          ? (blueWinTint ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c]" : "bg-gradient-to-b from-[#00D18D] to-[#11382E]")
+                                          : "bg-gradient-to-b from-[#c93232] to-[#420909]"
                                     )}
                                   />
 
-                                  {/* â CONTENUTO INTERNO */}
+                                  {/* — CONTENUTO INTERNO */}
                                   <div className="relative z-10 ml-2">
                                     <div className="ml-2">
                                       <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
@@ -2010,11 +2858,24 @@ export default function SummonerPage() {
                                           <span
                                             className={cn(
                                               "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
-                                              win ? "text-[#00D992]" : "text-[#d63336]"
+                                              isRemake
+                                                ? "text-[#f5a623]"
+                                                : win ? (blueWinTint ? "text-[#5BA8E6]" : "text-[#00D992]") : "text-[#d63336]"
                                             )}
                                           >
-                                            {win ? "WIN" : "LOSS"}
+                                            {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
                                           </span>
+
+                                          {isSelfMvpOrAce && coloredMatchBg && (
+                                            <span className={cn(
+                                              "text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
+                                              summonerInfo?.puuid === mvpWin
+                                                ? (blueWinTint ? "text-[#8ec5ff] border-[#8ec5ff]/25 bg-[#8ec5ff]/10" : "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10")
+                                                : "text-[#ff6b6b] border-[#ff6b6b]/25 bg-[#ff6b6b]/10"
+                                            )}>
+                                              {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
+                                            </span>
+                                          )}
 
                                         </span>
 
@@ -2039,7 +2900,7 @@ export default function SummonerPage() {
                                             <div className="flex space-x-1.5 relative">
                                               <div className="relative w-12 h-12">
                                                 <img
-                                                  src={`${champPath}/${championName}.png`}
+                                                  src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`}
                                                   alt={championName}
                                                   className="w-12 h-12 rounded-md"
                                                 />
@@ -2054,12 +2915,12 @@ export default function SummonerPage() {
                                                 <>
                                                   <div className="flex flex-col">
                                                     <img
-                                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner1Id}.png`}
+                                                      src={summonerSpellUrl(participant.summoner1Id)}
                                                       alt="Spell 1"
                                                       className="w-6 h-6 rounded-sm"
                                                     />
                                                     <img
-                                                      src={`https://cdn.loldata.cc/15.13.1/img/summonerspells/${participant.summoner2Id}.png`}
+                                                      src={summonerSpellUrl(participant.summoner2Id)}
                                                       alt="Spell 2"
                                                       className="w-6 h-6 rounded-sm"
                                                     />
@@ -2129,7 +2990,7 @@ export default function SummonerPage() {
                                                           {typeof itemId === "number" && itemId > 0 && (
                                                             <Link to={`/items/${itemId}`} className="cursor-clicker">
                                                               <img
-                                                                src={`${CDN_BASE_URL}/img/item/${itemId}.png`}
+                                                                src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
                                                                 alt={`Item ${itemId}`}
                                                                 className="w-full h-full rounded-sm"
                                                               />
@@ -2144,7 +3005,7 @@ export default function SummonerPage() {
                                                     <div className="flex items-center justify-center ml-1">
                                                       <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
                                                         <img
-                                                          src={`${CDN_BASE_URL}/img/item/${participant.item6}.png`}
+                                                          src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`}
                                                           alt={`Trinket ${participant.item6}`}
                                                           className="w-full h-full rounded-full"
                                                         />
@@ -2159,15 +3020,20 @@ export default function SummonerPage() {
                                               <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                                                 {(() => {
                                                   const { className, style } = getKdaBackgroundStyle(kda);
+                                                  const isPerfect = kda === "Perfect";
                                                   return (
                                                     <div
                                                       className={cn(
-                                                        "flex items-center justify-center h-6 text-sm font-gtthin font-normal px-3 rounded-sm border-liquirice/20 border shadow-md",
+                                                        "flex items-center justify-center h-7 w-[88px] text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
                                                         className
                                                       )}
                                                       style={style}
                                                     >
-                                                      {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.kills}</span>
+                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
+                                                      <span className={isPerfect ? "text-liquirice" : "text-red-400/80"}>{participant?.deaths}</span>
+                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
+                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.assists}</span>
                                                     </div>
                                                   );
                                                 })()}
@@ -2193,7 +3059,7 @@ export default function SummonerPage() {
                                               </div>
                                             </div>
                                           </div>
-                                          <div className="w-[40%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
+                                          <div className="w-[44%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
                                             <div>
                                               <ul className="space-y-0.5">
                                                 {team1.map((p) => {
@@ -2203,13 +3069,15 @@ export default function SummonerPage() {
                                                   const showName = riotName ? `${riotName}#${tag}` : p.puuid;
                                                   const isMvp = p.puuid === mvpWin;
                                                   const isAce = p.puuid === mvpLose;
-
+                                                  const nameKey = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
+                                                  const isProPlayer = nameKey && proUsernames.has(nameKey);
+                                                  const isStreamerPlayer = nameKey && !isProPlayer && streamerUsernames.has(nameKey);
 
                                                   return (
-                                                    <li key={p.puuid} className="flex items-center gap-2">
-                                                      <div className="relative w-4 h-4">
+                                                    <li key={p.puuid} className="flex items-center gap-1">
+                                                      <div className="relative w-4 h-4 shrink-0">
                                                         <img
-                                                          src={`${champPath}/${p.championName}.png`}
+                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />
@@ -2226,22 +3094,39 @@ export default function SummonerPage() {
                                                           </span>
                                                         )}
                                                       </div>
-                                                      {/* Nome */}
-                                                      {riotName && tag ? (
-                                                        <PlayerHoverCard
-                                                          riotId={showName}
-                                                          region={region!}
-                                                          championId={championMapReverse[p.championName]}
-                                                          profileIconId={p.profileIconId}
-                                                          patch={latestPatch}
-                                                          isCurrentUser={isCurrentUser}
-                                                          championMap={championMap}
+                                                      {(isProPlayer || isStreamerPlayer) && (
+                                                        <span
+                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                                                          style={{
+                                                            background: isProPlayer
+                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
+                                                            boxShadow: isProPlayer
+                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                                                          }}
                                                         >
-                                                          {showName}
-                                                        </PlayerHoverCard>
-                                                      ) : (
-                                                        <span className="truncate">{showName}</span>
+                                                          {isProPlayer ? "PRO" : "STR"}
+                                                        </span>
                                                       )}
+                                                      <span className="min-w-0 truncate">
+                                                        {riotName && tag ? (
+                                                          <PlayerHoverCard
+                                                            riotId={showName}
+                                                            region={region!}
+                                                            championId={championMapReverse[p.championName]}
+                                                            profileIconId={p.profileIconId}
+                                                            patch={latestPatch}
+                                                            isCurrentUser={isCurrentUser}
+                                                            championMap={championMap}
+                                                          >
+                                                            {showName}
+                                                          </PlayerHoverCard>
+                                                        ) : (
+                                                          <span className="truncate">{showName}</span>
+                                                        )}
+                                                      </span>
                                                     </li>
                                                   );
                                                 })}
@@ -2257,35 +3142,55 @@ export default function SummonerPage() {
                                                   const showName = riotName ? `${riotName}#${tag}` : p.puuid;
                                                   const isMvp = p.puuid === mvpWin;
                                                   const isAce = p.puuid === mvpLose;
+                                                  const nameKey2 = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
+                                                  const isProPlayer = nameKey2 && proUsernames.has(nameKey2);
+                                                  const isStreamerPlayer = nameKey2 && !isProPlayer && streamerUsernames.has(nameKey2);
 
                                                   return (
-                                                    <li key={p.puuid} className="flex items-center justify-end gap-2">
-                                                      {/* Nome */}
-                                                      {riotName && tag ? (
-                                                        <PlayerHoverCard
-                                                          riotId={showName}
-                                                          region={region!}
-                                                          championId={championMapReverse[p.championName]}
-                                                          profileIconId={p.profileIconId}
-                                                          patch={latestPatch}
-                                                          isCurrentUser={isCurrentUser}
-                                                          championMap={championMap}
+                                                    <li key={p.puuid} className="flex items-center justify-end gap-1">
+                                                      <span className="min-w-0 truncate text-right">
+                                                        {riotName && tag ? (
+                                                          <PlayerHoverCard
+                                                            riotId={showName}
+                                                            region={region!}
+                                                            championId={championMapReverse[p.championName]}
+                                                            profileIconId={p.profileIconId}
+                                                            patch={latestPatch}
+                                                            isCurrentUser={isCurrentUser}
+                                                            championMap={championMap}
+                                                          >
+                                                            {showName}
+                                                          </PlayerHoverCard>
+                                                        ) : (
+                                                          <span className="truncate">{showName}</span>
+                                                        )}
+                                                      </span>
+                                                      {(isProPlayer || isStreamerPlayer) && (
+                                                        <span
+                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                                                          style={{
+                                                            background: isProPlayer
+                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
+                                                            boxShadow: isProPlayer
+                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                                                          }}
                                                         >
-                                                          {showName}
-                                                        </PlayerHoverCard>
-                                                      ) : (
-                                                        <span className="truncate">{showName}</span>
+                                                          {isProPlayer ? "PRO" : "STR"}
+                                                        </span>
                                                       )}
-                                                      <div className="relative w-4 h-4">
+                                                      <div className="relative w-4 h-4 shrink-0">
                                                         <img
-                                                          src={`${champPath}/${p.championName}.png`}
+                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
                                                           alt={p.championName}
                                                           className="w-4 h-4 rounded-sm"
                                                         />
                                                         {(isMvp || isAce) && (
                                                           <span
                                                             className={cn(
-                                                              "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10", // <- a sinistra
+                                                              "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10",
                                                               isMvp && "bg-pine text-jade",
                                                               isAce && "bg-[#3A2C45] text-[#C693F1]"
                                                             )}
@@ -2304,7 +3209,7 @@ export default function SummonerPage() {
                                         </div>
                                       </div>
 
-                                      {/* BADGE STRIP â" only visible when analysis is open */}
+                                      {/* BADGE STRIP — only visible when analysis is open */}
                                       {isJungler && analysisEntry?.open && (
                                         <div className="mt-1.5 pt-1.5 border-t border-flash/[0.07] flex items-center gap-3">
                                           <span className="text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase shrink-0">Analysis</span>
@@ -2330,36 +3235,62 @@ export default function SummonerPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex flex-col ml-2 w-[5%] gap-1 h-28 shrink-0 self-start">
-                                  {isJungler && (
-                                    <button
-                                      type="button"
-                                      disabled={analysisEntry?.loading}
-                                      onClick={() => fetchAnalysis(matchId)}
-                                      className={cn(
-                                        "w-full flex-1 rounded-[3px] border flex items-center justify-center gap-1.5 cursor-clicker transition font-mono",
-                                        analysisEntry?.loading
-                                          ? "bg-black/20 border-flash/10 text-flash/20 animate-pulse"
-                                          : analysisEntry?.open
-                                          ? "bg-jade/10 border-jade/30 text-jade"
-                                          : "bg-black/20 border-flash/10 text-flash/25 hover:border-flash/25 hover:text-flash/50 hover:bg-black/30"
-                                      )}
-                                    >
-                                      <span className="text-xs leading-none pointer-events-none">â</span>
-                                      <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">SCAN</span>
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="w-full flex-1 rounded-[3px] border border-flash/10 bg-black/20 hover:bg-jade/10 hover:border-jade/30 text-flash/30 hover:text-jade flex items-center justify-center gap-1.5 cursor-clicker transition font-mono"
-                                    onClick={() => handleEnterMatch(match.metadata.matchId)}
-                                  >
-                                    <ChevronRight className="w-3.5 h-3.5 pointer-events-none" />
-                                    <span className="[writing-mode:vertical-rl] rotate-180 text-[7px] tracking-[0.18em] leading-none pointer-events-none font-mono">VIEW</span>
-                                  </button>
-                                </div>
                               </div>
                             </li>
+                            {/* Hover action tabs below the card */}
+                            {!contextMenuMode && (
+                              <div className="match-action-wrap" style={{ marginTop: '-1px' }}>
+                                <div className="match-action-tabs flex items-center justify-between px-4 py-1">
+                                  <span className="flex items-center gap-1.5 text-[9px] font-mono text-flash/50 tabular-nums tracking-wider mt-0.5">
+                                    <span className="text-jade/30">&#x25C8;</span>
+                                    {matchTs ? new Date(matchTs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                                  </span>
+                                  <div className="flex gap-1.5">
+                                    {/* VIEW */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEnterMatch(matchId)}
+                                      className="px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-flash/40 hover:text-jade border-b border-flash/10 hover:border-jade/40 bg-transparent hover:bg-jade/5 transition-all duration-200 cursor-clicker"
+                                    >
+                                      VIEW
+                                    </button>
+
+                                    {/* SCAN */}
+                                    {isJungler && (
+                                      <button
+                                        type="button"
+                                        onClick={() => fetchAnalysis(matchId)}
+                                        className={cn(
+                                          "px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase border-b transition-all duration-200 cursor-clicker",
+                                          analysisEntry?.open
+                                            ? "text-jade border-jade/50 bg-jade/5"
+                                            : "text-flash/40 border-flash/10 hover:text-jade hover:border-jade/40 hover:bg-jade/5"
+                                        )}
+                                      >
+                                        SCAN
+                                      </button>
+                                    )}
+
+                                    {/* ASK AI */}
+                                    <button
+                                      type="button"
+                                      className="px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-flash/40 hover:text-purple-400 border-b border-flash/10 hover:border-purple-400/40 bg-transparent hover:bg-purple-500/5 transition-all duration-200 cursor-clicker"
+                                      onClick={() => {
+                                        const me = match.info.participants.find((p: any) => p.puuid === summonerInfo?.puuid)
+                                        const champName = me?.championName ?? "Unknown"
+                                        const kda = `${me?.kills ?? 0}/${me?.deaths ?? 0}/${me?.assists ?? 0}`
+                                        const result = win ? "won" : "lost"
+                                        const prompt = `Analyze my ${champName} game where I went ${kda} and ${result}. Match ID: ${match.metadata.matchId}`
+                                        navigate(`/learn?tab=ai&prompt=${encodeURIComponent(prompt)}`)
+                                      }}
+                                    >
+                                      ASK AI
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            </div>
                           )
                         })}
                       </ul>
@@ -2379,7 +3310,7 @@ export default function SummonerPage() {
 
           </div>
         </div>
-        {/* â"â" CYBER MATCH TRANSITION OVERLAY â"â" */}
+        {/* ———— CYBER MATCH TRANSITION OVERLAY ———— */}
         <style>{`
           @keyframes cyberGlitch {
             0%,100% { transform: translate(0) skewX(0deg); opacity: 1; }
@@ -2423,7 +3354,7 @@ export default function SummonerPage() {
                 transition={{ duration: 0.1 }}
               />
 
-              {/* Horizontal scan lines â" staggered sweep */}
+              {/* Horizontal scan lines — staggered sweep */}
               {Array.from({ length: 18 }).map((_, i) => (
                 <motion.div
                   key={i}
@@ -2486,13 +3417,13 @@ export default function SummonerPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.2, delay: 0.15 }}
               >
-                {/* â icon */}
+                {/* ◈ icon */}
                 <motion.div
                   className="text-jade text-4xl font-mono cyber-flicker"
                   animate={{ rotate: [0, 180, 360] }}
                   transition={{ duration: 0.9, ease: 'easeInOut' }}
                 >
-                  â
+                  ◈
                 </motion.div>
 
                 {/* Title */}
@@ -2533,60 +3464,446 @@ export default function SummonerPage() {
         </AnimatePresence>
 
         {/* Cyber scroll-to-top */}
-        <div
-          className={cn(
-            "fixed bottom-10 right-10 z-50 flex flex-col items-center gap-2",
-            "transition-all duration-300 ease-in-out",
-            showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
-          )}
-        >
-          {/* Diamond button */}
-          <button
-            aria-label="Scroll to top"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="group relative w-11 h-11 cursor-clicker"
-          >
-            {/* Rotated square track */}
-            <span className={cn(
-              "absolute inset-0 rotate-45 rounded-[4px] border transition-all duration-300",
-              "bg-black/60 border-jade/40",
-              "group-hover:border-jade/80 group-hover:bg-jade/10",
-              "group-hover:shadow-[0_0_18px_rgba(0,217,146,0.35),inset_0_0_8px_rgba(0,217,146,0.08)]",
-              "shadow-[0_0_8px_rgba(0,217,146,0.15)]"
-            )}>
-              {/* Scanlines inside diamond */}
-              <span
-                className="absolute inset-0 rounded-[3px] opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-                style={{
-                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.5) 3px, rgba(0,217,146,0.5) 4px)"
-                }}
-              />
-            </span>
-
-            {/* Inner content â" counter-rotated to stay upright */}
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
-              {/* Up chevron */}
-              <svg
-                viewBox="0 0 10 6"
-                className="w-3 h-3 text-jade transition-transform duration-300 group-hover:-translate-y-[2px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="1,5 5,1 9,5" />
-              </svg>
-            </span>
-          </button>
-
-          {/* Label below */}
-          <span className="font-mono text-[8px] tracking-[0.2em] text-jade/50 uppercase select-none">
-            TOP
-          </span>
+        <div className={cn(
+          "fixed bottom-10 right-10 z-50 transition-all duration-300 ease-in-out",
+          showScrollTop ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-3"
+        )}>
+          <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
         </div>
 
+
       </div>
+
+      {/* ── Admin Dialog: Create Pro/Streamer ── */}
+      {showAdminDialog && createPortal(
+        <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowAdminDialog(false)}>
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+          <div className="relative z-10 w-[420px] rounded-md overflow-hidden bg-black/60 backdrop-blur-xl saturate-150"
+            style={{
+              animation: "dialogOpen 0.25s ease-out",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.7), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
+            }}
+            onClick={e => e.stopPropagation()}>
+            {/* Radial white glow */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.04)_0%,transparent_60%)]" />
+
+            <div className="relative z-10 px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[14px] font-orbitron text-citrine/80 uppercase tracking-wider">Admin Panel</h3>
+                <button type="button" onClick={() => setShowAdminDialog(false)} className="text-flash/30 hover:text-flash/70 cursor-pointer">✕</button>
+              </div>
+
+              <div className="text-[11px] font-mono text-flash/40">
+                Creating profile for: <span className="text-flash/70">{name}#{tag}</span>
+              </div>
+
+              {/* Type toggle */}
+              <div className="flex gap-2">
+                {(["pro", "streamer"] as const).map(t => (
+                  <button key={t} type="button" onClick={() => setAdminType(t)}
+                    className={cn("flex-1 py-2 text-[10px] font-orbitron uppercase tracking-[0.12em] rounded-[2px] border transition-all cursor-pointer",
+                      adminType === t ? "text-citrine border-citrine/30 bg-citrine/10" : "text-flash/25 border-flash/[0.06] hover:text-flash/40"
+                    )}>{t}</button>
+                ))}
+              </div>
+
+              {/* Pro fields */}
+              {adminType === "pro" && (
+                <div className="space-y-2">
+                  <input value={adminFields.nickname} onChange={e => setAdminFields(f => ({ ...f, nickname: e.target.value }))} placeholder="Nickname (e.g. Caps)"
+                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                  <input value={adminFields.team} onChange={e => setAdminFields(f => ({ ...f, team: e.target.value }))} placeholder="Team (e.g. G2 Esports)"
+                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                  <div className="flex gap-2">
+                    <input value={adminFields.firstName} onChange={e => setAdminFields(f => ({ ...f, firstName: e.target.value }))} placeholder="First name"
+                      className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                    <input value={adminFields.lastName} onChange={e => setAdminFields(f => ({ ...f, lastName: e.target.value }))} placeholder="Last name"
+                      className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                  </div>
+                  <input value={adminFields.nationality} onChange={e => setAdminFields(f => ({ ...f, nationality: e.target.value }))} placeholder="Nationality (e.g. DK)"
+                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                </div>
+              )}
+
+              {/* Streamer fields */}
+              {adminType === "streamer" && (
+                <div className="space-y-2">
+                  <input value={adminFields.twitchLogin} onChange={e => setAdminFields(f => ({ ...f, twitchLogin: e.target.value }))} placeholder="Twitch username"
+                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
+                </div>
+              )}
+
+              {/* Save */}
+              <button type="button" disabled={adminSaving}
+                onClick={async () => {
+                  setAdminSaving(true);
+                  const nametag = `${name}#${tag}`;
+                  try {
+                    if (adminType === "pro") {
+                      await supabase.from("pro_players").delete().eq("username", nametag);
+                      await supabase.from("pro_players").insert({
+                        username: nametag,
+                        nickname: adminFields.nickname || name,
+                        team: adminFields.team || null,
+                        first_name: adminFields.firstName || null,
+                        last_name: adminFields.lastName || null,
+                        nationality: adminFields.nationality || null,
+                      });
+                    } else {
+                      // Delete existing entry first, then insert
+                      await supabase.from("streamers").delete().eq("lol_nametag", nametag);
+                      await supabase.from("streamers").insert({
+                        lol_nametag: nametag,
+                        twitch_login: adminFields.twitchLogin || null,
+                        region: region?.toUpperCase() || "EUW",
+                      });
+                    }
+                    setShowAdminDialog(false);
+                    setIsPro(adminType === "pro");
+                    setIsStreamer(adminType === "streamer");
+                  } catch (e: any) {
+                    console.error("Admin save error:", e);
+                  } finally {
+                    setAdminSaving(false);
+                  }
+                }}
+                className={cn(
+                  "w-full py-2.5 rounded-sm text-[10px] font-orbitron uppercase tracking-[0.15em] transition-all cursor-pointer",
+                  adminSaving ? "bg-citrine/5 text-citrine/20 border border-citrine/10" : "bg-citrine/15 text-citrine/80 border border-citrine/25 hover:bg-citrine/25"
+                )}>
+                {adminSaving ? "Saving..." : `Create ${adminType} profile`}
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes dialogOpen {
+              from { opacity: 0; transform: scale(0.95) translateY(8px); filter: blur(4px); }
+              to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+            }
+          `}</style>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Custom Context Menu ── */}
+      <AnimatePresence>
+        {ctxMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="fixed z-50"
+            style={{
+              top: ctxMenu.y + 200 > window.innerHeight ? ctxMenu.y - 180 : ctxMenu.y,
+              left: ctxMenu.x + 200 > window.innerWidth ? ctxMenu.x - 200 : ctxMenu.x,
+            }}
+          >
+            <div
+              className={cn(
+                "min-w-[200px] py-1.5 rounded-sm overflow-hidden",
+                "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
+                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              {/* Header accent */}
+              <div className="px-3 pt-1.5 pb-2 border-b border-flash/[0.06] mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade rounded-full" />
+                  <span className="font-mono text-[9px] tracking-[0.2em] text-jade/50 uppercase">
+                    {summonerInfo?.name ?? name ?? "Player"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Section 1: Actions */}
+              {([
+                { icon: RotateCw, label: "Update Page", action: () => { refreshData(); }, disabled: loading || onCooldown },
+                { icon: Search, label: "Analyze Player", action: () => setAnalyzeOpen(true) },
+                { icon: BarChart3, label: "Season Stats", action: () => navigate(`/summoners/${region}/${name.replace(/\s+/g, "+")}-${tag}/season`) },
+              ] as { icon: any; label: string; action: () => void; disabled?: boolean }[]).map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={(e) => { e.stopPropagation(); setCtxMenu(null); item.action(); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 transition-all duration-150",
+                    "font-mono text-[11px] tracking-[0.12em] uppercase",
+                    item.disabled
+                      ? "text-flash/15 cursor-not-allowed"
+                      : "text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker",
+                  )}
+                >
+                  <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              {/* Section: Change Visualization (logged-in only) */}
+              {authSession && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      navigate("/dashboard/preferences?highlight=summoner-page");
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Change Visualization</span>
+                  </button>
+                </>
+              )}
+
+              {/* Section 2: Copy IDs */}
+              {(linkedDiscord?.discord_username || summonerInfo?.name) && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  {/* Copy Riot ID */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      const riotId = `${summonerInfo?.name ?? name}#${summonerInfo?.tag ?? tag}`;
+                      navigator.clipboard.writeText(riotId);
+                      showCyberToast({ title: "Riot ID copied" });
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                      <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z" />
+                    </svg>
+                    <span>Copy Riot ID</span>
+                  </button>
+                  {/* Copy Discord */}
+                  {linkedDiscord?.discord_username && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCtxMenu(null);
+                        navigator.clipboard.writeText(linkedDiscord.discord_username!);
+                        showCyberToast({ title: "Discord ID copied" });
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                        <path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612" />
+                      </svg>
+                      <span>Copy Discord</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Section 3: Report */}
+              {premiumPlan && (
+                <>
+                  <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenu(null);
+                      setReportReason(null);
+                      setShowReportModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-red-400 hover:bg-red-500/[0.06] cursor-clicker"
+                  >
+                    <Flag className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Report Player</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Match Context Menu (right-click) ── */}
+        {matchCtxMenu && contextMenuMode && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="fixed z-50"
+            style={{
+              top: matchCtxMenu.y + 160 > window.innerHeight ? matchCtxMenu.y - 140 : matchCtxMenu.y,
+              left: matchCtxMenu.x + 200 > window.innerWidth ? matchCtxMenu.x - 200 : matchCtxMenu.x,
+            }}
+          >
+            <div
+              className={cn(
+                "min-w-[180px] py-1.5 rounded-sm overflow-hidden",
+                "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
+                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              <div className="px-3 pt-1.5 pb-2 border-b border-flash/[0.06] mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-jade rounded-full" />
+                  <span className="font-mono text-[9px] tracking-[0.2em] text-jade/50 uppercase">
+                    Match Actions
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { handleEnterMatch(matchCtxMenu.matchId); setMatchCtxMenu(null); }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+              >
+                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>View Match</span>
+              </button>
+
+              {matchCtxMenu.isJungler && (
+                <button
+                  type="button"
+                  onClick={() => { fetchAnalysis(matchCtxMenu.matchId); setMatchCtxMenu(null); }}
+                  className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-amber-400 hover:bg-amber-400/[0.06] cursor-clicker"
+                >
+                  <Search className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Scan Jungle</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => { setMatchCtxMenu(null); }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-violet-400 hover:bg-violet-400/[0.06] cursor-clicker"
+              >
+                <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Ask AI</span>
+              </button>
+
+              <div className="mx-3 my-1 h-px bg-flash/[0.06]" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(matchCtxMenu.matchId);
+                  showCyberToast({ title: "Match ID copied" });
+                  setMatchCtxMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 transition-all duration-150 font-mono text-[11px] tracking-[0.12em] uppercase text-flash/40 hover:text-jade hover:bg-jade/[0.06] cursor-clicker"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 flex-shrink-0">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy Match ID</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Report Player Modal ── */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            onClick={() => setShowReportModal(false)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 12 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "relative z-10 w-[380px] rounded-sm overflow-hidden",
+                "bg-[#060d10]/95 backdrop-blur-xl",
+                "border border-flash/[0.10]",
+                "shadow-[0_20px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(0,217,146,0.05)]"
+              )}
+            >
+              {/* Header */}
+              <div className="px-5 pt-4 pb-3 border-b border-flash/[0.06]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3 bg-red-500 rounded-full" />
+                  <span className="font-mono text-[10px] tracking-[0.2em] text-flash/50 uppercase">
+                    Report Player
+                  </span>
+                </div>
+                <p className="font-mono text-[10px] text-flash/25 mt-2 tracking-wide">
+                  Select a reason for reporting{" "}
+                  <span className="text-jade/60">{summonerInfo?.name ?? name}</span>
+                </p>
+              </div>
+
+              {/* Reason options */}
+              <div className="px-5 py-4 flex flex-col gap-2">
+                {["Inappropriate Profile Picture", "Inappropriate Username", "Impersonation", "Other"].map((reason) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setReportReason(reportReason === reason ? null : reason)}
+                    className={cn(
+                      "w-full px-3.5 py-2.5 rounded-sm text-left transition-all duration-150 cursor-clicker",
+                      "font-mono text-[11px] tracking-[0.12em] uppercase",
+                      "border",
+                      reportReason === reason
+                        ? "text-red-400 bg-red-500/[0.08] border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.08)]"
+                        : "text-flash/35 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20"
+                    )}
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 pb-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="font-mono text-[10px] tracking-[0.15em] uppercase text-flash/30 hover:text-flash/50 transition-colors cursor-clicker px-3 py-1.5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReportModal(false);
+                    showCyberToast({ title: "Report submitted" });
+                  }}
+                  disabled={!reportReason}
+                  className={cn(
+                    "font-mono text-[10px] tracking-[0.15em] uppercase px-4 py-2 rounded-sm transition-all duration-150 cursor-clicker",
+                    "border",
+                    reportReason
+                      ? "text-red-400 border-red-500/30 bg-red-500/[0.06] hover:bg-red-500/[0.12]"
+                      : "text-flash/15 border-flash/[0.05] bg-black/10 cursor-not-allowed"
+                  )}
+                >
+                  Submit Report
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin: create pro/streamer profile */}
+      <div className="fixed bottom-10 left-10 z-[999]">
+        <DiamondButton color="citrine" icon="edit" label={isAdmin ? "ADMIN" : "NO"} onClick={() => setShowAdminDialog(true)} />
+      </div>
+
     </div>
   )
 }

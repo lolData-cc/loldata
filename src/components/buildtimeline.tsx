@@ -1,4 +1,5 @@
 import { useRef } from "react"
+import { cdnBaseUrl } from "@/config"
 
 export default function BuildTimeline({ participantId, timeline }: { participantId: number, timeline: any }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -62,7 +63,7 @@ export default function BuildTimeline({ participantId, timeline }: { participant
                   {Object.entries(boughtCounts).map(([id, count]) => (
                     <div key={`buy-${id}`} className="relative w-8 h-8">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+                        src={`${cdnBaseUrl()}/img/item/${id}.png`}
                         className="w-8 h-8 rounded"
                         title={`Item ${id}`}
                       />
@@ -78,7 +79,7 @@ export default function BuildTimeline({ participantId, timeline }: { participant
                   {group.sold.map((id) => (
                     <div key={`sold-${id}`} className="relative w-8 h-8 opacity-60">
                       <img
-                        src={`https://cdn.loldata.cc/15.13.1/img/item/${id}.png`}
+                        src={`${cdnBaseUrl()}/img/item/${id}.png`}
                         className="w-8 h-8 rounded grayscale"
                         title={`Item ${id} (Sold)`}
                       />

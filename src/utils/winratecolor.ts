@@ -6,28 +6,18 @@ export function getWinrateClass(
   const num = typeof winrate === 'number' ? winrate : parseFloat(winrate);
   if (isNaN(num)) return '';
 
-  const gradientClass =
-    'bg-gradient-to-r from-[#148460] via-cyan-300 to-[#00d992] bg-clip-text text-transparent';
+  const glowGradient =
+    'bg-gradient-to-r from-jade via-[#60ffc0] to-jade bg-[length:200%_200%] bg-clip-text text-transparent animate-glow drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]';
 
   if (type === 'background') {
-    if (num >= 80 && games >= 5) {
-      return `${gradientClass} animate-glow`; 
-    } else if (num >= 70) {
-      return 'bg-cyan-600';
-    } else if (num >= 60) {
-      return 'bg-cyan-400';
-    } else {
-      return 'bg-gray-300';
-    }
-  } else {
-    if (num >= 80 && games >= 5) {
-      return `${gradientClass} animate-glow`;
-    } else if (num >= 70) {
-      return 'text-cyan-600';
-    } else if (num >= 60) {
-      return 'text-cyan-400';
-    } else {
-      return 'text-gray-400';
-    }
+    if (num >= 80 && games >= 5) return 'bg-jade';
+    if (num >= 70) return 'bg-jade/80';
+    if (num >= 60) return 'bg-jade/60';
+    return 'bg-flash/30';
   }
+
+  if (num >= 80 && games >= 5) return glowGradient;
+  if (num >= 70) return 'text-jade';
+  if (num >= 60) return 'text-jade/70';
+  return 'text-flash/50';
 }
