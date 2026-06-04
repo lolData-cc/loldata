@@ -85,6 +85,7 @@ export default function LeaderboardPage() {
   const navigate = useNavigate()
   const [showBackToTop, setShowBackToTop] = useState(false)
   const [keyToName, setKeyToName] = useState<Record<string, string>>({})
+  const [cutoffs, setCutoffs] = useState<{ challenger: number | null; grandmaster: number | null; challengerCount: number; grandmasterCount: number } | null>(null)
 
   useEffect(() => {
     fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
@@ -118,6 +119,7 @@ export default function LeaderboardPage() {
       setRows(data.entries || [])
       setTotalPages(data.totalPages || 1)
       setPage(data.page || p)
+      if (data.cutoffs) setCutoffs(data.cutoffs)
     } catch {
       setError("Network error")
       setRows([])
@@ -195,9 +197,29 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
+      {/* ── Tier cutoffs (hidden for now) ── */}
+      {false && cutoffs && (
+        <div className="flex items-center justify-center gap-8 py-3 mb-2 border-b border-flash/[0.04]">
+          <div className="flex items-center gap-2">
+            <img src={getRankImage("CHALLENGER")} alt="" className="w-5 h-5 object-contain" />
+            <span className="text-[10px] font-mono text-flash/30 uppercase tracking-wider">Challenger</span>
+            <span className="text-[12px] font-orbitron font-bold text-amber-300/70 tabular-nums">{cutoffs?.challenger?.toLocaleString() ?? "—"} LP</span>
+            <span className="text-[9px] font-mono text-flash/15">({cutoffs?.challengerCount} players)</span>
+          </div>
+          <div className="w-[1px] h-4 bg-flash/[0.06]" />
+          <div className="flex items-center gap-2">
+            <img src={getRankImage("GRANDMASTER")} alt="" className="w-5 h-5 object-contain" />
+            <span className="text-[10px] font-mono text-flash/30 uppercase tracking-wider">Grandmaster</span>
+            <span className="text-[12px] font-orbitron font-bold text-red-300/70 tabular-nums">{cutoffs?.grandmaster?.toLocaleString() ?? "—"} LP</span>
+            <span className="text-[9px] font-mono text-flash/15">({cutoffs?.grandmasterCount} players)</span>
+          </div>
+        </div>
+      )}
+
       {/* ── Table header ── */}
-      <div className="grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-2.5 text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase border-b border-flash/[0.05]">
+      <div className="grid grid-cols-[48px_48px_36px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-2.5 text-[8px] font-mono text-flash/20 tracking-[0.2em] uppercase border-b border-flash/[0.05]">
         <span className="text-center">#</span>
+        <span />
         <span />
         <span>Player</span>
         <span className="text-center">Rank</span>
@@ -216,9 +238,10 @@ export default function LeaderboardPage() {
       <div>
         {loading
           ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-              <div key={i} className="grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 border-b border-flash/[0.03]">
+              <div key={i} className="grid grid-cols-[48px_48px_36px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 border-b border-flash/[0.03]">
                 <Skeleton className="w-6 h-4 bg-flash/5 mx-auto" />
                 <Skeleton className="w-9 h-9 rounded-[4px] bg-flash/5" />
+                <span />
                 <Skeleton className="h-4 w-36 bg-flash/5" />
                 <Skeleton className="w-20 h-4 bg-flash/5 mx-auto" />
                 <Skeleton className="w-20 h-4 bg-flash/5 mx-auto" />
@@ -240,7 +263,7 @@ export default function LeaderboardPage() {
                   transition={{ duration: 0.25, delay: i * 0.015, ease: "easeOut" }}
                   onClick={() => handlePlayerClick(r)}
                   className={cn(
-                    "group relative grid grid-cols-[48px_48px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 cursor-clicker transition-all duration-300",
+                    "group relative grid grid-cols-[48px_48px_36px_1fr_120px_120px_24px_100px_56px] items-center px-5 py-3 cursor-clicker transition-all duration-300",
                     "border-b border-flash/[0.03]",
                     "hover:bg-jade/[0.02] hover:border-flash/[0.06]",
                   )}
@@ -265,24 +288,26 @@ export default function LeaderboardPage() {
                     />
                   </div>
 
+                  {/* Badge */}
+                  <div className="flex items-center justify-center relative z-10">
+                    {r.isPro && (
+                      <span className="text-[6px] font-orbitron font-bold w-7 text-center py-0.5 rounded-[2px] uppercase tracking-wider"
+                        style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                    )}
+                    {r.isStreamer && !r.isPro && (
+                      <span className="text-[6px] font-orbitron font-bold w-7 text-center py-0.5 rounded-[2px] uppercase tracking-wider text-purple-300 bg-purple-500/15 border border-purple-400/20">STR</span>
+                    )}
+                  </div>
+
                   {/* Name */}
                   <div className="min-w-0 relative z-10">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] text-flash/75 font-mono truncate group-hover:text-flash transition-colors duration-200">
-                        {(() => {
-                          const nt = r.nametag ?? r.summonerName ?? "Unknown"
-                          const [name, tag] = nt.includes("#") ? nt.split("#") : [nt, ""]
-                          return <>{name}<span className="text-flash/15 ml-0.5">#{tag}</span></>
-                        })()}
-                      </span>
-                      {r.isPro && (
-                        <span className="text-[7px] font-orbitron font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider shrink-0"
-                          style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
-                      )}
-                      {r.isStreamer && !r.isPro && (
-                        <span className="text-[7px] font-orbitron font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider shrink-0 text-purple-300 bg-purple-500/15 border border-purple-400/20">STR</span>
-                      )}
-                    </div>
+                    <span className="text-[13px] text-flash/75 font-mono truncate block group-hover:text-flash transition-colors duration-200">
+                      {(() => {
+                        const nt = r.nametag ?? r.summonerName ?? "Unknown"
+                        const [name, tag] = nt.includes("#") ? nt.split("#") : [nt, ""]
+                        return <>{name}<span className="text-flash/15 ml-0.5">#{tag}</span></>
+                      })()}
+                    </span>
                   </div>
 
                   {/* Tier + LP merged */}
@@ -290,7 +315,7 @@ export default function LeaderboardPage() {
                     <img src={getRankImage(r.tier)} alt={r.tier}
                       className="w-6 h-6 object-contain transition-transform duration-300 group-hover:scale-110" />
                     <div>
-                      <span className="font-orbitron font-bold tabular-nums text-[14px] text-flash/70">
+                      <span className="font-geist font-bold tabular-nums text-[14px] text-flash/70">
                         {r.leaguePoints.toLocaleString()}
                       </span>
                       <span className="text-[9px] text-flash/25 ml-0.5">LP</span>
@@ -299,19 +324,20 @@ export default function LeaderboardPage() {
 
                   {/* W/L record */}
                   <div className="relative z-10">
-                    {/* Numbers */}
-                    <div className="flex items-baseline justify-center gap-0.5 mb-1">
-                      <span className="text-[12px] font-orbitron font-bold text-jade/60 tabular-nums">{r.wins}</span>
-                      <span className="text-[8px] font-mono text-flash/12 mx-1">/</span>
-                      <span className="text-[12px] font-orbitron font-bold text-red-400/40 tabular-nums">{r.losses}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-jade/70 tabular-nums">{r.wins}W</span>
+                      <span className="text-[10px] font-mono text-red-400/50 tabular-nums">{r.losses}L</span>
                     </div>
-                    {/* Single bar — jade portion = wins, rest = transparent */}
-                    <div className="relative h-[2px] w-full rounded-full overflow-hidden">
-                      <div className="absolute inset-0 bg-flash/[0.04]" />
-                      <div className="absolute left-0 top-0 bottom-0 rounded-full transition-all duration-700 ease-out"
+                    <div className="relative h-[3px] rounded-[1px] overflow-hidden" style={{ background: "rgba(239,68,68,0.08)" }}>
+                      <div className="absolute inset-y-0 left-0 rounded-[1px] transition-all duration-700 ease-out"
                         style={{
                           width: `${total > 0 ? (r.wins / total) * 100 : 50}%`,
-                          background: r.winrate >= 60 ? "rgba(0,217,146,0.5)" : r.winrate >= 52 ? "rgba(0,217,146,0.3)" : r.winrate >= 48 ? "rgba(215,216,217,0.2)" : "rgba(239,68,68,0.25)",
+                          background: r.winrate >= 60
+                            ? "linear-gradient(90deg, rgba(0,217,146,0.3), rgba(0,217,146,0.6))"
+                            : r.winrate >= 52
+                              ? "linear-gradient(90deg, rgba(0,217,146,0.2), rgba(0,217,146,0.45))"
+                              : "linear-gradient(90deg, rgba(215,216,217,0.1), rgba(215,216,217,0.25))",
+                          boxShadow: r.winrate >= 55 ? "0 0 6px rgba(0,217,146,0.2)" : "none",
                         }} />
                     </div>
                   </div>

@@ -55,6 +55,14 @@ module.exports = {
   			rajdhani: [
   				'Rajdhani',
   				'sans-serif'
+  			],
+  			cinzel: [
+  				'cinzel',
+  				'serif'
+  			],
+  			chakrapetch: [
+  				'chakrapetch',
+  				'sans-serif'
   			]
   		},
   		colors: {

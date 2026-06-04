@@ -207,6 +207,20 @@ html, body {
   src: url("/fonts/proto.ttf") format("truetype")
 }
 
+@font-face {
+  font-family: cinzel;
+  font-style: normal;
+  font-weight: 700;
+  src: url("/fonts/cinzel-700.ttf") format("truetype")
+}
+
+@font-face {
+  font-family: chakrapetch;
+  font-style: normal;
+  font-weight: 700;
+  src: url("/fonts/chakra-petch-700.ttf") format("truetype")
+}
+
 html, body {
   @apply bg-liquirice;
 }
@@ -414,5 +428,14 @@ html, body {
 ::view-transition-old(root), ::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
+}
+
+/* Freeze background CSS animations while a blocking modal is open.
+   The modal itself is portaled outside #root, so it stays animated. */
+body.modal-frozen #root *,
+body.modal-frozen #root *::before,
+body.modal-frozen #root *::after {
+    animation-play-state: paused !important;
+    transition: none !important;
 }
 

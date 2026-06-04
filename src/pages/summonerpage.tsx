@@ -211,6 +211,8 @@ export default function SummonerPage() {
   const [topChampionsSeason, setTopChampionsSeason] = useState<ChampionStats[]>([]);
   const [topChampionsSolo, setTopChampionsSolo] = useState<ChampionStats[]>([]);
   const [topChampionsFlex, setTopChampionsFlex] = useState<ChampionStats[]>([]);
+  const [splitTotals, setSplitTotals] = useState<{ games: number; wins: number; losses: number } | null>(null);
+  const [seasonOrSplitView, setSeasonOrSplitView] = useState<"season" | "split">("season");
   const [topMastery, setTopMastery] = useState<{ championId: number; champName: string; points: number; pct: number }[]>([]);
   const [seasonStatsTab, setSeasonStatsTab] = useState("season");
   const [rankQueueView, setRankQueueView] = useState<"solo" | "flex">("solo");
@@ -902,6 +904,7 @@ export default function SummonerPage() {
     fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
     fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
     fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+    fetchSplitStats(summonerInfo.puuid, region, "ranked_all");
   }, [summonerInfo?.puuid, region]);
 
   // Poll for matches when ingestion is in progress (first-time search)
@@ -920,6 +923,7 @@ export default function SummonerPage() {
       fetchSeasonStats(summonerInfo.puuid, region, "ranked_all");
       fetchSeasonStats(summonerInfo.puuid, region, "ranked_solo");
       fetchSeasonStats(summonerInfo.puuid, region, "ranked_flex");
+      fetchSplitStats(summonerInfo.puuid, region, "ranked_all");
     }
   }, [isIngesting, matches.length]);
 
@@ -993,6 +997,7 @@ export default function SummonerPage() {
     setSummonerInfo(null);
     setMatches([]);
     setTopChampionsSeason([]);
+    setSplitTotals(null);
     setTopChampionsSolo([]);
     setTopChampionsFlex([]);
     setHasMore(true);
@@ -1186,6 +1191,27 @@ export default function SummonerPage() {
       }
     } catch (err) {
       console.error("Error fetching season stats:", err);
+    }
+  }
+
+  async function fetchSplitStats(
+    puuid: string,
+    region: string,
+    queueGroup: "ranked_all" | "ranked_solo" | "ranked_flex" = "ranked_all"
+  ) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/split_stats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puuid, region, queueGroup }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.splitTotals) setSplitTotals(data.splitTotals);
+      }
+    } catch (err) {
+      console.error("Error fetching split stats:", err);
     }
   }
 
@@ -1480,8 +1506,32 @@ export default function SummonerPage() {
               <div className="relative w-full h-32 mt-2">
 
                 <div className="relative z-10 px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-flash/40">This Season</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSeasonOrSplitView("season")}
+                      className={cn(
+                        "text-[10px] font-mono tracking-[0.25em] uppercase transition-colors cursor-clicker",
+                        seasonOrSplitView === "season"
+                          ? "text-flash/60"
+                          : "text-flash/20 hover:text-flash/40"
+                      )}
+                    >
+                      This Season
+                    </button>
+                    <span className="text-flash/15 text-[10px]">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setSeasonOrSplitView("split")}
+                      className={cn(
+                        "text-[10px] font-mono tracking-[0.25em] uppercase transition-colors cursor-clicker",
+                        seasonOrSplitView === "split"
+                          ? "text-flash/60"
+                          : "text-flash/20 hover:text-flash/40"
+                      )}
+                    >
+                      This Split
+                    </button>
                     <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
                     {recentDetailedStats?.roleDistribution?.[0] && (() => {
                       const roleMap: Record<string, React.ReactNode> = {
@@ -1499,56 +1549,63 @@ export default function SummonerPage() {
                     })()}
                   </div>
 
-                  <div className="flex items-end gap-5 mt-12">
-                    {/* Wins */}
-                    <div className="flex flex-col items-center">
-                      {summonerInfo ? (
-                        <span className="text-3xl font-orbitron font-bold text-jade tabular-nums leading-none">{summonerInfo.wins}</span>
-                      ) : (
-                        <span className="text-3xl font-orbitron font-bold text-jade/30 tabular-nums leading-none animate-pulse">--</span>
-                      )}
-                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
-                    </div>
+                  {(() => {
+                    const isSplit = seasonOrSplitView === "split";
+                    const dataReady = isSplit ? splitTotals !== null : summonerInfo !== null;
+                    const wins = isSplit ? splitTotals?.wins ?? 0 : summonerInfo?.wins ?? 0;
+                    const losses = isSplit ? splitTotals?.losses ?? 0 : summonerInfo?.losses ?? 0;
+                    const totalGames = wins + losses;
+                    const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
-                    {/* Separator */}
-                    <div className="h-8 w-[1px] bg-flash/10 mb-1" />
-
-                    {/* Losses */}
-                    <div className="flex flex-col items-center">
-                      {summonerInfo ? (
-                        <span className="text-3xl font-orbitron font-bold text-[#b11315] tabular-nums leading-none">{summonerInfo.losses}</span>
-                      ) : (
-                        <span className="text-3xl font-orbitron font-bold text-[#b11315]/30 tabular-nums leading-none animate-pulse">--</span>
-                      )}
-                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
-                    </div>
-
-                    {/* Separator */}
-                    <div className="h-8 w-[1px] bg-flash/10 mb-1" />
-
-                    {/* Winrate */}
-                    {summonerInfo ? (() => {
-                      const totalGames = summonerInfo.wins + summonerInfo.losses;
-                      const winrate = totalGames > 0 ? Math.round((summonerInfo.wins / totalGames) * 100) : 0;
-                      return (
+                    return (
+                      <div className="flex items-end gap-5 mt-12">
+                        {/* Wins */}
                         <div className="flex flex-col items-center">
-                          <div className="flex items-baseline gap-0.5">
-                            <span className={`text-3xl font-orbitron font-bold tabular-nums leading-none ${getWinrateClass(winrate, totalGames)}`}>{winrate}</span>
-                            <span className={`text-lg font-orbitron font-bold leading-none ${getWinrateClass(winrate, totalGames)}`}>%</span>
+                          {dataReady ? (
+                            <span className="text-3xl font-orbitron font-bold text-jade tabular-nums leading-none">{wins}</span>
+                          ) : (
+                            <span className="text-3xl font-orbitron font-bold text-jade/30 tabular-nums leading-none animate-pulse">--</span>
+                          )}
+                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-jade/50 mt-1">Wins</span>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-8 w-[1px] bg-flash/10 mb-1" />
+
+                        {/* Losses */}
+                        <div className="flex flex-col items-center">
+                          {dataReady ? (
+                            <span className="text-3xl font-orbitron font-bold text-[#b11315] tabular-nums leading-none">{losses}</span>
+                          ) : (
+                            <span className="text-3xl font-orbitron font-bold text-[#b11315]/30 tabular-nums leading-none animate-pulse">--</span>
+                          )}
+                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#b11315]/50 mt-1">Losses</span>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-8 w-[1px] bg-flash/10 mb-1" />
+
+                        {/* Winrate */}
+                        {dataReady ? (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-baseline gap-0.5">
+                              <span className={`text-3xl font-orbitron font-bold tabular-nums leading-none ${getWinrateClass(winrate, totalGames)}`}>{winrate}</span>
+                              <span className={`text-lg font-orbitron font-bold leading-none ${getWinrateClass(winrate, totalGames)}`}>%</span>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
                           </div>
-                          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
-                        </div>
-                      );
-                    })() : (
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-baseline gap-0.5">
-                          <span className="text-3xl font-orbitron font-bold text-flash/20 tabular-nums leading-none animate-pulse">--</span>
-                          <span className="text-lg font-orbitron font-bold text-flash/20 leading-none animate-pulse">%</span>
-                        </div>
-                        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-3xl font-orbitron font-bold text-flash/20 tabular-nums leading-none animate-pulse">--</span>
+                              <span className="text-lg font-orbitron font-bold text-flash/20 leading-none animate-pulse">%</span>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 mt-1">Winrate</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2140,7 +2197,7 @@ export default function SummonerPage() {
                     <div className="flex flex-col items-center text-sm min-w-[180px]">
                       <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
                       {currentRank && currentRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-orbitron font-bold text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
+                        <span className="text-[16px] font-geist font-black text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
                       )}
                     </div>
                   </div>
@@ -2163,7 +2220,7 @@ export default function SummonerPage() {
                     <div className="flex flex-col items-center text-sm min-w-[180px]">
                       <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
                       {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-orbitron font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
+                        <span className="text-[16px] font-geist font-black text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
                       )}
                     </div>
                   </div>
@@ -2963,15 +3020,20 @@ export default function SummonerPage() {
                                               <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                                                 {(() => {
                                                   const { className, style } = getKdaBackgroundStyle(kda);
+                                                  const isPerfect = kda === "Perfect";
                                                   return (
                                                     <div
                                                       className={cn(
-                                                        "flex items-center justify-center h-6 w-[80px] text-[13px] font-orbitron font-bold tabular-nums rounded-[2px] border text-flash/70",
+                                                        "flex items-center justify-center h-7 w-[88px] text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
                                                         className
                                                       )}
                                                       style={style}
                                                     >
-                                                      {participant?.kills}/{participant?.deaths}/{participant?.assists}
+                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.kills}</span>
+                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
+                                                      <span className={isPerfect ? "text-liquirice" : "text-red-400/80"}>{participant?.deaths}</span>
+                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
+                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.assists}</span>
                                                     </div>
                                                   );
                                                 })()}
@@ -3409,12 +3471,6 @@ export default function SummonerPage() {
           <DiamondButton icon="top" label="TOP" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
         </div>
 
-        {/* Admin: create pro/streamer profile */}
-        {isAdmin && (
-          <div className="fixed bottom-10 left-10 z-50">
-            <DiamondButton color="citrine" icon="edit" label="ADMIN" onClick={() => setShowAdminDialog(true)} />
-          </div>
-        )}
 
       </div>
 
@@ -3422,11 +3478,14 @@ export default function SummonerPage() {
       {showAdminDialog && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowAdminDialog(false)}>
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-          <div className="relative z-10 w-[420px] rounded-md shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden"
-            style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)", animation: "dialogOpen 0.25s ease-out" }}
+          <div className="relative z-10 w-[420px] rounded-md overflow-hidden bg-black/60 backdrop-blur-xl saturate-150"
+            style={{
+              animation: "dialogOpen 0.25s ease-out",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.7), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
+            }}
             onClick={e => e.stopPropagation()}>
-            <div className="absolute inset-0 pointer-events-none opacity-10"
-              style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,182,21,0.02) 3px, rgba(255,182,21,0.02) 4px)" }} />
+            {/* Radial white glow */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.04)_0%,transparent_60%)]" />
 
             <div className="relative z-10 px-6 py-5 space-y-4">
               <div className="flex items-center justify-between">
@@ -3481,20 +3540,23 @@ export default function SummonerPage() {
                   const nametag = `${name}#${tag}`;
                   try {
                     if (adminType === "pro") {
-                      await supabase.from("pro_players").upsert({
+                      await supabase.from("pro_players").delete().eq("username", nametag);
+                      await supabase.from("pro_players").insert({
                         username: nametag,
                         nickname: adminFields.nickname || name,
                         team: adminFields.team || null,
                         first_name: adminFields.firstName || null,
                         last_name: adminFields.lastName || null,
                         nationality: adminFields.nationality || null,
-                      }, { onConflict: "username" });
+                      });
                     } else {
-                      await supabase.from("streamers").upsert({
+                      // Delete existing entry first, then insert
+                      await supabase.from("streamers").delete().eq("lol_nametag", nametag);
+                      await supabase.from("streamers").insert({
                         lol_nametag: nametag,
                         twitch_login: adminFields.twitchLogin || null,
                         region: region?.toUpperCase() || "EUW",
-                      }, { onConflict: "lol_nametag" });
+                      });
                     }
                     setShowAdminDialog(false);
                     setIsPro(adminType === "pro");
@@ -3836,6 +3898,11 @@ export default function SummonerPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Admin: create pro/streamer profile */}
+      <div className="fixed bottom-10 left-10 z-[999]">
+        <DiamondButton color="citrine" icon="edit" label={isAdmin ? "ADMIN" : "NO"} onClick={() => setShowAdminDialog(true)} />
+      </div>
 
     </div>
   )
