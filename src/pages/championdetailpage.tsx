@@ -127,9 +127,10 @@ export default function ChampionDetailPage() {
   // Load user's existing vote when guide ID changes
   useEffect(() => {
     if (!currentGuideId || !session?.user?.id) { setUserVote(0); return }
+    // Supabase's query builder returns a PromiseLike (not a real Promise) so
+    // we can't chain .catch. Errors come back in `data`/`error` instead.
     supabase.from("guide_votes").select("vote").eq("guide_id", currentGuideId).eq("user_id", session.user.id).maybeSingle()
       .then(({ data }) => setUserVote(data?.vote ?? 0))
-      .catch(() => {})
   }, [currentGuideId, session?.user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVote = async (dir: 1 | -1) => {

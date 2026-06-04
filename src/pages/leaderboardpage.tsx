@@ -203,15 +203,15 @@ export default function LeaderboardPage() {
           <div className="flex items-center gap-2">
             <img src={getRankImage("CHALLENGER")} alt="" className="w-5 h-5 object-contain" />
             <span className="text-[10px] font-mono text-flash/30 uppercase tracking-wider">Challenger</span>
-            <span className="text-[12px] font-orbitron font-bold text-amber-300/70 tabular-nums">{cutoffs.challenger?.toLocaleString() ?? "—"} LP</span>
-            <span className="text-[9px] font-mono text-flash/15">({cutoffs.challengerCount} players)</span>
+            <span className="text-[12px] font-orbitron font-bold text-amber-300/70 tabular-nums">{cutoffs?.challenger?.toLocaleString() ?? "—"} LP</span>
+            <span className="text-[9px] font-mono text-flash/15">({cutoffs?.challengerCount} players)</span>
           </div>
           <div className="w-[1px] h-4 bg-flash/[0.06]" />
           <div className="flex items-center gap-2">
             <img src={getRankImage("GRANDMASTER")} alt="" className="w-5 h-5 object-contain" />
             <span className="text-[10px] font-mono text-flash/30 uppercase tracking-wider">Grandmaster</span>
-            <span className="text-[12px] font-orbitron font-bold text-red-300/70 tabular-nums">{cutoffs.grandmaster?.toLocaleString() ?? "—"} LP</span>
-            <span className="text-[9px] font-mono text-flash/15">({cutoffs.grandmasterCount} players)</span>
+            <span className="text-[12px] font-orbitron font-bold text-red-300/70 tabular-nums">{cutoffs?.grandmaster?.toLocaleString() ?? "—"} LP</span>
+            <span className="text-[9px] font-mono text-flash/15">({cutoffs?.grandmasterCount} players)</span>
           </div>
         </div>
       )}
