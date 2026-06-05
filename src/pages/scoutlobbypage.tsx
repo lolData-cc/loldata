@@ -2548,8 +2548,8 @@ function LiveSessionCard({
             />
           </div>
 
-          {/* Bans row */}
-          <div className="mt-2 flex items-center gap-4 pr-24">
+          {/* Bans row — blue left, red flushed right edge */}
+          <div className="mt-2 flex items-center gap-4">
             <BansStrip
               bans={s.bansBlue}
               accent="#5fa8ff"
