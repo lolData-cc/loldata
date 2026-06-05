@@ -2279,11 +2279,75 @@ type LpTimelinePayload = {
     displayName: string;
     color: string | null;
     iconId: number | null;
-    deltas: number[];
-    cumulative: number[];
-    netTotal: number;
+    // ladderScore (tier*1000 + div*100 + lp) per bucket — forward-filled,
+    // null when no snapshot is known yet.
+    scores: (number | null)[];
+    finalScore: number | null;
+    finalRank: { tier: string; division: string | null; lp: number } | null;
   }>;
 };
+
+// Tier abbreviations + Y-axis tick helpers (mirror of backend ladderScore).
+const LP_TIERS_ORDER = [
+  "IRON",
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "EMERALD",
+  "DIAMOND",
+  "MASTER",
+  "GRANDMASTER",
+  "CHALLENGER",
+] as const;
+const LP_TIER_ABBR: Record<string, string> = {
+  IRON: "I",
+  BRONZE: "B",
+  SILVER: "S",
+  GOLD: "G",
+  PLATINUM: "P",
+  EMERALD: "E",
+  DIAMOND: "D",
+  MASTER: "M",
+  GRANDMASTER: "GM",
+  CHALLENGER: "C",
+};
+
+/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4". */
+function scoreToRankShort(score: number): string {
+  if (score < 0) return "—";
+  const tierIdx = Math.min(9, Math.floor(score / 1000));
+  const tier = LP_TIERS_ORDER[tierIdx];
+  const abbr = LP_TIER_ABBR[tier];
+  if (tierIdx >= 7) return abbr; // M / GM / C — no division
+  const divNum = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
+  return `${abbr}${divNum}`;
+}
+
+/** Ticks for the Y-axis: every (tier, division) crossing inside [lo, hi]. */
+function lpYTicks(lo: number, hi: number): Array<{ score: number; label: string }> {
+  const out: Array<{ score: number; label: string }> = [];
+  for (let t = 0; t < LP_TIERS_ORDER.length; t++) {
+    if (t >= 7) {
+      const s = t * 1000;
+      if (s >= lo && s <= hi) out.push({ score: s, label: LP_TIER_ABBR[LP_TIERS_ORDER[t]] });
+    } else {
+      // Divisions IV (1) → I (4). Tick at the floor of each division.
+      for (let d = 1; d <= 4; d++) {
+        const s = t * 1000 + d * 100;
+        if (s >= lo && s <= hi) {
+          out.push({ score: s, label: `${LP_TIER_ABBR[LP_TIERS_ORDER[t]]}${5 - d}` });
+        }
+      }
+    }
+  }
+  // If the range is enormous (multiple tiers), thin ticks down.
+  if (out.length > 10) {
+    const stride = Math.ceil(out.length / 8);
+    return out.filter((_, i) => i % stride === 0 || i === out.length - 1);
+  }
+  return out;
+}
 
 function LpTimelineChart({
   slug,
@@ -2318,75 +2382,112 @@ function LpTimelineChart({
     return data.players.filter((p) => p.playerId === selectedPlayerId);
   }, [data, selectedPlayerId]);
 
-  const { minY, maxY, paths, hoverPoints } = useMemo(() => {
+  const { minY, maxY, yTicks, paths, hoverPoints } = useMemo(() => {
     if (!data || data.buckets.length === 0 || visiblePlayers.length === 0) {
-      return { minY: 0, maxY: 0, paths: [], hoverPoints: [] };
+      return {
+        minY: 0,
+        maxY: 0,
+        yTicks: [] as Array<{ score: number; label: string }>,
+        paths: [] as Array<{ playerId: string; color: string; line: string; area: string; finalY: number | null }>,
+        hoverPoints: [] as Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }>,
+      };
     }
-    const W = 100;        // viewBox width units (we'll scale to actual px)
-    const H = 100;        // viewBox height units
+    const W = 100;
+    const H = 100;
     const N = data.buckets.length;
-    let lo = 0;
-    let hi = 0;
+
+    // Y range based on non-null scores. Pad ±150 so the line doesn't kiss
+    // the chart edges, and ensure at least 1 full division of headroom.
+    let lo = Number.POSITIVE_INFINITY;
+    let hi = Number.NEGATIVE_INFINITY;
     for (const p of visiblePlayers) {
-      for (const v of p.cumulative) {
+      for (const v of p.scores) {
+        if (v == null) continue;
         if (v < lo) lo = v;
         if (v > hi) hi = v;
       }
     }
-    // Always include 0 baseline for visual reference.
-    if (lo > 0) lo = 0;
-    if (hi < 0) hi = 0;
-    if (lo === hi) hi = lo + 1; // avoid div-by-zero
+    if (!isFinite(lo) || !isFinite(hi)) {
+      lo = 0;
+      hi = 100;
+    }
+    const span = hi - lo;
+    const pad = Math.max(150, span * 0.15);
+    lo = Math.max(0, lo - pad);
+    hi = hi + pad;
+    if (lo === hi) hi = lo + 100;
 
-    const x = (i: number) =>
-      N === 1 ? W / 2 : (i / (N - 1)) * W;
-    const y = (v: number) => H - ((v - lo) / (hi - lo)) * H;
+    const x = (i: number) => (N === 1 ? W / 2 : (i / (N - 1)) * W);
+    const y = (score: number) => H - ((score - lo) / (hi - lo)) * H;
 
     type PathObj = {
       playerId: string;
       color: string;
       line: string;
       area: string;
-      lastY: number;
+      finalY: number | null;
     };
     const paths: PathObj[] = visiblePlayers.map((p) => {
       const color = p.color || JADE;
+      // Build the line as multiple segments — break wherever a score is null
+      // so the line doesn't fly to 0. Most lobbies will have a continuous
+      // series after the first snapshot, but a clean handling is cheap.
       let line = "";
-      let area = "";
+      let pen = false;
+      const segPoints: Array<{ x: number; y: number }> = [];
       for (let i = 0; i < N; i++) {
+        const v = p.scores[i];
+        if (v == null) {
+          pen = false;
+          continue;
+        }
         const px = x(i);
-        const py = y(p.cumulative[i] ?? 0);
-        line += i === 0 ? `M ${px} ${py}` : ` L ${px} ${py}`;
+        const py = y(v);
+        line += pen ? ` L ${px} ${py}` : ` M ${px} ${py}`;
+        pen = true;
+        segPoints.push({ x: px, y: py });
       }
-      // Area path: line + close to baseline (y=0 cumulative)
-      const baseY = y(0);
-      area = `${line} L ${x(N - 1)} ${baseY} L ${x(0)} ${baseY} Z`;
-      return { playerId: p.playerId, color, line, area, lastY: y(p.cumulative[N - 1] ?? 0) };
+      let area = "";
+      if (segPoints.length >= 2) {
+        const baseY = H; // bottom of chart
+        area =
+          segPoints
+            .map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`))
+            .join(" ") +
+          ` L ${segPoints[segPoints.length - 1].x} ${baseY}` +
+          ` L ${segPoints[0].x} ${baseY} Z`;
+      }
+      const lastNonNull = [...p.scores].reverse().find((s): s is number => s != null);
+      const finalY = lastNonNull != null ? y(lastNonNull) : null;
+      return { playerId: p.playerId, color, line, area, finalY };
     });
 
-    // Hover points for the active bucket
+    // Hover points
     const hi2 = hoverBucket;
-    const hoverPoints: Array<{ x: number; y: number; color: string; playerId: string; delta: number; cumulative: number; displayName: string }> = [];
+    const hoverPoints: Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }> = [];
     if (hi2 != null && hi2 >= 0 && hi2 < N) {
       for (const p of visiblePlayers) {
+        const v = p.scores[hi2];
+        if (v == null) continue;
         hoverPoints.push({
           x: x(hi2),
-          y: y(p.cumulative[hi2] ?? 0),
+          y: y(v),
           color: p.color || JADE,
           playerId: p.playerId,
-          delta: p.deltas[hi2] ?? 0,
-          cumulative: p.cumulative[hi2] ?? 0,
+          score: v,
           displayName: p.displayName,
         });
       }
     }
 
-    return { minY: lo, maxY: hi, paths, hoverPoints };
+    const ticks = lpYTicks(lo, hi);
+
+    return { minY: lo, maxY: hi, yTicks: ticks, paths, hoverPoints };
   }, [data, visiblePlayers, hoverBucket]);
 
   const hasData =
     !!data &&
-    data.players.some((p) => p.deltas.some((d) => d !== 0));
+    data.players.some((p) => p.scores.some((s) => s != null));
 
   // Label spacing — show ~6 evenly spaced labels along x-axis to avoid clutter
   const labelStep = data
@@ -2478,20 +2579,14 @@ function LpTimelineChart({
                     />
                   )}
                   <span>{p.displayName}</span>
-                  <span
-                    className={cn(
-                      "tabular-nums font-bold",
-                      p.netTotal > 0
-                        ? "text-jade/75"
-                        : p.netTotal < 0
-                          ? "text-red-400/70"
-                          : "text-flash/30"
-                    )}
-                  >
-                    {p.netTotal === 0
-                      ? "0"
-                      : `${p.netTotal > 0 ? "+" : ""}${p.netTotal}`}
-                  </span>
+                  {p.finalRank && (
+                    <span
+                      className="tabular-nums font-bold opacity-80"
+                      style={{ color: accent }}
+                    >
+                      {scoreToRankShort(p.finalScore ?? -1)}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -2500,19 +2595,42 @@ function LpTimelineChart({
 
         {/* Chart */}
         {loading ? (
-          <div className="h-[220px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+          <div className="h-[260px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
             Loading…
           </div>
         ) : !hasData ? (
-          <div className="h-[220px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+          <div className="h-[260px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
             Not enough rank data yet — keep playing.
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative pl-9">
+            {/* Y-axis rank labels — absolutely positioned alongside the SVG.
+                The SVG itself is 100×100 viewBox; here we map each tick's
+                ladderScore into a percentage from the top. */}
+            <div className="absolute left-0 top-0 bottom-6 w-9 pointer-events-none">
+              {yTicks.map((t) => {
+                const range = maxY - minY || 1;
+                const topPct = 100 - ((t.score - minY) / range) * 100;
+                if (topPct < -2 || topPct > 102) return null;
+                return (
+                  <div
+                    key={t.score}
+                    className="absolute right-1 -translate-y-1/2 flex items-center gap-1"
+                    style={{ top: `${topPct}%` }}
+                  >
+                    <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/45 tabular-nums">
+                      {t.label}
+                    </span>
+                    <span className="w-1.5 h-[1px] bg-flash/20" />
+                  </div>
+                );
+              })}
+            </div>
+
             <svg
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
-              className="w-full h-[220px] block"
+              className="w-full h-[260px] block"
               onMouseLeave={() => setHoverBucket(null)}
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -2523,49 +2641,36 @@ function LpTimelineChart({
                 setHoverBucket(Math.max(0, Math.min(N - 1, idx)));
               }}
             >
-              {/* Grid + zero baseline */}
-              {(() => {
-                if (!data) return null;
+              {/* Rank tier grid lines — one horizontal at every tick */}
+              {yTicks.map((t) => {
                 const range = maxY - minY || 1;
-                const zeroY = 100 - ((0 - minY) / range) * 100;
+                const yy = 100 - ((t.score - minY) / range) * 100;
+                if (yy < 0 || yy > 100) return null;
                 return (
-                  <>
-                    {/* Horizontal grid lines (5 segments) */}
-                    {[0, 25, 50, 75, 100].map((y) => (
-                      <line
-                        key={y}
-                        x1="0"
-                        x2="100"
-                        y1={y}
-                        y2={y}
-                        stroke="rgba(255,255,255,0.04)"
-                        strokeWidth="0.15"
-                      />
-                    ))}
-                    {/* Zero line */}
-                    <line
-                      x1="0"
-                      x2="100"
-                      y1={zeroY}
-                      y2={zeroY}
-                      stroke="rgba(255,255,255,0.18)"
-                      strokeDasharray="0.6 0.6"
-                      strokeWidth="0.18"
-                    />
-                  </>
-                );
-              })()}
-
-              {/* Area fills (when only one player visible) */}
-              {visiblePlayers.length === 1 &&
-                paths.map((p) => (
-                  <path
-                    key={`area-${p.playerId}`}
-                    d={p.area}
-                    fill={`color-mix(in srgb, ${p.color} 20%, transparent)`}
-                    opacity={0.5}
+                  <line
+                    key={t.score}
+                    x1="0"
+                    x2="100"
+                    y1={yy}
+                    y2={yy}
+                    stroke="rgba(255,255,255,0.05)"
+                    strokeWidth="0.12"
                   />
-                ))}
+                );
+              })}
+
+              {/* Area fill when only one player is isolated */}
+              {visiblePlayers.length === 1 &&
+                paths.map((p) =>
+                  p.area ? (
+                    <path
+                      key={`area-${p.playerId}`}
+                      d={p.area}
+                      fill={`color-mix(in srgb, ${p.color} 22%, transparent)`}
+                      opacity={0.55}
+                    />
+                  ) : null
+                )}
 
               {/* Lines */}
               {paths.map((p) => (
@@ -2574,16 +2679,31 @@ function LpTimelineChart({
                   d={p.line}
                   fill="none"
                   stroke={p.color}
-                  strokeWidth="0.5"
+                  strokeWidth="0.55"
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   style={{
-                    filter: `drop-shadow(0 0 1.2px color-mix(in srgb, ${p.color} 50%, transparent))`,
+                    filter: `drop-shadow(0 0 1.4px color-mix(in srgb, ${p.color} 55%, transparent))`,
                   }}
                 />
               ))}
 
-              {/* Hover vertical guide + dots */}
+              {/* End-of-line dot — marks the player's current rank */}
+              {paths.map((p) =>
+                p.finalY != null ? (
+                  <circle
+                    key={`end-${p.playerId}`}
+                    cx={100}
+                    cy={p.finalY}
+                    r="0.9"
+                    fill={p.color}
+                    stroke="rgba(0,0,0,0.5)"
+                    strokeWidth="0.18"
+                  />
+                ) : null
+              )}
+
+              {/* Hover guide */}
               {hoverBucket != null && data && hoverPoints.length > 0 && (
                 <>
                   <line
@@ -2599,10 +2719,10 @@ function LpTimelineChart({
                       key={`dot-${pt.playerId}`}
                       cx={pt.x}
                       cy={pt.y}
-                      r="0.9"
+                      r="1.1"
                       fill={pt.color}
-                      stroke="rgba(0,0,0,0.4)"
-                      strokeWidth="0.2"
+                      stroke="rgba(0,0,0,0.45)"
+                      strokeWidth="0.22"
                     />
                   ))}
                 </>
@@ -2628,7 +2748,7 @@ function LpTimelineChart({
               })}
             </div>
 
-            {/* Hover tooltip */}
+            {/* Hover tooltip — shows rank reached at the hovered bucket */}
             {hoverBucket != null && data && hoverPoints.length > 0 && (
               <div className="mt-3 flex items-center gap-3 flex-wrap text-[10px] font-jetbrains text-flash/60">
                 <span className="text-flash/30 uppercase tracking-[0.2em]">
@@ -2645,23 +2765,13 @@ function LpTimelineChart({
                     />
                     <span className="text-flash/55">{pt.displayName}</span>
                     <span
-                      className={cn(
-                        "font-bold tabular-nums",
-                        pt.delta > 0
-                          ? "text-jade"
-                          : pt.delta < 0
-                            ? "text-red-400/80"
-                            : "text-flash/40"
-                      )}
+                      className="font-bold tabular-nums uppercase tracking-wider"
+                      style={{ color: pt.color }}
                     >
-                      {pt.delta === 0
-                        ? "0"
-                        : `${pt.delta > 0 ? "+" : ""}${pt.delta}`}
+                      {scoreToRankShort(pt.score)}
                     </span>
-                    <span className="text-flash/25">LP</span>
-                    <span className="text-flash/25 ml-0.5">
-                      ({pt.cumulative >= 0 ? "+" : ""}
-                      {pt.cumulative})
+                    <span className="text-flash/30 tabular-nums">
+                      {pt.score % 100} LP
                     </span>
                   </span>
                 ))}
