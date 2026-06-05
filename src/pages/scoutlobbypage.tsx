@@ -2548,8 +2548,8 @@ function LiveSessionCard({
             />
           </div>
 
-          {/* Bans + spectate row */}
-          <div className="mt-2 flex items-center gap-4">
+          {/* Bans row */}
+          <div className="mt-2 flex items-center gap-4 pr-24">
             <BansStrip
               bans={s.bansBlue}
               accent="#5fa8ff"
@@ -2563,17 +2563,19 @@ function LiveSessionCard({
               championIdToName={championIdToName}
               align="right"
             />
-            <Link
-              to={liveGameHref}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-jade/35 bg-jade/[0.10] text-jade hover:bg-jade/[0.20] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[10px] font-jetbrains tracking-[0.22em] uppercase font-bold cursor-clicker transition-all"
-            >
-              <Eye className="w-3 h-3" />
-              Spectate
-              <span className="text-jade/45 text-[8.5px] ml-1">{s.region}</span>
-            </Link>
           </div>
         </div>
       </div>
+
+      {/* Spectate button — pinned top-right of the card */}
+      <Link
+        to={liveGameHref}
+        className="absolute top-3 right-3 z-[3] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-jade/35 bg-jade/[0.10] text-jade hover:bg-jade/[0.20] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[10px] font-jetbrains tracking-[0.22em] uppercase font-bold cursor-clicker transition-all"
+      >
+        <Eye className="w-3 h-3" />
+        Spectate
+        <span className="text-jade/45 text-[8.5px] ml-1">{s.region}</span>
+      </Link>
     </div>
   );
 }
