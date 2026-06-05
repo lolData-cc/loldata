@@ -282,20 +282,20 @@ export function MatchCard({ data }: { data: MatchCardData }) {
   return (
     <li
       className={cn(
-        "relative overflow-hidden rounded-md p-2 text-flash transition",
+        "relative overflow-hidden rounded-md p-3 text-flash transition",
         isRemake
           ? "bg-black/30 backdrop-blur-lg saturate-150"
           : coloredMatchBg
           ? win
             ? blueWinTint
-              ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150"
-              : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
-            : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+              ? "bg-[#5BA8E6]/[0.06] backdrop-blur-lg saturate-150"
+              : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150"
+            : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150"
           : "bg-black/18 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
+        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]",
         isRemake
           ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-          : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+          : "hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
       )}
     >
       {isRemake && (
@@ -326,47 +326,51 @@ export function MatchCard({ data }: { data: MatchCardData }) {
 
       <div className="flex items-center justify-center h-full relative z-10">
         <div className="w-full">
-          {/* Left colored bar — gradient by win/loss/remake */}
+          {/* Left colored bar — narrower with a soft accent glow. Hints at
+              the result without dominating the card. */}
           <div
             className={cn(
-              "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
+              "absolute left-0 top-0 h-full w-[3px] rounded-l-sm z-10",
               isRemake
-                ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
+                ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010] shadow-[0_0_10px_rgba(245,166,35,0.32)]"
                 : win
                 ? blueWinTint
-                  ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c]"
-                  : "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
-                : "bg-gradient-to-b from-[#c93232] to-[#420909]"
+                  ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c] shadow-[0_0_10px_rgba(91,168,230,0.32)]"
+                  : "bg-gradient-to-b from-[#00D18D] to-[#11382E] shadow-[0_0_10px_rgba(0,209,141,0.32)]"
+                : "bg-gradient-to-b from-[#c93232] to-[#420909] shadow-[0_0_10px_rgba(201,50,50,0.30)]"
             )}
           />
 
           <div className="relative z-10 ml-2">
             <div className="ml-2">
-              {/* Top meta row */}
-              <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
+              {/* Top meta row — taller, with a hairline divider beneath so the
+                  body content reads as a distinct block. */}
+              <div className="relative flex justify-between items-center text-[11px] uppercase text-flash/70 pb-2 mb-2.5 border-b border-flash/[0.06]">
                 <span className="relative z-20 flex items-center gap-2">
-                  <span>{queueLabel}</span>
+                  <span className="font-jetbrains tracking-[0.18em] text-flash/55">
+                    {queueLabel}
+                  </span>
                   <span
                     className={cn(
-                      "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
+                      "px-1.5 py-[2px] rounded-[2px] text-[10px] font-jetbrains tracking-[0.2em] font-bold border",
                       isRemake
-                        ? "text-[#f5a623]"
+                        ? "text-[#f5a623] border-[#f5a623]/25 bg-[#f5a623]/[0.06]"
                         : win
                         ? blueWinTint
-                          ? "text-[#5BA8E6]"
-                          : "text-[#00D992]"
-                        : "text-[#d63336]"
+                          ? "text-[#5BA8E6] border-[#5BA8E6]/30 bg-[#5BA8E6]/[0.08]"
+                          : "text-[#00D992] border-[#00D992]/30 bg-[#00D992]/[0.08]"
+                        : "text-[#d63336] border-[#d63336]/30 bg-[#d63336]/[0.07]"
                     )}
                   >
                     {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
                   </span>
                 </span>
 
-                <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
+                <span className="absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider">
                   {minutes}:{seconds}
                 </span>
 
-                <span className="relative z-20">
+                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 normal-case text-[10.5px]">
                   {timeAgo(gameCreationMs)}
                 </span>
               </div>
@@ -374,32 +378,32 @@ export function MatchCard({ data }: { data: MatchCardData }) {
               {/* Main row: champion + runes + KDA + items */}
               <div className="relative flex justify-between">
                 <div className="relative z-40 flex justify-between w-full">
-                  <div className="mt-3">
-                    <div className="flex space-x-1.5 relative">
-                      <div className="relative w-12 h-12">
+                  <div>
+                    <div className="flex items-start gap-2 relative">
+                      <div className="relative w-[54px] h-[54px] shrink-0">
                         <img
                           src={champIcon}
                           alt={championName}
-                          className="w-12 h-12 rounded-md"
+                          className="w-[54px] h-[54px] rounded-md shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
                         />
                         {championLevel != null && (
-                          <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
+                          <div className="absolute -bottom-1 -right-1 bg-black/85 text-flash text-[10px] px-1.5 py-0.5 rounded-sm shadow font-chakrapetch font-bold tabular-nums leading-none">
                             {championLevel}
                           </div>
                         )}
                       </div>
 
-                      {/* Runes */}
-                      <div className="grid grid-rows-2 gap-0.5">
+                      {/* Runes — keystone + secondary stacked */}
+                      <div className="grid grid-rows-2 gap-1 shrink-0">
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                              <div className="w-[26px] h-[26px] rounded-full bg-black/65 flex items-center justify-center ring-1 ring-flash/10">
                                 {keystoneSrc && (
                                   <img
                                     src={keystoneSrc}
                                     alt={keystoneName ?? "Keystone"}
-                                    className="w-5 h-5 rounded-full"
+                                    className="w-[22px] h-[22px] rounded-full"
                                   />
                                 )}
                               </div>
@@ -415,12 +419,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                              <div className="w-[26px] h-[26px] rounded-full bg-black/65 flex items-center justify-center ring-1 ring-flash/10">
                                 {subStyleSrc && (
                                   <img
                                     src={subStyleSrc}
                                     alt={subStyleName ?? "Secondary"}
-                                    className="w-5 h-5 rounded-full opacity-70"
+                                    className="w-[20px] h-[20px] rounded-full opacity-70"
                                   />
                                 )}
                               </div>
@@ -435,12 +439,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                       </div>
 
                       {/* Items */}
-                      <div className="flex ml-1">
-                        <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
+                      <div className="flex ml-1.5">
+                        <div className="grid grid-cols-3 grid-rows-2 gap-1">
                           {mainItems.map((itemId, idx) => (
                             <div
                               key={idx}
-                              className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
+                              className="w-[26px] h-[26px] rounded-[3px] bg-[#0a0a0a] border border-flash/[0.08]"
                             >
                               {typeof itemId === "number" && itemId > 0 && (
                                 <Link
@@ -459,8 +463,8 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                         </div>
 
                         {typeof trinket === "number" && trinket > 0 && (
-                          <div className="flex items-center justify-center ml-1">
-                            <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                          <div className="flex items-center justify-center ml-1.5">
+                            <div className="w-[26px] h-[26px] bg-[#0a0a0a] rounded-full ring-1 ring-flash/[0.08]">
                               <img
                                 src={`${cdnBaseUrl()}/img/item/${trinket}.png`}
                                 alt={`Trinket ${trinket}`}
@@ -473,11 +477,11 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     </div>
 
                     {/* KDA + LP detail box (right of KDA) */}
-                    <div className="flex flex-col mt-2">
-                      <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                    <div className="flex flex-col mt-2.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <div
                           className={cn(
-                            "flex items-center justify-center h-7 w-[88px] text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
+                            "flex items-center justify-center h-8 w-[96px] text-[15px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
                             kdaCls
                           )}
                           style={kdaStyle}
@@ -520,12 +524,16 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                             {assists}
                           </span>
                         </div>
-                        <span className="font-geist text-xs font-thin text-flash/40 ml-1">
-                          {typeof kdaValue === "number"
-                            ? kdaValue.toFixed(2)
-                            : kdaValue}{" "}
-                          KDA
-                        </span>
+                        <div className="flex flex-col leading-tight ml-1">
+                          <span className="font-chakrapetch font-medium tabular-nums text-flash/75 text-[13px]">
+                            {typeof kdaValue === "number"
+                              ? kdaValue.toFixed(2)
+                              : kdaValue}
+                          </span>
+                          <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                            KDA
+                          </span>
+                        </div>
 
                         <LpDetailBox
                           lpDelta={lpDelta ?? null}
@@ -536,9 +544,11 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     </div>
                   </div>
 
-                  {/* Scoreboard — right side, two team columns */}
+                  {/* Scoreboard — right side, two team columns. Slightly
+                      bigger type and more vertical breathing room so player
+                      names are easier to scan. */}
                   {hasScoreboard && (
-                    <div className="hidden sm:grid grid-cols-2 gap-x-4 gap-y-0 mt-3 text-[10px] w-[44%] shrink-0 font-jetbrains">
+                    <div className="hidden sm:grid grid-cols-2 gap-x-5 gap-y-0 mt-1 text-[11px] w-[44%] shrink-0 font-jetbrains">
                       <ul className="space-y-0.5">
                         {team1.map((p) => (
                           <ScoreboardRow
@@ -677,14 +687,14 @@ function ScoreboardRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-1.5 px-1 py-[1px] rounded-sm",
+        "flex items-center gap-2 px-1 py-[2px] rounded-sm",
         align === "right" && "flex-row-reverse text-right"
       )}
     >
       <img
         src={champIcon}
         alt={p.championName ?? ""}
-        className="w-4 h-4 rounded-sm shrink-0"
+        className="w-[18px] h-[18px] rounded-[2px] shrink-0"
       />
       {isLobbyMate && !highlight && (
         <span
