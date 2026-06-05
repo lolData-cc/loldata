@@ -123,92 +123,69 @@ function formatRankFull(
   return `${t} ${division.toUpperCase()}`;
 }
 
-/* ── LP detail box ───────────────────────────────────────────────────
- * Sits right next to the KDA chip, between items and scoreboard. Shows
- * the LP delta with prominence + the rank reached when a promotion or
- * demotion happened. Null/no-snapshot → renders nothing.
+/* ── KP detail box ───────────────────────────────────────────────────
+ * Sits right next to the KDA chip. Compact two-line pill with the
+ * player's kill participation (kills + assists / team kills). Same
+ * vibe as the group-card session stats.
  */
-function LpDetailBox({
-  lpDelta,
-  rankChange,
-  rankAfter,
+function KpDetailBox({
+  kpPct,
 }: {
-  lpDelta: number | null;
-  rankChange: "PROMOTION" | "DEMOTION" | null;
-  rankAfter: { tier: string; division: string | null } | null;
+  kpPct: number | null;
 }) {
-  const hasDelta = typeof lpDelta === "number" && lpDelta !== 0;
-  const hasRankChange = rankChange != null;
-  if (!hasDelta && !hasRankChange) return null;
+  if (kpPct == null) return null;
 
-  // Color = direction. Promotion/positive LP → jade. Demotion/negative → red.
-  const positive =
-    rankChange === "PROMOTION" ||
-    (rankChange == null && hasDelta && lpDelta! > 0);
-  const accentBorder = positive ? "border-[#00D992]/35" : "border-[#d63336]/35";
-  const accentBg = positive ? "bg-[#00D992]/[0.07]" : "bg-[#d63336]/[0.07]";
-  const accentText = positive ? "text-[#00D992]" : "text-[#d63336]";
-  const accentGlow = positive
-    ? "shadow-[0_0_12px_rgba(0,217,146,0.18),inset_0_0_0_1px_rgba(0,217,146,0.08)]"
-    : "shadow-[0_0_12px_rgba(214,51,54,0.18),inset_0_0_0_1px_rgba(214,51,54,0.08)]";
-
-  const arrow = positive ? "▲" : "▼";
-  const rankShort = formatRankShort(rankAfter?.tier, rankAfter?.division);
-  const rankFull = formatRankFull(rankAfter?.tier, rankAfter?.division);
+  const palette =
+    kpPct >= 65
+      ? {
+          ring: "ring-jade/25",
+          bg: "bg-jade/[0.06]",
+          value: "text-jade",
+          label: "text-jade/55",
+          glow: "shadow-[0_0_10px_rgba(0,217,146,0.10)]",
+        }
+      : kpPct >= 45
+        ? {
+            ring: "ring-flash/[0.08]",
+            bg: "bg-black/25",
+            value: "text-flash/80",
+            label: "text-flash/35",
+            glow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
+          }
+        : {
+            ring: "ring-[#d63336]/25",
+            bg: "bg-[#d63336]/[0.05]",
+            value: "text-[#d63336]",
+            label: "text-[#d63336]/55",
+            glow: "shadow-[0_0_10px_rgba(214,51,54,0.08)]",
+          };
 
   return (
     <div
+      title={`${kpPct}% kill participation`}
       className={cn(
-        "ml-2 inline-flex items-center gap-2 h-7 px-2.5 rounded-[3px] border tabular-nums",
-        accentBorder,
-        accentBg,
-        accentGlow
+        "ml-1.5 flex flex-col items-center justify-center gap-px h-8 w-[62px] rounded-[3px] ring-1 tabular-nums",
+        palette.ring,
+        palette.bg,
+        palette.glow
       )}
-      title={
-        hasRankChange
-          ? `${positive ? "Promoted" : "Demoted"} to ${rankFull}`
-          : `${lpDelta! > 0 ? "+" : ""}${lpDelta} LP this game`
-      }
     >
       <span
-        aria-hidden
-        className={cn("text-[10px] leading-none", accentText)}
+        className={cn(
+          "text-[13px] font-chakrapetch font-bold tracking-wide leading-none",
+          palette.value
+        )}
       >
-        {arrow}
+        {kpPct}%
       </span>
-      <div className="flex flex-col items-start leading-tight">
-        {hasDelta ? (
-          <span
-            className={cn(
-              "text-[13px] font-chakrapetch font-bold tracking-wide",
-              accentText
-            )}
-          >
-            {lpDelta! > 0 ? "+" : ""}
-            {lpDelta}
-            <span className="ml-0.5 text-[9px] font-mono opacity-70">LP</span>
-          </span>
-        ) : (
-          <span
-            className={cn(
-              "text-[12px] font-chakrapetch font-bold tracking-wide uppercase",
-              accentText
-            )}
-          >
-            {hasRankChange ? (positive ? "PROMO" : "DEMOTE") : ""}
-          </span>
+      <span
+        className={cn(
+          "text-[7.5px] font-jetbrains tracking-[0.22em] uppercase leading-none",
+          palette.label
         )}
-        {hasRankChange && rankShort && (
-          <span
-            className={cn(
-              "text-[8.5px] font-mono tracking-[0.18em] uppercase opacity-80 -mt-0.5",
-              accentText
-            )}
-          >
-            {rankShort}
-          </span>
-        )}
-      </div>
+      >
+        KP
+      </span>
     </div>
   );
 }
@@ -279,23 +256,35 @@ export function MatchCard({ data }: { data: MatchCardData }) {
   const mainItems = items.slice(0, 6);
   const trinket = items[6];
 
+  // Kill participation: (kills + assists) / total team kills × 100.
+  // Falls back to null when we don't know the team roster (no
+  // scoreboard data) or when the team had zero kills.
+  const kpPct = (() => {
+    const me = (allParticipants ?? []).find(
+      (p) => p.puuid === highlightPuuid
+    );
+    if (!me) return null;
+    const teamKills = (allParticipants ?? [])
+      .filter((p) => p.teamId === me.teamId)
+      .reduce((s, p) => s + p.kills, 0);
+    if (teamKills <= 0) return null;
+    return Math.round(((kills + assists) / teamKills) * 100);
+  })();
+
   return (
     <li
       className={cn(
-        "relative overflow-hidden rounded-md p-2 text-flash transition",
+        "relative overflow-hidden rounded-md p-3 text-flash transition",
         isRemake
           ? "bg-black/30 backdrop-blur-lg saturate-150"
           : coloredMatchBg
           ? win
             ? blueWinTint
-              ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150"
-              : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150"
-            : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+              ? "bg-[#5BA8E6]/[0.06] backdrop-blur-lg saturate-150"
+              : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150"
+            : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150"
           : "bg-black/18 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
-        isRemake
-          ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-          : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]"
       )}
     >
       {isRemake && (
@@ -326,47 +315,118 @@ export function MatchCard({ data }: { data: MatchCardData }) {
 
       <div className="flex items-center justify-center h-full relative z-10">
         <div className="w-full">
-          {/* Left colored bar — gradient by win/loss/remake */}
+          {/* Left colored bar — narrower with a soft accent glow. Hints at
+              the result without dominating the card. */}
           <div
             className={cn(
-              "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
+              "absolute left-0 top-0 h-full w-[3px] rounded-l-sm z-10",
               isRemake
-                ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
+                ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010] shadow-[0_0_10px_rgba(245,166,35,0.32)]"
                 : win
                 ? blueWinTint
-                  ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c]"
-                  : "bg-gradient-to-b from-[#00D18D] to-[#11382E]"
-                : "bg-gradient-to-b from-[#c93232] to-[#420909]"
+                  ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c] shadow-[0_0_10px_rgba(91,168,230,0.32)]"
+                  : "bg-gradient-to-b from-[#00D18D] to-[#11382E] shadow-[0_0_10px_rgba(0,209,141,0.32)]"
+                : "bg-gradient-to-b from-[#c93232] to-[#420909] shadow-[0_0_10px_rgba(201,50,50,0.30)]"
             )}
           />
 
           <div className="relative z-10 ml-2">
             <div className="ml-2">
-              {/* Top meta row */}
-              <div className="relative flex justify-between text-[11px] uppercase text-flash/70">
-                <span className="relative z-20 flex items-center gap-2">
-                  <span>{queueLabel}</span>
+              {/* Top meta row — typographic W/L instead of a boxed chip.
+                  VICTORY / DEFEAT reads as a label, not a pill, and feels
+                  more like a HUD readout. */}
+              <div className="relative flex justify-between items-center pb-2 mb-2.5 border-b border-flash/[0.06]">
+                <span className="relative z-20 flex items-baseline gap-2">
+                  <span className="text-[10.5px] font-jetbrains tracking-[0.22em] uppercase text-flash/40">
+                    {queueLabel}
+                  </span>
+                  <span className="text-flash/30 text-[8px] leading-none">
+                    ◆
+                  </span>
                   <span
                     className={cn(
-                      "px-0.5 py-[1px] rounded-sm text-[11px] font-medium border border-transparent",
+                      "font-chakrapetch font-bold tracking-[0.22em] uppercase text-[10.5px] leading-none",
                       isRemake
-                        ? "text-[#f5a623]"
+                        ? "text-[#f5a623]/85"
                         : win
                         ? blueWinTint
-                          ? "text-[#5BA8E6]"
-                          : "text-[#00D992]"
-                        : "text-[#d63336]"
+                          ? "text-[#5BA8E6]/85"
+                          : "text-[#00D992]/85"
+                        : "text-[#d63336]/85"
                     )}
+                    style={{
+                      textShadow: isRemake
+                        ? "0 0 5px rgba(245,166,35,0.18)"
+                        : win
+                        ? blueWinTint
+                          ? "0 0 5px rgba(91,168,230,0.18)"
+                          : "0 0 5px rgba(0,217,146,0.20)"
+                        : "0 0 5px rgba(214,51,54,0.18)",
+                    }}
                   >
-                    {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
+                    {isRemake ? "REMAKE" : win ? "VICTORY" : "DEFEAT"}
                   </span>
+
+                  {/* LP delta — inline text after the result. Renders only
+                      when we have rank-snapshot data for this match. */}
+                  {(() => {
+                    const hasDelta =
+                      typeof lpDelta === "number" && lpDelta !== 0;
+                    const hasRankChange = rankChange != null;
+                    if (!hasDelta && !hasRankChange) return null;
+                    const positive =
+                      rankChange === "PROMOTION" ||
+                      (rankChange == null && hasDelta && lpDelta! > 0);
+                    const accentText = positive
+                      ? "text-[#00D992]/85"
+                      : "text-[#d63336]/85";
+                    const accentGlow = positive
+                      ? "0 0 5px rgba(0,217,146,0.20)"
+                      : "0 0 5px rgba(214,51,54,0.18)";
+                    const rankShort = formatRankShort(
+                      rankAfter?.tier,
+                      rankAfter?.division
+                    );
+                    return (
+                      <>
+                        <span className="text-flash/30 text-[8px] leading-none">
+                          ◆
+                        </span>
+                        <span
+                          className={cn(
+                            "font-chakrapetch font-bold tracking-[0.18em] uppercase text-[10.5px] leading-none tabular-nums",
+                            accentText
+                          )}
+                          style={{ textShadow: accentGlow }}
+                        >
+                          {hasDelta && (
+                            <>
+                              {lpDelta! > 0 ? "+" : ""}
+                              {lpDelta}{" "}
+                              <span className="opacity-65">LP</span>
+                            </>
+                          )}
+                          {hasRankChange && rankShort && (
+                            <span
+                              className={cn(
+                                "ml-1.5 opacity-90",
+                                hasDelta && "text-[9.5px]"
+                              )}
+                            >
+                              {positive ? "▲" : "▼"} {rankShort}
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </span>
 
-                <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
+                <span className="absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider text-[11px]">
                   {minutes}:{seconds}
                 </span>
 
-                <span className="relative z-20">
+                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px]">
                   {timeAgo(gameCreationMs)}
                 </span>
               </div>
@@ -374,32 +434,32 @@ export function MatchCard({ data }: { data: MatchCardData }) {
               {/* Main row: champion + runes + KDA + items */}
               <div className="relative flex justify-between">
                 <div className="relative z-40 flex justify-between w-full">
-                  <div className="mt-3">
-                    <div className="flex space-x-1.5 relative">
-                      <div className="relative w-12 h-12">
+                  <div>
+                    <div className="flex items-start gap-2 relative">
+                      <div className="relative w-[54px] h-[54px] shrink-0">
                         <img
                           src={champIcon}
                           alt={championName}
-                          className="w-12 h-12 rounded-md"
+                          className="w-[54px] h-[54px] rounded-md shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
                         />
                         {championLevel != null && (
-                          <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
+                          <div className="absolute -bottom-1 -right-1 bg-black/85 text-flash text-[10px] px-1.5 py-0.5 rounded-sm shadow font-chakrapetch font-bold tabular-nums leading-none">
                             {championLevel}
                           </div>
                         )}
                       </div>
 
-                      {/* Runes */}
-                      <div className="grid grid-rows-2 gap-0.5">
+                      {/* Runes — keystone + secondary stacked */}
+                      <div className="grid grid-rows-2 gap-1 shrink-0">
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                              <div className="w-[26px] h-[26px] rounded-full bg-black/65 flex items-center justify-center ring-1 ring-flash/10">
                                 {keystoneSrc && (
                                   <img
                                     src={keystoneSrc}
                                     alt={keystoneName ?? "Keystone"}
-                                    className="w-5 h-5 rounded-full"
+                                    className="w-[22px] h-[22px] rounded-full"
                                   />
                                 )}
                               </div>
@@ -415,12 +475,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                              <div className="w-[26px] h-[26px] rounded-full bg-black/65 flex items-center justify-center ring-1 ring-flash/10">
                                 {subStyleSrc && (
                                   <img
                                     src={subStyleSrc}
                                     alt={subStyleName ?? "Secondary"}
-                                    className="w-5 h-5 rounded-full opacity-70"
+                                    className="w-[20px] h-[20px] rounded-full opacity-70"
                                   />
                                 )}
                               </div>
@@ -435,12 +495,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                       </div>
 
                       {/* Items */}
-                      <div className="flex ml-1">
-                        <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
+                      <div className="flex ml-1.5">
+                        <div className="grid grid-cols-3 grid-rows-2 gap-1">
                           {mainItems.map((itemId, idx) => (
                             <div
                               key={idx}
-                              className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
+                              className="w-[26px] h-[26px] rounded-[3px] bg-[#0a0a0a] border border-flash/[0.08]"
                             >
                               {typeof itemId === "number" && itemId > 0 && (
                                 <Link
@@ -459,8 +519,8 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                         </div>
 
                         {typeof trinket === "number" && trinket > 0 && (
-                          <div className="flex items-center justify-center ml-1">
-                            <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                          <div className="flex items-center justify-center ml-1.5">
+                            <div className="w-[26px] h-[26px] bg-[#0a0a0a] rounded-full ring-1 ring-flash/[0.08]">
                               <img
                                 src={`${cdnBaseUrl()}/img/item/${trinket}.png`}
                                 alt={`Trinket ${trinket}`}
@@ -473,11 +533,11 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     </div>
 
                     {/* KDA + LP detail box (right of KDA) */}
-                    <div className="flex flex-col mt-2">
-                      <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                    <div className="flex flex-col mt-2.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <div
                           className={cn(
-                            "flex items-center justify-center h-7 w-[88px] text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
+                            "flex items-center justify-center h-8 w-[96px] text-[15px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
                             kdaCls
                           )}
                           style={kdaStyle}
@@ -520,25 +580,25 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                             {assists}
                           </span>
                         </div>
-                        <span className="font-geist text-xs font-thin text-flash/40 ml-1">
-                          {typeof kdaValue === "number"
-                            ? kdaValue.toFixed(2)
-                            : kdaValue}{" "}
-                          KDA
-                        </span>
+                        <div className="flex flex-col leading-tight ml-1">
+                          <span className="font-chakrapetch font-medium tabular-nums text-flash/75 text-[13px]">
+                            {typeof kdaValue === "number"
+                              ? kdaValue.toFixed(2)
+                              : kdaValue}
+                          </span>
+                          <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                            KDA
+                          </span>
+                        </div>
 
-                        <LpDetailBox
-                          lpDelta={lpDelta ?? null}
-                          rankChange={rankChange ?? null}
-                          rankAfter={rankAfter ?? null}
-                        />
+                        <KpDetailBox kpPct={kpPct} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Scoreboard — right side, two team columns */}
+                  {/* Scoreboard — right side, two team columns. */}
                   {hasScoreboard && (
-                    <div className="hidden sm:grid grid-cols-2 gap-x-4 gap-y-0 mt-3 text-[10px] w-[44%] shrink-0 font-jetbrains">
+                    <div className="hidden sm:grid grid-cols-2 gap-x-5 gap-y-0 mt-1 text-[10px] w-[44%] shrink-0 font-jetbrains">
                       <ul className="space-y-0.5">
                         {team1.map((p) => (
                           <ScoreboardRow
@@ -684,7 +744,7 @@ function ScoreboardRow({
       <img
         src={champIcon}
         alt={p.championName ?? ""}
-        className="w-4 h-4 rounded-sm shrink-0"
+        className="w-[15px] h-[15px] rounded-[2px] shrink-0"
       />
       {isLobbyMate && !highlight && (
         <span
