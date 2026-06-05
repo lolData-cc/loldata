@@ -2449,18 +2449,18 @@ function LiveSessionCard({
         }}
       />
 
-      <div className="relative z-[2] p-4 flex items-stretch gap-4">
+      <div className="relative z-[2] p-3 flex items-stretch gap-3">
         {/* Champion portrait + lobby player avatar */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
-          <div className="relative w-16 h-16">
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <div className="relative w-[52px] h-[52px]">
             <img
               src={champIcon}
               alt={champName}
-              className="w-16 h-16 rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
+              className="w-[52px] h-[52px] rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
             />
             {/* tiny lobby player avatar over the champ icon */}
             <div
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
+              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
               style={{ boxShadow: `0 0 6px color-mix(in srgb, ${accent} 50%, transparent)` }}
             >
               {profileIconUrl(s.iconId) ? (
@@ -2480,7 +2480,7 @@ function LiveSessionCard({
             </div>
           </div>
           <span
-            className="text-[10px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
+            className="text-[9.5px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
             style={{ color: accent }}
           >
             {s.displayName}
@@ -2488,7 +2488,7 @@ function LiveSessionCard({
         </div>
 
         {/* Middle: queue + champion name + elapsed timer */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
               <span className="relative inline-flex">
@@ -2512,24 +2512,24 @@ function LiveSessionCard({
             </span>
           </div>
 
-          <div className="flex items-baseline gap-2 mt-1.5">
+          <div className="flex items-baseline gap-2 mt-0.5">
             <Link
               to={summonerHref}
-              className="text-[20px] font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker"
+              className="text-[16px] font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker leading-tight"
             >
               {s.riotName}
-              <span className="text-flash/35 text-[14px] font-medium ml-0.5">
+              <span className="text-flash/35 text-[12px] font-medium ml-0.5">
                 #{s.riotTag}
               </span>
             </Link>
-            <span className="text-flash/35 text-[12px]">on</span>
-            <span className="text-[16px] font-chakrapetch font-bold text-jade/85 truncate">
+            <span className="text-flash/35 text-[11px]">on</span>
+            <span className="text-[14px] font-chakrapetch font-bold text-jade/85 truncate leading-tight">
               {champName}
             </span>
           </div>
 
           {/* Teams scoreboard — uses full remaining width now */}
-          <div className="mt-2 grid grid-cols-2 gap-x-5 text-[10.5px] font-jetbrains">
+          <div className="mt-1.5 grid grid-cols-2 gap-x-5 text-[10.5px] font-jetbrains">
             <TeamRoster
               participants={blue}
               accent="#5fa8ff"
@@ -2549,7 +2549,7 @@ function LiveSessionCard({
           </div>
 
           {/* Bans + spectate row */}
-          <div className="mt-3 flex items-center gap-4">
+          <div className="mt-2 flex items-center gap-4">
             <BansStrip
               bans={s.bansBlue}
               accent="#5fa8ff"
@@ -2597,7 +2597,7 @@ function TeamRoster({
     <div className={cn("flex flex-col", align === "right" && "items-end")}>
       <div
         className={cn(
-          "flex items-center gap-1.5 mb-1 text-[8.5px] font-jetbrains tracking-[0.28em] uppercase font-bold",
+          "flex items-center gap-1.5 mb-0.5 text-[8px] font-jetbrains tracking-[0.28em] uppercase font-bold",
           align === "right" && "flex-row-reverse"
         )}
         style={{ color: accent }}
@@ -2606,7 +2606,9 @@ function TeamRoster({
         <span className="opacity-30">·</span>
         <span className="opacity-50">{participants.length}</span>
       </div>
-      <ul className={cn("space-y-1", align === "right" && "text-right")}>
+      <ul
+        className={cn("space-y-[2px] text-[10px]", align === "right" && "text-right")}
+      >
         {participants.map((p) => {
           const champName =
             championIdToName[String(p.championId)] ?? String(p.championId);
@@ -2624,7 +2626,7 @@ function TeamRoster({
             <li
               key={p.puuid}
               className={cn(
-                "flex items-center gap-1.5",
+                "flex items-center gap-1",
                 align === "right" && "flex-row-reverse"
               )}
             >
@@ -2633,7 +2635,7 @@ function TeamRoster({
                 src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champName)}.png`}
                 alt={champName}
                 title={champName}
-                className="w-[18px] h-[18px] rounded-[2px] shrink-0"
+                className="w-[15px] h-[15px] rounded-[2px] shrink-0"
                 style={{
                   border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`,
                 }}
@@ -2643,12 +2645,12 @@ function TeamRoster({
                 <img
                   src={summonerSpellUrl(p.spell1Id)}
                   alt=""
-                  className="w-[8.5px] h-[8.5px] rounded-[1.5px]"
+                  className="w-[7px] h-[7px] rounded-[1.5px]"
                 />
                 <img
                   src={summonerSpellUrl(p.spell2Id)}
                   alt=""
-                  className="w-[8.5px] h-[8.5px] rounded-[1.5px]"
+                  className="w-[7px] h-[7px] rounded-[1.5px]"
                 />
               </div>
               {/* Keystone */}
@@ -2656,7 +2658,7 @@ function TeamRoster({
                 <img
                   src={keystoneSrc}
                   alt=""
-                  className="w-[14px] h-[14px] rounded-full bg-black/50 shrink-0"
+                  className="w-[12px] h-[12px] rounded-full bg-black/50 shrink-0"
                 />
               )}
               {(isMate || isActive) && (
