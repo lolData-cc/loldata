@@ -47,6 +47,7 @@ import TotalMasteryPage from "./pages/totalmastery";
 import PrivacyPolicyPage from "@/pages/privacypolicypage";
 import TermsOfServicePage from "@/pages/termsofservicepage";
 import StreamersPage from "@/pages/streamerspage";
+import ScoutPage from "@/pages/scoutpage";
 import ScoutCreateLobbyPage from "@/pages/scoutcreatelobbypage";
 import ScoutLobbyPage from "@/pages/scoutlobbypage";
 //
@@ -224,6 +225,7 @@ function App() {
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
               <Route path="/terms" element={<RootLayout><TermsOfServicePage /></RootLayout>} />
               <Route path="/streamers" element={<RootLayout><StreamersPage /></RootLayout>} />
+              <Route path="/scout" element={<RootLayout><ScoutPage /></RootLayout>} />
               <Route
                 path="/scout/new"
                 element={
