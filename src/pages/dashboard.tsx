@@ -33,6 +33,7 @@ import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
 import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreference";
 import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ChangePassword } from "@/components/changepassword";
+import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
 import { cdnBaseUrl } from "@/config";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
   const displayName = nametag ?? email
 
-  const validTabs = ["profile", "documentation", "billing", "preferences", "proApplications", "streamerApplications"];
+  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "proApplications", "streamerApplications"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
   const handleLogout = async () => {
@@ -182,6 +183,13 @@ export default function DashboardPage() {
                     className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PREFERENCES
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="scout"
+                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                  >
+                    SCOUT
                   </TabsTrigger>
 
                   {/* ✅ ADMIN ONLY tabs - tra tabs e logout */}
@@ -345,6 +353,22 @@ export default function DashboardPage() {
 
                 </div>
 
+              </TabsContent>
+
+              {/* SCOUT TAB */}
+              <TabsContent value="scout" className="outline-none">
+                <div className="flex flex-col gap-6 p-4 px-6">
+                  <div>
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-1">
+                      :: YOUR SCOUT LOBBIES ::
+                    </p>
+                    <p className="text-[11px] font-mono text-flash/30 leading-relaxed mb-3">
+                      Shareable feeds tracking up to 20 players each.
+                      Lobby quota depends on your plan.
+                    </p>
+                    <ScoutLobbiesManager />
+                  </div>
+                </div>
               </TabsContent>
 
               {/* DOCUMENTATION TAB */}
