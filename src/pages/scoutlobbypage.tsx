@@ -24,7 +24,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName } from "@/config";
+import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
+import { getKeystoneIcon } from "@/constants/runes";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MatchCard, type MatchCardData } from "@/components/matchcard";
 import { showCyberToast } from "@/lib/toast-utils";
@@ -37,7 +38,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, X, Check, Pencil, Trash2 } from "lucide-react";
+import { Plus, X, Check, Pencil, Trash2, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/authcontext";
 
@@ -69,6 +70,7 @@ type Lobby = {
   lastActiveAt: string;
   lastRefreshAt: string | null;
   ownerUserId: string | null;
+  heroChampion: string | null;
   players: LobbyPlayer[];
 };
 
@@ -212,7 +214,7 @@ const QUEUE_LABELS: Record<number, string> = {
   490: "QUICKPLAY",
 };
 
-const HERO_CHAMPION = "Yunara";
+const DEFAULT_HERO_CHAMPION = "Yunara";
 
 /* ─── shared styles ──────────────────────────────────────────────────── */
 const glassDark = cn(
@@ -245,7 +247,8 @@ function profileIconUrl(iconId: number | null) {
 
 /* ─── hero (Yunara splash + lobby title) ────────────────────────────── */
 function LobbyHero({ lobby }: { lobby: Lobby }) {
-  const splash = cdnSplashUrl(normalizeChampName(HERO_CHAMPION));
+  const heroName = lobby.heroChampion || DEFAULT_HERO_CHAMPION;
+  const splash = cdnSplashUrl(normalizeChampName(heroName));
 
   return (
     <div
@@ -256,7 +259,7 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
         src={splash}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center 10%" }}
+        style={{ objectPosition: "center 30%" }}
         loading="eager"
         decoding="async"
         draggable={false}
@@ -421,6 +424,79 @@ type SectionMember = {
   account: LobbyAccount | null;
 };
 
+/* ─── compact session stat pill ────────────────────────────────────────
+ * Used in the group card header. Every pill is the same w×h so the row
+ * stays as a clean grid. Optional sub text renders beneath the value
+ * (e.g. K/D/A split under the KDA ratio).
+ */
+function SessionStatChip({
+  label,
+  value,
+  sub,
+  tone,
+  title,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone: "good" | "bad" | "neutral";
+  title?: string;
+}) {
+  const palette =
+    tone === "good"
+      ? {
+          ring: "ring-jade/30",
+          bg: "bg-jade/[0.06]",
+          value: "text-jade",
+          label: "text-jade/55",
+          glow: "shadow-[0_0_10px_rgba(0,217,146,0.10)]",
+        }
+      : tone === "bad"
+        ? {
+            ring: "ring-[#d63336]/30",
+            bg: "bg-[#d63336]/[0.06]",
+            value: "text-[#d63336]",
+            label: "text-[#d63336]/60",
+            glow: "shadow-[0_0_10px_rgba(214,51,54,0.10)]",
+          }
+        : {
+            // Glass-dark neutral — sits in the card without shouting.
+            ring: "ring-flash/[0.08]",
+            bg: "bg-black/25",
+            value: "text-flash/80",
+            label: "text-flash/35",
+            glow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
+          };
+  return (
+    <div
+      title={title}
+      className={cn(
+        "flex flex-col items-center justify-center gap-px w-[78px] h-[34px] rounded-[3px] ring-1 tabular-nums",
+        palette.ring,
+        palette.bg,
+        palette.glow
+      )}
+    >
+      <span
+        className={cn(
+          "text-[12px] font-chakrapetch font-bold tracking-wide leading-none",
+          palette.value
+        )}
+      >
+        {value}
+      </span>
+      <span
+        className={cn(
+          "text-[7.5px] font-jetbrains tracking-[0.22em] uppercase leading-none",
+          palette.label
+        )}
+      >
+        {sub ?? label}
+      </span>
+    </div>
+  );
+}
+
 /* ─── player/squad section card ─────────────────────────────────────── */
 // Renders matches owned by 1+ (player, account) combos. When 2+ members
 // played the EXACT same match set in a day, they're merged into a single
@@ -477,6 +553,48 @@ function PlayerSectionCard({
     }
   }, [uniquePlayers, activePlayerId]);
 
+  // Session aggregates for the header chip row. Only the active player's
+  // matches contribute — switching squad members updates the numbers.
+  // Backend now emits a real ladderScore-based lpDelta even for promo /
+  // demote games, so the total here is exact.
+  const sessionStats = useMemo(() => {
+    let kills = 0;
+    let deaths = 0;
+    let assists = 0;
+    let lpTotal = 0;
+    let lpCounted = 0;
+    for (const it of matches) {
+      const matchItems = itemsByMatch.get(it.matchId) ?? [it];
+      const myItem =
+        matchItems.find((x) => x.ownerPlayerId === activePlayerId) ?? it;
+      const p = myItem.participant;
+      kills += p.kills;
+      deaths += p.deaths;
+      assists += p.assists;
+      if (typeof p.lpDelta === "number") {
+        lpTotal += p.lpDelta;
+        lpCounted++;
+      }
+    }
+    const kdaRatio =
+      deaths === 0
+        ? kills + assists > 0
+          ? Infinity
+          : 0
+        : (kills + assists) / deaths;
+    const total = sectionWins + sectionLosses;
+    const winrate = total > 0 ? Math.round((sectionWins / total) * 100) : 0;
+    return {
+      kills,
+      deaths,
+      assists,
+      kdaRatio,
+      lpTotal,
+      lpCounted,
+      winrate,
+    };
+  }, [matches, itemsByMatch, activePlayerId, sectionWins, sectionLosses]);
+
   return (
     <div className="relative overflow-hidden rounded-md bg-black/15 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div
@@ -503,8 +621,8 @@ function PlayerSectionCard({
               const NameSpan = (
                 <span
                   className={cn(
-                    "text-[15px] font-geist font-medium leading-none truncate",
-                    isActive ? "text-jade" : "text-flash/55"
+                    "text-[16px] font-chakrapetch font-semibold leading-none truncate tracking-wide",
+                    isActive ? "text-jade" : "text-flash/80"
                   )}
                   style={
                     isActive
@@ -568,9 +686,57 @@ function PlayerSectionCard({
             ))}
           </div>
         </div>
-        <span className="ml-auto text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/35">
-          {matches.length} {matches.length === 1 ? "match" : "matches"}
-        </span>
+        {/* Session stats — compact stat pills for the active player */}
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <SessionStatChip
+            label="W/L"
+            value={`${sectionWins}-${sectionLosses}`}
+            tone="neutral"
+          />
+          <SessionStatChip
+            label="WR"
+            value={`${sessionStats.winrate}%`}
+            tone={
+              sessionStats.winrate >= 60
+                ? "good"
+                : sessionStats.winrate >= 50
+                  ? "neutral"
+                  : "bad"
+            }
+          />
+          <SessionStatChip
+            label="LP"
+            value={
+              sessionStats.lpCounted === 0
+                ? "—"
+                : `${sessionStats.lpTotal > 0 ? "+" : ""}${sessionStats.lpTotal}`
+            }
+            tone={
+              sessionStats.lpTotal > 0
+                ? "good"
+                : sessionStats.lpTotal < 0
+                  ? "bad"
+                  : "neutral"
+            }
+          />
+          <SessionStatChip
+            label="KDA"
+            value={
+              sessionStats.kdaRatio === Infinity
+                ? "PERF"
+                : sessionStats.kdaRatio.toFixed(2)
+            }
+            tone={
+              sessionStats.kdaRatio === Infinity ||
+              sessionStats.kdaRatio >= 3
+                ? "good"
+                : sessionStats.kdaRatio >= 2
+                  ? "neutral"
+                  : "bad"
+            }
+            sub={`${sessionStats.kills}/${sessionStats.deaths}/${sessionStats.assists}`}
+          />
+        </div>
       </div>
 
       {/* Matches list */}
@@ -791,26 +957,26 @@ function PlayerFilterBar({
   const totalMatches = Array.from(countByPlayer.values()).reduce((n, v) => n + v, 0);
 
   return (
-    <div className={cn(glassDark, "p-2")}>
+    <div className={cn(glassDark, "px-3 h-12 flex items-center")}>
       <GlowBackdrop subtle />
-      <div className="relative z-[1] flex items-start gap-2">
-        {/* Chips — wrap onto multiple rows when there are 6+ players so the
-            tail of the list isn't hidden behind a horizontal scroll. */}
-        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-          <FilterChip
+      <div className="relative z-[1] flex items-center gap-3 w-full h-full">
+        {/* Tab-style filter row: name + small count, underline accent on
+            active. Horizontal scroll on overflow (scrollbar hidden) so
+            the bar height stays fixed. */}
+        <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide flex-1 min-w-0 h-full">
+          <PlayerFilterTab
             active={selectedPlayerId === null}
             accent={JADE}
             onClick={() => onSelect(null)}
-            icon={<Users className="w-3 h-3" />}
+            icon={<Users className="w-3.5 h-3.5" />}
             label="All"
             count={totalMatches}
           />
-
           {players.map((p) => {
             const accent = p.color || JADE;
             const count = countByPlayer.get(p.id) ?? 0;
             return (
-              <FilterChip
+              <PlayerFilterTab
                 key={p.id}
                 active={selectedPlayerId === p.id}
                 accent={accent}
@@ -822,15 +988,17 @@ function PlayerFilterBar({
                     <img
                       src={profileIconUrl(p.iconId)!}
                       alt=""
-                      className="w-5 h-5 rounded-full"
-                      style={{ border: `1px solid color-mix(in srgb, ${accent} 50%, transparent)` }}
+                      className="w-[18px] h-[18px] rounded-full"
+                      style={{
+                        border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
+                      }}
                     />
                   ) : (
                     <span
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
+                      className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
                       style={{
                         background: "rgba(0,0,0,0.4)",
-                        border: `1px solid color-mix(in srgb, ${accent} 50%, transparent)`,
+                        border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
                         color: accent,
                       }}
                     >
@@ -848,7 +1016,7 @@ function PlayerFilterBar({
         {/* Divider */}
         <div className="h-6 w-[1px] bg-flash/10 shrink-0" />
 
-        {/* Main only checkbox */}
+        {/* Main only — compact toggle */}
         <button
           type="button"
           role="checkbox"
@@ -856,11 +1024,10 @@ function PlayerFilterBar({
           onClick={onToggleMainOnly}
           title="Show only matches played on each player's primary account"
           className={cn(
-            "shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-[3px] cursor-clicker",
-            "border transition-all duration-200 font-jetbrains tracking-[0.15em] uppercase text-[11px] font-medium",
+            "shrink-0 inline-flex items-center gap-2 px-2 py-1 rounded-[3px] cursor-clicker transition-all duration-200 font-jetbrains tracking-[0.18em] uppercase text-[10px] font-medium",
             mainOnly
-              ? "bg-jade/[0.10] text-jade border-jade/45 shadow-[0_0_10px_rgba(0,217,146,0.2)]"
-              : "bg-transparent text-flash/55 border-flash/15 hover:bg-flash/[0.04] hover:text-flash/80"
+              ? "text-jade"
+              : "text-flash/45 hover:text-flash/75"
           )}
         >
           <span
@@ -880,7 +1047,10 @@ function PlayerFilterBar({
   );
 }
 
-function FilterChip({
+/* Tab-style filter item — no surrounding chip, just icon + label + tiny
+ * count. Active state is signalled by an accent underline + jade text.
+ * Quieter and more "navigation-like" than the old boxed chip approach. */
+function PlayerFilterTab({
   active,
   accent,
   onClick,
@@ -899,32 +1069,42 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex items-center gap-2 px-2.5 py-1.5 rounded-[3px] cursor-clicker shrink-0",
-        "border transition-all duration-200 font-jetbrains tracking-[0.15em] uppercase text-[11px] font-medium",
-        active
-          ? "bg-jade/[0.12] text-jade"
-          : "bg-transparent text-flash/55 hover:bg-flash/[0.05] hover:text-flash/80"
-      )}
-      style={{
-        borderColor: active
-          ? `color-mix(in srgb, ${accent} 55%, transparent)`
-          : "rgba(215,216,217,0.08)",
-        boxShadow: active
-          ? `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`
-          : undefined,
-      }}
+      className="group relative inline-flex items-center gap-2 shrink-0 cursor-clicker pb-1.5 -mb-1.5"
     >
       <span className="flex items-center justify-center">{icon}</span>
-      <span className="truncate max-w-[140px]">{label}</span>
       <span
         className={cn(
-          "text-[9px] font-jetbrains tabular-nums rounded-[2px] px-1.5 py-[1px]",
-          active ? "bg-jade/15 text-jade" : "bg-flash/[0.06] text-flash/40"
+          "text-[11px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-colors duration-150",
+          active
+            ? "text-flash/90"
+            : "text-flash/50 group-hover:text-flash/80"
         )}
+        style={active ? { color: accent } : undefined}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          "text-[9px] font-jetbrains tabular-nums tracking-wider transition-colors duration-150",
+          active ? "opacity-70" : "text-flash/30"
+        )}
+        style={active ? { color: accent } : undefined}
       >
         {count}
       </span>
+
+      {/* Active underline — glow + accent color */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute left-0 right-0 -bottom-0.5 h-[1.5px] rounded-full transition-all duration-200",
+          active ? "opacity-100" : "opacity-0"
+        )}
+        style={{
+          background: accent,
+          boxShadow: `0 0 8px color-mix(in srgb, ${accent} 60%, transparent)`,
+        }}
+      />
     </button>
   );
 }
@@ -1589,40 +1769,125 @@ function HistogramChart({
 
 /* ─── hourly heatmap (7×24 grid) ───────────────────────────────────── */
 function HourlyHeatmap({ matrix }: { matrix: number[][] }) {
-  const max = Math.max(1, ...matrix.flat());
   const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+  // Project the matrix down to two independent dimensions so we can render
+  // them as two compact bar rows that fill the available width — no
+  // horizontal scroll, every hour and weekday still visible.
+  const byHour = Array.from({ length: 24 }, (_, h) =>
+    matrix.reduce((s, row) => s + (row[h] ?? 0), 0)
+  );
+  const byDay = matrix.map((row) => row.reduce((s, v) => s + v, 0));
+
+  const maxH = Math.max(1, ...byHour);
+  const maxD = Math.max(1, ...byDay);
+  const totalGames = byHour.reduce((s, v) => s + v, 0);
+
+  if (totalGames === 0) {
+    return (
+      <div className="py-6 text-center text-flash/30 text-[11px] font-jetbrains tracking-[0.2em] uppercase">
+        No activity yet
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[600px]">
-        <div className="flex">
-          <div className="w-8" />
+    <div className="flex flex-col gap-4">
+      {/* HOURS — 24 thin bars with height proportional to intensity */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/40">
+            By hour
+          </span>
+          <span className="text-[8.5px] font-jetbrains tracking-wider text-flash/25 tabular-nums">
+            peak {String(byHour.indexOf(maxH)).padStart(2, "0")}:00
+          </span>
+        </div>
+        <div
+          className="grid items-end h-12 gap-[2px]"
+          style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
+        >
+          {byHour.map((v, h) => {
+            const intensity = v / maxH;
+            return (
+              <div
+                key={h}
+                title={`${String(h).padStart(2, "0")}:00 — ${v} games`}
+                className="rounded-[2px] transition-colors"
+                style={{
+                  height: `${Math.max(6, intensity * 100)}%`,
+                  background:
+                    v === 0
+                      ? "rgba(215,216,217,0.05)"
+                      : `rgba(0,217,146,${0.18 + intensity * 0.62})`,
+                  boxShadow:
+                    intensity > 0.55
+                      ? `0 0 6px rgba(0,217,146,${0.35 * intensity})`
+                      : undefined,
+                }}
+              />
+            );
+          })}
+        </div>
+        {/* Hour tick labels — every 3 hours */}
+        <div
+          className="grid mt-1 text-[7.5px] font-jetbrains tracking-wider text-flash/30 tabular-nums"
+          style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
+        >
           {Array.from({ length: 24 }).map((_, h) => (
-            <div key={h} className="flex-1 text-center text-[8px] font-jetbrains tracking-wider text-flash/30">
+            <span key={h} className="text-center">
               {h % 3 === 0 ? String(h).padStart(2, "0") : ""}
-            </div>
+            </span>
           ))}
         </div>
-        {matrix.map((row, d) => (
-          <div key={d} className="flex items-center mt-0.5">
-            <div className="w-8 text-[9px] font-jetbrains tracking-[0.15em] text-flash/45">{DAYS[d]}</div>
-            {row.map((v, h) => {
-              const intensity = v / max;
-              return (
-                <div
-                  key={h}
-                  title={`${DAYS[d]} ${h}:00 — ${v} games`}
-                  className="flex-1 h-5 mx-[1px] rounded-[2px] transition-colors"
-                  style={{
-                    background: v === 0
-                      ? "rgba(215,216,217,0.04)"
-                      : `rgba(0,217,146,${0.10 + intensity * 0.7})`,
-                    boxShadow: intensity > 0.6 ? `0 0 6px rgba(0,217,146,${0.3 * intensity})` : undefined,
-                  }}
-                />
-              );
-            })}
-          </div>
-        ))}
+      </div>
+
+      {/* WEEKDAY — 7 fatter bars */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/40">
+            By weekday
+          </span>
+          <span className="text-[8.5px] font-jetbrains tracking-wider text-flash/25">
+            peak {DAYS[byDay.indexOf(maxD)]}
+          </span>
+        </div>
+        <div
+          className="grid items-end h-10 gap-1"
+          style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}
+        >
+          {byDay.map((v, d) => {
+            const intensity = v / maxD;
+            return (
+              <div
+                key={d}
+                title={`${DAYS[d]} — ${v} games`}
+                className="rounded-[3px] transition-colors"
+                style={{
+                  height: `${Math.max(8, intensity * 100)}%`,
+                  background:
+                    v === 0
+                      ? "rgba(215,216,217,0.05)"
+                      : `rgba(0,217,146,${0.18 + intensity * 0.62})`,
+                  boxShadow:
+                    intensity > 0.55
+                      ? `0 0 6px rgba(0,217,146,${0.35 * intensity})`
+                      : undefined,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div
+          className="grid mt-1 text-[8px] font-jetbrains tracking-[0.15em] text-flash/40"
+          style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}
+        >
+          {DAYS.map((d) => (
+            <span key={d} className="text-center">
+              {d.slice(0, 3)}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1919,6 +2184,562 @@ function ladderScoreFE(rank: CurrentRank | null): number {
     ? DIVISION_INDEX[rank.rankDivision.toUpperCase()] ?? 0
     : 0;
   return t * 1000 + d * 100 + rank.lp;
+}
+
+/* ─── live tab ─────────────────────────────────────────────────────────
+ * Polls /api/scout/live/:slug every 30s, renders a card per lobby
+ * player currently in game. Card shows the champion they picked, the
+ * queue + game length (auto-ticks every second), and the team rosters
+ * with lobby-mate dots highlighted.
+ */
+
+type LiveParticipantSlimFE = {
+  puuid: string;
+  championId: number;
+  summonerName: string | null;
+  teamId: number;
+  isLobbyMember: boolean;
+  lobbyPlayerId: string | null;
+  spell1Id: number;
+  spell2Id: number;
+  keystoneId: number | null;
+  primaryStyleId: number | null;
+  subStyleId: number | null;
+};
+type LiveSessionFE = {
+  playerId: string;
+  displayName: string;
+  color: string | null;
+  iconId: number | null;
+  accountPuuid: string;
+  region: string;
+  riotName: string;
+  riotTag: string;
+  gameId: number;
+  gameQueueConfigId: number;
+  gameMode: string;
+  gameType: string;
+  gameStartTime: number;
+  gameLength: number;
+  mapId: number;
+  championId: number;
+  participants: LiveParticipantSlimFE[];
+  bansBlue: number[];
+  bansRed: number[];
+};
+
+const LIVE_QUEUE_LABELS: Record<number, string> = {
+  400: "NORMAL DRAFT",
+  420: "RANKED SOLO/DUO",
+  430: "NORMAL BLIND",
+  440: "RANKED FLEX",
+  450: "ARAM",
+  490: "QUICKPLAY",
+  700: "CLASH",
+  720: "CLASH ARAM",
+  830: "INTRO BOT",
+  840: "BEGINNER BOT",
+  850: "INTERMEDIATE BOT",
+  870: "CO-OP VS AI",
+  1700: "ARENA",
+  1900: "URF",
+};
+
+function LiveTab({ slug }: { slug: string }) {
+  const [sessions, setSessions] = useState<LiveSessionFE[]>([]);
+  const [polledAt, setPolledAt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [championIdToName, setChampionIdToName] = useState<
+    Record<string, string>
+  >({});
+
+  // ddragon champion key → id map (e.g. "266" → "Aatrox")
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const c of Object.values<any>(data?.data ?? {})) map[c.key] = c.id;
+        setChampionIdToName(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Poll live status while tab is open
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/scout/live/${slug}`, {
+          cache: "no-store",
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(`HTTP ${res.status}`);
+          return;
+        }
+        const data = await res.json();
+        setSessions(data.sessions ?? []);
+        setPolledAt(data.polledAt ?? Date.now());
+        setError(null);
+      } catch (e) {
+        if (!cancelled) setError("Network error");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    const id = window.setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [slug]);
+
+  // Tick every second so the game timer animates between polls
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  if (loading && sessions.length === 0) {
+    return (
+      <div className={cn(glassDark, "p-10 text-center")}>
+        <GlowBackdrop subtle />
+        <div className="relative z-10 flex items-center justify-center gap-3 text-flash/40 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-jade" />
+          Probing Spectator API…
+        </div>
+      </div>
+    );
+  }
+
+  if (error && sessions.length === 0) {
+    return (
+      <div className={cn(glassDark, "p-10 text-center")}>
+        <GlowBackdrop subtle />
+        <div className="relative z-10 text-red-400/70 text-sm font-mono">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className={cn(glassDark, "p-12 text-center")}>
+        <GlowBackdrop subtle />
+        <div className="relative z-10 flex flex-col items-center gap-3 text-flash/40">
+          <div className="relative">
+            <span
+              className="absolute inset-0 rounded-full bg-jade/20 animate-ping"
+              style={{ animationDuration: "2.4s" }}
+            />
+            <span className="relative inline-flex w-3 h-3 rounded-full bg-jade/60" />
+          </div>
+          <p className="text-[13px] font-jetbrains tracking-[0.18em] uppercase text-flash/50">
+            No one is in game right now
+          </p>
+          <p className="text-[10px] font-jetbrains tracking-wider text-flash/30">
+            We poll every 30 seconds — refresh manually anytime
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Header strip */}
+      <div className="flex items-center gap-3 px-1">
+        <span className="relative inline-flex">
+          <span
+            className="absolute inset-0 rounded-full bg-jade/45 animate-ping"
+            style={{ animationDuration: "1.8s" }}
+          />
+          <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-jade" />
+        </span>
+        <h2 className="text-[12px] font-jetbrains tracking-[0.3em] uppercase text-jade font-bold">
+          Live now
+        </h2>
+        <span className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/40">
+          {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+        </span>
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-jade/30 via-flash/10 to-transparent" />
+        {polledAt > 0 && (
+          <span className="text-[9px] font-jetbrains tracking-wider text-flash/30 tabular-nums">
+            POLLED {Math.max(0, Math.floor((now - polledAt) / 1000))}s AGO
+          </span>
+        )}
+      </div>
+
+      {sessions.map((s) => (
+        <LiveSessionCard
+          key={`${s.gameId}:${s.playerId}`}
+          session={s}
+          championIdToName={championIdToName}
+          now={now}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LiveSessionCard({
+  session: s,
+  championIdToName,
+  now,
+}: {
+  session: LiveSessionFE;
+  championIdToName: Record<string, string>;
+  now: number;
+}) {
+  const champName =
+    championIdToName[String(s.championId)] ?? String(s.championId);
+  const champIcon = `${cdnBaseUrl()}/img/champion/${normalizeChampName(champName)}.png`;
+  const splash = cdnSplashUrl(normalizeChampName(champName));
+  const queueLabel =
+    LIVE_QUEUE_LABELS[s.gameQueueConfigId] ?? `QUEUE ${s.gameQueueConfigId}`;
+
+  // gameStartTime is 0 until loading screen ends. While 0, fall back to
+  // the snapshot gameLength.
+  const elapsedSec =
+    s.gameStartTime > 0
+      ? Math.max(0, Math.floor((now - s.gameStartTime) / 1000))
+      : s.gameLength;
+  const mins = Math.floor(elapsedSec / 60);
+  const secs = (elapsedSec % 60).toString().padStart(2, "0");
+
+  const blue = s.participants.filter((p) => p.teamId === 100);
+  const red = s.participants.filter((p) => p.teamId === 200);
+
+  const summonerHref = `/summoners/${s.region.toLowerCase()}/${encodeURIComponent(
+    s.riotName
+  )}-${encodeURIComponent(s.riotTag)}`;
+  const liveGameHref = `${summonerHref}/livegame`;
+
+  const accent = s.color || JADE;
+
+  return (
+    <div className="relative overflow-hidden rounded-md bg-black/30 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]">
+      {/* Splash background, very subdued */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={splash}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-25"
+          style={{ objectPosition: "center 35%" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-liquirice/95 via-liquirice/80 to-liquirice/65" />
+      </div>
+
+      {/* Left jade accent bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
+        style={{
+          background: `color-mix(in srgb, ${accent} 75%, transparent)`,
+          boxShadow: `0 0 10px color-mix(in srgb, ${accent} 40%, transparent)`,
+        }}
+      />
+
+      <div className="relative z-[2] p-4 flex items-stretch gap-4">
+        {/* Champion portrait + lobby player avatar */}
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div className="relative w-16 h-16">
+            <img
+              src={champIcon}
+              alt={champName}
+              className="w-16 h-16 rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
+            />
+            {/* tiny lobby player avatar over the champ icon */}
+            <div
+              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
+              style={{ boxShadow: `0 0 6px color-mix(in srgb, ${accent} 50%, transparent)` }}
+            >
+              {profileIconUrl(s.iconId) ? (
+                <img
+                  src={profileIconUrl(s.iconId)!}
+                  alt=""
+                  className="w-full h-full"
+                />
+              ) : (
+                <span
+                  className="w-full h-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
+                  style={{ color: accent, background: "rgba(0,0,0,0.6)" }}
+                >
+                  {s.displayName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+          <span
+            className="text-[10px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
+            style={{ color: accent }}
+          >
+            {s.displayName}
+          </span>
+        </div>
+
+        {/* Middle: queue + champion name + elapsed timer */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="relative inline-flex">
+                <span
+                  className="absolute inset-0 rounded-full bg-jade/40 animate-ping"
+                  style={{ animationDuration: "1.5s" }}
+                />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-jade" />
+              </span>
+              <span className="text-[10px] font-jetbrains tracking-[0.25em] uppercase text-jade/85 font-bold">
+                LIVE
+              </span>
+            </span>
+            <span className="text-flash/15 text-[10px]">·</span>
+            <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/55">
+              {queueLabel}
+            </span>
+            <span className="text-flash/15 text-[10px]">·</span>
+            <span className="text-[10px] font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider">
+              {mins}:{secs}
+            </span>
+          </div>
+
+          <div className="flex items-baseline gap-2 mt-1.5">
+            <Link
+              to={summonerHref}
+              className="text-[20px] font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker"
+            >
+              {s.riotName}
+              <span className="text-flash/35 text-[14px] font-medium ml-0.5">
+                #{s.riotTag}
+              </span>
+            </Link>
+            <span className="text-flash/35 text-[12px]">on</span>
+            <span className="text-[16px] font-chakrapetch font-bold text-jade/85 truncate">
+              {champName}
+            </span>
+          </div>
+
+          {/* Teams scoreboard — uses full remaining width now */}
+          <div className="mt-2 grid grid-cols-2 gap-x-5 text-[10.5px] font-jetbrains">
+            <TeamRoster
+              participants={blue}
+              accent="#5fa8ff"
+              teamLabel="BLUE"
+              championIdToName={championIdToName}
+              activePuuid={s.accountPuuid}
+              align="left"
+            />
+            <TeamRoster
+              participants={red}
+              accent="#ef4444"
+              teamLabel="RED"
+              championIdToName={championIdToName}
+              activePuuid={s.accountPuuid}
+              align="right"
+            />
+          </div>
+
+          {/* Bans + spectate row */}
+          <div className="mt-3 flex items-center gap-4">
+            <BansStrip
+              bans={s.bansBlue}
+              accent="#5fa8ff"
+              championIdToName={championIdToName}
+              align="left"
+            />
+            <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/12 via-flash/20 to-flash/12" />
+            <BansStrip
+              bans={s.bansRed}
+              accent="#ef4444"
+              championIdToName={championIdToName}
+              align="right"
+            />
+            <Link
+              to={liveGameHref}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-jade/35 bg-jade/[0.10] text-jade hover:bg-jade/[0.20] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[10px] font-jetbrains tracking-[0.22em] uppercase font-bold cursor-clicker transition-all"
+            >
+              <Eye className="w-3 h-3" />
+              Spectate
+              <span className="text-jade/45 text-[8.5px] ml-1">{s.region}</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamRoster({
+  participants,
+  accent,
+  teamLabel,
+  championIdToName,
+  activePuuid,
+  align,
+}: {
+  participants: LiveParticipantSlimFE[];
+  accent: string;
+  teamLabel: string;
+  championIdToName: Record<string, string>;
+  activePuuid: string;
+  align: "left" | "right";
+}) {
+  return (
+    <div className={cn("flex flex-col", align === "right" && "items-end")}>
+      <div
+        className={cn(
+          "flex items-center gap-1.5 mb-1 text-[8.5px] font-jetbrains tracking-[0.28em] uppercase font-bold",
+          align === "right" && "flex-row-reverse"
+        )}
+        style={{ color: accent }}
+      >
+        <span>{teamLabel}</span>
+        <span className="opacity-30">·</span>
+        <span className="opacity-50">{participants.length}</span>
+      </div>
+      <ul className={cn("space-y-1", align === "right" && "text-right")}>
+        {participants.map((p) => {
+          const champName =
+            championIdToName[String(p.championId)] ?? String(p.championId);
+          const isActive = p.puuid === activePuuid;
+          const isMate = p.isLobbyMember && !isActive;
+          const nameClass = isActive
+            ? "text-jade font-bold drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]"
+            : isMate
+              ? "text-jade/80"
+              : "text-flash/70";
+          const keystoneSrc = p.keystoneId
+            ? getKeystoneIcon(p.keystoneId)
+            : null;
+          return (
+            <li
+              key={p.puuid}
+              className={cn(
+                "flex items-center gap-1.5",
+                align === "right" && "flex-row-reverse"
+              )}
+            >
+              {/* Champion icon */}
+              <img
+                src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champName)}.png`}
+                alt={champName}
+                title={champName}
+                className="w-[18px] h-[18px] rounded-[2px] shrink-0"
+                style={{
+                  border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`,
+                }}
+              />
+              {/* Summoner spells stacked */}
+              <div className="grid grid-rows-2 gap-[1px] shrink-0">
+                <img
+                  src={summonerSpellUrl(p.spell1Id)}
+                  alt=""
+                  className="w-[8.5px] h-[8.5px] rounded-[1.5px]"
+                />
+                <img
+                  src={summonerSpellUrl(p.spell2Id)}
+                  alt=""
+                  className="w-[8.5px] h-[8.5px] rounded-[1.5px]"
+                />
+              </div>
+              {/* Keystone */}
+              {keystoneSrc && (
+                <img
+                  src={keystoneSrc}
+                  alt=""
+                  className="w-[14px] h-[14px] rounded-full bg-black/50 shrink-0"
+                />
+              )}
+              {(isMate || isActive) && (
+                <span
+                  aria-hidden
+                  className="w-1 h-1 rounded-full shrink-0"
+                  style={{
+                    background: isActive ? JADE : "rgba(0,217,146,0.7)",
+                    boxShadow: isActive
+                      ? "0 0 5px rgba(0,217,146,0.8)"
+                      : undefined,
+                  }}
+                />
+              )}
+              <span className={cn("truncate min-w-0", nameClass)}>
+                {p.summonerName ?? "—"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/* ─── bans strip ─── */
+function BansStrip({
+  bans,
+  accent,
+  championIdToName,
+  align,
+}: {
+  bans: number[];
+  accent: string;
+  championIdToName: Record<string, string>;
+  align: "left" | "right";
+}) {
+  if (bans.length === 0) return null;
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1.5 shrink-0",
+        align === "right" && "flex-row-reverse"
+      )}
+    >
+      <span
+        className="text-[8px] font-jetbrains tracking-[0.25em] uppercase font-bold opacity-70"
+        style={{ color: accent }}
+      >
+        BANS
+      </span>
+      <div className={cn("flex gap-[3px]", align === "right" && "flex-row-reverse")}>
+        {bans.map((id, i) => {
+          const champName = championIdToName[String(id)] ?? String(id);
+          return (
+            <div
+              key={`${id}-${i}`}
+              className="relative w-5 h-5 rounded-[2px] overflow-hidden grayscale opacity-75 hover:opacity-100 hover:grayscale-0 transition-all"
+              title={`Banned: ${champName}`}
+              style={{
+                border: `1px solid color-mix(in srgb, ${accent} 30%, transparent)`,
+              }}
+            >
+              <img
+                src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champName)}.png`}
+                alt={champName}
+                className="w-full h-full"
+              />
+              {/* Red diagonal slash */}
+              <span
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(to bottom right, transparent 47%, rgba(239,68,68,0.75) 49%, rgba(239,68,68,0.75) 51%, transparent 53%)",
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function LeaderboardTab({
@@ -2269,8 +3090,21 @@ function LeaderboardTab({
  * area chart: cumulative LP, with hover dots showing the per-bucket
  * delta. "All players" picks the best total + draws every player line.
  */
-type LpTimelinePeriod = "day" | "week" | "month";
+type LpTimelinePeriod = "today" | "day" | "week" | "month";
 
+type LpTimelineAccountFE = {
+  puuid: string;
+  region: string;
+  riotName: string;
+  riotTag: string;
+  isPrimary: boolean;
+  iconId: number | null;
+  // ladderScore (tier*1000 + div*100 + lp) per bucket — forward-filled,
+  // null when no snapshot is known yet.
+  scores: (number | null)[];
+  finalScore: number | null;
+  finalRank: { tier: string; division: string | null; lp: number } | null;
+};
 type LpTimelinePayload = {
   period: LpTimelinePeriod;
   buckets: Array<{ bucketStart: string; label: string }>;
@@ -2278,12 +3112,7 @@ type LpTimelinePayload = {
     playerId: string;
     displayName: string;
     color: string | null;
-    iconId: number | null;
-    // ladderScore (tier*1000 + div*100 + lp) per bucket — forward-filled,
-    // null when no snapshot is known yet.
-    scores: (number | null)[];
-    finalScore: number | null;
-    finalRank: { tier: string; division: string | null; lp: number } | null;
+    accounts: LpTimelineAccountFE[];
   }>;
 };
 
@@ -2313,14 +3142,17 @@ const LP_TIER_ABBR: Record<string, string> = {
   CHALLENGER: "C",
 };
 
-/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4". */
+/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4".
+ *  Ladder math stores I=4 / II=3 / III=2 / IV=1 in the hundreds digit,
+ *  so we invert (5 − idx) to get the display number where I=1 / IV=4. */
 function scoreToRankShort(score: number): string {
   if (score < 0) return "—";
   const tierIdx = Math.min(9, Math.floor(score / 1000));
   const tier = LP_TIERS_ORDER[tierIdx];
   const abbr = LP_TIER_ABBR[tier];
   if (tierIdx >= 7) return abbr; // M / GM / C — no division
-  const divNum = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
+  const divIdx = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
+  const divNum = 5 - divIdx;
   return `${abbr}${divNum}`;
 }
 
@@ -2356,11 +3188,18 @@ function LpTimelineChart({
   slug: string;
   refreshTick: number;
 }) {
-  const [period, setPeriod] = useState<LpTimelinePeriod>("day");
+  // Default to "today" so fresh lobbies show meaningful intra-day movement
+  // instead of a single Day bucket that renders as a near-invisible dot.
+  const [period, setPeriod] = useState<LpTimelinePeriod>("today");
   const [data, setData] = useState<LpTimelinePayload | null>(null);
   const [loading, setLoading] = useState(true);
   // null = ALL players overlaid; otherwise a specific playerId
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  // Only meaningful when a single player is isolated. null = show every
+  // linked account; otherwise restrict the chart to just that puuid.
+  const [selectedAccountPuuid, setSelectedAccountPuuid] = useState<
+    string | null
+  >(null);
   const [hoverBucket, setHoverBucket] = useState<number | null>(null);
 
   useEffect(() => {
@@ -2376,32 +3215,111 @@ function LpTimelineChart({
     };
   }, [slug, period, refreshTick]);
 
-  const visiblePlayers = useMemo(() => {
+  // Lines to draw, derived from the player + account selection. Each line
+  // carries its display label, color, and a styling tweak so multiple
+  // accounts of the same player are visually distinguishable.
+  type ChartLine = {
+    lineId: string;
+    label: string;
+    accent: string;
+    isPrimary: boolean;
+    dashArray: string | null;   // null = solid
+    opacity: number;
+    iconId: number | null;
+    account: LpTimelineAccountFE;
+    playerId: string;
+  };
+  const visibleLines: ChartLine[] = useMemo(() => {
     if (!data) return [];
-    if (selectedPlayerId == null) return data.players;
-    return data.players.filter((p) => p.playerId === selectedPlayerId);
-  }, [data, selectedPlayerId]);
+    const out: ChartLine[] = [];
+    for (const p of data.players) {
+      if (p.accounts.length === 0) continue;
+      const accent = p.color || JADE;
+      const primary =
+        p.accounts.find((a) => a.isPrimary) ?? p.accounts[0];
+
+      if (selectedPlayerId == null) {
+        // Multi-player overlay → just the primary line per player.
+        out.push({
+          lineId: `${p.playerId}:${primary.puuid}`,
+          label: p.displayName,
+          accent,
+          isPrimary: true,
+          dashArray: null,
+          opacity: 1,
+          iconId: primary.iconId,
+          account: primary,
+          playerId: p.playerId,
+        });
+        continue;
+      }
+      if (p.playerId !== selectedPlayerId) continue;
+
+      // Single-player view → optionally restricted to one account.
+      let order = 0;
+      for (const acc of p.accounts) {
+        if (selectedAccountPuuid != null && acc.puuid !== selectedAccountPuuid)
+          continue;
+        const label =
+          p.accounts.length === 1
+            ? p.displayName
+            : `${p.displayName} · ${acc.riotName}`;
+        const isPrim = acc.isPrimary;
+        // Style: primary solid full-opacity. Secondary accounts get a
+        // dashed stroke + slight transparency so the lines don't read as
+        // the same data twice.
+        const dash = isPrim ? null : order === 1 ? "1.4 0.8" : "0.8 0.6";
+        const opacity = isPrim ? 1 : 0.75;
+        out.push({
+          lineId: `${p.playerId}:${acc.puuid}`,
+          label,
+          accent,
+          isPrimary: isPrim,
+          dashArray: dash,
+          opacity,
+          iconId: acc.iconId,
+          account: acc,
+          playerId: p.playerId,
+        });
+        order++;
+      }
+    }
+    return out;
+  }, [data, selectedPlayerId, selectedAccountPuuid]);
 
   const { minY, maxY, yTicks, paths, hoverPoints } = useMemo(() => {
-    if (!data || data.buckets.length === 0 || visiblePlayers.length === 0) {
+    if (!data || data.buckets.length === 0 || visibleLines.length === 0) {
       return {
         minY: 0,
         maxY: 0,
         yTicks: [] as Array<{ score: number; label: string }>,
-        paths: [] as Array<{ playerId: string; color: string; line: string; area: string; finalY: number | null }>,
-        hoverPoints: [] as Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }>,
+        paths: [] as Array<{
+          lineId: string;
+          color: string;
+          line: string;
+          area: string;
+          finalY: number | null;
+          dashArray: string | null;
+          opacity: number;
+        }>,
+        hoverPoints: [] as Array<{
+          x: number;
+          y: number;
+          color: string;
+          lineId: string;
+          score: number;
+          label: string;
+        }>,
       };
     }
     const W = 100;
     const H = 100;
     const N = data.buckets.length;
 
-    // Y range based on non-null scores. Pad ±150 so the line doesn't kiss
-    // the chart edges, and ensure at least 1 full division of headroom.
     let lo = Number.POSITIVE_INFINITY;
     let hi = Number.NEGATIVE_INFINITY;
-    for (const p of visiblePlayers) {
-      for (const v of p.scores) {
+    for (const ln of visibleLines) {
+      for (const v of ln.account.scores) {
         if (v == null) continue;
         if (v < lo) lo = v;
         if (v > hi) hi = v;
@@ -2421,22 +3339,20 @@ function LpTimelineChart({
     const y = (score: number) => H - ((score - lo) / (hi - lo)) * H;
 
     type PathObj = {
-      playerId: string;
+      lineId: string;
       color: string;
       line: string;
       area: string;
       finalY: number | null;
+      dashArray: string | null;
+      opacity: number;
     };
-    const paths: PathObj[] = visiblePlayers.map((p) => {
-      const color = p.color || JADE;
-      // Build the line as multiple segments — break wherever a score is null
-      // so the line doesn't fly to 0. Most lobbies will have a continuous
-      // series after the first snapshot, but a clean handling is cheap.
+    const paths: PathObj[] = visibleLines.map((ln) => {
       let line = "";
       let pen = false;
       const segPoints: Array<{ x: number; y: number }> = [];
       for (let i = 0; i < N; i++) {
-        const v = p.scores[i];
+        const v = ln.account.scores[i];
         if (v == null) {
           pen = false;
           continue;
@@ -2449,7 +3365,7 @@ function LpTimelineChart({
       }
       let area = "";
       if (segPoints.length >= 2) {
-        const baseY = H; // bottom of chart
+        const baseY = H;
         area =
           segPoints
             .map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`))
@@ -2457,25 +3373,41 @@ function LpTimelineChart({
           ` L ${segPoints[segPoints.length - 1].x} ${baseY}` +
           ` L ${segPoints[0].x} ${baseY} Z`;
       }
-      const lastNonNull = [...p.scores].reverse().find((s): s is number => s != null);
+      const lastNonNull = [...ln.account.scores]
+        .reverse()
+        .find((s): s is number => s != null);
       const finalY = lastNonNull != null ? y(lastNonNull) : null;
-      return { playerId: p.playerId, color, line, area, finalY };
+      return {
+        lineId: ln.lineId,
+        color: ln.accent,
+        line,
+        area,
+        finalY,
+        dashArray: ln.dashArray,
+        opacity: ln.opacity,
+      };
     });
 
-    // Hover points
     const hi2 = hoverBucket;
-    const hoverPoints: Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }> = [];
+    const hoverPoints: Array<{
+      x: number;
+      y: number;
+      color: string;
+      lineId: string;
+      score: number;
+      label: string;
+    }> = [];
     if (hi2 != null && hi2 >= 0 && hi2 < N) {
-      for (const p of visiblePlayers) {
-        const v = p.scores[hi2];
+      for (const ln of visibleLines) {
+        const v = ln.account.scores[hi2];
         if (v == null) continue;
         hoverPoints.push({
           x: x(hi2),
           y: y(v),
-          color: p.color || JADE,
-          playerId: p.playerId,
+          color: ln.accent,
+          lineId: ln.lineId,
           score: v,
-          displayName: p.displayName,
+          label: ln.label,
         });
       }
     }
@@ -2483,11 +3415,13 @@ function LpTimelineChart({
     const ticks = lpYTicks(lo, hi);
 
     return { minY: lo, maxY: hi, yTicks: ticks, paths, hoverPoints };
-  }, [data, visiblePlayers, hoverBucket]);
+  }, [data, visibleLines, hoverBucket]);
 
   const hasData =
     !!data &&
-    data.players.some((p) => p.scores.some((s) => s != null));
+    data.players.some((p) =>
+      p.accounts.some((a) => a.scores.some((s) => s != null))
+    );
 
   // Label spacing — show ~6 evenly spaced labels along x-axis to avoid clutter
   const labelStep = data
@@ -2506,7 +3440,7 @@ function LpTimelineChart({
           </span>
           <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/15 to-transparent" />
           <div className="flex items-center gap-1">
-            {(["day", "week", "month"] as const).map((p) => (
+            {(["today", "day", "week", "month"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -2518,78 +3452,190 @@ function LpTimelineChart({
                     : "bg-transparent text-flash/40 hover:text-flash/70 hover:bg-flash/[0.04] border border-transparent"
                 )}
               >
-                {p === "day" ? "Day" : p === "week" ? "Week" : "Month"}
+                {p === "today"
+                  ? "Today"
+                  : p === "day"
+                    ? "Day"
+                    : p === "week"
+                      ? "Week"
+                      : "Month"}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Player chips */}
+        {/* Player + account chips. Two rows: top is players, bottom is the
+            account chips for the currently-isolated player (only shown when
+            that player has 2+ linked accounts). */}
         {data && data.players.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap mb-4">
-            <button
-              type="button"
-              onClick={() => setSelectedPlayerId(null)}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
-                selectedPlayerId == null
-                  ? "border-jade/40 bg-jade/[0.10] text-jade"
-                  : "border-flash/15 text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
-              )}
-            >
-              <Users className="w-3 h-3" />
-              All
-            </button>
-            {data.players.map((p) => {
-              const accent = p.color || JADE;
-              const active = selectedPlayerId === p.playerId;
-              return (
-                <button
-                  key={p.playerId}
-                  type="button"
-                  onClick={() =>
-                    setSelectedPlayerId(active ? null : p.playerId)
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
-                    active
-                      ? "bg-flash/[0.05] text-flash/90"
-                      : "border-transparent text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
-                  )}
-                  style={
-                    active
-                      ? {
-                          borderColor: `color-mix(in srgb, ${accent} 50%, transparent)`,
-                          boxShadow: `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`,
-                        }
-                      : undefined
-                  }
-                >
-                  {profileIconUrl(p.iconId) ? (
-                    <img
-                      src={profileIconUrl(p.iconId)!}
-                      alt=""
-                      className="w-4 h-4 rounded-full"
-                      style={{ border: `1px solid ${accent}` }}
-                    />
-                  ) : (
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ background: accent, boxShadow: `0 0 4px ${accent}` }}
-                    />
-                  )}
-                  <span>{p.displayName}</span>
-                  {p.finalRank && (
-                    <span
-                      className="tabular-nums font-bold opacity-80"
-                      style={{ color: accent }}
-                    >
-                      {scoreToRankShort(p.finalScore ?? -1)}
-                    </span>
-                  )}
-                </button>
+          <div className="flex flex-col gap-2 mb-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPlayerId(null);
+                  setSelectedAccountPuuid(null);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                  selectedPlayerId == null
+                    ? "border-jade/40 bg-jade/[0.10] text-jade"
+                    : "border-flash/15 text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+                )}
+              >
+                <Users className="w-3 h-3" />
+                All
+              </button>
+              {data.players.map((p) => {
+                const accent = p.color || JADE;
+                const active = selectedPlayerId === p.playerId;
+                const primary =
+                  p.accounts.find((a) => a.isPrimary) ?? p.accounts[0];
+                const finalScore = primary?.finalScore ?? null;
+                return (
+                  <button
+                    key={p.playerId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlayerId(active ? null : p.playerId);
+                      setSelectedAccountPuuid(null);
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                      active
+                        ? "bg-flash/[0.05] text-flash/90"
+                        : "border-transparent text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+                    )}
+                    style={
+                      active
+                        ? {
+                            borderColor: `color-mix(in srgb, ${accent} 50%, transparent)`,
+                            boxShadow: `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {profileIconUrl(primary?.iconId ?? null) ? (
+                      <img
+                        src={profileIconUrl(primary?.iconId ?? null)!}
+                        alt=""
+                        className="w-4 h-4 rounded-full"
+                        style={{ border: `1px solid ${accent}` }}
+                      />
+                    ) : (
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: accent, boxShadow: `0 0 4px ${accent}` }}
+                      />
+                    )}
+                    <span>{p.displayName}</span>
+                    {finalScore != null && (
+                      <span
+                        className="tabular-nums font-bold opacity-80"
+                        style={{ color: accent }}
+                      >
+                        {scoreToRankShort(finalScore)}
+                      </span>
+                    )}
+                    {p.accounts.length > 1 && (
+                      <span className="text-[8px] font-mono text-flash/30 tabular-nums">
+                        ×{p.accounts.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Account row — only when an isolated player has multiple
+                accounts. Lets the user pick which one to chart. */}
+            {(() => {
+              if (selectedPlayerId == null) return null;
+              const player = data.players.find(
+                (p) => p.playerId === selectedPlayerId
               );
-            })}
+              if (!player || player.accounts.length < 2) return null;
+              const accent = player.color || JADE;
+              return (
+                <div className="flex items-center gap-2 flex-wrap pl-3 ml-1 border-l border-flash/10">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAccountPuuid(null)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                      selectedAccountPuuid == null
+                        ? "bg-flash/[0.05] text-flash/85"
+                        : "border-transparent text-flash/35 hover:text-flash/70 hover:bg-flash/[0.04]"
+                    )}
+                    style={
+                      selectedAccountPuuid == null
+                        ? {
+                            borderColor: `color-mix(in srgb, ${accent} 35%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    All accounts
+                  </button>
+                  {player.accounts.map((acc) => {
+                    const active = selectedAccountPuuid === acc.puuid;
+                    return (
+                      <button
+                        key={acc.puuid}
+                        type="button"
+                        onClick={() =>
+                          setSelectedAccountPuuid(active ? null : acc.puuid)
+                        }
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                          active
+                            ? "bg-flash/[0.05] text-flash/85"
+                            : "border-transparent text-flash/35 hover:text-flash/70 hover:bg-flash/[0.04]"
+                        )}
+                        style={
+                          active
+                            ? {
+                                borderColor: `color-mix(in srgb, ${accent} 45%, transparent)`,
+                                boxShadow: `0 0 10px color-mix(in srgb, ${accent} 22%, transparent)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {profileIconUrl(acc.iconId) ? (
+                          <img
+                            src={profileIconUrl(acc.iconId)!}
+                            alt=""
+                            className="w-3.5 h-3.5 rounded-full"
+                            style={{ border: `1px solid ${accent}` }}
+                          />
+                        ) : (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: accent }}
+                          />
+                        )}
+                        <span className="text-jade/55 mr-0.5">{acc.region}</span>
+                        <span>{acc.riotName}</span>
+                        <span className="text-flash/25">#{acc.riotTag}</span>
+                        {acc.isPrimary && (
+                          <span className="text-[7px] font-mono tracking-widest text-jade/60 ml-0.5">
+                            MAIN
+                          </span>
+                        )}
+                        {acc.finalScore != null && (
+                          <span
+                            className="tabular-nums font-bold opacity-80 ml-0.5"
+                            style={{ color: accent }}
+                          >
+                            {scoreToRankShort(acc.finalScore)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2659,12 +3705,12 @@ function LpTimelineChart({
                 );
               })}
 
-              {/* Area fill when only one player is isolated */}
-              {visiblePlayers.length === 1 &&
+              {/* Area fill when exactly one line is being rendered */}
+              {paths.length === 1 &&
                 paths.map((p) =>
                   p.area ? (
                     <path
-                      key={`area-${p.playerId}`}
+                      key={`area-${p.lineId}`}
                       d={p.area}
                       fill={`color-mix(in srgb, ${p.color} 22%, transparent)`}
                       opacity={0.55}
@@ -2675,31 +3721,44 @@ function LpTimelineChart({
               {/* Lines */}
               {paths.map((p) => (
                 <path
-                  key={`line-${p.playerId}`}
+                  key={`line-${p.lineId}`}
                   d={p.line}
                   fill="none"
                   stroke={p.color}
                   strokeWidth="0.55"
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                  strokeDasharray={p.dashArray ?? undefined}
+                  opacity={p.opacity}
                   style={{
                     filter: `drop-shadow(0 0 1.4px color-mix(in srgb, ${p.color} 55%, transparent))`,
                   }}
                 />
               ))}
 
-              {/* End-of-line dot — marks the player's current rank */}
+              {/* End-of-line dot — marks current rank for that line.
+                  Two-circle stack so the dot stays prominent even in the
+                  single-bucket case where the line is just a single
+                  invisible "M x y" point. */}
               {paths.map((p) =>
                 p.finalY != null ? (
-                  <circle
-                    key={`end-${p.playerId}`}
-                    cx={100}
-                    cy={p.finalY}
-                    r="0.9"
-                    fill={p.color}
-                    stroke="rgba(0,0,0,0.5)"
-                    strokeWidth="0.18"
-                  />
+                  <g key={`end-${p.lineId}`} opacity={p.opacity}>
+                    <circle
+                      cx={98}
+                      cy={p.finalY}
+                      r="2.4"
+                      fill={p.color}
+                      opacity={0.22}
+                    />
+                    <circle
+                      cx={98}
+                      cy={p.finalY}
+                      r="1.4"
+                      fill={p.color}
+                      stroke="rgba(0,0,0,0.5)"
+                      strokeWidth="0.22"
+                    />
+                  </g>
                 ) : null
               )}
 
@@ -2716,7 +3775,7 @@ function LpTimelineChart({
                   />
                   {hoverPoints.map((pt) => (
                     <circle
-                      key={`dot-${pt.playerId}`}
+                      key={`dot-${pt.lineId}`}
                       cx={pt.x}
                       cy={pt.y}
                       r="1.1"
@@ -2756,14 +3815,14 @@ function LpTimelineChart({
                 </span>
                 {hoverPoints.map((pt) => (
                   <span
-                    key={pt.playerId}
+                    key={pt.lineId}
                     className="inline-flex items-center gap-1.5"
                   >
                     <span
                       className="w-2 h-2 rounded-full"
                       style={{ background: pt.color }}
                     />
-                    <span className="text-flash/55">{pt.displayName}</span>
+                    <span className="text-flash/55">{pt.label}</span>
                     <span
                       className="font-bold tabular-nums uppercase tracking-wider"
                       style={{ color: pt.color }}
@@ -3785,6 +4844,161 @@ const EDIT_MAX_PLAYERS = 20;
 const EDIT_MAX_ACCOUNTS = 3;
 const makeUid = () => Math.random().toString(36).slice(2, 10);
 
+/* ── Hero champion picker ──────────────────────────────────────────────
+ * Tiny search + scrollable grid of champion portraits, sits inside the
+ * edit dialog. Selected champion previews a small splash thumbnail.
+ */
+function HeroChampionPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const [champions, setChampions] = useState<
+    Array<{ key: string; name: string; id: string }>
+  >([]);
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Object.values<any>(data?.data ?? {}).map((c) => ({
+          key: c.key,
+          id: c.id,
+          name: c.name,
+        }));
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        setChampions(list);
+      })
+      .catch(console.error);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return champions;
+    return champions.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.id.toLowerCase().startsWith(q)
+    );
+  }, [champions, search]);
+
+  const splash = cdnSplashUrl(normalizeChampName(value || DEFAULT_HERO_CHAMPION));
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Preview strip — click anywhere to toggle the picker open. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className={cn(
+          "relative h-16 rounded-[3px] overflow-hidden border bg-black/40 cursor-clicker text-left",
+          "transition-all duration-200",
+          expanded
+            ? "border-jade/45 shadow-[0_0_14px_rgba(0,217,146,0.18)]"
+            : "border-flash/15 hover:border-jade/30 hover:shadow-[0_0_12px_rgba(0,217,146,0.12)]"
+        )}
+      >
+        <img
+          src={splash}
+          alt={value}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: "center 45%" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-liquirice/85 via-liquirice/30 to-transparent" />
+        <div className="absolute inset-0 px-3 flex items-center gap-3">
+          <span className="w-8 h-8 rounded-[2px] border border-jade/30 shadow-[0_0_10px_rgba(0,217,146,0.25)] shrink-0 overflow-hidden bg-black">
+            <img
+              src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(value)}.png`}
+              alt=""
+              className="w-full h-full"
+            />
+          </span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-jade/65">
+              Hero splash
+            </span>
+            <span className="text-[15px] font-chakrapetch font-bold text-flash tracking-wide truncate">
+              {value}
+            </span>
+          </div>
+          {/* Chevron indicator */}
+          <span
+            className={cn(
+              "shrink-0 text-jade/60 text-[16px] leading-none transition-transform duration-200",
+              expanded ? "rotate-180" : "rotate-0"
+            )}
+            aria-hidden
+          >
+            ⌃
+          </span>
+        </div>
+      </button>
+
+      {/* Expanded picker — search + grid. Animates in/out. */}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-200",
+          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="flex flex-col gap-2 pt-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search champion…"
+              className="w-full bg-black/30 border border-flash/15 rounded-[3px] h-9 px-3 text-[13px] text-flash placeholder:text-flash/30 outline-none focus:border-jade/45 transition-colors font-geist"
+            />
+            <div className="grid grid-cols-9 gap-1 max-h-[180px] overflow-y-auto cyber-scrollbar pr-1 -mr-1">
+              {filtered.map((c) => {
+                const selected = c.id === value;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => {
+                      onChange(c.id);
+                      setExpanded(false);
+                    }}
+                    title={c.name}
+                    className={cn(
+                      "relative aspect-square rounded-[2px] overflow-hidden border transition-all cursor-clicker",
+                      selected
+                        ? "border-jade/70 ring-1 ring-jade/40 shadow-[0_0_10px_rgba(0,217,146,0.35)]"
+                        : "border-flash/[0.08] hover:border-jade/30"
+                    )}
+                  >
+                    <img
+                      src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.id)}.png`}
+                      alt={c.name}
+                      className="w-full h-full"
+                      loading="lazy"
+                    />
+                    {selected && (
+                      <span className="absolute inset-0 bg-jade/[0.18] pointer-events-none" />
+                    )}
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && (
+                <span className="col-span-9 py-3 text-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/35">
+                  No match
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EditLobbyDialog({
   open,
   onClose,
@@ -3799,6 +5013,9 @@ function EditLobbyDialog({
   onDeleted?: () => void;
 }) {
   const [name, setName] = useState(lobby.name);
+  const [heroChampion, setHeroChampion] = useState(
+    lobby.heroChampion ?? DEFAULT_HERO_CHAMPION
+  );
   const [players, setPlayers] = useState<EditPlayer[]>(() =>
     lobby.players.map((p) => ({
       uid: makeUid(),
@@ -3813,6 +5030,11 @@ function EditLobbyDialog({
     }))
   );
   const [saving, setSaving] = useState(false);
+  // Two phases for the Save button label — first the PATCH ("Saving…"),
+  // then the backend refresh that pre-warms ingestion ("Syncing…").
+  const [savePhase, setSavePhase] = useState<"idle" | "saving" | "syncing">(
+    "idle"
+  );
   const [err, setErr] = useState<string | null>(null);
   // Two-step delete: first click → confirmArmed. Second click within
   // CONFIRM_WINDOW → actually delete. Auto-disarms after 4 seconds.
@@ -3831,6 +5053,7 @@ function EditLobbyDialog({
   useEffect(() => {
     if (!open) return;
     setName(lobby.name);
+    setHeroChampion(lobby.heroChampion ?? DEFAULT_HERO_CHAMPION);
     setPlayers(
       lobby.players.map((p) => ({
         uid: makeUid(),
@@ -3917,6 +5140,7 @@ function EditLobbyDialog({
       }
     }
     setSaving(true);
+    setSavePhase("saving");
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess?.session?.access_token;
@@ -3932,6 +5156,7 @@ function EditLobbyDialog({
         },
         body: JSON.stringify({
           name: name.trim(),
+          heroChampion: heroChampion?.trim() || null,
           players: players.map((p) => ({
             displayName: p.displayName.trim(),
             accounts: p.accounts.map((a) => ({
@@ -3948,6 +5173,22 @@ function EditLobbyDialog({
         setErr(data.error ?? "Failed to update lobby");
         return;
       }
+
+      // Force a backend refresh so the fire-and-forget ingestion the PATCH
+      // kicked off is actually AWAITED (15s cap on the backend) before we
+      // reload the UI. Without this, a freshly added player's matches
+      // don't show up in the feed or leaderboard until the next manual
+      // refresh — the user perceives this as "the new player isn't
+      // tracked". Failures here are non-fatal: the save itself succeeded.
+      setSavePhase("syncing");
+      try {
+        await fetch(`${API_BASE_URL}/api/scout/refresh/${lobby.slug}`, {
+          method: "POST",
+        });
+      } catch {
+        /* ignore — the lobby has been saved already */
+      }
+
       showCyberToast({
         title: "Lobby updated",
         description: `${players.length} players, ${players.reduce(
@@ -3964,6 +5205,7 @@ function EditLobbyDialog({
       setErr("Network error");
     } finally {
       setSaving(false);
+      setSavePhase("idle");
     }
   };
 
@@ -4008,6 +5250,17 @@ function EditLobbyDialog({
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
                 className="w-full bg-black/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors"
+              />
+            </div>
+
+            {/* Hero champion picker */}
+            <div className="mb-5">
+              <span className="text-[11px] font-jetbrains tracking-[0.18em] uppercase text-flash/55 mb-2 block">
+                ◆ Hero splash
+              </span>
+              <HeroChampionPicker
+                value={heroChampion}
+                onChange={setHeroChampion}
               />
             </div>
 
@@ -4094,7 +5347,11 @@ function EditLobbyDialog({
                   disabled={saving || deleting}
                   className="text-[11px] font-jetbrains tracking-[0.2em] uppercase font-medium px-5 py-2 rounded-[3px] border border-jade/45 text-jade bg-jade/[0.10] hover:bg-jade/[0.20] shadow-[0_0_20px_rgba(0,217,146,0.18)] cursor-clicker disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : "Save"}
+                  {savePhase === "syncing"
+                    ? "Syncing…"
+                    : saving
+                      ? "Saving…"
+                      : "Save"}
                 </button>
               </div>
             </div>
@@ -4461,6 +5718,7 @@ export default function ScoutLobbyPage() {
                   {(
                     [
                       { value: "matches", label: "Matches" },
+                      { value: "live", label: "Live" },
                       { value: "leaderboard", label: "Leaderboard" },
                       { value: "trending", label: "Trending" },
                       { value: "habits", label: "Habits" },
@@ -4505,6 +5763,10 @@ export default function ScoutLobbyPage() {
                   loadingMore={loadingMore}
                   loadMore={loadMore}
                 />
+              </TabsContent>
+
+              <TabsContent value="live" className="mt-0">
+                <LiveTab slug={slug!} />
               </TabsContent>
 
               <TabsContent value="leaderboard" className="mt-0">
