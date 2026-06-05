@@ -123,92 +123,69 @@ function formatRankFull(
   return `${t} ${division.toUpperCase()}`;
 }
 
-/* ── LP detail box ───────────────────────────────────────────────────
- * Sits right next to the KDA chip, between items and scoreboard. Shows
- * the LP delta with prominence + the rank reached when a promotion or
- * demotion happened. Null/no-snapshot → renders nothing.
+/* ── KP detail box ───────────────────────────────────────────────────
+ * Sits right next to the KDA chip. Compact two-line pill with the
+ * player's kill participation (kills + assists / team kills). Same
+ * vibe as the group-card session stats.
  */
-function LpDetailBox({
-  lpDelta,
-  rankChange,
-  rankAfter,
+function KpDetailBox({
+  kpPct,
 }: {
-  lpDelta: number | null;
-  rankChange: "PROMOTION" | "DEMOTION" | null;
-  rankAfter: { tier: string; division: string | null } | null;
+  kpPct: number | null;
 }) {
-  const hasDelta = typeof lpDelta === "number" && lpDelta !== 0;
-  const hasRankChange = rankChange != null;
-  if (!hasDelta && !hasRankChange) return null;
+  if (kpPct == null) return null;
 
-  // Color = direction. Promotion/positive LP → jade. Demotion/negative → red.
-  const positive =
-    rankChange === "PROMOTION" ||
-    (rankChange == null && hasDelta && lpDelta! > 0);
-  const accentBorder = positive ? "border-[#00D992]/35" : "border-[#d63336]/35";
-  const accentBg = positive ? "bg-[#00D992]/[0.07]" : "bg-[#d63336]/[0.07]";
-  const accentText = positive ? "text-[#00D992]" : "text-[#d63336]";
-  const accentGlow = positive
-    ? "shadow-[0_0_12px_rgba(0,217,146,0.18),inset_0_0_0_1px_rgba(0,217,146,0.08)]"
-    : "shadow-[0_0_12px_rgba(214,51,54,0.18),inset_0_0_0_1px_rgba(214,51,54,0.08)]";
-
-  const arrow = positive ? "▲" : "▼";
-  const rankShort = formatRankShort(rankAfter?.tier, rankAfter?.division);
-  const rankFull = formatRankFull(rankAfter?.tier, rankAfter?.division);
+  const palette =
+    kpPct >= 65
+      ? {
+          ring: "ring-jade/25",
+          bg: "bg-jade/[0.06]",
+          value: "text-jade",
+          label: "text-jade/55",
+          glow: "shadow-[0_0_10px_rgba(0,217,146,0.10)]",
+        }
+      : kpPct >= 45
+        ? {
+            ring: "ring-flash/[0.08]",
+            bg: "bg-black/25",
+            value: "text-flash/80",
+            label: "text-flash/35",
+            glow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
+          }
+        : {
+            ring: "ring-[#d63336]/25",
+            bg: "bg-[#d63336]/[0.05]",
+            value: "text-[#d63336]",
+            label: "text-[#d63336]/55",
+            glow: "shadow-[0_0_10px_rgba(214,51,54,0.08)]",
+          };
 
   return (
     <div
+      title={`${kpPct}% kill participation`}
       className={cn(
-        "ml-2 inline-flex items-center gap-2 h-7 px-2.5 rounded-[3px] border tabular-nums",
-        accentBorder,
-        accentBg,
-        accentGlow
+        "ml-1.5 flex flex-col items-center justify-center gap-px h-8 w-[62px] rounded-[3px] ring-1 tabular-nums",
+        palette.ring,
+        palette.bg,
+        palette.glow
       )}
-      title={
-        hasRankChange
-          ? `${positive ? "Promoted" : "Demoted"} to ${rankFull}`
-          : `${lpDelta! > 0 ? "+" : ""}${lpDelta} LP this game`
-      }
     >
       <span
-        aria-hidden
-        className={cn("text-[10px] leading-none", accentText)}
+        className={cn(
+          "text-[13px] font-chakrapetch font-bold tracking-wide leading-none",
+          palette.value
+        )}
       >
-        {arrow}
+        {kpPct}%
       </span>
-      <div className="flex flex-col items-start leading-tight">
-        {hasDelta ? (
-          <span
-            className={cn(
-              "text-[13px] font-chakrapetch font-bold tracking-wide",
-              accentText
-            )}
-          >
-            {lpDelta! > 0 ? "+" : ""}
-            {lpDelta}
-            <span className="ml-0.5 text-[9px] font-mono opacity-70">LP</span>
-          </span>
-        ) : (
-          <span
-            className={cn(
-              "text-[12px] font-chakrapetch font-bold tracking-wide uppercase",
-              accentText
-            )}
-          >
-            {hasRankChange ? (positive ? "PROMO" : "DEMOTE") : ""}
-          </span>
+      <span
+        className={cn(
+          "text-[7.5px] font-jetbrains tracking-[0.22em] uppercase leading-none",
+          palette.label
         )}
-        {hasRankChange && rankShort && (
-          <span
-            className={cn(
-              "text-[8.5px] font-mono tracking-[0.18em] uppercase opacity-80 -mt-0.5",
-              accentText
-            )}
-          >
-            {rankShort}
-          </span>
-        )}
-      </div>
+      >
+        KP
+      </span>
     </div>
   );
 }
@@ -279,6 +256,21 @@ export function MatchCard({ data }: { data: MatchCardData }) {
   const mainItems = items.slice(0, 6);
   const trinket = items[6];
 
+  // Kill participation: (kills + assists) / total team kills × 100.
+  // Falls back to null when we don't know the team roster (no
+  // scoreboard data) or when the team had zero kills.
+  const kpPct = (() => {
+    const me = (allParticipants ?? []).find(
+      (p) => p.puuid === highlightPuuid
+    );
+    if (!me) return null;
+    const teamKills = (allParticipants ?? [])
+      .filter((p) => p.teamId === me.teamId)
+      .reduce((s, p) => s + p.kills, 0);
+    if (teamKills <= 0) return null;
+    return Math.round(((kills + assists) / teamKills) * 100);
+  })();
+
   return (
     <li
       className={cn(
@@ -292,10 +284,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
               : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150"
             : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150"
           : "bg-black/18 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]",
-        isRemake
-          ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-          : "hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]"
       )}
     >
       {isRemake && (
@@ -343,34 +332,101 @@ export function MatchCard({ data }: { data: MatchCardData }) {
 
           <div className="relative z-10 ml-2">
             <div className="ml-2">
-              {/* Top meta row — taller, with a hairline divider beneath so the
-                  body content reads as a distinct block. */}
-              <div className="relative flex justify-between items-center text-[11px] uppercase text-flash/70 pb-2 mb-2.5 border-b border-flash/[0.06]">
-                <span className="relative z-20 flex items-center gap-2">
-                  <span className="font-jetbrains tracking-[0.18em] text-flash/55">
+              {/* Top meta row — typographic W/L instead of a boxed chip.
+                  VICTORY / DEFEAT reads as a label, not a pill, and feels
+                  more like a HUD readout. */}
+              <div className="relative flex justify-between items-center pb-2 mb-2.5 border-b border-flash/[0.06]">
+                <span className="relative z-20 flex items-baseline gap-2">
+                  <span className="text-[10.5px] font-jetbrains tracking-[0.22em] uppercase text-flash/40">
                     {queueLabel}
+                  </span>
+                  <span className="text-flash/30 text-[8px] leading-none">
+                    ◆
                   </span>
                   <span
                     className={cn(
-                      "px-1.5 py-[2px] rounded-[2px] text-[10px] font-jetbrains tracking-[0.2em] font-bold border",
+                      "font-chakrapetch font-bold tracking-[0.22em] uppercase text-[10.5px] leading-none",
                       isRemake
-                        ? "text-[#f5a623] border-[#f5a623]/25 bg-[#f5a623]/[0.06]"
+                        ? "text-[#f5a623]/85"
                         : win
                         ? blueWinTint
-                          ? "text-[#5BA8E6] border-[#5BA8E6]/30 bg-[#5BA8E6]/[0.08]"
-                          : "text-[#00D992] border-[#00D992]/30 bg-[#00D992]/[0.08]"
-                        : "text-[#d63336] border-[#d63336]/30 bg-[#d63336]/[0.07]"
+                          ? "text-[#5BA8E6]/85"
+                          : "text-[#00D992]/85"
+                        : "text-[#d63336]/85"
                     )}
+                    style={{
+                      textShadow: isRemake
+                        ? "0 0 5px rgba(245,166,35,0.18)"
+                        : win
+                        ? blueWinTint
+                          ? "0 0 5px rgba(91,168,230,0.18)"
+                          : "0 0 5px rgba(0,217,146,0.20)"
+                        : "0 0 5px rgba(214,51,54,0.18)",
+                    }}
                   >
-                    {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
+                    {isRemake ? "REMAKE" : win ? "VICTORY" : "DEFEAT"}
                   </span>
+
+                  {/* LP delta — inline text after the result. Renders only
+                      when we have rank-snapshot data for this match. */}
+                  {(() => {
+                    const hasDelta =
+                      typeof lpDelta === "number" && lpDelta !== 0;
+                    const hasRankChange = rankChange != null;
+                    if (!hasDelta && !hasRankChange) return null;
+                    const positive =
+                      rankChange === "PROMOTION" ||
+                      (rankChange == null && hasDelta && lpDelta! > 0);
+                    const accentText = positive
+                      ? "text-[#00D992]/85"
+                      : "text-[#d63336]/85";
+                    const accentGlow = positive
+                      ? "0 0 5px rgba(0,217,146,0.20)"
+                      : "0 0 5px rgba(214,51,54,0.18)";
+                    const rankShort = formatRankShort(
+                      rankAfter?.tier,
+                      rankAfter?.division
+                    );
+                    return (
+                      <>
+                        <span className="text-flash/30 text-[8px] leading-none">
+                          ◆
+                        </span>
+                        <span
+                          className={cn(
+                            "font-chakrapetch font-bold tracking-[0.18em] uppercase text-[10.5px] leading-none tabular-nums",
+                            accentText
+                          )}
+                          style={{ textShadow: accentGlow }}
+                        >
+                          {hasDelta && (
+                            <>
+                              {lpDelta! > 0 ? "+" : ""}
+                              {lpDelta}{" "}
+                              <span className="opacity-65">LP</span>
+                            </>
+                          )}
+                          {hasRankChange && rankShort && (
+                            <span
+                              className={cn(
+                                "ml-1.5 opacity-90",
+                                hasDelta && "text-[9.5px]"
+                              )}
+                            >
+                              {positive ? "▲" : "▼"} {rankShort}
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </span>
 
-                <span className="absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider">
+                <span className="absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider text-[11px]">
                   {minutes}:{seconds}
                 </span>
 
-                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 normal-case text-[10.5px]">
+                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px]">
                   {timeAgo(gameCreationMs)}
                 </span>
               </div>
@@ -535,20 +591,14 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                           </span>
                         </div>
 
-                        <LpDetailBox
-                          lpDelta={lpDelta ?? null}
-                          rankChange={rankChange ?? null}
-                          rankAfter={rankAfter ?? null}
-                        />
+                        <KpDetailBox kpPct={kpPct} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Scoreboard — right side, two team columns. Slightly
-                      bigger type and more vertical breathing room so player
-                      names are easier to scan. */}
+                  {/* Scoreboard — right side, two team columns. */}
                   {hasScoreboard && (
-                    <div className="hidden sm:grid grid-cols-2 gap-x-5 gap-y-0 mt-1 text-[11px] w-[44%] shrink-0 font-jetbrains">
+                    <div className="hidden sm:grid grid-cols-2 gap-x-5 gap-y-0 mt-1 text-[10px] w-[44%] shrink-0 font-jetbrains">
                       <ul className="space-y-0.5">
                         {team1.map((p) => (
                           <ScoreboardRow
@@ -687,14 +737,14 @@ function ScoreboardRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-2 px-1 py-[2px] rounded-sm",
+        "flex items-center gap-1.5 px-1 py-[1px] rounded-sm",
         align === "right" && "flex-row-reverse text-right"
       )}
     >
       <img
         src={champIcon}
         alt={p.championName ?? ""}
-        className="w-[18px] h-[18px] rounded-[2px] shrink-0"
+        className="w-[15px] h-[15px] rounded-[2px] shrink-0"
       />
       {isLobbyMate && !highlight && (
         <span
