@@ -113,8 +113,111 @@ function formatRankShort(
   return `${t}${d}`;
 }
 
+function formatRankFull(
+  tier: string | null | undefined,
+  division: string | null | undefined
+): string {
+  if (!tier) return "";
+  const t = tier.toUpperCase();
+  if (APEX_TIERS.has(t) || !division) return t;
+  return `${t} ${division.toUpperCase()}`;
+}
+
+/* ── LP detail box ───────────────────────────────────────────────────
+ * Sits right next to the KDA chip, between items and scoreboard. Shows
+ * the LP delta with prominence + the rank reached when a promotion or
+ * demotion happened. Null/no-snapshot → renders nothing.
+ */
+function LpDetailBox({
+  lpDelta,
+  rankChange,
+  rankAfter,
+}: {
+  lpDelta: number | null;
+  rankChange: "PROMOTION" | "DEMOTION" | null;
+  rankAfter: { tier: string; division: string | null } | null;
+}) {
+  const hasDelta = typeof lpDelta === "number" && lpDelta !== 0;
+  const hasRankChange = rankChange != null;
+  if (!hasDelta && !hasRankChange) return null;
+
+  // Color = direction. Promotion/positive LP → jade. Demotion/negative → red.
+  const positive =
+    rankChange === "PROMOTION" ||
+    (rankChange == null && hasDelta && lpDelta! > 0);
+  const accentBorder = positive ? "border-[#00D992]/35" : "border-[#d63336]/35";
+  const accentBg = positive ? "bg-[#00D992]/[0.07]" : "bg-[#d63336]/[0.07]";
+  const accentText = positive ? "text-[#00D992]" : "text-[#d63336]";
+  const accentGlow = positive
+    ? "shadow-[0_0_12px_rgba(0,217,146,0.18),inset_0_0_0_1px_rgba(0,217,146,0.08)]"
+    : "shadow-[0_0_12px_rgba(214,51,54,0.18),inset_0_0_0_1px_rgba(214,51,54,0.08)]";
+
+  const arrow = positive ? "▲" : "▼";
+  const rankShort = formatRankShort(rankAfter?.tier, rankAfter?.division);
+  const rankFull = formatRankFull(rankAfter?.tier, rankAfter?.division);
+
+  return (
+    <div
+      className={cn(
+        "ml-2 inline-flex items-center gap-2 h-7 px-2.5 rounded-[3px] border tabular-nums",
+        accentBorder,
+        accentBg,
+        accentGlow
+      )}
+      title={
+        hasRankChange
+          ? `${positive ? "Promoted" : "Demoted"} to ${rankFull}`
+          : `${lpDelta! > 0 ? "+" : ""}${lpDelta} LP this game`
+      }
+    >
+      <span
+        aria-hidden
+        className={cn("text-[10px] leading-none", accentText)}
+      >
+        {arrow}
+      </span>
+      <div className="flex flex-col items-start leading-tight">
+        {hasDelta ? (
+          <span
+            className={cn(
+              "text-[13px] font-chakrapetch font-bold tracking-wide",
+              accentText
+            )}
+          >
+            {lpDelta! > 0 ? "+" : ""}
+            {lpDelta}
+            <span className="ml-0.5 text-[9px] font-mono opacity-70">LP</span>
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "text-[12px] font-chakrapetch font-bold tracking-wide uppercase",
+              accentText
+            )}
+          >
+            {hasRankChange ? (positive ? "PROMO" : "DEMOTE") : ""}
+          </span>
+        )}
+        {hasRankChange && rankShort && (
+          <span
+            className={cn(
+              "text-[8.5px] font-mono tracking-[0.18em] uppercase opacity-80 -mt-0.5",
+              accentText
+            )}
+          >
+            {rankShort}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const blueWinTint = false;         // TODO: hook into uiPrefs if needed
-const coloredMatchBg = false;      // TODO: hook into uiPrefs if needed
+// Scout cards always render with the win/loss tint — the matching cards on
+// the summoner page have a per-user preference, but the lobby feed is meant
+// to scan very quickly so we always tint.
+const coloredMatchBg = true;
 
 export function MatchCard({ data }: { data: MatchCardData }) {
   const {
@@ -257,57 +360,6 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                   >
                     {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
                   </span>
-
-                  {/* LP delta chip — cyber/HUD style. Only shown for ranked
-                      games where we have a snapshot pair. Promotion/demotion
-                      chips show the rank reached, e.g. "▲ D4". */}
-                  {rankChange === "PROMOTION" && (
-                    <span
-                      className="ml-0.5 inline-flex items-center gap-1 px-1.5 py-[1px] rounded-sm border border-[#00D992]/30 bg-[#00D992]/10 text-[#00D992] text-[10px] font-mono tracking-wider uppercase shadow-[0_0_8px_rgba(0,217,146,0.18)]"
-                      title={`Promoted to ${rankAfter?.tier ?? ""} ${rankAfter?.division ?? ""}`.trim()}
-                    >
-                      <span aria-hidden>▲</span>
-                      <span>
-                        {formatRankShort(
-                          rankAfter?.tier,
-                          rankAfter?.division
-                        ) || "PROMO"}
-                      </span>
-                    </span>
-                  )}
-                  {rankChange === "DEMOTION" && (
-                    <span
-                      className="ml-0.5 inline-flex items-center gap-1 px-1.5 py-[1px] rounded-sm border border-[#d63336]/30 bg-[#d63336]/10 text-[#d63336] text-[10px] font-mono tracking-wider uppercase shadow-[0_0_8px_rgba(214,51,54,0.18)]"
-                      title={`Demoted to ${rankAfter?.tier ?? ""} ${rankAfter?.division ?? ""}`.trim()}
-                    >
-                      <span aria-hidden>▼</span>
-                      <span>
-                        {formatRankShort(
-                          rankAfter?.tier,
-                          rankAfter?.division
-                        ) || "DEMOTE"}
-                      </span>
-                    </span>
-                  )}
-                  {rankChange == null &&
-                    typeof lpDelta === "number" &&
-                    lpDelta !== 0 && (
-                      <span
-                        className={cn(
-                          "ml-0.5 inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-sm border text-[10px] font-mono tracking-wider",
-                          lpDelta > 0
-                            ? "border-[#00D992]/30 bg-[#00D992]/10 text-[#00D992] shadow-[0_0_8px_rgba(0,217,146,0.18)]"
-                            : "border-[#d63336]/30 bg-[#d63336]/10 text-[#d63336] shadow-[0_0_8px_rgba(214,51,54,0.18)]"
-                        )}
-                        title={`${lpDelta > 0 ? "+" : ""}${lpDelta} LP this game`}
-                      >
-                        <span>
-                          {lpDelta > 0 ? "+" : ""}
-                          {lpDelta}
-                        </span>
-                        <span className="opacity-70">LP</span>
-                      </span>
-                    )}
                 </span>
 
                 <span className="absolute left-1/2 transform -translate-x-1/2 z-20">
@@ -420,7 +472,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                       </div>
                     </div>
 
-                    {/* KDA */}
+                    {/* KDA + LP detail box (right of KDA) */}
                     <div className="flex flex-col mt-2">
                       <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                         <div
@@ -474,6 +526,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                             : kdaValue}{" "}
                           KDA
                         </span>
+
+                        <LpDetailBox
+                          lpDelta={lpDelta ?? null}
+                          rankChange={rankChange ?? null}
+                          rankAfter={rankAfter ?? null}
+                        />
                       </div>
                     </div>
                   </div>

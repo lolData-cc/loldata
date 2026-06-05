@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Loader2,
   ChevronDown,
@@ -37,7 +37,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, X, Check, Pencil } from "lucide-react";
+import { Plus, X, Check, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/authcontext";
 
@@ -451,6 +451,21 @@ function PlayerSectionCard({
   }
   const isSquad = uniquePlayers.length >= 2;
 
+  // Section outcome — drives the left border color.
+  // Tie counts as a win-leaning result, so 50% winrate keeps the jade
+  // bar. Only <50% (strictly more losses than wins) goes red.
+  const sectionWins = matches.reduce(
+    (n, m) => n + (m.participant.win ? 1 : 0),
+    0
+  );
+  const sectionLosses = matches.length - sectionWins;
+  const winLossAccent =
+    matches.length === 0
+      ? accent
+      : sectionLosses > sectionWins
+        ? "#d63336"
+        : JADE;
+
   // Active member is user-selectable in squad sections. Default = first.
   const [activePlayerId, setActivePlayerId] = useState(
     uniquePlayers[0].player.id
@@ -466,7 +481,10 @@ function PlayerSectionCard({
     <div className="relative overflow-hidden rounded-md bg-black/15 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div
         className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
-        style={{ background: `color-mix(in srgb, ${accent} 55%, transparent)` }}
+        style={{
+          background: `color-mix(in srgb, ${winLossAccent} 75%, transparent)`,
+          boxShadow: `0 0 8px color-mix(in srgb, ${winLossAccent} 35%, transparent)`,
+        }}
       />
 
       {/* Header — name(s) + account(s); active member styled jade */}
@@ -556,7 +574,7 @@ function PlayerSectionCard({
       </div>
 
       {/* Matches list */}
-      <ul className="relative z-[2] flex flex-col gap-2 p-3">
+      <ul className="relative z-[2] flex flex-col gap-3 p-3">
         {matches.map((repItem, idx) => {
           // Prefer the active player's FeedItem for this match so the card
           // renders THEIR champion/KDA/items, not whoever-was-first.
@@ -775,9 +793,10 @@ function PlayerFilterBar({
   return (
     <div className={cn(glassDark, "p-2")}>
       <GlowBackdrop subtle />
-      <div className="relative z-[1] flex items-center gap-2">
-        {/* Chips — scroll horizontally if too wide */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+      <div className="relative z-[1] flex items-start gap-2">
+        {/* Chips — wrap onto multiple rows when there are 6+ players so the
+            tail of the list isn't hidden behind a horizontal scroll. */}
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
           <FilterChip
             active={selectedPlayerId === null}
             accent={JADE}
@@ -1123,7 +1142,7 @@ function MatchesTab({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <PlayerFilterBar
         lobby={lobby}
         selectedPlayerId={filterPlayerId}
@@ -1142,17 +1161,34 @@ function MatchesTab({
         </div>
       )}
 
-      {dayGroups.map((day) => (
-        <section key={day.label + day.sortKey}>
-          <div className="flex items-center gap-3 mb-3 px-1">
-            <span style={{ color: JADE, fontSize: "10px" }}>◆</span>
-            <h2 className="text-[12px] font-jetbrains tracking-[0.25em] uppercase text-flash/85 font-medium">
+      {dayGroups.map((day, dayIdx) => (
+        <section
+          key={day.label + day.sortKey}
+          className={cn(dayIdx > 0 && "pt-2")}
+        >
+          {/* Day separator — bold, full-width, glowing dot. Bigger than
+              before so the eye latches onto the day boundary. */}
+          <div className="relative flex items-center gap-3 mb-5 px-1">
+            <span
+              className="relative inline-flex items-center justify-center w-2 h-2 rounded-full"
+              style={{
+                background: JADE,
+                boxShadow: "0 0 14px rgba(0,217,146,0.7), 0 0 4px rgba(0,217,146,0.9)",
+              }}
+            />
+            <h2 className="text-[13px] font-jetbrains tracking-[0.3em] uppercase text-flash font-bold">
               {day.label}
             </h2>
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/15 to-transparent" />
+            <div className="flex-1 h-[1px] bg-gradient-to-r from-jade/30 via-flash/10 to-transparent" />
+            <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/35">
+              {day.sections.reduce((n, s) => n + s.matches.length, 0)} {" "}
+              {day.sections.reduce((n, s) => n + s.matches.length, 0) === 1
+                ? "match"
+                : "matches"}
+            </span>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-5">
             {day.sections.map((section, idx) => {
               const sectionMembers: SectionMember[] = section.members
                 .map((m) => {
@@ -2287,7 +2323,10 @@ function SidebarLeaderboard({
   slug: string;
   refreshTick: number;
 }) {
-  const [window, setWindow] = useState<StatsWindow>("today");
+  // Default to "all" so the widgets show meaningful data on first load —
+  // a fresh lobby with only a couple of games today would otherwise render
+  // "no games yet" everywhere.
+  const [window, setWindow] = useState<StatsWindow>("all");
   const [leaderboard, setLeaderboard] = useState<LeaderboardAccount[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -2331,11 +2370,11 @@ function SidebarLeaderboard({
       <LeaderboardStatBox
         loading={loading}
         icon={<Trophy className="w-3.5 h-3.5" />}
-        label="Player of the Day"
+        label={topPlayerLabel(window)}
         player={pickPlayerOfDay(leaderboard)}
         highlightFn={(p) => (p.deaths === 0 ? "PERF" : p.avgKda.toFixed(2))}
         highlightLabel="KDA"
-        emptyText="Need 2+ games"
+        emptyText="No games tracked"
       />
       <LeaderboardStatBox
         loading={loading}
@@ -2353,7 +2392,7 @@ function SidebarLeaderboard({
         player={pickBestWinrate(leaderboard)}
         highlightFn={(p) => `${p.winrate}%`}
         highlightLabel="WR"
-        emptyText="Need 3+ games"
+        emptyText="No games tracked"
       />
       <LeaderboardStatBox
         loading={loading}
@@ -2362,14 +2401,24 @@ function SidebarLeaderboard({
         player={pickMostGames(leaderboard)}
         highlightFn={(p) => String(p.games)}
         highlightLabel="Games"
-        emptyText="No games yet"
+        emptyText="No games tracked"
       />
     </div>
   );
 }
 
+// Window-aware label for the top KDA widget.
+function topPlayerLabel(w: StatsWindow): string {
+  if (w === "today") return "Player of the Day";
+  if (w === "week") return "Player of the Week";
+  return "Top Player";
+}
+
+// Thresholds were too strict for fresh lobbies: required 2+ games for
+// player-of-the-day and 3+ for best-winrate. Drop everything to 1+ so the
+// widgets render as soon as any match has been ingested.
 function pickPlayerOfDay(rows: LeaderboardAccount[]) {
-  const elig = rows.filter((p) => p.games >= 2);
+  const elig = rows.filter((p) => p.games >= 1);
   if (!elig.length) return null;
   return [...elig].sort((a, b) => b.avgKda - a.avgKda)[0];
 }
@@ -2379,7 +2428,7 @@ function pickHighestLp(rows: LeaderboardAccount[]) {
   return [...filt].sort((a, b) => b.balance - a.balance)[0];
 }
 function pickBestWinrate(rows: LeaderboardAccount[]) {
-  const elig = rows.filter((p) => p.games >= 3);
+  const elig = rows.filter((p) => p.games >= 1);
   if (!elig.length) return null;
   return [...elig].sort((a, b) => b.winrate - a.winrate)[0];
 }
@@ -3213,11 +3262,13 @@ function EditLobbyDialog({
   onClose,
   lobby,
   onSaved,
+  onDeleted,
 }: {
   open: boolean;
   onClose: () => void;
   lobby: Lobby;
   onSaved: () => void;
+  onDeleted?: () => void;
 }) {
   const [name, setName] = useState(lobby.name);
   const [players, setPlayers] = useState<EditPlayer[]>(() =>
@@ -3235,6 +3286,18 @@ function EditLobbyDialog({
   );
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Two-step delete: first click → confirmArmed. Second click within
+  // CONFIRM_WINDOW → actually delete. Auto-disarms after 4 seconds.
+  const [confirmArmed, setConfirmArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => {
+    if (!confirmArmed) return;
+    const t = window.setTimeout(() => setConfirmArmed(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [confirmArmed]);
+  useEffect(() => {
+    if (!open) setConfirmArmed(false);
+  }, [open]);
 
   // Reset state when reopened with a different lobby
   useEffect(() => {
@@ -3269,6 +3332,41 @@ function EditLobbyDialog({
     setPlayers((prev) =>
       prev.map((p) => (p.uid === uid ? { ...p, ...patch } : p))
     );
+
+  const deleteLobby = async () => {
+    setErr(null);
+    setDeleting(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess?.session?.access_token;
+      if (!token) {
+        setErr("Login required");
+        return;
+      }
+      const res = await fetch(`${API_BASE_URL}/api/scout/lobby/${lobby.slug}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErr(data.error ?? "Failed to delete lobby");
+        return;
+      }
+      showCyberToast({
+        title: "Lobby deleted",
+        description: `${lobby.name} has been removed`,
+        tag: "DEL",
+        variant: "status",
+      });
+      onClose();
+      onDeleted?.();
+    } catch (e) {
+      console.error(e);
+      setErr("Network error");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const save = async () => {
     setErr(null);
@@ -3357,7 +3455,7 @@ function EditLobbyDialog({
             className="absolute left-0 top-0 bottom-0 w-[2px] z-[1]"
             style={{ background: "color-mix(in srgb, #00d992 55%, transparent)" }}
           />
-          <div className="relative z-10 p-6 max-h-[80vh] overflow-y-auto">
+          <div className="relative z-10 p-6 max-h-[80vh] overflow-y-auto cyber-scrollbar">
             <div className="flex items-center gap-3 mb-5">
               <Pencil className="w-4 h-4 text-jade" />
               <span className="text-[12px] font-jetbrains tracking-[0.22em] uppercase text-jade font-medium">
@@ -3424,21 +3522,53 @@ function EditLobbyDialog({
               </div>
             )}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center justify-between gap-2">
+              {/* Two-step delete on the left. First click arms a red
+                  confirmation chip with countdown; second click within 4s
+                  fires the DELETE request. */}
               <button
-                onClick={onClose}
-                disabled={saving}
-                className="text-[11px] font-jetbrains tracking-[0.18em] uppercase font-medium px-4 py-2 rounded-[3px] border border-flash/15 text-flash/60 hover:bg-flash/[0.05] cursor-clicker"
+                onClick={() => {
+                  if (confirmArmed) deleteLobby();
+                  else setConfirmArmed(true);
+                }}
+                disabled={saving || deleting}
+                className={cn(
+                  "text-[11px] font-jetbrains tracking-[0.18em] uppercase font-medium px-3 py-2 rounded-[3px] border cursor-clicker transition-all flex items-center gap-2",
+                  confirmArmed
+                    ? "border-[#d63336]/55 text-[#d63336] bg-[#d63336]/[0.10] shadow-[0_0_18px_rgba(214,51,54,0.25)]"
+                    : "border-flash/15 text-flash/45 hover:text-[#d63336] hover:border-[#d63336]/40 hover:bg-[#d63336]/[0.05]",
+                  (saving || deleting) && "opacity-50"
+                )}
+                title={
+                  confirmArmed
+                    ? "Click again to confirm deletion"
+                    : "Delete this lobby"
+                }
               >
-                Cancel
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting
+                  ? "Deleting…"
+                  : confirmArmed
+                    ? "Click again to confirm"
+                    : "Delete lobby"}
               </button>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="text-[11px] font-jetbrains tracking-[0.2em] uppercase font-medium px-5 py-2 rounded-[3px] border border-jade/45 text-jade bg-jade/[0.10] hover:bg-jade/[0.20] shadow-[0_0_20px_rgba(0,217,146,0.18)] cursor-clicker disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save"}
-              </button>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={onClose}
+                  disabled={saving || deleting}
+                  className="text-[11px] font-jetbrains tracking-[0.18em] uppercase font-medium px-4 py-2 rounded-[3px] border border-flash/15 text-flash/60 hover:bg-flash/[0.05] cursor-clicker disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={save}
+                  disabled={saving || deleting}
+                  className="text-[11px] font-jetbrains tracking-[0.2em] uppercase font-medium px-5 py-2 rounded-[3px] border border-jade/45 text-jade bg-jade/[0.10] hover:bg-jade/[0.20] shadow-[0_0_20px_rgba(0,217,146,0.18)] cursor-clicker disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3636,6 +3766,7 @@ function EditPlayerRow({
 /* ─── main page ─────────────────────────────────────────────────────── */
 export default function ScoutLobbyPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -3906,6 +4037,7 @@ export default function ScoutLobbyPage() {
           onClose={() => setEditOpen(false)}
           lobby={lobby}
           onSaved={() => setRefreshTick((t) => t + 1)}
+          onDeleted={() => navigate("/dashboard/scout")}
         />
       )}
     </div>
