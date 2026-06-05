@@ -2269,8 +2269,21 @@ function LeaderboardTab({
  * area chart: cumulative LP, with hover dots showing the per-bucket
  * delta. "All players" picks the best total + draws every player line.
  */
-type LpTimelinePeriod = "day" | "week" | "month";
+type LpTimelinePeriod = "today" | "day" | "week" | "month";
 
+type LpTimelineAccountFE = {
+  puuid: string;
+  region: string;
+  riotName: string;
+  riotTag: string;
+  isPrimary: boolean;
+  iconId: number | null;
+  // ladderScore (tier*1000 + div*100 + lp) per bucket — forward-filled,
+  // null when no snapshot is known yet.
+  scores: (number | null)[];
+  finalScore: number | null;
+  finalRank: { tier: string; division: string | null; lp: number } | null;
+};
 type LpTimelinePayload = {
   period: LpTimelinePeriod;
   buckets: Array<{ bucketStart: string; label: string }>;
@@ -2278,12 +2291,7 @@ type LpTimelinePayload = {
     playerId: string;
     displayName: string;
     color: string | null;
-    iconId: number | null;
-    // ladderScore (tier*1000 + div*100 + lp) per bucket — forward-filled,
-    // null when no snapshot is known yet.
-    scores: (number | null)[];
-    finalScore: number | null;
-    finalRank: { tier: string; division: string | null; lp: number } | null;
+    accounts: LpTimelineAccountFE[];
   }>;
 };
 
@@ -2313,14 +2321,17 @@ const LP_TIER_ABBR: Record<string, string> = {
   CHALLENGER: "C",
 };
 
-/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4". */
+/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4".
+ *  Ladder math stores I=4 / II=3 / III=2 / IV=1 in the hundreds digit,
+ *  so we invert (5 − idx) to get the display number where I=1 / IV=4. */
 function scoreToRankShort(score: number): string {
   if (score < 0) return "—";
   const tierIdx = Math.min(9, Math.floor(score / 1000));
   const tier = LP_TIERS_ORDER[tierIdx];
   const abbr = LP_TIER_ABBR[tier];
   if (tierIdx >= 7) return abbr; // M / GM / C — no division
-  const divNum = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
+  const divIdx = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
+  const divNum = 5 - divIdx;
   return `${abbr}${divNum}`;
 }
 
@@ -2356,11 +2367,18 @@ function LpTimelineChart({
   slug: string;
   refreshTick: number;
 }) {
-  const [period, setPeriod] = useState<LpTimelinePeriod>("day");
+  // Default to "today" so fresh lobbies show meaningful intra-day movement
+  // instead of a single Day bucket that renders as a near-invisible dot.
+  const [period, setPeriod] = useState<LpTimelinePeriod>("today");
   const [data, setData] = useState<LpTimelinePayload | null>(null);
   const [loading, setLoading] = useState(true);
   // null = ALL players overlaid; otherwise a specific playerId
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  // Only meaningful when a single player is isolated. null = show every
+  // linked account; otherwise restrict the chart to just that puuid.
+  const [selectedAccountPuuid, setSelectedAccountPuuid] = useState<
+    string | null
+  >(null);
   const [hoverBucket, setHoverBucket] = useState<number | null>(null);
 
   useEffect(() => {
@@ -2376,32 +2394,111 @@ function LpTimelineChart({
     };
   }, [slug, period, refreshTick]);
 
-  const visiblePlayers = useMemo(() => {
+  // Lines to draw, derived from the player + account selection. Each line
+  // carries its display label, color, and a styling tweak so multiple
+  // accounts of the same player are visually distinguishable.
+  type ChartLine = {
+    lineId: string;
+    label: string;
+    accent: string;
+    isPrimary: boolean;
+    dashArray: string | null;   // null = solid
+    opacity: number;
+    iconId: number | null;
+    account: LpTimelineAccountFE;
+    playerId: string;
+  };
+  const visibleLines: ChartLine[] = useMemo(() => {
     if (!data) return [];
-    if (selectedPlayerId == null) return data.players;
-    return data.players.filter((p) => p.playerId === selectedPlayerId);
-  }, [data, selectedPlayerId]);
+    const out: ChartLine[] = [];
+    for (const p of data.players) {
+      if (p.accounts.length === 0) continue;
+      const accent = p.color || JADE;
+      const primary =
+        p.accounts.find((a) => a.isPrimary) ?? p.accounts[0];
+
+      if (selectedPlayerId == null) {
+        // Multi-player overlay → just the primary line per player.
+        out.push({
+          lineId: `${p.playerId}:${primary.puuid}`,
+          label: p.displayName,
+          accent,
+          isPrimary: true,
+          dashArray: null,
+          opacity: 1,
+          iconId: primary.iconId,
+          account: primary,
+          playerId: p.playerId,
+        });
+        continue;
+      }
+      if (p.playerId !== selectedPlayerId) continue;
+
+      // Single-player view → optionally restricted to one account.
+      let order = 0;
+      for (const acc of p.accounts) {
+        if (selectedAccountPuuid != null && acc.puuid !== selectedAccountPuuid)
+          continue;
+        const label =
+          p.accounts.length === 1
+            ? p.displayName
+            : `${p.displayName} · ${acc.riotName}`;
+        const isPrim = acc.isPrimary;
+        // Style: primary solid full-opacity. Secondary accounts get a
+        // dashed stroke + slight transparency so the lines don't read as
+        // the same data twice.
+        const dash = isPrim ? null : order === 1 ? "1.4 0.8" : "0.8 0.6";
+        const opacity = isPrim ? 1 : 0.75;
+        out.push({
+          lineId: `${p.playerId}:${acc.puuid}`,
+          label,
+          accent,
+          isPrimary: isPrim,
+          dashArray: dash,
+          opacity,
+          iconId: acc.iconId,
+          account: acc,
+          playerId: p.playerId,
+        });
+        order++;
+      }
+    }
+    return out;
+  }, [data, selectedPlayerId, selectedAccountPuuid]);
 
   const { minY, maxY, yTicks, paths, hoverPoints } = useMemo(() => {
-    if (!data || data.buckets.length === 0 || visiblePlayers.length === 0) {
+    if (!data || data.buckets.length === 0 || visibleLines.length === 0) {
       return {
         minY: 0,
         maxY: 0,
         yTicks: [] as Array<{ score: number; label: string }>,
-        paths: [] as Array<{ playerId: string; color: string; line: string; area: string; finalY: number | null }>,
-        hoverPoints: [] as Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }>,
+        paths: [] as Array<{
+          lineId: string;
+          color: string;
+          line: string;
+          area: string;
+          finalY: number | null;
+          dashArray: string | null;
+          opacity: number;
+        }>,
+        hoverPoints: [] as Array<{
+          x: number;
+          y: number;
+          color: string;
+          lineId: string;
+          score: number;
+          label: string;
+        }>,
       };
     }
     const W = 100;
     const H = 100;
     const N = data.buckets.length;
 
-    // Y range based on non-null scores. Pad ±150 so the line doesn't kiss
-    // the chart edges, and ensure at least 1 full division of headroom.
     let lo = Number.POSITIVE_INFINITY;
     let hi = Number.NEGATIVE_INFINITY;
-    for (const p of visiblePlayers) {
-      for (const v of p.scores) {
+    for (const ln of visibleLines) {
+      for (const v of ln.account.scores) {
         if (v == null) continue;
         if (v < lo) lo = v;
         if (v > hi) hi = v;
@@ -2421,22 +2518,20 @@ function LpTimelineChart({
     const y = (score: number) => H - ((score - lo) / (hi - lo)) * H;
 
     type PathObj = {
-      playerId: string;
+      lineId: string;
       color: string;
       line: string;
       area: string;
       finalY: number | null;
+      dashArray: string | null;
+      opacity: number;
     };
-    const paths: PathObj[] = visiblePlayers.map((p) => {
-      const color = p.color || JADE;
-      // Build the line as multiple segments — break wherever a score is null
-      // so the line doesn't fly to 0. Most lobbies will have a continuous
-      // series after the first snapshot, but a clean handling is cheap.
+    const paths: PathObj[] = visibleLines.map((ln) => {
       let line = "";
       let pen = false;
       const segPoints: Array<{ x: number; y: number }> = [];
       for (let i = 0; i < N; i++) {
-        const v = p.scores[i];
+        const v = ln.account.scores[i];
         if (v == null) {
           pen = false;
           continue;
@@ -2449,7 +2544,7 @@ function LpTimelineChart({
       }
       let area = "";
       if (segPoints.length >= 2) {
-        const baseY = H; // bottom of chart
+        const baseY = H;
         area =
           segPoints
             .map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`))
@@ -2457,25 +2552,41 @@ function LpTimelineChart({
           ` L ${segPoints[segPoints.length - 1].x} ${baseY}` +
           ` L ${segPoints[0].x} ${baseY} Z`;
       }
-      const lastNonNull = [...p.scores].reverse().find((s): s is number => s != null);
+      const lastNonNull = [...ln.account.scores]
+        .reverse()
+        .find((s): s is number => s != null);
       const finalY = lastNonNull != null ? y(lastNonNull) : null;
-      return { playerId: p.playerId, color, line, area, finalY };
+      return {
+        lineId: ln.lineId,
+        color: ln.accent,
+        line,
+        area,
+        finalY,
+        dashArray: ln.dashArray,
+        opacity: ln.opacity,
+      };
     });
 
-    // Hover points
     const hi2 = hoverBucket;
-    const hoverPoints: Array<{ x: number; y: number; color: string; playerId: string; score: number; displayName: string }> = [];
+    const hoverPoints: Array<{
+      x: number;
+      y: number;
+      color: string;
+      lineId: string;
+      score: number;
+      label: string;
+    }> = [];
     if (hi2 != null && hi2 >= 0 && hi2 < N) {
-      for (const p of visiblePlayers) {
-        const v = p.scores[hi2];
+      for (const ln of visibleLines) {
+        const v = ln.account.scores[hi2];
         if (v == null) continue;
         hoverPoints.push({
           x: x(hi2),
           y: y(v),
-          color: p.color || JADE,
-          playerId: p.playerId,
+          color: ln.accent,
+          lineId: ln.lineId,
           score: v,
-          displayName: p.displayName,
+          label: ln.label,
         });
       }
     }
@@ -2483,11 +2594,13 @@ function LpTimelineChart({
     const ticks = lpYTicks(lo, hi);
 
     return { minY: lo, maxY: hi, yTicks: ticks, paths, hoverPoints };
-  }, [data, visiblePlayers, hoverBucket]);
+  }, [data, visibleLines, hoverBucket]);
 
   const hasData =
     !!data &&
-    data.players.some((p) => p.scores.some((s) => s != null));
+    data.players.some((p) =>
+      p.accounts.some((a) => a.scores.some((s) => s != null))
+    );
 
   // Label spacing — show ~6 evenly spaced labels along x-axis to avoid clutter
   const labelStep = data
@@ -2506,7 +2619,7 @@ function LpTimelineChart({
           </span>
           <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/15 to-transparent" />
           <div className="flex items-center gap-1">
-            {(["day", "week", "month"] as const).map((p) => (
+            {(["today", "day", "week", "month"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -2518,78 +2631,190 @@ function LpTimelineChart({
                     : "bg-transparent text-flash/40 hover:text-flash/70 hover:bg-flash/[0.04] border border-transparent"
                 )}
               >
-                {p === "day" ? "Day" : p === "week" ? "Week" : "Month"}
+                {p === "today"
+                  ? "Today"
+                  : p === "day"
+                    ? "Day"
+                    : p === "week"
+                      ? "Week"
+                      : "Month"}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Player chips */}
+        {/* Player + account chips. Two rows: top is players, bottom is the
+            account chips for the currently-isolated player (only shown when
+            that player has 2+ linked accounts). */}
         {data && data.players.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap mb-4">
-            <button
-              type="button"
-              onClick={() => setSelectedPlayerId(null)}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
-                selectedPlayerId == null
-                  ? "border-jade/40 bg-jade/[0.10] text-jade"
-                  : "border-flash/15 text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
-              )}
-            >
-              <Users className="w-3 h-3" />
-              All
-            </button>
-            {data.players.map((p) => {
-              const accent = p.color || JADE;
-              const active = selectedPlayerId === p.playerId;
-              return (
-                <button
-                  key={p.playerId}
-                  type="button"
-                  onClick={() =>
-                    setSelectedPlayerId(active ? null : p.playerId)
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
-                    active
-                      ? "bg-flash/[0.05] text-flash/90"
-                      : "border-transparent text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
-                  )}
-                  style={
-                    active
-                      ? {
-                          borderColor: `color-mix(in srgb, ${accent} 50%, transparent)`,
-                          boxShadow: `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`,
-                        }
-                      : undefined
-                  }
-                >
-                  {profileIconUrl(p.iconId) ? (
-                    <img
-                      src={profileIconUrl(p.iconId)!}
-                      alt=""
-                      className="w-4 h-4 rounded-full"
-                      style={{ border: `1px solid ${accent}` }}
-                    />
-                  ) : (
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ background: accent, boxShadow: `0 0 4px ${accent}` }}
-                    />
-                  )}
-                  <span>{p.displayName}</span>
-                  {p.finalRank && (
-                    <span
-                      className="tabular-nums font-bold opacity-80"
-                      style={{ color: accent }}
-                    >
-                      {scoreToRankShort(p.finalScore ?? -1)}
-                    </span>
-                  )}
-                </button>
+          <div className="flex flex-col gap-2 mb-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPlayerId(null);
+                  setSelectedAccountPuuid(null);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                  selectedPlayerId == null
+                    ? "border-jade/40 bg-jade/[0.10] text-jade"
+                    : "border-flash/15 text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+                )}
+              >
+                <Users className="w-3 h-3" />
+                All
+              </button>
+              {data.players.map((p) => {
+                const accent = p.color || JADE;
+                const active = selectedPlayerId === p.playerId;
+                const primary =
+                  p.accounts.find((a) => a.isPrimary) ?? p.accounts[0];
+                const finalScore = primary?.finalScore ?? null;
+                return (
+                  <button
+                    key={p.playerId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlayerId(active ? null : p.playerId);
+                      setSelectedAccountPuuid(null);
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                      active
+                        ? "bg-flash/[0.05] text-flash/90"
+                        : "border-transparent text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+                    )}
+                    style={
+                      active
+                        ? {
+                            borderColor: `color-mix(in srgb, ${accent} 50%, transparent)`,
+                            boxShadow: `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {profileIconUrl(primary?.iconId ?? null) ? (
+                      <img
+                        src={profileIconUrl(primary?.iconId ?? null)!}
+                        alt=""
+                        className="w-4 h-4 rounded-full"
+                        style={{ border: `1px solid ${accent}` }}
+                      />
+                    ) : (
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: accent, boxShadow: `0 0 4px ${accent}` }}
+                      />
+                    )}
+                    <span>{p.displayName}</span>
+                    {finalScore != null && (
+                      <span
+                        className="tabular-nums font-bold opacity-80"
+                        style={{ color: accent }}
+                      >
+                        {scoreToRankShort(finalScore)}
+                      </span>
+                    )}
+                    {p.accounts.length > 1 && (
+                      <span className="text-[8px] font-mono text-flash/30 tabular-nums">
+                        ×{p.accounts.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Account row — only when an isolated player has multiple
+                accounts. Lets the user pick which one to chart. */}
+            {(() => {
+              if (selectedPlayerId == null) return null;
+              const player = data.players.find(
+                (p) => p.playerId === selectedPlayerId
               );
-            })}
+              if (!player || player.accounts.length < 2) return null;
+              const accent = player.color || JADE;
+              return (
+                <div className="flex items-center gap-2 flex-wrap pl-3 ml-1 border-l border-flash/10">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAccountPuuid(null)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                      selectedAccountPuuid == null
+                        ? "bg-flash/[0.05] text-flash/85"
+                        : "border-transparent text-flash/35 hover:text-flash/70 hover:bg-flash/[0.04]"
+                    )}
+                    style={
+                      selectedAccountPuuid == null
+                        ? {
+                            borderColor: `color-mix(in srgb, ${accent} 35%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    All accounts
+                  </button>
+                  {player.accounts.map((acc) => {
+                    const active = selectedAccountPuuid === acc.puuid;
+                    return (
+                      <button
+                        key={acc.puuid}
+                        type="button"
+                        onClick={() =>
+                          setSelectedAccountPuuid(active ? null : acc.puuid)
+                        }
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                          active
+                            ? "bg-flash/[0.05] text-flash/85"
+                            : "border-transparent text-flash/35 hover:text-flash/70 hover:bg-flash/[0.04]"
+                        )}
+                        style={
+                          active
+                            ? {
+                                borderColor: `color-mix(in srgb, ${accent} 45%, transparent)`,
+                                boxShadow: `0 0 10px color-mix(in srgb, ${accent} 22%, transparent)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {profileIconUrl(acc.iconId) ? (
+                          <img
+                            src={profileIconUrl(acc.iconId)!}
+                            alt=""
+                            className="w-3.5 h-3.5 rounded-full"
+                            style={{ border: `1px solid ${accent}` }}
+                          />
+                        ) : (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: accent }}
+                          />
+                        )}
+                        <span className="text-jade/55 mr-0.5">{acc.region}</span>
+                        <span>{acc.riotName}</span>
+                        <span className="text-flash/25">#{acc.riotTag}</span>
+                        {acc.isPrimary && (
+                          <span className="text-[7px] font-mono tracking-widest text-jade/60 ml-0.5">
+                            MAIN
+                          </span>
+                        )}
+                        {acc.finalScore != null && (
+                          <span
+                            className="tabular-nums font-bold opacity-80 ml-0.5"
+                            style={{ color: accent }}
+                          >
+                            {scoreToRankShort(acc.finalScore)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2659,12 +2884,12 @@ function LpTimelineChart({
                 );
               })}
 
-              {/* Area fill when only one player is isolated */}
-              {visiblePlayers.length === 1 &&
+              {/* Area fill when exactly one line is being rendered */}
+              {paths.length === 1 &&
                 paths.map((p) =>
                   p.area ? (
                     <path
-                      key={`area-${p.playerId}`}
+                      key={`area-${p.lineId}`}
                       d={p.area}
                       fill={`color-mix(in srgb, ${p.color} 22%, transparent)`}
                       opacity={0.55}
@@ -2675,31 +2900,44 @@ function LpTimelineChart({
               {/* Lines */}
               {paths.map((p) => (
                 <path
-                  key={`line-${p.playerId}`}
+                  key={`line-${p.lineId}`}
                   d={p.line}
                   fill="none"
                   stroke={p.color}
                   strokeWidth="0.55"
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                  strokeDasharray={p.dashArray ?? undefined}
+                  opacity={p.opacity}
                   style={{
                     filter: `drop-shadow(0 0 1.4px color-mix(in srgb, ${p.color} 55%, transparent))`,
                   }}
                 />
               ))}
 
-              {/* End-of-line dot — marks the player's current rank */}
+              {/* End-of-line dot — marks current rank for that line.
+                  Two-circle stack so the dot stays prominent even in the
+                  single-bucket case where the line is just a single
+                  invisible "M x y" point. */}
               {paths.map((p) =>
                 p.finalY != null ? (
-                  <circle
-                    key={`end-${p.playerId}`}
-                    cx={100}
-                    cy={p.finalY}
-                    r="0.9"
-                    fill={p.color}
-                    stroke="rgba(0,0,0,0.5)"
-                    strokeWidth="0.18"
-                  />
+                  <g key={`end-${p.lineId}`} opacity={p.opacity}>
+                    <circle
+                      cx={98}
+                      cy={p.finalY}
+                      r="2.4"
+                      fill={p.color}
+                      opacity={0.22}
+                    />
+                    <circle
+                      cx={98}
+                      cy={p.finalY}
+                      r="1.4"
+                      fill={p.color}
+                      stroke="rgba(0,0,0,0.5)"
+                      strokeWidth="0.22"
+                    />
+                  </g>
                 ) : null
               )}
 
@@ -2716,7 +2954,7 @@ function LpTimelineChart({
                   />
                   {hoverPoints.map((pt) => (
                     <circle
-                      key={`dot-${pt.playerId}`}
+                      key={`dot-${pt.lineId}`}
                       cx={pt.x}
                       cy={pt.y}
                       r="1.1"
@@ -2756,14 +2994,14 @@ function LpTimelineChart({
                 </span>
                 {hoverPoints.map((pt) => (
                   <span
-                    key={pt.playerId}
+                    key={pt.lineId}
                     className="inline-flex items-center gap-1.5"
                   >
                     <span
                       className="w-2 h-2 rounded-full"
                       style={{ background: pt.color }}
                     />
-                    <span className="text-flash/55">{pt.displayName}</span>
+                    <span className="text-flash/55">{pt.label}</span>
                     <span
                       className="font-bold tabular-nums uppercase tracking-wider"
                       style={{ color: pt.color }}
