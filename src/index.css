@@ -439,3 +439,45 @@ body.modal-frozen #root *::after {
     transition: none !important;
 }
 
+/* Cyber scrollbar — jade-themed, thin, with a subtle glow on hover.
+   Used in dialogs and scroll containers where the default OS scrollbar
+   looks out of place against the dark glass UI. */
+.cyber-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 217, 146, 0.32) transparent;
+}
+.cyber-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.cyber-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 217, 146, 0.04);
+    border-left: 1px solid rgba(0, 217, 146, 0.08);
+}
+.cyber-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(0, 217, 146, 0.55) 0%,
+        rgba(0, 217, 146, 0.25) 100%
+    );
+    border-radius: 2px;
+    border: 1px solid rgba(0, 217, 146, 0.18);
+    box-shadow:
+        inset 0 0 4px rgba(0, 217, 146, 0.25),
+        0 0 6px rgba(0, 217, 146, 0.12);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.cyber-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(0, 217, 146, 0.85) 0%,
+        rgba(0, 217, 146, 0.45) 100%
+    );
+    box-shadow:
+        inset 0 0 6px rgba(0, 217, 146, 0.45),
+        0 0 12px rgba(0, 217, 146, 0.4);
+}
+.cyber-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
