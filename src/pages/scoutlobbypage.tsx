@@ -2120,8 +2120,9 @@ function LeaderboardTab({
                     </span>
                   </div>
 
-                  {/* Tier + LP */}
-                  <div className="flex items-center gap-2 justify-center relative z-10">
+                  {/* Tier + LP — grid with a fixed-width icon slot so every
+                      rank starts at the same x regardless of label length. */}
+                  <div className="grid grid-cols-[28px_1fr] gap-2 items-center relative z-10 pl-3">
                     {p.currentRank ? (
                       <>
                         <img
@@ -2129,10 +2130,10 @@ function LeaderboardTab({
                           alt={p.currentRank.tier}
                           className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-110"
                         />
-                        <div className="flex flex-col items-start leading-tight">
+                        <div className="flex flex-col items-start leading-tight min-w-0">
                           <span
                             className={cn(
-                              "text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium",
+                              "text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium truncate",
                               rankColorClass(p.currentRank.tier)
                             )}
                           >
@@ -2148,9 +2149,12 @@ function LeaderboardTab({
                         </div>
                       </>
                     ) : (
-                      <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/30">
-                        UNRANKED
-                      </span>
+                      <>
+                        <span className="w-7 h-7" />
+                        <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/30">
+                          UNRANKED
+                        </span>
+                      </>
                     )}
                   </div>
 
@@ -2251,6 +2255,420 @@ function LeaderboardTab({
             })
           )}
         </div>
+      </div>
+
+      {/* LP timeline chart — per-player, with day/week/month granularity */}
+      <LpTimelineChart slug={slug} refreshTick={refreshTick} />
+    </div>
+  );
+}
+
+/* ─── LP timeline chart ────────────────────────────────────────────────
+ * Net LP change per bucket since lobby creation. User picks a player
+ * (chips at the top) and a granularity (Day / Week / Month tabs). SVG
+ * area chart: cumulative LP, with hover dots showing the per-bucket
+ * delta. "All players" picks the best total + draws every player line.
+ */
+type LpTimelinePeriod = "day" | "week" | "month";
+
+type LpTimelinePayload = {
+  period: LpTimelinePeriod;
+  buckets: Array<{ bucketStart: string; label: string }>;
+  players: Array<{
+    playerId: string;
+    displayName: string;
+    color: string | null;
+    iconId: number | null;
+    deltas: number[];
+    cumulative: number[];
+    netTotal: number;
+  }>;
+};
+
+function LpTimelineChart({
+  slug,
+  refreshTick,
+}: {
+  slug: string;
+  refreshTick: number;
+}) {
+  const [period, setPeriod] = useState<LpTimelinePeriod>("day");
+  const [data, setData] = useState<LpTimelinePayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  // null = ALL players overlaid; otherwise a specific playerId
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [hoverBucket, setHoverBucket] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${API_BASE_URL}/api/scout/lp-timeline/${slug}?period=${period}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !cancelled && setData(d))
+      .catch(console.error)
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, period, refreshTick]);
+
+  const visiblePlayers = useMemo(() => {
+    if (!data) return [];
+    if (selectedPlayerId == null) return data.players;
+    return data.players.filter((p) => p.playerId === selectedPlayerId);
+  }, [data, selectedPlayerId]);
+
+  const { minY, maxY, paths, hoverPoints } = useMemo(() => {
+    if (!data || data.buckets.length === 0 || visiblePlayers.length === 0) {
+      return { minY: 0, maxY: 0, paths: [], hoverPoints: [] };
+    }
+    const W = 100;        // viewBox width units (we'll scale to actual px)
+    const H = 100;        // viewBox height units
+    const N = data.buckets.length;
+    let lo = 0;
+    let hi = 0;
+    for (const p of visiblePlayers) {
+      for (const v of p.cumulative) {
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    // Always include 0 baseline for visual reference.
+    if (lo > 0) lo = 0;
+    if (hi < 0) hi = 0;
+    if (lo === hi) hi = lo + 1; // avoid div-by-zero
+
+    const x = (i: number) =>
+      N === 1 ? W / 2 : (i / (N - 1)) * W;
+    const y = (v: number) => H - ((v - lo) / (hi - lo)) * H;
+
+    type PathObj = {
+      playerId: string;
+      color: string;
+      line: string;
+      area: string;
+      lastY: number;
+    };
+    const paths: PathObj[] = visiblePlayers.map((p) => {
+      const color = p.color || JADE;
+      let line = "";
+      let area = "";
+      for (let i = 0; i < N; i++) {
+        const px = x(i);
+        const py = y(p.cumulative[i] ?? 0);
+        line += i === 0 ? `M ${px} ${py}` : ` L ${px} ${py}`;
+      }
+      // Area path: line + close to baseline (y=0 cumulative)
+      const baseY = y(0);
+      area = `${line} L ${x(N - 1)} ${baseY} L ${x(0)} ${baseY} Z`;
+      return { playerId: p.playerId, color, line, area, lastY: y(p.cumulative[N - 1] ?? 0) };
+    });
+
+    // Hover points for the active bucket
+    const hi2 = hoverBucket;
+    const hoverPoints: Array<{ x: number; y: number; color: string; playerId: string; delta: number; cumulative: number; displayName: string }> = [];
+    if (hi2 != null && hi2 >= 0 && hi2 < N) {
+      for (const p of visiblePlayers) {
+        hoverPoints.push({
+          x: x(hi2),
+          y: y(p.cumulative[hi2] ?? 0),
+          color: p.color || JADE,
+          playerId: p.playerId,
+          delta: p.deltas[hi2] ?? 0,
+          cumulative: p.cumulative[hi2] ?? 0,
+          displayName: p.displayName,
+        });
+      }
+    }
+
+    return { minY: lo, maxY: hi, paths, hoverPoints };
+  }, [data, visiblePlayers, hoverBucket]);
+
+  const hasData =
+    !!data &&
+    data.players.some((p) => p.deltas.some((d) => d !== 0));
+
+  // Label spacing — show ~6 evenly spaced labels along x-axis to avoid clutter
+  const labelStep = data
+    ? Math.max(1, Math.ceil(data.buckets.length / 6))
+    : 1;
+
+  return (
+    <div className={cn(glassDark, "p-5")}>
+      <GlowBackdrop subtle />
+      <div className="relative z-[1]">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <span style={{ color: JADE, fontSize: "12px" }}>◆</span>
+          <span className="text-[13px] font-jetbrains tracking-[0.22em] uppercase text-flash/90 font-medium">
+            LP Timeline
+          </span>
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/15 to-transparent" />
+          <div className="flex items-center gap-1">
+            {(["day", "week", "month"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  "text-[10px] font-jetbrains tracking-[0.2em] uppercase px-3 py-1.5 rounded-[3px] transition-all cursor-clicker font-medium",
+                  period === p
+                    ? "bg-jade/[0.15] text-jade border border-jade/40"
+                    : "bg-transparent text-flash/40 hover:text-flash/70 hover:bg-flash/[0.04] border border-transparent"
+                )}
+              >
+                {p === "day" ? "Day" : p === "week" ? "Week" : "Month"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Player chips */}
+        {data && data.players.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <button
+              type="button"
+              onClick={() => setSelectedPlayerId(null)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                selectedPlayerId == null
+                  ? "border-jade/40 bg-jade/[0.10] text-jade"
+                  : "border-flash/15 text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+              )}
+            >
+              <Users className="w-3 h-3" />
+              All
+            </button>
+            {data.players.map((p) => {
+              const accent = p.color || JADE;
+              const active = selectedPlayerId === p.playerId;
+              return (
+                <button
+                  key={p.playerId}
+                  type="button"
+                  onClick={() =>
+                    setSelectedPlayerId(active ? null : p.playerId)
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-[10px] font-jetbrains tracking-[0.18em] uppercase font-medium transition-all cursor-clicker border",
+                    active
+                      ? "bg-flash/[0.05] text-flash/90"
+                      : "border-transparent text-flash/45 hover:text-flash/75 hover:bg-flash/[0.04]"
+                  )}
+                  style={
+                    active
+                      ? {
+                          borderColor: `color-mix(in srgb, ${accent} 50%, transparent)`,
+                          boxShadow: `0 0 12px color-mix(in srgb, ${accent} 25%, transparent)`,
+                        }
+                      : undefined
+                  }
+                >
+                  {profileIconUrl(p.iconId) ? (
+                    <img
+                      src={profileIconUrl(p.iconId)!}
+                      alt=""
+                      className="w-4 h-4 rounded-full"
+                      style={{ border: `1px solid ${accent}` }}
+                    />
+                  ) : (
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: accent, boxShadow: `0 0 4px ${accent}` }}
+                    />
+                  )}
+                  <span>{p.displayName}</span>
+                  <span
+                    className={cn(
+                      "tabular-nums font-bold",
+                      p.netTotal > 0
+                        ? "text-jade/75"
+                        : p.netTotal < 0
+                          ? "text-red-400/70"
+                          : "text-flash/30"
+                    )}
+                  >
+                    {p.netTotal === 0
+                      ? "0"
+                      : `${p.netTotal > 0 ? "+" : ""}${p.netTotal}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Chart */}
+        {loading ? (
+          <div className="h-[220px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+            Loading…
+          </div>
+        ) : !hasData ? (
+          <div className="h-[220px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+            Not enough rank data yet — keep playing.
+          </div>
+        ) : (
+          <div className="relative">
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="w-full h-[220px] block"
+              onMouseLeave={() => setHoverBucket(null)}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+                if (!data) return;
+                const N = data.buckets.length;
+                const idx = Math.round((xPct / 100) * (N - 1));
+                setHoverBucket(Math.max(0, Math.min(N - 1, idx)));
+              }}
+            >
+              {/* Grid + zero baseline */}
+              {(() => {
+                if (!data) return null;
+                const range = maxY - minY || 1;
+                const zeroY = 100 - ((0 - minY) / range) * 100;
+                return (
+                  <>
+                    {/* Horizontal grid lines (5 segments) */}
+                    {[0, 25, 50, 75, 100].map((y) => (
+                      <line
+                        key={y}
+                        x1="0"
+                        x2="100"
+                        y1={y}
+                        y2={y}
+                        stroke="rgba(255,255,255,0.04)"
+                        strokeWidth="0.15"
+                      />
+                    ))}
+                    {/* Zero line */}
+                    <line
+                      x1="0"
+                      x2="100"
+                      y1={zeroY}
+                      y2={zeroY}
+                      stroke="rgba(255,255,255,0.18)"
+                      strokeDasharray="0.6 0.6"
+                      strokeWidth="0.18"
+                    />
+                  </>
+                );
+              })()}
+
+              {/* Area fills (when only one player visible) */}
+              {visiblePlayers.length === 1 &&
+                paths.map((p) => (
+                  <path
+                    key={`area-${p.playerId}`}
+                    d={p.area}
+                    fill={`color-mix(in srgb, ${p.color} 20%, transparent)`}
+                    opacity={0.5}
+                  />
+                ))}
+
+              {/* Lines */}
+              {paths.map((p) => (
+                <path
+                  key={`line-${p.playerId}`}
+                  d={p.line}
+                  fill="none"
+                  stroke={p.color}
+                  strokeWidth="0.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  style={{
+                    filter: `drop-shadow(0 0 1.2px color-mix(in srgb, ${p.color} 50%, transparent))`,
+                  }}
+                />
+              ))}
+
+              {/* Hover vertical guide + dots */}
+              {hoverBucket != null && data && hoverPoints.length > 0 && (
+                <>
+                  <line
+                    x1={hoverPoints[0].x}
+                    x2={hoverPoints[0].x}
+                    y1={0}
+                    y2={100}
+                    stroke="rgba(0,217,146,0.35)"
+                    strokeWidth="0.18"
+                  />
+                  {hoverPoints.map((pt) => (
+                    <circle
+                      key={`dot-${pt.playerId}`}
+                      cx={pt.x}
+                      cy={pt.y}
+                      r="0.9"
+                      fill={pt.color}
+                      stroke="rgba(0,0,0,0.4)"
+                      strokeWidth="0.2"
+                    />
+                  ))}
+                </>
+              )}
+            </svg>
+
+            {/* X-axis labels */}
+            <div className="relative mt-2 h-4">
+              {data?.buckets.map((b, i) => {
+                if (i % labelStep !== 0 && i !== data.buckets.length - 1)
+                  return null;
+                const N = data.buckets.length;
+                const left = N === 1 ? 50 : (i / (N - 1)) * 100;
+                return (
+                  <span
+                    key={b.bucketStart}
+                    className="absolute -translate-x-1/2 text-[8px] font-jetbrains tracking-[0.18em] uppercase text-flash/30 whitespace-nowrap"
+                    style={{ left: `${left}%` }}
+                  >
+                    {b.label}
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Hover tooltip */}
+            {hoverBucket != null && data && hoverPoints.length > 0 && (
+              <div className="mt-3 flex items-center gap-3 flex-wrap text-[10px] font-jetbrains text-flash/60">
+                <span className="text-flash/30 uppercase tracking-[0.2em]">
+                  {data.buckets[hoverBucket]?.label}
+                </span>
+                {hoverPoints.map((pt) => (
+                  <span
+                    key={pt.playerId}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: pt.color }}
+                    />
+                    <span className="text-flash/55">{pt.displayName}</span>
+                    <span
+                      className={cn(
+                        "font-bold tabular-nums",
+                        pt.delta > 0
+                          ? "text-jade"
+                          : pt.delta < 0
+                            ? "text-red-400/80"
+                            : "text-flash/40"
+                      )}
+                    >
+                      {pt.delta === 0
+                        ? "0"
+                        : `${pt.delta > 0 ? "+" : ""}${pt.delta}`}
+                    </span>
+                    <span className="text-flash/25">LP</span>
+                    <span className="text-flash/25 ml-0.5">
+                      ({pt.cumulative >= 0 ? "+" : ""}
+                      {pt.cumulative})
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
