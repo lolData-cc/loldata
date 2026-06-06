@@ -613,7 +613,14 @@ function PlayerSectionCard({
   }, [matches, itemsByMatch, activePlayerId, sectionWins, sectionLosses]);
 
   return (
-    <div className="relative overflow-hidden rounded-md bg-black/15 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div
+      className="relative overflow-hidden rounded-md bg-black/35 backdrop-blur-xl saturate-150 ring-1 ring-flash/[0.08] shadow-[0_18px_44px_-12px_rgba(0,0,0,0.85),0_4px_14px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
+    >
+      {/* Subtle top highlight — gives the card a glass edge */}
+      <div
+        aria-hidden
+        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-flash/15 to-transparent pointer-events-none z-[1]"
+      />
       <div
         className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
         style={{
