@@ -539,9 +539,10 @@ function PlayerSectionCard({
   }
   const isSquad = uniquePlayers.length >= 2;
 
-  // Expand/collapse state — sections with many matches dominate the feed,
-  // so users can fold them away. Default expanded.
-  const [expanded, setExpanded] = useState(true);
+  // Expand/collapse state — show 1 match by default, "Show N more" CTA
+  // beneath unfolds the rest. Sections with a single match never need
+  // the toggle. Lets a user with 15 daily games not flood the feed.
+  const [expanded, setExpanded] = useState(false);
 
   // Section outcome — drives the left border color.
   // Tie counts as a win-leaning result, so 50% winrate keeps the jade
@@ -752,33 +753,13 @@ function PlayerSectionCard({
             }
             sub={`${sessionStats.kills}/${sessionStats.deaths}/${sessionStats.assists}`}
           />
-          {/* Collapse toggle — same chevron that's used elsewhere. Click
-              the header anywhere in the empty area also works because the
-              toggle catches clicks via the surrounding button below. */}
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            aria-label={expanded ? "Collapse section" : "Expand section"}
-            className="ml-1 inline-flex items-center justify-center w-7 h-7 rounded-[3px] border border-flash/10 bg-black/30 text-flash/55 hover:text-jade hover:border-jade/35 hover:bg-jade/[0.06] transition-colors cursor-clicker"
-          >
-            <span
-              aria-hidden
-              className={cn(
-                "text-[14px] leading-none transition-transform duration-200",
-                expanded ? "rotate-180" : "rotate-0"
-              )}
-            >
-              ⌃
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* Matches list — hidden when section is collapsed */}
-      {expanded && (
-      <ul className="relative z-[2] flex flex-col gap-3 p-3">
-        {matches.map((repItem, idx) => {
+      {/* Matches list — collapsed view shows only the most recent. The
+          rest get hidden behind the cyber "show more" trigger below. */}
+      <ul className="relative z-[2] flex flex-col gap-3 px-3 pt-3 pb-1">
+        {(expanded ? matches : matches.slice(0, 1)).map((repItem, idx) => {
           // Prefer the active player's FeedItem for this match so the card
           // renders THEIR champion/KDA/items, not whoever-was-first.
           const matchItems = itemsByMatch.get(repItem.matchId) ?? [repItem];
@@ -854,6 +835,73 @@ function PlayerSectionCard({
           );
         })}
       </ul>
+
+      {/* Cyber show-more / collapse trigger — wide, low, sits at the
+          card's bottom edge. Hidden when the group only has 1 match. */}
+      {matches.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className={cn(
+            "relative z-[2] group/showmore w-full mt-2 mx-0 px-4 py-2.5 cursor-clicker overflow-hidden",
+            "border-t border-flash/[0.06] hover:border-jade/30 transition-colors duration-200"
+          )}
+        >
+          {/* Edge accent gradient */}
+          <span
+            aria-hidden
+            className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-jade/40 to-transparent opacity-0 group-hover/showmore:opacity-100 transition-opacity duration-200"
+          />
+          {/* Hover wash */}
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-jade/[0.02] opacity-0 group-hover/showmore:opacity-100 transition-opacity duration-200"
+          />
+          {/* Corner brackets */}
+          <span
+            aria-hidden
+            className="absolute top-1 left-1 w-2 h-2 border-l border-t border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
+          />
+          <span
+            aria-hidden
+            className="absolute top-1 right-1 w-2 h-2 border-r border-t border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
+          />
+          <span
+            aria-hidden
+            className="absolute bottom-1 left-1 w-2 h-2 border-l border-b border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
+          />
+          <span
+            aria-hidden
+            className="absolute bottom-1 right-1 w-2 h-2 border-r border-b border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
+          />
+
+          <span className="relative z-[1] inline-flex items-center justify-center gap-2 w-full text-flash/55 group-hover/showmore:text-jade transition-colors duration-200">
+            <span
+              aria-hidden
+              className={cn(
+                "text-[12px] leading-none transition-transform duration-300",
+                expanded ? "rotate-180" : "rotate-0"
+              )}
+            >
+              ⌄
+            </span>
+            <span className="text-[10px] font-jetbrains font-bold tracking-[0.3em] uppercase">
+              {expanded
+                ? "Collapse"
+                : `Show ${matches.length - 1} more ${matches.length - 1 === 1 ? "match" : "matches"}`}
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                "text-[12px] leading-none transition-transform duration-300",
+                expanded ? "rotate-180" : "rotate-0"
+              )}
+            >
+              ⌄
+            </span>
+          </span>
+        </button>
       )}
     </div>
   );
