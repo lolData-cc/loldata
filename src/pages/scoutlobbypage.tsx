@@ -271,7 +271,7 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
         src={splash}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center 30%" }}
+        style={{ objectPosition: "center 20%" }}
         loading="eager"
         decoding="async"
         draggable={false}
@@ -614,12 +614,12 @@ function PlayerSectionCard({
 
   return (
     <div
-      className="relative overflow-hidden rounded-md bg-black/35 backdrop-blur-xl saturate-150 ring-1 ring-flash/[0.08] shadow-[0_18px_44px_-12px_rgba(0,0,0,0.85),0_4px_14px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
+      className="relative overflow-hidden rounded-md bg-flash/[0.013] backdrop-blur-xl saturate-150 ring-1 ring-flash/[0.08] shadow-[0_18px_44px_-12px_rgba(0,0,0,0.8),0_4px_14px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.045)]"
     >
-      {/* Subtle top highlight — gives the card a glass edge */}
+      {/* Glass edge highlight along the top */}
       <div
         aria-hidden
-        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-flash/15 to-transparent pointer-events-none z-[1]"
+        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-flash/25 to-transparent pointer-events-none z-[1]"
       />
       <div
         className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
@@ -765,7 +765,7 @@ function PlayerSectionCard({
 
       {/* Matches list — collapsed view shows only the most recent. The
           rest live in a grid-rows expander that animates open smoothly. */}
-      <ul className="relative z-[2] flex flex-col gap-3 px-3 pt-3 pb-1">
+      <ul className="relative z-[2] flex flex-col gap-3 px-3 pt-3 pb-0">
         {renderMatchRow(matches[0], 0)}
       </ul>
 
@@ -778,7 +778,7 @@ function PlayerSectionCard({
               : "grid-rows-[0fr] opacity-0"
           )}
         >
-          <ul className="flex flex-col gap-3 px-3 pb-1 overflow-hidden">
+          <ul className="flex flex-col gap-3 px-3 pt-3 pb-0 overflow-hidden">
             {matches.slice(1).map((m, i) => renderMatchRow(m, i + 1))}
           </ul>
         </div>
@@ -792,34 +792,34 @@ function PlayerSectionCard({
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="group/showmore relative z-[2] w-full py-3 cursor-clicker"
+          className="group/showmore relative z-[20] w-full -mt-3 pt-0 pb-1.5 cursor-clicker"
         >
-          <span className="relative inline-flex items-center justify-center gap-3 w-full">
+          <span className="relative inline-flex items-center justify-center gap-2.5 w-full">
             {/* Left accent line */}
             <span
               aria-hidden
-              className="h-[1px] w-12 bg-gradient-to-r from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
+              className="h-[1px] w-10 bg-gradient-to-r from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
             />
             {/* Label cluster — chevron + text + chevron */}
-            <span className="inline-flex items-center gap-2 text-jade/55 group-hover/showmore:text-jade transition-colors duration-300">
+            <span className="inline-flex items-center gap-1.5 text-jade/55 group-hover/showmore:text-jade transition-colors duration-300">
               <span
                 aria-hidden
                 className={cn(
-                  "text-[11px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  "text-[9px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
                   expanded ? "rotate-180" : "rotate-0"
                 )}
                 style={{
                   textShadow:
-                    "0 0 6px color-mix(in srgb, #00d992 35%, transparent)",
+                    "0 0 5px color-mix(in srgb, #00d992 35%, transparent)",
                 }}
               >
                 ▾
               </span>
               <span
-                className="text-[10px] font-chakrapetch font-bold tracking-[0.28em] uppercase"
+                className="text-[9px] font-chakrapetch font-bold tracking-[0.26em] uppercase"
                 style={{
                   textShadow:
-                    "0 0 8px color-mix(in srgb, #00d992 22%, transparent)",
+                    "0 0 6px color-mix(in srgb, #00d992 22%, transparent)",
                 }}
               >
                 {expanded
@@ -829,12 +829,12 @@ function PlayerSectionCard({
               <span
                 aria-hidden
                 className={cn(
-                  "text-[11px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  "text-[9px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
                   expanded ? "rotate-180" : "rotate-0"
                 )}
                 style={{
                   textShadow:
-                    "0 0 6px color-mix(in srgb, #00d992 35%, transparent)",
+                    "0 0 5px color-mix(in srgb, #00d992 35%, transparent)",
                 }}
               >
                 ▾
@@ -843,7 +843,7 @@ function PlayerSectionCard({
             {/* Right accent line */}
             <span
               aria-hidden
-              className="h-[1px] w-12 bg-gradient-to-l from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
+              className="h-[1px] w-10 bg-gradient-to-l from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
             />
           </span>
         </button>
@@ -1470,7 +1470,7 @@ function MatchesTab({
             </span>
           </div>
 
-          <div className="flex flex-col gap-9">
+          <div className="flex flex-col gap-11">
             {day.sections.map((section, idx) => {
               const sectionMembers: SectionMember[] = section.members
                 .map((m) => {
@@ -2584,7 +2584,7 @@ function LiveSessionCard({
           src={splash}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-25"
-          style={{ objectPosition: "center 35%" }}
+          style={{ objectPosition: "center 25%" }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-liquirice/95 via-liquirice/80 to-liquirice/65" />
       </div>
@@ -5092,7 +5092,7 @@ function HeroChampionPicker({
           src={splash}
           alt={value}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center 45%" }}
+          style={{ objectPosition: "center 35%" }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-liquirice/85 via-liquirice/30 to-transparent" />
         <div className="absolute inset-0 px-3 flex items-center gap-3">
