@@ -5,7 +5,7 @@
 //   2. Custom tab nav (Matches / Stats / Habits / Champions)
 //   3. Per-tab content
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -1040,23 +1040,64 @@ function BreakDivider({ label }: { label: string }) {
 
 /* ─── matches tab content ───────────────────────────────────────────── */
 /* ─── player filter chip bar (used on Matches tab) ──────────────────── */
+
+type FilterMode =
+  | { kind: "all" }
+  | { kind: "single"; id: string }
+  | { kind: "duo"; ids: [string, string] };
+
 function PlayerFilterBar({
   lobby,
-  selectedPlayerId,
-  onSelect,
+  filterMode,
+  onFilterChange,
   countByPlayer,
   mainOnly,
   onToggleMainOnly,
 }: {
   lobby: Lobby;
-  selectedPlayerId: string | null;
-  onSelect: (id: string | null) => void;
+  filterMode: FilterMode;
+  onFilterChange: (m: FilterMode) => void;
   countByPlayer: Map<string, number>;
   mainOnly: boolean;
   onToggleMainOnly: () => void;
 }) {
   const players = [...lobby.players].sort((a, b) => a.orderIndex - b.orderIndex);
   const totalMatches = Array.from(countByPlayer.values()).reduce((n, v) => n + v, 0);
+
+  // Drag-and-drop state. When the user is dragging a player chip, we
+  // remember its ID so the drop target can build a duo from (dragged, dropped).
+  // hoveredDropId is the chip currently being hovered over — used to draw a
+  // brighter ring + scale on it so the affordance is obvious.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoveredDropId, setHoveredDropId] = useState<string | null>(null);
+
+  const isActive = (pid: string): boolean => {
+    if (filterMode.kind === "single") return filterMode.id === pid;
+    if (filterMode.kind === "duo") return filterMode.ids.includes(pid);
+    return false;
+  };
+
+  const handlePlayerClick = (pid: string) => {
+    // Click toggles single mode; in duo mode, clicking a member exits the duo
+    // and lands on single(otherMember) — easier than chaining "All → single".
+    if (filterMode.kind === "single" && filterMode.id === pid) {
+      onFilterChange({ kind: "all" });
+      return;
+    }
+    if (filterMode.kind === "duo") {
+      const other = filterMode.ids.find((x) => x !== pid);
+      if (other && pid !== other) {
+        onFilterChange({ kind: "single", id: other });
+        return;
+      }
+    }
+    onFilterChange({ kind: "single", id: pid });
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggingId || draggingId === targetId) return;
+    onFilterChange({ kind: "duo", ids: [draggingId, targetId] });
+  };
 
   return (
     <div className={cn(glassDark, "px-3 h-12 flex items-center")}>
@@ -1067,53 +1108,107 @@ function PlayerFilterBar({
             the bar height stays fixed. */}
         <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide flex-1 min-w-0 h-full">
           <PlayerFilterTab
-            active={selectedPlayerId === null}
+            active={filterMode.kind === "all"}
             accent={JADE}
-            onClick={() => onSelect(null)}
+            onClick={() => onFilterChange({ kind: "all" })}
             icon={<Users className="w-3.5 h-3.5" />}
             label="All"
             count={totalMatches}
           />
-          {players.map((p) => {
+          {players.map((p, idx) => {
             const accent = p.color || JADE;
             const count = countByPlayer.get(p.id) ?? 0;
+            const inDuo = filterMode.kind === "duo" && filterMode.ids.includes(p.id);
+            // Show a "×" separator before this chip iff it's the second
+            // member of an active duo — so the duo reads "Marco × Isac".
+            const showDuoSep =
+              inDuo &&
+              filterMode.kind === "duo" &&
+              filterMode.ids[1] === p.id &&
+              idx > 0;
             return (
-              <PlayerFilterTab
-                key={p.id}
-                active={selectedPlayerId === p.id}
-                accent={accent}
-                onClick={() =>
-                  onSelect(selectedPlayerId === p.id ? null : p.id)
-                }
-                icon={
-                  profileIconUrl(p.iconId) ? (
-                    <img
-                      src={profileIconUrl(p.iconId)!}
-                      alt=""
-                      className="w-[18px] h-[18px] rounded-full"
-                      style={{
-                        border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
-                      style={{
-                        background: "rgba(0,0,0,0.4)",
-                        border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
-                        color: accent,
-                      }}
-                    >
-                      {p.displayName.slice(0, 1).toUpperCase()}
-                    </span>
-                  )
-                }
-                label={p.displayName}
-                count={count}
-              />
+              <React.Fragment key={p.id}>
+                {showDuoSep && (
+                  <span className="text-flash/45 text-[14px] font-jetbrains -mx-2 select-none" aria-hidden>
+                    ×
+                  </span>
+                )}
+                <PlayerFilterTab
+                  active={isActive(p.id)}
+                  accent={accent}
+                  onClick={() => handlePlayerClick(p.id)}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", p.id);
+                    e.dataTransfer.effectAllowed = "link";
+                    setDraggingId(p.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setHoveredDropId(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (!draggingId || draggingId === p.id) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "link";
+                    if (hoveredDropId !== p.id) setHoveredDropId(p.id);
+                  }}
+                  onDragLeave={() => {
+                    if (hoveredDropId === p.id) setHoveredDropId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const draggedId =
+                      e.dataTransfer.getData("text/plain") || draggingId || "";
+                    if (draggedId && draggedId !== p.id) {
+                      onFilterChange({ kind: "duo", ids: [draggedId, p.id] });
+                    }
+                    setDraggingId(null);
+                    setHoveredDropId(null);
+                  }}
+                  isDropTarget={hoveredDropId === p.id}
+                  isDragging={draggingId === p.id}
+                  icon={
+                    profileIconUrl(p.iconId) ? (
+                      <img
+                        src={profileIconUrl(p.iconId)!}
+                        alt=""
+                        className="w-[18px] h-[18px] rounded-full pointer-events-none"
+                        style={{
+                          border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-jetbrains font-bold pointer-events-none"
+                        style={{
+                          background: "rgba(0,0,0,0.4)",
+                          border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`,
+                          color: accent,
+                        }}
+                      >
+                        {p.displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                    )
+                  }
+                  label={p.displayName}
+                  count={count}
+                />
+              </React.Fragment>
             );
           })}
         </div>
+
+        {filterMode.kind === "duo" && (
+          <button
+            type="button"
+            onClick={() => onFilterChange({ kind: "all" })}
+            title="Clear duo filter"
+            className="shrink-0 px-2 py-1 rounded-sm text-[9px] font-jetbrains uppercase tracking-[0.18em] text-jade ring-1 ring-jade/30 bg-jade/10 hover:bg-jade/20 cursor-clicker"
+          >
+            Duo ✕
+          </button>
+        )}
 
         {/* Divider */}
         <div className="h-6 w-[1px] bg-flash/10 shrink-0" />
@@ -1151,7 +1246,9 @@ function PlayerFilterBar({
 
 /* Tab-style filter item — no surrounding chip, just icon + label + tiny
  * count. Active state is signalled by an accent underline + jade text.
- * Quieter and more "navigation-like" than the old boxed chip approach. */
+ * Quieter and more "navigation-like" than the old boxed chip approach.
+ * Also handles its own drag-and-drop affordances so the user can build a
+ * duo filter by dragging one chip onto another. */
 function PlayerFilterTab({
   active,
   accent,
@@ -1159,6 +1256,14 @@ function PlayerFilterTab({
   icon,
   label,
   count,
+  draggable,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  isDropTarget,
+  isDragging,
 }: {
   active: boolean;
   accent: string;
@@ -1166,12 +1271,41 @@ function PlayerFilterTab({
   icon: React.ReactNode;
   label: string;
   count: number;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  onDragLeave?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  isDropTarget?: boolean;
+  isDragging?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group relative inline-flex items-center gap-2 shrink-0 cursor-clicker pb-1.5 -mb-1.5"
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={cn(
+        "group relative inline-flex items-center gap-2 shrink-0 cursor-clicker pb-1.5 -mb-1.5 transition-all duration-150 rounded-sm",
+        draggable && "active:cursor-grabbing",
+        isDragging && "opacity-50",
+        isDropTarget && "scale-110 -translate-y-px",
+      )}
+      style={
+        isDropTarget
+          ? {
+              boxShadow: `0 0 0 2px color-mix(in srgb, ${accent} 70%, transparent), 0 0 14px color-mix(in srgb, ${accent} 55%, transparent)`,
+              padding: "4px 8px",
+              marginLeft: "-8px",
+              marginRight: "-8px",
+            }
+          : undefined
+      }
     >
       <span className="flex items-center justify-center">{icon}</span>
       <span
@@ -1242,8 +1376,16 @@ function MatchesTab({
     return () => obs.disconnect();
   }, [loadMore, items.length, hasMore]);
 
-  // Filter: null = show all, otherwise show only items owned by this player.
-  const [filterPlayerId, setFilterPlayerId] = useState<string | null>(null);
+  // Filter mode: { kind:'all' } = no filter, { kind:'single', id } = show one
+  // player's matches, { kind:'duo', ids:[a,b] } = show only matches where both
+  // lobby players were on the same team in the same game ("duos played"). The
+  // duo mode is created by dragging one player chip onto another in the filter
+  // bar — a fun way to slice for shared-game stats.
+  type FilterMode =
+    | { kind: "all" }
+    | { kind: "single"; id: string }
+    | { kind: "duo"; ids: [string, string] };
+  const [filterMode, setFilterMode] = useState<FilterMode>({ kind: "all" });
   // When enabled, only matches played on each player's primary account are shown.
   const [mainOnly, setMainOnly] = useState(false);
 
@@ -1284,13 +1426,40 @@ function MatchesTab({
   // Apply both filters BEFORE the grouping — squad signatures stay correct
   // because they're derived from each item's lobbyPlayers (not the filtered
   // set), so e.g. Marco's "Marco & Luca" matches still render as squads.
+  //
+  // Duo mode: we want only matches where BOTH players were on the same team
+  // in the same game. We dedupe by keeping only the row owned by player A
+  // (the first of the pair) — otherwise the same match would render twice,
+  // once for each player.
   const filteredItems = useMemo(() => {
     return items.filter((it) => {
-      if (filterPlayerId && it.ownerPlayerId !== filterPlayerId) return false;
       if (mainOnly && !primaryPuuids.has(it.participant.puuid)) return false;
+      if (filterMode.kind === "single" && it.ownerPlayerId !== filterMode.id) return false;
+      if (filterMode.kind === "duo") {
+        const [a, b] = filterMode.ids;
+        // Keep only one row per match
+        if (it.ownerPlayerId !== a) return false;
+        // Are A and B actually on the same team in this game?
+        const myParticipant = it.allParticipants.find(
+          (p) => p.puuid === it.participant.puuid
+        );
+        if (!myParticipant) return false;
+        const myTeamId = myParticipant.teamId;
+        if (myTeamId == null) return false;
+        let bIsTeammate = false;
+        for (const lp of it.lobbyPlayers) {
+          if (lp.playerId !== b) continue;
+          const otherPart = it.allParticipants.find((p) => p.puuid === lp.accountPuuid);
+          if (otherPart?.teamId === myTeamId) {
+            bIsTeammate = true;
+            break;
+          }
+        }
+        if (!bIsTeammate) return false;
+      }
       return true;
     });
-  }, [items, filterPlayerId, mainOnly, primaryPuuids]);
+  }, [items, filterMode, mainOnly, primaryPuuids]);
 
   // puuid → riot account info (name / tag / region). Used by the scoreboard
   // to build summoner links even for matches ingested before riot_id_tagline
@@ -1427,14 +1596,14 @@ function MatchesTab({
     <div className="flex flex-col gap-10">
       <PlayerFilterBar
         lobby={lobby}
-        selectedPlayerId={filterPlayerId}
-        onSelect={setFilterPlayerId}
+        filterMode={filterMode}
+        onFilterChange={setFilterMode}
         countByPlayer={matchCountByPlayer}
         mainOnly={mainOnly}
         onToggleMainOnly={() => setMainOnly((v) => !v)}
       />
 
-      {dayGroups.length === 0 && filterPlayerId && (
+      {dayGroups.length === 0 && filterMode.kind !== "all" && (
         <div className={cn(glassDark, "p-10 text-center")}>
           <GlowBackdrop subtle />
           <div className="relative z-10 text-flash/40 text-sm">
