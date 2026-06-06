@@ -123,10 +123,10 @@ function formatRankFull(
   return `${t} ${division.toUpperCase()}`;
 }
 
-/* ── KP detail box ───────────────────────────────────────────────────
- * Sits right next to the KDA chip. Compact two-line pill with the
- * player's kill participation (kills + assists / team kills). Same
- * vibe as the group-card session stats.
+/* ── KP detail mini ──────────────────────────────────────────────────
+ * Stacked mini-caption next to KDA: big tabular value on top, tiny
+ * "KP" label below. Matches the look of the "5.33 KDA" caption to the
+ * right of the KDA box.
  */
 function KpDetailBox({
   kpPct,
@@ -135,55 +135,27 @@ function KpDetailBox({
 }) {
   if (kpPct == null) return null;
 
-  const palette =
+  const valueClass =
     kpPct >= 65
-      ? {
-          ring: "ring-jade/25",
-          bg: "bg-jade/[0.06]",
-          value: "text-jade",
-          label: "text-jade/55",
-          glow: "shadow-[0_0_10px_rgba(0,217,146,0.10)]",
-        }
+      ? "text-jade/85"
       : kpPct >= 45
-        ? {
-            ring: "ring-flash/[0.08]",
-            bg: "bg-black/25",
-            value: "text-flash/80",
-            label: "text-flash/35",
-            glow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
-          }
-        : {
-            ring: "ring-[#d63336]/25",
-            bg: "bg-[#d63336]/[0.05]",
-            value: "text-[#d63336]",
-            label: "text-[#d63336]/55",
-            glow: "shadow-[0_0_10px_rgba(214,51,54,0.08)]",
-          };
+        ? "text-flash/75"
+        : "text-[#d63336]/80";
 
   return (
     <div
       title={`${kpPct}% kill participation`}
-      className={cn(
-        "ml-1.5 flex flex-col items-center justify-center gap-px h-8 w-[62px] rounded-[3px] ring-1 tabular-nums",
-        palette.ring,
-        palette.bg,
-        palette.glow
-      )}
+      className="flex flex-col leading-tight ml-2 tabular-nums"
     >
       <span
         className={cn(
-          "text-[13px] font-chakrapetch font-bold tracking-wide leading-none",
-          palette.value
+          "font-chakrapetch font-medium text-[13px]",
+          valueClass
         )}
       >
         {kpPct}%
       </span>
-      <span
-        className={cn(
-          "text-[7.5px] font-jetbrains tracking-[0.22em] uppercase leading-none",
-          palette.label
-        )}
-      >
+      <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
         KP
       </span>
     </div>
