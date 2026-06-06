@@ -66,6 +66,7 @@ import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
 import { GlassOverlays } from "@/components/ui/glass-overlays";
+import { MatchReplayDialog } from "@/components/matchreplay/MatchReplayDialog";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -132,6 +133,7 @@ export default function SummonerPage() {
   const { enabled: contextMenuMode } = useContextMenuActions()
   const { enabled: clickToExpand } = useClickToExpandMatch()
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
+  const [replayMatch, setReplayMatch] = useState<{ matchId: string; match: MatchWithWin["match"] } | null>(null)
   const { session: authSession, isAdmin } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
@@ -3286,6 +3288,18 @@ export default function SummonerPage() {
                                     >
                                       ASK AI
                                     </button>
+
+                                    {/* REPLAY — flagship feature: full match timeline player */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplayMatch({ matchId, match })}
+                                      className="relative px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-jade/80 hover:text-jade border-b border-jade/30 hover:border-jade/70 bg-jade/[0.04] hover:bg-jade/[0.10] transition-all duration-200 cursor-clicker group/replay"
+                                      title="Open the full match replay — every event on the map"
+                                    >
+                                      {/* Pulsating accent dot */}
+                                      <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-jade shadow-[0_0_4px_rgba(0,217,146,0.8)] animate-pulse" />
+                                      <span className="ml-2">REPLAY</span>
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -3903,6 +3917,16 @@ export default function SummonerPage() {
       <div className="fixed bottom-10 left-10 z-[999]">
         <DiamondButton color="citrine" icon="edit" label={isAdmin ? "ADMIN" : "NO"} onClick={() => setShowAdminDialog(true)} />
       </div>
+
+      {/* ───────────  MATCH REPLAY DIALOG  ─────────── */}
+      <MatchReplayDialog
+        open={!!replayMatch}
+        onClose={() => setReplayMatch(null)}
+        matchId={replayMatch?.matchId ?? ""}
+        region={(region ?? "EUW").toUpperCase()}
+        staticMatch={(replayMatch?.match as any) ?? null}
+        focusPuuid={summonerInfo?.puuid ?? null}
+      />
 
     </div>
   )

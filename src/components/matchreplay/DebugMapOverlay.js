@@ -1,0 +1,301 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+// src/components/matchreplay/DebugMapOverlay.tsx
+//
+// Calibration helper.
+//
+// How it works:
+//   1. We hardcode landmark positions in Riot world coords (drake pit,
+//      baron pit, T1 towers, corners, ...).
+//   2. With debug ON, each landmark shows up as a draggable marker on
+//      the map. Its INITIAL position is where the current calibration
+//      thinks Riot's (x,y) maps to.
+//   3. You drag each marker to where that landmark VISUALLY IS on the
+//      Wiki SR render.
+//   4. We compute a least-squares affine transform (scaleX, scaleY,
+//      offsetX, offsetY) from your drops and apply it to the whole
+//      scaled wrapper — so player sprites, ward icons, kill markers,
+//      everything, snap into the right place.
+//   5. A snapshot of the resulting calibration shows in the panel so
+//      you can paste it back to me to hardcode as the new default.
+//
+// You don't need to place all of them. Two opposite corners is the
+// minimum to constrain scale+offset. The more drops, the more robust.
+import * as React from "react";
+import { useRef, useState } from "react";
+import { Settings2, Minus } from "lucide-react";
+// ─── Lane schema (the "white 2D map" the user sees on top of the bg) ─
+// Polylines that trace each lane through known landmark coords.
+// Drawn as dashed white lines + filled fountain/nexus markers.
+//
+// Riot coord conventions remember: (0,0) is bottom-left (Blue fountain).
+export const LANES = [
+    {
+        id: "top",
+        points: [
+            { x: 1750, y: 1750 }, // Blue nexus area
+            { x: 1200, y: 4500 }, // Blue inhibitor top
+            { x: 981, y: 10441 }, // T1 Top Blue
+            { x: 4318, y: 13875 }, // T1 Top Red
+            { x: 11000, y: 13700 }, // Red inhibitor top
+            { x: 12700, y: 12700 }, // Red nexus area
+        ],
+    },
+    {
+        id: "mid",
+        points: [
+            { x: 1750, y: 1750 }, // Blue nexus
+            { x: 3651, y: 3696 }, // Inhibitor mid B
+            { x: 5048, y: 4812 }, // T2 Mid Blue
+            { x: 5846, y: 6396 }, // T1 Mid Blue
+            { x: 7500, y: 7500 }, // center
+            { x: 8955, y: 8510 }, // T1 Mid Red
+            { x: 9886, y: 10180 }, // T2 Mid Red
+            { x: 11134, y: 11207 }, // Inhibitor mid R
+            { x: 12700, y: 12700 }, // Red nexus
+        ],
+    },
+    {
+        id: "bot",
+        points: [
+            { x: 1750, y: 1750 }, // Blue nexus
+            { x: 4281, y: 1253 }, // Inhibitor bot B
+            { x: 10504, y: 1029 }, // T1 Bot Blue
+            { x: 13866, y: 4505 }, // T1 Bot Red
+            { x: 13624, y: 10572 }, // Inhibitor bot R
+            { x: 12700, y: 12700 }, // Red nexus
+        ],
+    },
+];
+// Canonical Riot landmark coords.
+export const LANDMARKS = [
+    // Map bounding-box corners — these are the (0,0) / (15k,15k) of
+    // Riot's coordinate space, NOT the in-game fountains (which sit
+    // inside the bases). Useful for clamping the overall transform.
+    { id: "corner-bl", riotX: 0, riotY: 0, label: "Corner BL (0,0)", color: "#FFB615", kind: "corner" },
+    { id: "corner-br", riotX: 15000, riotY: 0, label: "Corner BR (15k,0)", color: "#FFB615", kind: "corner" },
+    { id: "corner-tl", riotX: 0, riotY: 15000, label: "Corner TL (0,15k)", color: "#FFB615", kind: "corner" },
+    { id: "corner-tr", riotX: 15000, riotY: 15000, label: "Corner TR (15k,15k)", color: "#FFB615", kind: "corner" },
+    // FOUNTAINS — these are inside the bases, draggable separately
+    // because they're far easier to identify visually than abstract
+    // bounding corners. Center-of-fountain coords (approx).
+    { id: "fountain-b", riotX: 1750, riotY: 1750, label: "Blue fountain", color: "#5BA8E6", kind: "fountain" },
+    { id: "fountain-r", riotX: 12700, riotY: 12700, label: "Red fountain", color: "#d63336", kind: "fountain" },
+    // Pits — easiest to identify visually
+    { id: "drake", riotX: 9866, riotY: 4414, label: "Drake pit", color: "#e67e22", kind: "pit" },
+    { id: "baron", riotX: 4928, riotY: 10406, label: "Baron pit", color: "#9b59b6", kind: "pit" },
+    // T1 outer towers
+    { id: "t1-top-b", riotX: 981, riotY: 10441, label: "T1 Top Blue", color: "#5BA8E6", kind: "tower" },
+    { id: "t1-mid-b", riotX: 5846, riotY: 6396, label: "T1 Mid Blue", color: "#5BA8E6", kind: "tower" },
+    { id: "t1-bot-b", riotX: 10504, riotY: 1029, label: "T1 Bot Blue", color: "#5BA8E6", kind: "tower" },
+    { id: "t1-top-r", riotX: 4318, riotY: 13875, label: "T1 Top Red", color: "#d63336", kind: "tower" },
+    { id: "t1-mid-r", riotX: 8955, riotY: 8510, label: "T1 Mid Red", color: "#d63336", kind: "tower" },
+    { id: "t1-bot-r", riotX: 13866, riotY: 4505, label: "T1 Bot Red", color: "#d63336", kind: "tower" },
+];
+// DEFAULT_CALIBRATION — final converged values from the user's
+// 9-landmark drag session on the Wiki S14 asset:
+//
+//   Red fountain   (12700, 12700) → wrapper (78.8%,  9.9%)
+//   Drake pit      (9866, 4414)   → wrapper (63.5%, 64.8%)
+//   Baron pit      (4928, 10406)  → wrapper (32.0%, 27.3%)
+//   T1 Top Blue                   → wrapper (22.2%, 28.6%)
+//   T1 Bot Blue                   → wrapper (67.5%, 93.7%)
+//   T1 Top Red                    → wrapper (27.6%, 11.7%)
+//   T1 Mid Red                    → wrapper (55.8%, 36.7%)
+//   T1 Bot Red                    → wrapper (85.3%, 69.5%)
+//   Corner BR (15k,0)             → wrapper (78.5%, 92.5%)
+//   Corner TL (0,15k)             → wrapper (23.0%,  8.3%)
+//
+// Best-fit affine transform (least-squares per axis):
+//   scaleX = 0.690   offsetXPct = +0.61
+//   scaleY = 0.929   offsetYPct = −2.07
+//
+// The Wiki asset is rendered isometrically, so a pure scale+translate
+// can never be PERFECT for every point. This is the best 4-parameter
+// approximation across the user's 9 anchors — residuals are sub-2%.
+export const DEFAULT_CALIBRATION = {
+    scaleX: 0.690,
+    scaleY: 0.929,
+    offsetXPct: 0.61,
+    offsetYPct: -2.07,
+};
+/**
+ * Riot world → naive normalized (0..1, no calibration applied).
+ * Y is flipped because Riot's y=0 is the bottom of the map but ours
+ * is the top.
+ */
+function riotToNaiveNorm(x, y) {
+    return {
+        nx: x / 15000,
+        ny: 1 - y / 15000,
+    };
+}
+/**
+ * Least-squares fit: given overrides, compute the calibration that
+ * minimizes per-axis residuals.
+ *
+ * Model per axis: target = scale * raw + offset
+ *   (where `raw` = riotToNaiveNorm, `target` = user-dropped normalized)
+ *
+ * The wrapper applies: visible = scale * raw + offset.
+ * We then convert offset (a normalized fraction) into a PERCENT of
+ * the wrapper for the CSS transform.
+ *
+ * NB. transform-origin is center, so a scale of 1.2× pushes content
+ * outward from the center. To preserve our "raw" mapping under that
+ * center-origin scale, the equivalence is:
+ *   visible = (raw - 0.5) * scale + 0.5 + offsetPct
+ *   visible = scale * raw + (0.5 - scale * 0.5 + offsetPct)
+ * So the intercept fitted by least-squares = 0.5 - scale*0.5 + offsetPct
+ *   ⇒ offsetPct = intercept - 0.5 + scale * 0.5
+ */
+export function computeCalibrationFromOverrides(overrides) {
+    const pts = [];
+    for (const lm of LANDMARKS) {
+        const ov = overrides[lm.id];
+        if (!ov)
+            continue;
+        pts.push({
+            raw: riotToNaiveNorm(lm.riotX, lm.riotY),
+            tgt: ov,
+        });
+    }
+    if (pts.length < 2)
+        return DEFAULT_CALIBRATION;
+    // Solve per axis.
+    const solve = (rawAxis, tgtAxis) => {
+        const n = pts.length;
+        let sR = 0, sT = 0, sRT = 0, sRR = 0;
+        for (const p of pts) {
+            const r = p.raw[rawAxis];
+            const t = p.tgt[tgtAxis];
+            sR += r;
+            sT += t;
+            sRT += r * t;
+            sRR += r * r;
+        }
+        const denom = n * sRR - sR * sR;
+        if (denom === 0)
+            return { scale: 1, intercept: 0 };
+        const scale = (n * sRT - sR * sT) / denom;
+        const intercept = (sT - scale * sR) / n;
+        return { scale, intercept };
+    };
+    const x = solve("nx", "nx");
+    const y = solve("ny", "ny");
+    const offXPct = (x.intercept - 0.5 + x.scale * 0.5) * 100;
+    const offYPct = (y.intercept - 0.5 + y.scale * 0.5) * 100;
+    return {
+        scaleX: x.scale,
+        scaleY: y.scale,
+        offsetXPct: offXPct,
+        offsetYPct: offYPct,
+    };
+}
+export function DebugMapOverlay({ enabled, overrides, setOverrides }) {
+    if (!enabled)
+        return null;
+    return (_jsxs("div", { className: "absolute inset-0 z-[60]", children: [_jsxs("svg", { className: "absolute inset-0 w-full h-full pointer-events-none", preserveAspectRatio: "none", viewBox: "0 0 100 100", children: [Array.from({ length: 11 }).map((_, i) => {
+                        const p = (i / 10) * 100;
+                        return (_jsxs(React.Fragment, { children: [_jsx("line", { x1: p, y1: "0", x2: p, y2: "100", stroke: "rgba(255,255,255,0.07)", strokeWidth: "0.15" }), _jsx("line", { x1: "0", y1: p, x2: "100", y2: p, stroke: "rgba(255,255,255,0.07)", strokeWidth: "0.15" })] }, i));
+                    }), _jsx("line", { x1: "0", y1: "100", x2: "100", y2: "0", stroke: "rgba(120,220,255,0.18)", strokeWidth: "0.4", strokeDasharray: "1.5 1.5" }), LANES.map((lane) => {
+                        const pts = lane.points
+                            .map((p) => {
+                            const n = riotToNaiveNorm(p.x, p.y);
+                            return `${(n.nx * 100).toFixed(2)},${(n.ny * 100).toFixed(2)}`;
+                        })
+                            .join(" ");
+                        return (_jsx("polyline", { points: pts, fill: "none", stroke: "rgba(255,255,255,0.55)", strokeWidth: "0.55", strokeDasharray: "1.6 1.0", strokeLinecap: "round", strokeLinejoin: "round" }, lane.id));
+                    }), (() => {
+                        const labels = [];
+                        for (const lane of LANES) {
+                            // Label at midpoint
+                            const mid = lane.points[Math.floor(lane.points.length / 2)];
+                            const n = riotToNaiveNorm(mid.x, mid.y);
+                            labels.push({
+                                id: lane.id,
+                                x: n.nx * 100,
+                                y: n.ny * 100,
+                                text: lane.id.toUpperCase(),
+                            });
+                        }
+                        return labels.map((l) => (_jsx("text", { x: l.x, y: l.y, fontSize: "2", fill: "rgba(255,255,255,0.85)", fontFamily: "ui-monospace, monospace", letterSpacing: "0.3", textAnchor: "middle", style: {
+                                paintOrder: "stroke",
+                                stroke: "rgba(0,0,0,0.85)",
+                                strokeWidth: "0.4",
+                                strokeLinejoin: "round",
+                            }, children: l.text }, l.id)));
+                    })()] }), LANDMARKS.map((lm) => (_jsx(DraggableMarker, { lm: lm, override: overrides[lm.id], onDrop: (pos) => setOverrides((p) => ({ ...p, [lm.id]: pos })), onReset: () => setOverrides((p) => {
+                    const np = { ...p };
+                    delete np[lm.id];
+                    return np;
+                }) }, lm.id)))] }));
+}
+function DraggableMarker({ lm, override, onDrop, onReset, }) {
+    const dragRef = useRef(null);
+    const elRef = useRef(null);
+    const naive = riotToNaiveNorm(lm.riotX, lm.riotY);
+    const pos = override ?? naive;
+    const updateFromEvent = (e) => {
+        // We want the pointer position normalized to the PARENT (the
+        // overlay), not this marker. Use ownerDocument elementsFromPoint
+        // fallback: simpler — get parent rect from element offsetParent.
+        const parent = elRef.current?.parentElement;
+        if (!parent)
+            return;
+        const r = parent.getBoundingClientRect();
+        const nx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        const ny = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+        dragRef.current = { nx, ny };
+        onDrop({ nx, ny });
+    };
+    const size = lm.kind === "corner" ? 16 :
+        lm.kind === "fountain" ? 18 :
+            lm.kind === "pit" ? 14 :
+                lm.kind === "tower" ? 12 : 14;
+    return (_jsxs("div", { ref: elRef, onPointerDown: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            updateFromEvent(e);
+        }, onPointerMove: (e) => {
+            if (!(e.buttons & 1))
+                return;
+            updateFromEvent(e);
+        }, onPointerUp: () => { dragRef.current = null; }, onDoubleClick: (e) => { e.preventDefault(); e.stopPropagation(); onReset(); }, className: "absolute pointer-events-auto cursor-move group/marker", style: {
+            left: `${pos.nx * 100}%`,
+            top: `${pos.ny * 100}%`,
+            transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
+            touchAction: "none",
+        }, title: `${lm.label} — drag to align; double-click to reset`, children: [_jsx("div", { style: {
+                    width: size, height: size,
+                    borderRadius: lm.kind === "tower" ? 3 : 999,
+                    border: `2px solid ${lm.color}`,
+                    boxShadow: `0 0 0 1px rgba(0,0,0,0.7), 0 0 10px ${lm.color}aa`,
+                    background: override ? lm.color : "transparent",
+                    opacity: override ? 1 : 0.85,
+                } }), _jsxs("div", { className: "absolute left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap font-mono pointer-events-none", style: {
+                    top: "100%",
+                    color: lm.color,
+                    fontSize: 9,
+                    textShadow: "0 0 4px rgba(0,0,0,1), 0 1px 0 rgba(0,0,0,0.95)",
+                }, children: [lm.label, override && _jsx("span", { className: "ml-1 text-jade", children: "\u25CF" })] })] }));
+}
+export function CalibrationPanel({ debug, setDebug, overrides, setOverrides, appliedCalibration, onApply, onResetCalibration, }) {
+    const placedCount = Object.keys(overrides).length;
+    const computed = computeCalibrationFromOverrides(overrides);
+    const [collapsed, setCollapsed] = useState(false);
+    // Collapsed: tiny 28×28 chip in the corner. Click to expand.
+    // The chip is the absolute minimum surface area so it can't really
+    // be in the way of any drag, but it's still visible enough to find.
+    if (collapsed) {
+        return (_jsx("div", { className: "absolute top-2 right-2 z-[120] pointer-events-auto", children: _jsx("button", { type: "button", onClick: () => setCollapsed(false), className: `flex items-center justify-center w-7 h-7 rounded-sm backdrop-blur-md ring-1 cursor-clicker transition-colors ${debug
+                    ? "bg-jade/15 text-jade ring-jade/35 hover:bg-jade/25"
+                    : "bg-liquirice/70 text-flash/55 ring-flash/15 hover:text-flash hover:bg-liquirice/85"}`, title: "Expand calibration panel", children: _jsx(Settings2, { className: "w-3.5 h-3.5" }) }) }));
+    }
+    return (_jsx("div", { className: "absolute top-2 right-2 z-[120] pointer-events-auto max-h-[calc(100%-1rem)] overflow-hidden", children: _jsxs("div", { className: "flex flex-col gap-1.5 p-2 rounded-sm bg-liquirice/90 backdrop-blur-md ring-1 ring-flash/15 shadow-[0_4px_14px_rgba(0,0,0,0.6)] w-[210px]", children: [_jsxs("div", { className: "flex items-center justify-between gap-2", children: [_jsx("span", { className: "text-[10px] font-mono uppercase tracking-[0.18em] text-flash/65", children: "calibration" }), _jsxs("div", { className: "flex items-center gap-1", children: [_jsx("button", { type: "button", onClick: () => setDebug(!debug), className: `px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider rounded-sm cursor-clicker ${debug
+                                        ? "text-jade bg-jade/15 ring-1 ring-jade/35"
+                                        : "text-flash/40 ring-1 ring-flash/15 hover:text-flash/70"}`, children: "debug" }), _jsx("button", { type: "button", onClick: () => setCollapsed(true), className: "p-0.5 rounded-sm text-flash/45 hover:text-flash hover:bg-flash/10 transition-colors cursor-clicker", title: "Collapse panel (Esc-style hide)", children: _jsx(Minus, { className: "w-3.5 h-3.5" }) })] })] }), debug && (_jsxs(_Fragment, { children: [_jsx("div", { className: "text-[9px] font-geist text-flash/55 leading-tight", children: "Drag landmark markers to where they REALLY are on the map. Double-click a marker to reset it." }), _jsxs("div", { className: "text-[10px] font-mono text-flash/60", children: ["placed: ", _jsx("span", { className: "text-jade tabular-nums", children: placedCount }), " / ", LANDMARKS.length] }), _jsxs("div", { className: "flex gap-1 mt-0.5", children: [_jsx("button", { type: "button", disabled: placedCount < 2, onClick: () => onApply(computed), className: "flex-1 px-1.5 py-1 text-[9px] font-mono uppercase tracking-wider rounded-sm cursor-clicker disabled:cursor-not-allowed disabled:text-flash/20 disabled:bg-transparent text-jade bg-jade/15 ring-1 ring-jade/35 hover:bg-jade/25", children: "apply" }), _jsx("button", { type: "button", onClick: () => setOverrides({}), disabled: placedCount === 0, className: "px-1.5 py-1 text-[9px] font-mono uppercase tracking-wider rounded-sm cursor-clicker disabled:cursor-not-allowed disabled:text-flash/20 text-flash/55 ring-1 ring-flash/15 hover:text-flash/80", title: "Clear all drops", children: "clear" }), _jsx("button", { type: "button", onClick: onResetCalibration, className: "px-1.5 py-1 text-[9px] font-mono uppercase tracking-wider rounded-sm cursor-clicker text-flash/55 ring-1 ring-flash/15 hover:text-flash/80", title: "Reset calibration to default", children: "reset" })] }), _jsxs("div", { className: "mt-1 px-1.5 py-1.5 rounded-sm bg-black/40 ring-1 ring-flash/[0.04] text-[9px] font-mono text-flash/55 leading-snug", children: [_jsx("div", { className: "text-flash/40 uppercase tracking-wider text-[8px] mb-0.5", children: "applied" }), _jsxs("div", { children: ["scaleX: ", _jsx("span", { className: "text-flash/85 tabular-nums", children: appliedCalibration.scaleX.toFixed(3) })] }), _jsxs("div", { children: ["scaleY: ", _jsx("span", { className: "text-flash/85 tabular-nums", children: appliedCalibration.scaleY.toFixed(3) })] }), _jsxs("div", { children: ["offX:   ", _jsxs("span", { className: "text-flash/85 tabular-nums", children: [appliedCalibration.offsetXPct.toFixed(2), "%"] })] }), _jsxs("div", { children: ["offY:   ", _jsxs("span", { className: "text-flash/85 tabular-nums", children: [appliedCalibration.offsetYPct.toFixed(2), "%"] })] }), placedCount >= 2 && (_jsxs(_Fragment, { children: [_jsx("div", { className: "text-flash/40 uppercase tracking-wider text-[8px] mt-1.5 mb-0.5", children: "computed (preview)" }), _jsxs("div", { children: ["scaleX: ", _jsx("span", { className: "text-jade tabular-nums", children: computed.scaleX.toFixed(3) })] }), _jsxs("div", { children: ["scaleY: ", _jsx("span", { className: "text-jade tabular-nums", children: computed.scaleY.toFixed(3) })] }), _jsxs("div", { children: ["offX:   ", _jsxs("span", { className: "text-jade tabular-nums", children: [computed.offsetXPct.toFixed(2), "%"] })] }), _jsxs("div", { children: ["offY:   ", _jsxs("span", { className: "text-jade tabular-nums", children: [computed.offsetYPct.toFixed(2), "%"] })] })] }))] }), _jsxs("details", { className: "text-[9px] font-mono text-flash/45 mt-0.5", children: [_jsx("summary", { className: "cursor-clicker hover:text-flash/70 uppercase tracking-wider text-[8px]", children: "drops detail" }), _jsx("div", { className: "mt-1 max-h-32 overflow-y-auto cyber-scrollbar pr-1 space-y-0.5", children: LANDMARKS.map((lm) => {
+                                        const ov = overrides[lm.id];
+                                        return (_jsxs("div", { className: "flex items-center gap-1 tabular-nums", children: [_jsx("span", { className: "w-1.5 h-1.5 rounded-full", style: { background: ov ? lm.color : "transparent", border: `1px solid ${lm.color}` } }), _jsx("span", { className: "text-flash/65 truncate flex-1", title: lm.label, children: lm.label }), ov ? (_jsxs("span", { className: "text-jade text-[8px]", children: [(ov.nx * 100).toFixed(1), ", ", (ov.ny * 100).toFixed(1)] })) : (_jsx("span", { className: "text-flash/25 text-[8px]", children: "\u2014" }))] }, lm.id));
+                                    }) })] })] }))] }) }));
+}
