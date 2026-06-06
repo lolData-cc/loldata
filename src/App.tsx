@@ -244,6 +244,14 @@ function App() {
                   </RootLayout>
                 }
               />
+              <Route
+                path="/scout/:slug/:tab"
+                element={
+                  <RootLayout>
+                    <ScoutLobbyPage />
+                  </RootLayout>
+                }
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ChampionPickerProvider>

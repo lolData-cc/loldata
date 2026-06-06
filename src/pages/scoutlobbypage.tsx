@@ -26,6 +26,12 @@ import {
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
 import { getKeystoneIcon } from "@/constants/runes";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MatchCard, type MatchCardData } from "@/components/matchcard";
 import { showCyberToast } from "@/lib/toast-utils";
@@ -189,6 +195,7 @@ type ChampionsPlayer = {
   champions: ChampionLine[];
 };
 
+type TimeBucketFE = { games: number; wins: number; winrate: number };
 type HabitsPlayer = {
   playerId: string;
   displayName: string;
@@ -198,7 +205,12 @@ type HabitsPlayer = {
   afterWin: { games: number; wins: number; winrate: number };
   longestWinStreak: number;
   longestLossStreak: number;
-  timeOfDay: { morning: number; afternoon: number; evening: number; night: number };
+  timeOfDay: {
+    morning: TimeBucketFE;
+    afternoon: TimeBucketFE;
+    evening: TimeBucketFE;
+    night: TimeBucketFE;
+  };
 };
 
 type StatsWindow = "today" | "week" | "all";
@@ -527,6 +539,10 @@ function PlayerSectionCard({
   }
   const isSquad = uniquePlayers.length >= 2;
 
+  // Expand/collapse state — sections with many matches dominate the feed,
+  // so users can fold them away. Default expanded.
+  const [expanded, setExpanded] = useState(true);
+
   // Section outcome — drives the left border color.
   // Tie counts as a win-leaning result, so 50% winrate keeps the jade
   // bar. Only <50% (strictly more losses than wins) goes red.
@@ -736,10 +752,31 @@ function PlayerSectionCard({
             }
             sub={`${sessionStats.kills}/${sessionStats.deaths}/${sessionStats.assists}`}
           />
+          {/* Collapse toggle — same chevron that's used elsewhere. Click
+              the header anywhere in the empty area also works because the
+              toggle catches clicks via the surrounding button below. */}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Collapse section" : "Expand section"}
+            className="ml-1 inline-flex items-center justify-center w-7 h-7 rounded-[3px] border border-flash/10 bg-black/30 text-flash/55 hover:text-jade hover:border-jade/35 hover:bg-jade/[0.06] transition-colors cursor-clicker"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "text-[14px] leading-none transition-transform duration-200",
+                expanded ? "rotate-180" : "rotate-0"
+              )}
+            >
+              ⌃
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Matches list */}
+      {/* Matches list — hidden when section is collapsed */}
+      {expanded && (
       <ul className="relative z-[2] flex flex-col gap-3 p-3">
         {matches.map((repItem, idx) => {
           // Prefer the active player's FeedItem for this match so the card
@@ -817,6 +854,7 @@ function PlayerSectionCard({
           );
         })}
       </ul>
+      )}
     </div>
   );
 }
@@ -1945,18 +1983,65 @@ function QueueDonut({ queue }: { queue: TrendingPayload["queueBreakdown"] }) {
           const dash = (s.value / total) * C;
           const offset = (acc / total) * C;
           acc += s.value;
+          const wr =
+            s.value > 0 && s.wins > 0
+              ? Math.round((s.wins / s.value) * 100)
+              : null;
+          const pct = Math.round((s.value / total) * 100);
           return (
-            <circle
-              key={s.label}
-              r={R}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={18}
-              strokeDasharray={`${dash} ${C - dash}`}
-              strokeDashoffset={-offset}
-              transform="rotate(-90)"
-              style={{ filter: `drop-shadow(0 0 6px ${s.color}50)` }}
-            />
+            <TooltipProvider key={s.label} delayDuration={120}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <circle
+                    r={R}
+                    fill="none"
+                    stroke={s.color}
+                    strokeWidth={18}
+                    strokeDasharray={`${dash} ${C - dash}`}
+                    strokeDashoffset={-offset}
+                    transform="rotate(-90)"
+                    style={{
+                      filter: `drop-shadow(0 0 6px ${s.color}50)`,
+                      cursor: "default",
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="text-xs font-jetbrains tracking-wider"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span
+                      className="text-[10px] uppercase tracking-[0.18em] font-bold"
+                      style={{ color: s.color }}
+                    >
+                      {s.label}
+                    </span>
+                    <span className="text-flash/85">
+                      {s.value} {s.value === 1 ? "game" : "games"}
+                      <span className="text-flash/35"> · </span>
+                      {pct}%
+                      {wr != null && (
+                        <>
+                          <span className="text-flash/35"> · </span>
+                          <span
+                            className={
+                              wr >= 55
+                                ? "text-jade"
+                                : wr >= 48
+                                  ? "text-flash/80"
+                                  : "text-red-400/80"
+                            }
+                          >
+                            {wr}% WR
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         })}
         <text x={0} y={-4} textAnchor="middle" className="fill-flash text-[22px] font-chakrapetch font-bold tabular-nums">{total}</text>
@@ -2598,15 +2683,10 @@ function TeamRoster({
   return (
     <div className={cn("flex flex-col", align === "right" && "items-end")}>
       <div
-        className={cn(
-          "flex items-center gap-1.5 mb-0.5 text-[8px] font-jetbrains tracking-[0.28em] uppercase font-bold",
-          align === "right" && "flex-row-reverse"
-        )}
+        className="mb-0.5 text-[8px] font-jetbrains tracking-[0.28em] uppercase font-bold"
         style={{ color: accent }}
       >
-        <span>{teamLabel}</span>
-        <span className="opacity-30">·</span>
-        <span className="opacity-50">{participants.length}</span>
+        {teamLabel}
       </div>
       <ul
         className={cn("space-y-[2px] text-[10px]", align === "right" && "text-right")}
@@ -2862,7 +2942,11 @@ function LeaderboardTab({
 
               return (
                 <motion.div
-                  key={p.playerId}
+                  // Use puuid as key — leaderboard rows are per-account, so
+                  // a player with multiple linked accounts has multiple rows
+                  // sharing the same playerId. Using puuid avoids React
+                  // collapsing or duplicating siblings on re-renders.
+                  key={p.puuid}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
@@ -4392,10 +4476,10 @@ function HabitsCard({ player }: { player: HabitsPlayer }) {
       : "text-error";
 
   const todTotal =
-    player.timeOfDay.morning +
-    player.timeOfDay.afternoon +
-    player.timeOfDay.evening +
-    player.timeOfDay.night;
+    player.timeOfDay.morning.games +
+    player.timeOfDay.afternoon.games +
+    player.timeOfDay.evening.games +
+    player.timeOfDay.night.games;
 
   return (
     <div className={cn(glassDark, "p-4")}>
@@ -4463,10 +4547,10 @@ function HabitsCard({ player }: { player: HabitsPlayer }) {
             Time of day
           </div>
           <div className="grid grid-cols-4 gap-1.5">
-            <TodBar label="Morn" count={player.timeOfDay.morning} total={todTotal} accent={accent} />
-            <TodBar label="Aft" count={player.timeOfDay.afternoon} total={todTotal} accent={accent} />
-            <TodBar label="Eve" count={player.timeOfDay.evening} total={todTotal} accent={accent} />
-            <TodBar label="Night" count={player.timeOfDay.night} total={todTotal} accent={accent} />
+            <TodBar label="Morn" bucket={player.timeOfDay.morning} total={todTotal} accent={accent} fullLabel="Morning · 05:00–11:59" />
+            <TodBar label="Aft" bucket={player.timeOfDay.afternoon} total={todTotal} accent={accent} fullLabel="Afternoon · 12:00–17:59" />
+            <TodBar label="Eve" bucket={player.timeOfDay.evening} total={todTotal} accent={accent} fullLabel="Evening · 18:00–22:59" />
+            <TodBar label="Night" bucket={player.timeOfDay.night} total={todTotal} accent={accent} fullLabel="Night · 23:00–04:59" />
           </div>
         </div>
       </div>
@@ -4502,34 +4586,67 @@ function HabitMetric({
 
 function TodBar({
   label,
-  count,
+  bucket,
   total,
   accent,
+  fullLabel,
 }: {
   label: string;
-  count: number;
+  bucket: TimeBucketFE;
   total: number;
   accent: string;
+  fullLabel: string;
 }) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const pct = total > 0 ? Math.round((bucket.games / total) * 100) : 0;
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative w-full h-14 bg-black/25 border border-flash/10 rounded-[3px] overflow-hidden flex items-end justify-center">
-        <div
-          className="w-full transition-all"
-          style={{
-            height: `${pct}%`,
-            background: `color-mix(in srgb, ${accent} 30%, transparent)`,
-          }}
-        />
-        <span className="absolute top-1 right-1 text-[9px] font-jetbrains text-flash/45 tabular-nums">
-          {count}
-        </span>
-      </div>
-      <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/45">
-        {label}
-      </span>
-    </div>
+    <TooltipProvider delayDuration={120}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex flex-col items-center gap-1 cursor-default">
+            <div className="relative w-full h-14 bg-black/25 border border-flash/10 rounded-[3px] overflow-hidden flex items-end justify-center transition-colors hover:border-flash/25">
+              <div
+                className="w-full transition-all"
+                style={{
+                  height: `${pct}%`,
+                  background: `color-mix(in srgb, ${accent} 30%, transparent)`,
+                }}
+              />
+              <span className="absolute top-1 right-1 text-[9px] font-jetbrains text-flash/45 tabular-nums">
+                {bucket.games}
+              </span>
+            </div>
+            <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/45">
+              {label}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="text-xs font-jetbrains tracking-wider"
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-jade/85 font-bold">
+              {fullLabel}
+            </span>
+            <span className="text-flash/85">
+              {bucket.games} {bucket.games === 1 ? "game" : "games"}
+              <span className="text-flash/35"> · </span>
+              <span
+                className={
+                  bucket.winrate >= 55
+                    ? "text-jade"
+                    : bucket.winrate >= 48
+                      ? "text-flash/80"
+                      : "text-red-400/80"
+                }
+              >
+                {bucket.wins}W {bucket.games - bucket.wins}L · {bucket.winrate}% WR
+              </span>
+            </span>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -5554,7 +5671,22 @@ function EditPlayerRow({
 
 /* ─── main page ─────────────────────────────────────────────────────── */
 export default function ScoutLobbyPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, tab: tabParam } = useParams<{ slug: string; tab?: string }>();
+  // Allowed tab values — anything else falls back to "matches".
+  const VALID_TABS = useMemo(
+    () =>
+      new Set([
+        "matches",
+        "live",
+        "leaderboard",
+        "trending",
+        "habits",
+        "champions",
+      ]),
+    []
+  );
+  const activeTab =
+    tabParam && VALID_TABS.has(tabParam) ? tabParam : "matches";
   const navigate = useNavigate();
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
@@ -5716,7 +5848,14 @@ export default function ScoutLobbyPage() {
         <div className="w-full max-w-[1280px] px-4 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           {/* Left: tabs + content */}
           <div className="min-w-0">
-            <Tabs defaultValue="matches">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => {
+                // Default tab → bare slug URL. Other tabs → /:slug/:tab.
+                const next = v === "matches" ? `/scout/${slug}` : `/scout/${slug}/${v}`;
+                navigate(next, { replace: false });
+              }}
+            >
               <div className="flex items-end justify-between border-b border-flash/[0.06] mb-6">
                 <TabsList className="flex justify-start mx-0 bg-transparent h-auto p-0 gap-7 border-0">
                   {(
