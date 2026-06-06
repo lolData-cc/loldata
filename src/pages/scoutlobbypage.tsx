@@ -757,154 +757,163 @@ function PlayerSectionCard({
       </div>
 
       {/* Matches list — collapsed view shows only the most recent. The
-          rest get hidden behind the cyber "show more" trigger below. */}
+          rest live in a grid-rows expander that animates open smoothly. */}
       <ul className="relative z-[2] flex flex-col gap-3 px-3 pt-3 pb-1">
-        {(expanded ? matches : matches.slice(0, 1)).map((repItem, idx) => {
-          // Prefer the active player's FeedItem for this match so the card
-          // renders THEIR champion/KDA/items, not whoever-was-first.
-          const matchItems = itemsByMatch.get(repItem.matchId) ?? [repItem];
-          const item =
-            matchItems.find((x) => x.ownerPlayerId === activePlayerId) ??
-            repItem;
-
-          const card: MatchCardData = {
-            matchId: item.matchId,
-            queueLabel:
-              QUEUE_LABELS[item.queueId ?? -1] ??
-              `QUEUE ${item.queueId ?? "?"}`,
-            win: item.participant.win,
-            isRemake: (item.gameDurationSeconds ?? 0) < 300,
-            gameDurationSeconds: item.gameDurationSeconds ?? 0,
-            gameCreationMs: new Date(item.gameCreation).getTime(),
-            championName: item.participant.championName ?? "Aatrox",
-            championLevel: null,
-            keystoneId: item.participant.perkKeystone,
-            secondaryStyleId: item.participant.perkSubStyle,
-            kills: item.participant.kills,
-            deaths: item.participant.deaths,
-            assists: item.participant.assists,
-            items: item.participant.items,
-            allParticipants: item.allParticipants,
-            highlightPuuid: item.participant.puuid,
-            lobbyMatePuuids: (
-              item.lobbyAccountPuuidsInMatch ??
-              item.lobbyPlayers.map((lp) => lp.accountPuuid)
-            ).filter((p) => p !== item.participant.puuid),
-            lobbyAccountByPuuid,
-            lpDelta: item.participant.lpDelta ?? null,
-            rankChange: item.participant.rankChange ?? null,
-            rankAfter: item.participant.rankAfter ?? null,
-          };
-          const showPerMatchSquadBadge =
-            !isSquad && squadMatchIds.has(item.matchId);
-
-          // Gap to the OLDER match (matches are newest-first).
-          // Gap = newer.start - (older.start + older.duration)
-          let breakLabel: string | null = null;
-          const next = matches[idx + 1];
-          if (next) {
-            const newerStart = new Date(item.gameCreation).getTime();
-            const olderStart = new Date(next.gameCreation).getTime();
-            const olderEnd =
-              olderStart + (next.gameDurationSeconds ?? 0) * 1000;
-            const gap = newerStart - olderEnd;
-            breakLabel = formatBreakLabel(gap);
-          }
-
-          return (
-            <div key={item.rowId}>
-              <div className="relative">
-                <MatchCard data={card} />
-                {showPerMatchSquadBadge && (
-                  <div
-                    className="absolute top-2 right-12 z-20 flex items-center gap-1 text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium px-1.5 py-[2px] rounded-[2px]"
-                    style={{
-                      color: JADE,
-                      background: "rgba(0,217,146,0.10)",
-                      border:
-                        "1px solid color-mix(in srgb, #00d992 30%, transparent)",
-                    }}
-                  >
-                    <Users className="w-2.5 h-2.5" />
-                    {squadLabel(item.lobbyPlayers.length)}
-                  </div>
-                )}
-              </div>
-              {breakLabel && <BreakDivider label={breakLabel} />}
-            </div>
-          );
-        })}
+        {renderMatchRow(matches[0], 0)}
       </ul>
 
-      {/* Cyber show-more / collapse trigger — wide, low, sits at the
-          card's bottom edge. Hidden when the group only has 1 match. */}
+      {matches.length > 1 && (
+        <div
+          className={cn(
+            "relative z-[2] grid overflow-hidden transition-[grid-template-rows,opacity] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+            expanded
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0"
+          )}
+        >
+          <ul className="flex flex-col gap-3 px-3 pb-1 overflow-hidden">
+            {matches.slice(1).map((m, i) => renderMatchRow(m, i + 1))}
+          </ul>
+        </div>
+      )}
+
+      {/* Cyber show-more / collapse trigger — minimal jade pulse, no
+          boxed border or corner brackets. Reads as part of the section,
+          not a separate UI block. */}
       {matches.length > 1 && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className={cn(
-            "relative z-[2] group/showmore w-full mt-2 mx-0 px-4 py-2.5 cursor-clicker overflow-hidden",
-            "border-t border-flash/[0.06] hover:border-jade/30 transition-colors duration-200"
-          )}
+          className="group/showmore relative z-[2] w-full py-3 cursor-clicker"
         >
-          {/* Edge accent gradient */}
-          <span
-            aria-hidden
-            className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-jade/40 to-transparent opacity-0 group-hover/showmore:opacity-100 transition-opacity duration-200"
-          />
-          {/* Hover wash */}
-          <span
-            aria-hidden
-            className="absolute inset-0 bg-jade/[0.02] opacity-0 group-hover/showmore:opacity-100 transition-opacity duration-200"
-          />
-          {/* Corner brackets */}
-          <span
-            aria-hidden
-            className="absolute top-1 left-1 w-2 h-2 border-l border-t border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
-          />
-          <span
-            aria-hidden
-            className="absolute top-1 right-1 w-2 h-2 border-r border-t border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
-          />
-          <span
-            aria-hidden
-            className="absolute bottom-1 left-1 w-2 h-2 border-l border-b border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
-          />
-          <span
-            aria-hidden
-            className="absolute bottom-1 right-1 w-2 h-2 border-r border-b border-jade/0 group-hover/showmore:border-jade/45 transition-colors duration-200"
-          />
-
-          <span className="relative z-[1] inline-flex items-center justify-center gap-2 w-full text-flash/55 group-hover/showmore:text-jade transition-colors duration-200">
+          <span className="relative inline-flex items-center justify-center gap-3 w-full">
+            {/* Left accent line */}
             <span
               aria-hidden
-              className={cn(
-                "text-[12px] leading-none transition-transform duration-300",
-                expanded ? "rotate-180" : "rotate-0"
-              )}
-            >
-              ⌄
+              className="h-[1px] w-12 bg-gradient-to-r from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
+            />
+            {/* Label cluster — chevron + text + chevron */}
+            <span className="inline-flex items-center gap-2 text-jade/55 group-hover/showmore:text-jade transition-colors duration-300">
+              <span
+                aria-hidden
+                className={cn(
+                  "text-[11px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  expanded ? "rotate-180" : "rotate-0"
+                )}
+                style={{
+                  textShadow:
+                    "0 0 6px color-mix(in srgb, #00d992 35%, transparent)",
+                }}
+              >
+                ▾
+              </span>
+              <span
+                className="text-[10px] font-chakrapetch font-bold tracking-[0.28em] uppercase"
+                style={{
+                  textShadow:
+                    "0 0 8px color-mix(in srgb, #00d992 22%, transparent)",
+                }}
+              >
+                {expanded
+                  ? "Collapse"
+                  : `Show ${matches.length - 1} more ${matches.length - 1 === 1 ? "match" : "matches"}`}
+              </span>
+              <span
+                aria-hidden
+                className={cn(
+                  "text-[11px] leading-none transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  expanded ? "rotate-180" : "rotate-0"
+                )}
+                style={{
+                  textShadow:
+                    "0 0 6px color-mix(in srgb, #00d992 35%, transparent)",
+                }}
+              >
+                ▾
+              </span>
             </span>
-            <span className="text-[10px] font-jetbrains font-bold tracking-[0.3em] uppercase">
-              {expanded
-                ? "Collapse"
-                : `Show ${matches.length - 1} more ${matches.length - 1 === 1 ? "match" : "matches"}`}
-            </span>
+            {/* Right accent line */}
             <span
               aria-hidden
-              className={cn(
-                "text-[12px] leading-none transition-transform duration-300",
-                expanded ? "rotate-180" : "rotate-0"
-              )}
-            >
-              ⌄
-            </span>
+              className="h-[1px] w-12 bg-gradient-to-l from-transparent to-jade/25 group-hover/showmore:to-jade/65 transition-colors duration-300"
+            />
           </span>
         </button>
       )}
     </div>
   );
+
+  // Local renderer — same closure scope as the component so it can use
+  // activePlayerId / itemsByMatch / lobbyAccountByPuuid / etc directly.
+  function renderMatchRow(repItem: FeedItem, idx: number) {
+    const matchItems = itemsByMatch.get(repItem.matchId) ?? [repItem];
+    const item =
+      matchItems.find((x) => x.ownerPlayerId === activePlayerId) ?? repItem;
+
+    const card: MatchCardData = {
+      matchId: item.matchId,
+      queueLabel:
+        QUEUE_LABELS[item.queueId ?? -1] ?? `QUEUE ${item.queueId ?? "?"}`,
+      win: item.participant.win,
+      isRemake: (item.gameDurationSeconds ?? 0) < 300,
+      gameDurationSeconds: item.gameDurationSeconds ?? 0,
+      gameCreationMs: new Date(item.gameCreation).getTime(),
+      championName: item.participant.championName ?? "Aatrox",
+      championLevel: null,
+      keystoneId: item.participant.perkKeystone,
+      secondaryStyleId: item.participant.perkSubStyle,
+      kills: item.participant.kills,
+      deaths: item.participant.deaths,
+      assists: item.participant.assists,
+      items: item.participant.items,
+      allParticipants: item.allParticipants,
+      highlightPuuid: item.participant.puuid,
+      lobbyMatePuuids: (
+        item.lobbyAccountPuuidsInMatch ??
+        item.lobbyPlayers.map((lp) => lp.accountPuuid)
+      ).filter((p) => p !== item.participant.puuid),
+      lobbyAccountByPuuid,
+      lpDelta: item.participant.lpDelta ?? null,
+      rankChange: item.participant.rankChange ?? null,
+      rankAfter: item.participant.rankAfter ?? null,
+    };
+    const showPerMatchSquadBadge =
+      !isSquad && squadMatchIds.has(item.matchId);
+
+    let breakLabel: string | null = null;
+    const next = matches[idx + 1];
+    if (next) {
+      const newerStart = new Date(item.gameCreation).getTime();
+      const olderStart = new Date(next.gameCreation).getTime();
+      const olderEnd = olderStart + (next.gameDurationSeconds ?? 0) * 1000;
+      const gap = newerStart - olderEnd;
+      breakLabel = formatBreakLabel(gap);
+    }
+
+    return (
+      <div key={item.rowId}>
+        <div className="relative">
+          <MatchCard data={card} />
+          {showPerMatchSquadBadge && (
+            <div
+              className="absolute top-2 right-12 z-20 flex items-center gap-1 text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium px-1.5 py-[2px] rounded-[2px]"
+              style={{
+                color: JADE,
+                background: "rgba(0,217,146,0.10)",
+                border:
+                  "1px solid color-mix(in srgb, #00d992 30%, transparent)",
+              }}
+            >
+              <Users className="w-2.5 h-2.5" />
+              {squadLabel(item.lobbyPlayers.length)}
+            </div>
+          )}
+        </div>
+        {breakLabel && <BreakDivider label={breakLabel} />}
+      </div>
+    );
+  }
 }
 
 function squadLabel(n: number): string {
