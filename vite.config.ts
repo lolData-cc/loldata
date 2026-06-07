@@ -8,6 +8,20 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
+    // The worktree ships both legacy .js (stale, compiled long ago) and
+    // current .tsx files for many components. Vite's default order puts
+    // .js BEFORE .tsx, so without this list every edit to a .tsx silently
+    // resolved to the pre-built .js and Hot Module Replacement reported
+    // success while the browser kept rendering the old code. Promoting
+    // .tsx / .ts above .js fixes the resolution — edits to the .tsx win.
+    extensions: [
+      ".mjs",
+      ".tsx",
+      ".ts",
+      ".jsx",
+      ".js",
+      ".json",
+    ],
   },
   server: {
     proxy: {
