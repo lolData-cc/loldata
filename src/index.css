@@ -83,6 +83,12 @@
 .match-card-collapsed {
   cursor: url("/cursors/clicker.svg") 16 6, pointer;
 }
+/* Fade-in for the action strip in the scout-lobby MatchCard. The strip
+   is mounted only when expanded, so we just need an entry animation. */
+@keyframes matchActionFadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 @layer utilities {
 

@@ -37,7 +37,7 @@ import { MatchCard, type MatchCardData } from "@/components/matchcard";
 import { showCyberToast } from "@/lib/toast-utils";
 import { DiamondButton } from "@/components/ui/diamond-button";
 import { getRankImage } from "@/utils/rankIcons";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -193,6 +193,10 @@ type ChampionsPlayer = {
   displayName: string;
   color: string | null;
   champions: ChampionLine[];
+  // Per-account breakdown (puuid → top-5 champions for THAT account only).
+  // Lets the card switch between "All accounts" and a single account view.
+  // Backend may omit on older payloads — treat as {} when undefined.
+  perAccount?: Record<string, ChampionLine[]>;
 };
 
 type TimeBucketFE = { games: number; wins: number; winrate: number };
@@ -884,6 +888,11 @@ function PlayerSectionCard({
       lpDelta: item.participant.lpDelta ?? null,
       rankChange: item.participant.rankChange ?? null,
       rankAfter: item.participant.rankAfter ?? null,
+      // The lobby-account map carries short-form region per puuid (set by
+      // the lobby endpoint). Falls back to EUW when the participant isn't
+      // a lobby account (shouldn't happen for our own row, but defensive).
+      region:
+        lobbyAccountByPuuid[item.participant.puuid]?.region ?? "EUW",
     };
     const showPerMatchSquadBadge =
       !isSquad && squadMatchIds.has(item.matchId);
@@ -1612,62 +1621,96 @@ function MatchesTab({
         </div>
       )}
 
-      {dayGroups.map((day, dayIdx) => (
-        <section
-          key={day.label + day.sortKey}
-          className={cn(dayIdx > 0 && "pt-2")}
-        >
-          {/* Day separator — bold, full-width, glowing dot. Bigger than
-              before so the eye latches onto the day boundary. */}
-          <div className="relative flex items-center gap-3 mb-5 px-1">
-            <span
-              className="relative inline-flex items-center justify-center w-2 h-2 rounded-full"
-              style={{
-                background: JADE,
-                boxShadow: "0 0 14px rgba(0,217,146,0.7), 0 0 4px rgba(0,217,146,0.9)",
-              }}
-            />
-            <h2 className="text-[13px] font-jetbrains tracking-[0.3em] uppercase text-flash font-bold">
-              {day.label}
-            </h2>
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-jade/30 via-flash/10 to-transparent" />
-            <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/35">
-              {day.sections.reduce((n, s) => n + s.matches.length, 0)} {" "}
-              {day.sections.reduce((n, s) => n + s.matches.length, 0) === 1
-                ? "match"
-                : "matches"}
-            </span>
-          </div>
+      {/* Filter-change animation: as filterMode flips, day sections and
+          player section cards animate in/out instead of snapping. The
+          outer LayoutGroup gives surviving cards a smooth slide into
+          their new positions; AnimatePresence handles enter/exit so a
+          section can fade out gracefully when it stops matching the
+          filter (e.g. switching from "All" to a single player).
 
-          <div className="flex flex-col gap-11">
-            {day.sections.map((section, idx) => {
-              const sectionMembers: SectionMember[] = section.members
-                .map((m) => {
-                  const player = playerById.get(m.playerId);
-                  if (!player) return null;
-                  const account =
-                    player.accounts.find((a) => a.puuid === m.puuid) ?? null;
-                  return { player, account };
-                })
-                .filter((x): x is SectionMember => x !== null);
-              if (sectionMembers.length === 0) return null;
-              const key = `${day.sortKey}:${idx}:${section.members
-                .map((m) => `${m.playerId}-${m.puuid}`)
-                .join("+")}`;
-              return (
-                <PlayerSectionCard
-                  key={key}
-                  members={sectionMembers}
-                  matches={section.matches}
-                  itemsByMatch={section.itemsByMatch}
-                  squadMatchIds={squadMatchIds}
-                  lobbyAccountByPuuid={lobbyAccountByPuuid}
+          `mode="popLayout"` keeps exiting elements out of the layout
+          flow so siblings can move into their place immediately rather
+          than waiting for the fade-out to finish. */}
+      <LayoutGroup>
+        <AnimatePresence mode="popLayout" initial={false}>
+          {dayGroups.map((day, dayIdx) => (
+            <motion.section
+              key={day.label + day.sortKey}
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className={cn(dayIdx > 0 && "pt-2")}
+            >
+              {/* Day separator — bold, full-width, glowing dot. Bigger
+                  than before so the eye latches onto the day boundary. */}
+              <div className="relative flex items-center gap-3 mb-5 px-1">
+                <span
+                  className="relative inline-flex items-center justify-center w-2 h-2 rounded-full"
+                  style={{
+                    background: JADE,
+                    boxShadow:
+                      "0 0 14px rgba(0,217,146,0.7), 0 0 4px rgba(0,217,146,0.9)",
+                  }}
                 />
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                <h2 className="text-[13px] font-jetbrains tracking-[0.3em] uppercase text-flash font-bold">
+                  {day.label}
+                </h2>
+                <div className="flex-1 h-[1px] bg-gradient-to-r from-jade/30 via-flash/10 to-transparent" />
+                <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/35">
+                  {day.sections.reduce((n, s) => n + s.matches.length, 0)}{" "}
+                  {day.sections.reduce((n, s) => n + s.matches.length, 0) === 1
+                    ? "match"
+                    : "matches"}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-11">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {day.sections.map((section, idx) => {
+                    const sectionMembers: SectionMember[] = section.members
+                      .map((m) => {
+                        const player = playerById.get(m.playerId);
+                        if (!player) return null;
+                        const account =
+                          player.accounts.find((a) => a.puuid === m.puuid) ??
+                          null;
+                        return { player, account };
+                      })
+                      .filter((x): x is SectionMember => x !== null);
+                    if (sectionMembers.length === 0) return null;
+                    const key = `${day.sortKey}:${idx}:${section.members
+                      .map((m) => `${m.playerId}-${m.puuid}`)
+                      .join("+")}`;
+                    return (
+                      <motion.div
+                        key={key}
+                        layout
+                        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: -12 }}
+                        transition={{
+                          duration: 0.3,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                      >
+                        <PlayerSectionCard
+                          members={sectionMembers}
+                          matches={section.matches}
+                          itemsByMatch={section.itemsByMatch}
+                          squadMatchIds={squadMatchIds}
+                          lobbyAccountByPuuid={lobbyAccountByPuuid}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </motion.section>
+          ))}
+        </AnimatePresence>
+      </LayoutGroup>
 
       <div
         ref={sentinelRef}
@@ -2495,13 +2538,19 @@ const LADDER_TIER_INDEX: Record<string, number> = {
 };
 const DIVISION_INDEX: Record<string, number> = { IV: 1, III: 2, II: 3, I: 4 };
 
+// Mirrors backend ladderScore: per-tier offset is 400 LP (4 divisions ×
+// 100), per-division offset is (idx − 1) × 100 with IV=1 / III=2 / II=3 /
+// I=4 so IV contributes 0 and I contributes 300. Master+ is divisionless
+// and just adds raw LP onto where DIAMOND I 100 ended (2800).
 function ladderScoreFE(rank: CurrentRank | null): number {
-  if (!rank) return -1;                                  // unranked sinks
+  if (!rank) return -1; // unranked sinks
   const t = LADDER_TIER_INDEX[rank.tier.toUpperCase()] ?? 0;
-  const d = rank.rankDivision
-    ? DIVISION_INDEX[rank.rankDivision.toUpperCase()] ?? 0
-    : 0;
-  return t * 1000 + d * 100 + rank.lp;
+  // MASTER index 7 — anything ≥ 7 ignores division.
+  if (t >= 7) return 7 * 400 + rank.lp;
+  const dIdx = rank.rankDivision
+    ? DIVISION_INDEX[rank.rankDivision.toUpperCase()] ?? 1
+    : 1;
+  return t * 400 + (dIdx - 1) * 100 + rank.lp;
 }
 
 /* ─── live tab ─────────────────────────────────────────────────────────
@@ -3394,18 +3443,21 @@ function LeaderboardTab({
                     />
                   </div>
 
-                  {/* Name — riot name big, lobby player label small */}
+                  {/* Name — riot name big, lobby player label small.
+                      Both use chakrapetch so the leaderboard reads with
+                      the same display family used elsewhere on champion
+                      / player names. */}
                   <div className="min-w-0 relative z-10 flex flex-col leading-tight">
                     <Link
                       to={`/summoners/${p.region.toLowerCase()}/${encodeURIComponent(
                         p.riotName
                       )}-${encodeURIComponent(p.riotTag)}`}
-                      className="text-[13px] text-flash/85 font-geist font-medium truncate block group-hover:text-jade group-hover:underline underline-offset-2 transition-colors duration-200 cursor-clicker"
+                      className="text-[14px] text-flash/90 font-chakrapetch font-bold tracking-tight truncate block group-hover:text-jade group-hover:underline underline-offset-2 transition-colors duration-200 cursor-clicker"
                     >
                       {p.riotName}
-                      <span className="text-flash/30">#{p.riotTag}</span>
+                      <span className="text-flash/30 font-medium">#{p.riotTag}</span>
                     </Link>
-                    <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/40 truncate mt-0.5">
+                    <span className="text-[10px] font-chakrapetch font-semibold tracking-wide uppercase text-flash/45 truncate mt-0.5">
                       <span className="text-jade/55 mr-1">{p.region}</span>
                       · {p.playerDisplayName}
                     </span>
@@ -3612,38 +3664,85 @@ const LP_TIER_ABBR: Record<string, string> = {
   CHALLENGER: "C",
 };
 
-/** Inverse of ladderScore — turn a score back into "E2" / "GM" / "D4".
- *  Ladder math stores I=4 / II=3 / III=2 / IV=1 in the hundreds digit,
- *  so we invert (5 − idx) to get the display number where I=1 / IV=4. */
+/** Inverse of ladderScore (400 LP per tier, 100 LP per division).
+ *
+ *   Score=0    → I4 (IRON IV)         tierIdx=0  rem=0   → div 1 → "I4"
+ *   Score=399  → I1 (IRON I 99 LP)    tierIdx=0  rem=399 → div 4 → "I1"
+ *   Score=400  → B4 (BRONZE IV 0)     tierIdx=1
+ *   Score=1950 → P1 (PLATINUM I 50)   tierIdx=4  rem=350 → div 4 → "P1"
+ *   Score=2800 → M  (MASTER 0)        tierIdx=7  → "M"
+ *
+ *  IRON..DIAMOND: tier_idx = floor(score/400), div = floor((score%400)/100)+1
+ *  where div 1=IV, 2=III, 3=II, 4=I. We render as the number 5-divIdx? No
+ *  — division index here already is 1=IV..4=I, so display number = 5-divIdx
+ *  is wrong. We want IV=4, III=3, II=2, I=1 as displayed. So:
+ *      div index 1 → "4"  (IV → "4")
+ *      div index 2 → "3"  (III → "3")
+ *      div index 3 → "2"  (II → "2")
+ *      div index 4 → "1"  (I → "1")
+ *  → displayNum = 5 − divIdx. Yep, that holds.
+ */
+const LP_PER_DIVISION_FE = 100;
+const LP_PER_TIER_FE = 400; // 4 divisions × 100
+
 function scoreToRankShort(score: number): string {
   if (score < 0) return "—";
-  const tierIdx = Math.min(9, Math.floor(score / 1000));
-  const tier = LP_TIERS_ORDER[tierIdx];
-  const abbr = LP_TIER_ABBR[tier];
-  if (tierIdx >= 7) return abbr; // M / GM / C — no division
-  const divIdx = Math.max(1, Math.min(4, Math.floor((score % 1000) / 100)));
-  const divNum = 5 - divIdx;
-  return `${abbr}${divNum}`;
+  const masterStart = 7 * LP_PER_TIER_FE; // 2800
+  if (score >= masterStart) {
+    // Pick MASTER / GRANDMASTER / CHALLENGER by raw LP brackets that
+    // roughly match Riot's ladder gating. We only know the tier from the
+    // backend payload itself, but for an abbreviation an "M" is fine.
+    return LP_TIER_ABBR[LP_TIERS_ORDER[7]];
+  }
+  const tierIdx = Math.max(0, Math.min(6, Math.floor(score / LP_PER_TIER_FE)));
+  const tierAbbr = LP_TIER_ABBR[LP_TIERS_ORDER[tierIdx]];
+  const rem = score - tierIdx * LP_PER_TIER_FE; // 0..399
+  const divIdx = Math.max(1, Math.min(4, Math.floor(rem / LP_PER_DIVISION_FE) + 1));
+  return `${tierAbbr}${5 - divIdx}`;
 }
 
-/** Ticks for the Y-axis: every (tier, division) crossing inside [lo, hi]. */
+/** Same as above but also returns the LP-within-division for tooltips. */
+function scoreParts(score: number): { rankShort: string; lpInDiv: number } {
+  if (score < 0) return { rankShort: "—", lpInDiv: 0 };
+  const masterStart = 7 * LP_PER_TIER_FE;
+  if (score >= masterStart) {
+    return {
+      rankShort: LP_TIER_ABBR[LP_TIERS_ORDER[7]],
+      lpInDiv: score - masterStart, // raw uncapped LP
+    };
+  }
+  const tierIdx = Math.max(0, Math.min(6, Math.floor(score / LP_PER_TIER_FE)));
+  const rem = score - tierIdx * LP_PER_TIER_FE;
+  const divIdx = Math.max(1, Math.min(4, Math.floor(rem / LP_PER_DIVISION_FE) + 1));
+  return {
+    rankShort: `${LP_TIER_ABBR[LP_TIERS_ORDER[tierIdx]]}${5 - divIdx}`,
+    lpInDiv: rem - (divIdx - 1) * LP_PER_DIVISION_FE,
+  };
+}
+
+/** Y-axis ticks: every (tier, division) edge inside [lo, hi]. */
 function lpYTicks(lo: number, hi: number): Array<{ score: number; label: string }> {
   const out: Array<{ score: number; label: string }> = [];
   for (let t = 0; t < LP_TIERS_ORDER.length; t++) {
     if (t >= 7) {
-      const s = t * 1000;
-      if (s >= lo && s <= hi) out.push({ score: s, label: LP_TIER_ABBR[LP_TIERS_ORDER[t]] });
+      const s = t * LP_PER_TIER_FE;
+      if (s >= lo && s <= hi) {
+        out.push({ score: s, label: LP_TIER_ABBR[LP_TIERS_ORDER[t]] });
+      }
     } else {
-      // Divisions IV (1) → I (4). Tick at the floor of each division.
+      // Division floors. d 1=IV..4=I → labels 4..1.
       for (let d = 1; d <= 4; d++) {
-        const s = t * 1000 + d * 100;
+        const s = t * LP_PER_TIER_FE + (d - 1) * LP_PER_DIVISION_FE;
         if (s >= lo && s <= hi) {
-          out.push({ score: s, label: `${LP_TIER_ABBR[LP_TIERS_ORDER[t]]}${5 - d}` });
+          out.push({
+            score: s,
+            label: `${LP_TIER_ABBR[LP_TIERS_ORDER[t]]}${5 - d}`,
+          });
         }
       }
     }
   }
-  // If the range is enormous (multiple tiers), thin ticks down.
+  // If the range is huge, thin to ~8 ticks for legibility.
   if (out.length > 10) {
     const stride = Math.ceil(out.length / 8);
     return out.filter((_, i) => i % stride === 0 || i === out.length - 1);
@@ -3685,6 +3784,26 @@ function LpTimelineChart({
     };
   }, [slug, period, refreshTick]);
 
+  // Auto-generated palette for players whose color is null in the
+  // backend payload — without it every line falls back to JADE and the
+  // chart turns into a single tangle. Hand-picked HSL hues that read
+  // distinctly against the liquirice background.
+  const AUTO_PALETTE = useMemo(
+    () => [
+      "#5BA8E6", // cyan-blue
+      "#FFB615", // citrine
+      "#d63336", // red
+      "#9b59b6", // purple
+      "#e67e22", // orange
+      "#1abc9c", // teal
+      "#f1c40f", // sun yellow
+      "#FF6B9D", // pink
+      "#7CFFB2", // mint
+      "#A98AFF", // lavender
+    ],
+    []
+  );
+
   // Lines to draw, derived from the player + account selection. Each line
   // carries its display label, color, and a styling tweak so multiple
   // accounts of the same player are visually distinguishable.
@@ -3702,9 +3821,12 @@ function LpTimelineChart({
   const visibleLines: ChartLine[] = useMemo(() => {
     if (!data) return [];
     const out: ChartLine[] = [];
-    for (const p of data.players) {
-      if (p.accounts.length === 0) continue;
-      const accent = p.color || JADE;
+    data.players.forEach((p, pIdx) => {
+      if (p.accounts.length === 0) return;
+      // If the backend gave us a color, use it; otherwise pick from the
+      // palette based on the player's index in the lobby so the assignment
+      // is stable across renders.
+      const accent = p.color || AUTO_PALETTE[pIdx % AUTO_PALETTE.length];
       const primary =
         p.accounts.find((a) => a.isPrimary) ?? p.accounts[0];
 
@@ -3721,9 +3843,9 @@ function LpTimelineChart({
           account: primary,
           playerId: p.playerId,
         });
-        continue;
+        return;
       }
-      if (p.playerId !== selectedPlayerId) continue;
+      if (p.playerId !== selectedPlayerId) return;
 
       // Single-player view → optionally restricted to one account.
       let order = 0;
@@ -3753,37 +3875,46 @@ function LpTimelineChart({
         });
         order++;
       }
-    }
+    });
     return out;
-  }, [data, selectedPlayerId, selectedAccountPuuid]);
+  }, [data, selectedPlayerId, selectedAccountPuuid, AUTO_PALETTE]);
 
-  const { minY, maxY, yTicks, paths, hoverPoints } = useMemo(() => {
+  // Chart geometry. Tall enough that 7-8 tier divisions (the typical
+  // y-axis range when the lobby spans Iron → Master) have room to
+  // breathe. Every stroke uses vectorEffect="non-scaling-stroke" so
+  // line widths stay consistent regardless of container scale.
+  const CHART = { W: 1000, H: 420 };
+
+  const {
+    minY,
+    maxY,
+    yTicks,
+    lines,
+    hoverPoints,
+  } = useMemo(() => {
+    type ChartLineGeom = {
+      lineId: string;
+      color: string;
+      // Each visible run (snapshots between null gaps) becomes one
+      // smoothed path. dots are every real datapoint inside the runs.
+      runs: Array<{ pathLine: string; pathArea: string; pts: Array<{ x: number; y: number; score: number; bucket: number }> }>;
+      finalY: number | null;
+      finalScore: number | null;
+      dashArray: string | null;
+      opacity: number;
+      label: string;
+    };
+
     if (!data || data.buckets.length === 0 || visibleLines.length === 0) {
       return {
         minY: 0,
         maxY: 0,
         yTicks: [] as Array<{ score: number; label: string }>,
-        paths: [] as Array<{
-          lineId: string;
-          color: string;
-          line: string;
-          area: string;
-          finalY: number | null;
-          dashArray: string | null;
-          opacity: number;
-        }>,
-        hoverPoints: [] as Array<{
-          x: number;
-          y: number;
-          color: string;
-          lineId: string;
-          score: number;
-          label: string;
-        }>,
+        lines: [] as ChartLineGeom[],
+        hoverPoints: [] as Array<{ x: number; y: number; color: string; lineId: string; score: number; prevScore: number | null; label: string }>,
       };
     }
-    const W = 100;
-    const H = 100;
+    const { W, H } = CHART;
     const N = data.buckets.length;
 
     let lo = Number.POSITIVE_INFINITY;
@@ -3799,8 +3930,10 @@ function LpTimelineChart({
       lo = 0;
       hi = 100;
     }
-    const span = hi - lo;
-    const pad = Math.max(150, span * 0.15);
+    // Snap [lo, hi] to the nearest tier-division boundary inside, then add a
+    // tiny breath so the line never lives on the top/bottom edge.
+    const span = Math.max(50, hi - lo);
+    const pad = Math.max(40, span * 0.12);
     lo = Math.max(0, lo - pad);
     hi = hi + pad;
     if (lo === hi) hi = lo + 100;
@@ -3808,83 +3941,118 @@ function LpTimelineChart({
     const x = (i: number) => (N === 1 ? W / 2 : (i / (N - 1)) * W);
     const y = (score: number) => H - ((score - lo) / (hi - lo)) * H;
 
-    type PathObj = {
-      lineId: string;
-      color: string;
-      line: string;
-      area: string;
-      finalY: number | null;
-      dashArray: string | null;
-      opacity: number;
-    };
-    const paths: PathObj[] = visibleLines.map((ln) => {
-      let line = "";
-      let pen = false;
-      const segPoints: Array<{ x: number; y: number }> = [];
+    // Step-after path: between two snapshots the LP is "the last known
+    // value" — it doesn't smoothly interpolate, it stays put until the
+    // next game changes it. So the truthful render is a staircase:
+    // horizontal at y_i until x_{i+1}, then vertical to y_{i+1}.
+    //
+    // (We use straight L commands so the stair corners are sharp; round
+    // joins on the stroke soften them just a touch on hover.)
+    function stepPath(pts: Array<{ x: number; y: number }>): string {
+      if (pts.length === 0) return "";
+      let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+      for (let i = 1; i < pts.length; i++) {
+        // Horizontal first (carry previous LP to new x), then vertical
+        // (snap to new LP). That's the "step-after" convention.
+        d += ` L ${pts[i].x.toFixed(2)} ${pts[i - 1].y.toFixed(2)}`;
+        d += ` L ${pts[i].x.toFixed(2)} ${pts[i].y.toFixed(2)}`;
+      }
+      return d;
+    }
+
+    const lines: ChartLineGeom[] = visibleLines.map((ln) => {
+      // Group consecutive non-null buckets into runs so a long
+      // unranked gap doesn't connect with a straight line through it.
+      type Run = { pts: Array<{ x: number; y: number; score: number; bucket: number }> };
+      const runs: Run[] = [];
+      let cur: Run | null = null;
       for (let i = 0; i < N; i++) {
         const v = ln.account.scores[i];
         if (v == null) {
-          pen = false;
+          cur = null;
           continue;
         }
         const px = x(i);
         const py = y(v);
-        line += pen ? ` L ${px} ${py}` : ` M ${px} ${py}`;
-        pen = true;
-        segPoints.push({ x: px, y: py });
+        if (!cur) {
+          cur = { pts: [] };
+          runs.push(cur);
+        }
+        cur.pts.push({ x: px, y: py, score: v, bucket: i });
       }
-      let area = "";
-      if (segPoints.length >= 2) {
-        const baseY = H;
-        area =
-          segPoints
-            .map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`))
-            .join(" ") +
-          ` L ${segPoints[segPoints.length - 1].x} ${baseY}` +
-          ` L ${segPoints[0].x} ${baseY} Z`;
+
+      const runGeoms = runs.map((r) => {
+        const pathLine = stepPath(r.pts);
+        const areaPath =
+          r.pts.length >= 2
+            ? `${pathLine} L ${r.pts[r.pts.length - 1].x} ${H} L ${r.pts[0].x} ${H} Z`
+            : "";
+        return { pathLine, pathArea: areaPath, pts: r.pts };
+      });
+
+      const lastPt = (() => {
+        for (const r of runs) {
+          if (r.pts.length > 0) {
+            const last = r.pts[r.pts.length - 1];
+            return last;
+          }
+        }
+        return null;
+      })();
+      // We want the absolute final non-null score regardless of run order
+      let finalScore: number | null = null;
+      let finalY: number | null = null;
+      for (let i = N - 1; i >= 0; i--) {
+        const v = ln.account.scores[i];
+        if (v != null) {
+          finalScore = v;
+          finalY = y(v);
+          break;
+        }
       }
-      const lastNonNull = [...ln.account.scores]
-        .reverse()
-        .find((s): s is number => s != null);
-      const finalY = lastNonNull != null ? y(lastNonNull) : null;
+      void lastPt; // kept in case we want last-of-first-run later
+
       return {
         lineId: ln.lineId,
         color: ln.accent,
-        line,
-        area,
+        runs: runGeoms,
         finalY,
+        finalScore,
         dashArray: ln.dashArray,
         opacity: ln.opacity,
+        label: ln.label,
       };
     });
 
-    const hi2 = hoverBucket;
-    const hoverPoints: Array<{
-      x: number;
-      y: number;
-      color: string;
-      lineId: string;
-      score: number;
-      label: string;
-    }> = [];
-    if (hi2 != null && hi2 >= 0 && hi2 < N) {
+    const hb = hoverBucket;
+    const hoverPoints: Array<{ x: number; y: number; color: string; lineId: string; score: number; prevScore: number | null; label: string }> = [];
+    if (hb != null && hb >= 0 && hb < N) {
       for (const ln of visibleLines) {
-        const v = ln.account.scores[hi2];
+        const v = ln.account.scores[hb];
         if (v == null) continue;
+        // Find the previous non-null snapshot so the tooltip can show
+        // the precise LP delta at this point ("+15 LP since last game").
+        let prevScore: number | null = null;
+        for (let i = hb - 1; i >= 0; i--) {
+          const pv = ln.account.scores[i];
+          if (pv != null) {
+            prevScore = pv;
+            break;
+          }
+        }
         hoverPoints.push({
-          x: x(hi2),
+          x: x(hb),
           y: y(v),
           color: ln.accent,
           lineId: ln.lineId,
           score: v,
+          prevScore,
           label: ln.label,
         });
       }
     }
 
-    const ticks = lpYTicks(lo, hi);
-
-    return { minY: lo, maxY: hi, yTicks: ticks, paths, hoverPoints };
+    return { minY: lo, maxY: hi, yTicks: lpYTicks(lo, hi), lines, hoverPoints };
   }, [data, visibleLines, hoverBucket]);
 
   const hasData =
@@ -4144,9 +4312,9 @@ function LpTimelineChart({
             </div>
 
             <svg
-              viewBox="0 0 100 100"
+              viewBox={`0 0 ${CHART.W} ${CHART.H}`}
               preserveAspectRatio="none"
-              className="w-full h-[260px] block"
+              className="w-full h-[260px] block lp-chart"
               onMouseLeave={() => setHoverBucket(null)}
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -4157,106 +4325,327 @@ function LpTimelineChart({
                 setHoverBucket(Math.max(0, Math.min(N - 1, idx)));
               }}
             >
-              {/* Rank tier grid lines — one horizontal at every tick */}
+              {/* Soft gradient defs — one fill gradient per line color so
+                  the under-curve area fades from accent to transparent. */}
+              <defs>
+                {lines.map((ln) => (
+                  <linearGradient
+                    key={`g-${ln.lineId}`}
+                    id={`lp-grad-${ln.lineId}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={ln.color} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={ln.color} stopOpacity={0} />
+                  </linearGradient>
+                ))}
+                <filter id="lp-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="1.6" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              {/* Tier-edge horizontal grid (every tick gets a faint line,
+                  every TIER boundary gets a slightly stronger one). */}
               {yTicks.map((t) => {
                 const range = maxY - minY || 1;
-                const yy = 100 - ((t.score - minY) / range) * 100;
-                if (yy < 0 || yy > 100) return null;
+                const yy = CHART.H - ((t.score - minY) / range) * CHART.H;
+                if (yy < -1 || yy > CHART.H + 1) return null;
+                const isTierEdge = t.score % LP_PER_TIER_FE === 0;
                 return (
                   <line
                     key={t.score}
                     x1="0"
-                    x2="100"
+                    x2={CHART.W}
                     y1={yy}
                     y2={yy}
-                    stroke="rgba(255,255,255,0.05)"
-                    strokeWidth="0.12"
+                    stroke={isTierEdge ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.04)"}
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
                   />
                 );
               })}
 
-              {/* Area fill when exactly one line is being rendered */}
-              {paths.length === 1 &&
-                paths.map((p) =>
-                  p.area ? (
-                    <path
-                      key={`area-${p.lineId}`}
-                      d={p.area}
-                      fill={`color-mix(in srgb, ${p.color} 22%, transparent)`}
-                      opacity={0.55}
-                    />
-                  ) : null
+              {/* Area fills (only when a single line is visible — keeps
+                  the all-players overlay readable). */}
+              {lines.length === 1 &&
+                lines.map((ln) =>
+                  ln.runs.map((r, idx) =>
+                    r.pathArea ? (
+                      <path
+                        key={`area-${ln.lineId}-${idx}`}
+                        d={r.pathArea}
+                        fill={`url(#lp-grad-${ln.lineId})`}
+                        opacity={0.95}
+                      />
+                    ) : null
+                  )
                 )}
 
-              {/* Lines */}
-              {paths.map((p) => (
-                <path
-                  key={`line-${p.lineId}`}
-                  d={p.line}
-                  fill="none"
-                  stroke={p.color}
-                  strokeWidth="0.55"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  strokeDasharray={p.dashArray ?? undefined}
-                  opacity={p.opacity}
-                  style={{
-                    filter: `drop-shadow(0 0 1.4px color-mix(in srgb, ${p.color} 55%, transparent))`,
-                  }}
-                />
-              ))}
+              {/* Lines: smooth monotone-cubic. Strokes use vectorEffect so
+                  they stay the same thickness no matter how the SVG is
+                  scaled by the container. The drop-shadow glow + the
+                  filter give the chart its cyber sheen. */}
+              {lines.map((ln) =>
+                ln.runs.map((r, idx) => (
+                  <path
+                    key={`line-${ln.lineId}-${idx}`}
+                    d={r.pathLine}
+                    fill="none"
+                    stroke={ln.color}
+                    strokeWidth={lines.length === 1 ? 2.8 : 2.2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    strokeDasharray={ln.dashArray ?? undefined}
+                    opacity={ln.opacity}
+                    vectorEffect="non-scaling-stroke"
+                    style={{
+                      filter: `drop-shadow(0 0 4px color-mix(in srgb, ${ln.color} 55%, transparent))`,
+                      // Entry animation — sweep stroke from left to right
+                      // using a CSS animation on stroke-dasharray. Single
+                      // line per element so it works even for runs.
+                      animation: `lp-draw 700ms cubic-bezier(.4,0,.2,1) forwards`,
+                      strokeDasharray: 2000,
+                      strokeDashoffset: 2000,
+                    }}
+                  />
+                ))
+              )}
 
-              {/* End-of-line dot — marks current rank for that line.
-                  Two-circle stack so the dot stays prominent even in the
-                  single-bucket case where the line is just a single
-                  invisible "M x y" point. */}
-              {paths.map((p) =>
-                p.finalY != null ? (
-                  <g key={`end-${p.lineId}`} opacity={p.opacity}>
+              {/* Per-snapshot nodes: every real datapoint gets a 3-layer
+                  cyber pip — soft outer glow + accent-coloured ring +
+                  dark inner core with accent stroke. On hover the layers
+                  enlarge & brighten so the node "pops" without a separate
+                  hover circle. */}
+              {lines.length === 1 &&
+                lines.map((ln) =>
+                  ln.runs.flatMap((r) =>
+                    r.pts.map((pt) => {
+                      const isHovered = hoverBucket === pt.bucket;
+                      return (
+                        <g
+                          key={`pt-${ln.lineId}-${pt.bucket}`}
+                          style={{
+                            animation: "lp-dot-pop 480ms cubic-bezier(.34,1.56,.64,1) forwards",
+                            transformOrigin: `${pt.x}px ${pt.y}px`,
+                            animationDelay: `${380 + pt.bucket * 18}ms`,
+                            opacity: 0,
+                            cursor: "pointer",
+                            transition: "all 160ms ease-out",
+                          }}
+                        >
+                          {/* Soft outer glow */}
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={isHovered ? 11 : 7}
+                            fill={ln.color}
+                            opacity={isHovered ? 0.22 : 0.12}
+                          />
+                          {/* Mid accent ring */}
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={isHovered ? 6 : 4.2}
+                            fill={ln.color}
+                            opacity={isHovered ? 0.5 : 0.32}
+                          />
+                          {/* Dark core w/ accent stroke */}
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={isHovered ? 3 : 2.2}
+                            fill="#040A0C"
+                            stroke={ln.color}
+                            strokeWidth={isHovered ? 2 : 1.5}
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        </g>
+                      );
+                    })
+                  )
+                )}
+
+              {/* End-of-line "current rank" markers — pulse + halo */}
+              {lines.map((ln) =>
+                ln.finalY != null ? (
+                  <g key={`end-${ln.lineId}`} opacity={ln.opacity}>
                     <circle
-                      cx={98}
-                      cy={p.finalY}
-                      r="2.4"
-                      fill={p.color}
-                      opacity={0.22}
+                      cx={CHART.W - 10}
+                      cy={ln.finalY}
+                      r={14}
+                      fill={ln.color}
+                      opacity={0.12}
                     />
                     <circle
-                      cx={98}
-                      cy={p.finalY}
-                      r="1.4"
-                      fill={p.color}
-                      stroke="rgba(0,0,0,0.5)"
-                      strokeWidth="0.22"
+                      cx={CHART.W - 10}
+                      cy={ln.finalY}
+                      r={8}
+                      fill={ln.color}
+                      opacity={0.32}
+                    />
+                    <circle
+                      cx={CHART.W - 10}
+                      cy={ln.finalY}
+                      r={4}
+                      fill={ln.color}
+                      stroke="#040A0C"
+                      strokeWidth={1.5}
+                      vectorEffect="non-scaling-stroke"
                     />
                   </g>
                 ) : null
               )}
 
-              {/* Hover guide */}
+              {/* Hover crosshair. For single-line view the base nodes
+                  already enlarge on hover (see above), so we only render
+                  extra hover pips for the multi-line overlay where the
+                  base nodes are hidden. */}
               {hoverBucket != null && data && hoverPoints.length > 0 && (
-                <>
+                <g>
                   <line
                     x1={hoverPoints[0].x}
                     x2={hoverPoints[0].x}
                     y1={0}
-                    y2={100}
-                    stroke="rgba(0,217,146,0.35)"
-                    strokeWidth="0.18"
+                    y2={CHART.H}
+                    stroke="rgba(0,217,146,0.45)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                    vectorEffect="non-scaling-stroke"
                   />
-                  {hoverPoints.map((pt) => (
-                    <circle
-                      key={`dot-${pt.lineId}`}
-                      cx={pt.x}
-                      cy={pt.y}
-                      r="1.1"
-                      fill={pt.color}
-                      stroke="rgba(0,0,0,0.45)"
-                      strokeWidth="0.22"
-                    />
-                  ))}
-                </>
+                  {lines.length > 1 &&
+                    hoverPoints.map((pt) => (
+                      <g key={`hover-${pt.lineId}`}>
+                        <circle cx={pt.x} cy={pt.y} r={11} fill={pt.color} opacity={0.22} />
+                        <circle cx={pt.x} cy={pt.y} r={6} fill={pt.color} opacity={0.5} />
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={3}
+                          fill="#040A0C"
+                          stroke={pt.color}
+                          strokeWidth={2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </g>
+                    ))}
+                </g>
               )}
             </svg>
+
+            {/* Floating cyber tooltip — pinned over the hovered node, shows
+                precise LP and the delta from the previous snapshot. The
+                overlay matches the SVG's bounds (h-[260px], same left/right
+                inset) so % positions line up with the SVG viewBox. */}
+            {hoverBucket != null && data && hoverPoints.length > 0 && (() => {
+              const sortedPts = [...hoverPoints].sort((a, b) => a.y - b.y);
+              const anchor = sortedPts[0];
+              const leftPct = (anchor.x / CHART.W) * 100;
+              const topPx = Math.max(
+                26,
+                Math.min(234, (anchor.y / CHART.H) * 260)
+              );
+              const placeRight = leftPct < 55;
+              return (
+                <div className="absolute left-9 right-0 top-0 h-[260px] pointer-events-none z-10">
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPx}px`,
+                      transform: placeRight
+                        ? "translate(14px, -50%)"
+                        : "translate(calc(-100% - 14px), -50%)",
+                      animation: "lp-tip-in 180ms ease-out",
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        glassDark,
+                        "px-3 py-2 min-w-[180px] border border-flash/10"
+                      )}
+                      style={{
+                        boxShadow:
+                          "0 8px 24px -8px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
+                      }}
+                    >
+                      <div className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mb-1.5">
+                        {data.buckets[hoverBucket]?.label}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {hoverPoints.map((pt) => {
+                          const delta =
+                            pt.prevScore != null
+                              ? pt.score - pt.prevScore
+                              : null;
+                          return (
+                            <div
+                              key={pt.lineId}
+                              className="flex items-center gap-2"
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{
+                                  background: pt.color,
+                                  boxShadow: `0 0 6px ${pt.color}`,
+                                }}
+                              />
+                              <span className="text-[10px] font-jetbrains text-flash/70 mr-auto truncate max-w-[110px]">
+                                {pt.label}
+                              </span>
+                              <span
+                                className="font-bold text-[11px] font-chakrapetch tabular-nums uppercase tracking-wider"
+                                style={{ color: pt.color }}
+                              >
+                                {scoreToRankShort(pt.score)}
+                              </span>
+                              <span className="text-[10px] text-flash/55 tabular-nums font-jetbrains">
+                                {pt.score % 100}<span className="text-flash/30 ml-0.5">LP</span>
+                              </span>
+                              {delta != null && delta !== 0 && (
+                                <span
+                                  className={cn(
+                                    "text-[9px] tabular-nums font-jetbrains font-bold pl-1.5 ml-0.5 border-l border-flash/10",
+                                    delta > 0
+                                      ? "text-jade"
+                                      : "text-red-400/90"
+                                  )}
+                                >
+                                  {delta > 0 ? "+" : ""}
+                                  {delta}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Animations live as a styled-style tag here so we don't have
+                to touch the global stylesheet. */}
+            <style>{`
+              @keyframes lp-draw {
+                to { stroke-dashoffset: 0; }
+              }
+              @keyframes lp-dot-pop {
+                from { opacity: 0; transform: scale(0.2); }
+                60%  { opacity: 1; transform: scale(1.2); }
+                to   { opacity: 1; transform: scale(1); }
+              }
+              @keyframes lp-tip-in {
+                from { opacity: 0; transform: translate(0, -50%) scale(0.94); }
+                to   { opacity: 1; transform: translate(0, -50%) scale(1); }
+              }
+            `}</style>
 
             {/* X-axis labels */}
             <div className="relative mt-2 h-4">
@@ -4277,35 +4666,8 @@ function LpTimelineChart({
               })}
             </div>
 
-            {/* Hover tooltip — shows rank reached at the hovered bucket */}
-            {hoverBucket != null && data && hoverPoints.length > 0 && (
-              <div className="mt-3 flex items-center gap-3 flex-wrap text-[10px] font-jetbrains text-flash/60">
-                <span className="text-flash/30 uppercase tracking-[0.2em]">
-                  {data.buckets[hoverBucket]?.label}
-                </span>
-                {hoverPoints.map((pt) => (
-                  <span
-                    key={pt.lineId}
-                    className="inline-flex items-center gap-1.5"
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ background: pt.color }}
-                    />
-                    <span className="text-flash/55">{pt.label}</span>
-                    <span
-                      className="font-bold tabular-nums uppercase tracking-wider"
-                      style={{ color: pt.color }}
-                    >
-                      {scoreToRankShort(pt.score)}
-                    </span>
-                    <span className="text-flash/30 tabular-nums">
-                      {pt.score % 100} LP
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* (hover tooltip moved into the SVG overlay above — it floats
+                next to the hovered node instead of sitting in this row.) */}
           </div>
         )}
       </div>
@@ -4471,24 +4833,103 @@ function topPlayerLabel(w: StatsWindow): string {
   return "Top Player";
 }
 
-// Thresholds were too strict for fresh lobbies: required 2+ games for
-// player-of-the-day and 3+ for best-winrate. Drop everything to 1+ so the
-// widgets render as soon as any match has been ingested.
-function pickPlayerOfDay(rows: LeaderboardAccount[]) {
-  const elig = rows.filter((p) => p.games >= 1);
-  if (!elig.length) return null;
-  return [...elig].sort((a, b) => b.avgKda - a.avgKda)[0];
+// Small-sample calibration for the top-stat widgets.
+//
+// Raw stat sorting (highest avgKda / highest winrate) is misleading when
+// game counts vary wildly across a lobby. A player with 7 KDA over 3 games
+// shouldn't outrank one with 4 KDA over 20 games — the first is largely
+// noise, the second is a confirmed pattern. Two mechanisms address this:
+//
+// 1. Adaptive minimum-games gate. To qualify as Top Player / Best Winrate,
+//    a player must have at least ~25% of the lobby's most-active player's
+//    games (floored at 3). In a lobby where the grinder has 20 games,
+//    anyone with fewer than 5 is excluded; in a fresh lobby with only 4
+//    games per player, the floor of 3 still applies. If the threshold
+//    excludes everyone (fresh lobby with all 1-2 game players), we relax
+//    to "any player with at least 1 game" so the widget still renders.
+//
+// 2. Stat-appropriate smoothing on top of the gate:
+//    - KDA: Bayesian shrinkage toward the lobby's weighted-average KDA,
+//      with PRIOR_WEIGHT acting like 10 "ghost games at average KDA" added
+//      to each player. Small-sample outliers get pulled hard toward the
+//      mean; high-game-count averages stay essentially unchanged.
+//    - Winrate: Wilson lower confidence bound (z ≈ 1.96, 95% CI). This
+//      naturally penalizes small samples — a 3-0 record (100% over 3)
+//      ranks below a 12-8 (60% over 20) because the lower bound on the
+//      first is much lower than the lower bound on the second.
+
+function adaptiveMinGames(rows: LeaderboardAccount[]): number {
+  const maxGames = rows.reduce((m, p) => (p.games > m ? p.games : m), 0);
+  return Math.max(3, Math.ceil(maxGames * 0.25));
 }
+
+function lobbyWeightedAvgKda(rows: LeaderboardAccount[]): number {
+  let weighted = 0;
+  let total = 0;
+  for (const p of rows) {
+    if (p.games > 0) {
+      weighted += p.avgKda * p.games;
+      total += p.games;
+    }
+  }
+  // Sensible fallback if the lobby has zero games anywhere.
+  return total > 0 ? weighted / total : 2.5;
+}
+
+// Wilson lower confidence bound on the proportion p = wins/games. Higher
+// z = stricter penalty on small samples. 1.96 ≈ 95% CI.
+function wilsonLowerBound(wins: number, games: number, z: number = 1.96): number {
+  if (games <= 0) return 0;
+  const phat = wins / games;
+  const z2 = z * z;
+  const denom = 1 + z2 / games;
+  const center = phat + z2 / (2 * games);
+  const margin = z * Math.sqrt((phat * (1 - phat) + z2 / (4 * games)) / games);
+  return (center - margin) / denom;
+}
+
+function pickPlayerOfDay(rows: LeaderboardAccount[]) {
+  if (!rows.length) return null;
+
+  const min = adaptiveMinGames(rows);
+  let elig = rows.filter((p) => p.games >= min);
+  if (!elig.length) elig = rows.filter((p) => p.games >= 1);
+  if (!elig.length) return null;
+
+  const priorKda = lobbyWeightedAvgKda(rows);
+  const PRIOR_WEIGHT = 10;
+  return [...elig]
+    .map((p) => ({
+      p,
+      score:
+        (p.avgKda * p.games + priorKda * PRIOR_WEIGHT) /
+        (p.games + PRIOR_WEIGHT),
+    }))
+    .sort((a, b) => b.score - a.score)[0].p;
+}
+
 function pickHighestLp(rows: LeaderboardAccount[]) {
   const filt = rows.filter((p) => p.balance !== 0);
   if (!filt.length) return null;
   return [...filt].sort((a, b) => b.balance - a.balance)[0];
 }
+
 function pickBestWinrate(rows: LeaderboardAccount[]) {
-  const elig = rows.filter((p) => p.games >= 1);
+  if (!rows.length) return null;
+
+  const min = adaptiveMinGames(rows);
+  let elig = rows.filter((p) => p.games >= min);
+  if (!elig.length) elig = rows.filter((p) => p.games >= 1);
   if (!elig.length) return null;
-  return [...elig].sort((a, b) => b.winrate - a.winrate)[0];
+
+  return [...elig]
+    .map((p) => ({
+      p,
+      score: wilsonLowerBound(p.wins, p.games),
+    }))
+    .sort((a, b) => b.score - a.score)[0].p;
 }
+
 function pickMostGames(rows: LeaderboardAccount[]) {
   const elig = rows.filter((p) => p.games > 0);
   if (!elig.length) return null;
@@ -5033,7 +5474,7 @@ function TodBar({
 }
 
 /* ─── champions tab ─────────────────────────────────────────────────── */
-function ChampionsTab({ slug }: { slug: string }) {
+function ChampionsTab({ slug, lobby }: { slug: string; lobby: Lobby }) {
   const [window, setWindow] = useState<StatsWindow>("all");
   const [data, setData] = useState<ChampionsPlayer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -5051,6 +5492,13 @@ function ChampionsTab({ slug }: { slug: string }) {
     };
   }, [slug, window]);
 
+  // playerId → lobby player (for account chip rendering inside the card).
+  const playerById = useMemo(() => {
+    const m = new Map<string, LobbyPlayer>();
+    for (const p of lobby.players) m.set(p.id, p);
+    return m;
+  }, [lobby]);
+
   return (
     <div className="flex flex-col gap-5">
       <WindowSelector window={window} onChange={setWindow} />
@@ -5064,7 +5512,11 @@ function ChampionsTab({ slug }: { slug: string }) {
           {data
             .filter((p) => p.champions.length > 0)
             .map((p) => (
-              <ChampionsCard key={p.playerId} player={p} />
+              <ChampionsCard
+                key={p.playerId}
+                player={p}
+                lobbyPlayer={playerById.get(p.playerId) ?? null}
+              />
             ))}
           {data.every((p) => p.champions.length === 0) && (
             <div className={cn(glassDark, "p-8 text-center col-span-full")}>
@@ -5077,13 +5529,42 @@ function ChampionsTab({ slug }: { slug: string }) {
   );
 }
 
-function ChampionsCard({ player }: { player: ChampionsPlayer }) {
+function ChampionsCard({
+  player,
+  lobbyPlayer,
+}: {
+  player: ChampionsPlayer;
+  lobbyPlayer: LobbyPlayer | null;
+}) {
   const accent = player.color || JADE;
+  // null = "All accounts" (aggregate). Otherwise = a specific account puuid.
+  const [accountPuuid, setAccountPuuid] = useState<string | null>(null);
+
+  // Decide which champion list to render based on the selected account.
+  const champions: ChampionLine[] =
+    accountPuuid && player.perAccount?.[accountPuuid]
+      ? player.perAccount[accountPuuid]
+      : player.champions;
+
+  // Stable list of switchable accounts. Sorted main-first then by orderIndex
+  // so the chip row reads like the rest of the UI.
+  const accounts = useMemo(() => {
+    if (!lobbyPlayer) return [] as LobbyAccount[];
+    return [...lobbyPlayer.accounts].sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.orderIndex - b.orderIndex;
+    });
+  }, [lobbyPlayer]);
+
+  // Only render the account switcher when the player has more than one
+  // linked account — for a solo-account player it's just visual noise.
+  const showSwitcher = accounts.length > 1;
+
   return (
     <div className={cn(glassDark, "p-4")}>
       <GlowBackdrop subtle />
       <div className="relative z-[1]">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <span
             className="w-2 h-2 rounded-full"
             style={{ background: accent, boxShadow: `0 0 8px ${accent}` }}
@@ -5093,48 +5574,104 @@ function ChampionsCard({ player }: { player: ChampionsPlayer }) {
           </span>
         </div>
 
-        <ul className="flex flex-col gap-2">
-          {player.champions.map((c, i) => (
-            <li
-              key={c.champion}
-              className="flex items-center gap-3 bg-black/25 border border-flash/10 rounded-[3px] px-3 py-2"
+        {showSwitcher && (
+          <div className="flex items-center gap-1.5 flex-wrap mb-3">
+            <button
+              type="button"
+              onClick={() => setAccountPuuid(null)}
+              className={cn(
+                "px-2 py-[3px] rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                accountPuuid == null
+                  ? "border-jade/40 bg-jade/[0.10] text-jade"
+                  : "border-flash/15 text-flash/40 hover:text-flash/75 hover:bg-flash/[0.04]"
+              )}
             >
-              <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/35 w-4">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <img
-                src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.champion)}.png`}
-                alt={c.champion}
-                className="w-9 h-9 rounded-md"
-              />
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[13px] font-geist font-medium text-flash truncate">
-                  {c.champion}
-                </span>
-                <span className="text-[10px] font-jetbrains tracking-[0.12em] text-flash/40">
-                  {c.games} games · {c.wins}W {c.games - c.wins}L
-                </span>
-              </div>
-              <div className="flex flex-col items-end shrink-0">
-                <span
+              All
+            </button>
+            {accounts.map((acc) => {
+              const isActive = acc.puuid === accountPuuid;
+              const hasData = (player.perAccount?.[acc.puuid] ?? []).length > 0;
+              return (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => setAccountPuuid(acc.puuid)}
+                  disabled={!hasData}
+                  title={
+                    hasData
+                      ? `${acc.riotName}#${acc.riotTag}`
+                      : "No champion data on this account in the current window"
+                  }
                   className={cn(
-                    "text-[15px] font-chakrapetch font-bold tabular-nums leading-none",
-                    c.winrate >= 60
-                      ? "text-jade"
-                      : c.winrate >= 50
-                      ? "text-flash/85"
-                      : "text-error/80"
+                    "inline-flex items-center gap-1 px-2 py-[3px] rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-medium transition-all cursor-clicker border",
+                    isActive
+                      ? "border-jade/40 bg-jade/[0.10] text-jade"
+                      : hasData
+                      ? "border-flash/15 text-flash/55 hover:text-flash/85 hover:bg-flash/[0.04]"
+                      : "border-flash/10 text-flash/25 cursor-not-allowed"
                   )}
                 >
-                  {c.winrate}%
+                  <span className="text-jade/55 mr-0.5">{acc.region}</span>
+                  <span className="truncate max-w-[100px]">{acc.riotName}</span>
+                  {acc.isPrimary && (
+                    <span className="text-[7px] font-mono tracking-widest text-jade/60 ml-0.5">
+                      MAIN
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {champions.length === 0 ? (
+          <div className="py-6 text-center text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+            No champion data on this account
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {champions.map((c, i) => (
+              <li
+                key={c.champion}
+                className="flex items-center gap-3 bg-black/25 border border-flash/10 rounded-[3px] px-3 py-2"
+              >
+                <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/35 w-4">
+                  {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="text-[9px] font-jetbrains tracking-[0.15em] uppercase text-flash/40 mt-0.5">
-                  {c.deaths === 0 ? "PERF" : c.avgKda.toFixed(2)} KDA
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+                <img
+                  src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.champion)}.png`}
+                  alt={c.champion}
+                  className="w-9 h-9 rounded-md"
+                />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[13px] font-geist font-medium text-flash truncate">
+                    {c.champion}
+                  </span>
+                  <span className="text-[10px] font-jetbrains tracking-[0.12em] text-flash/40">
+                    {c.games} games · {c.wins}W {c.games - c.wins}L
+                  </span>
+                </div>
+                <div className="flex flex-col items-end shrink-0">
+                  <span
+                    className={cn(
+                      "text-[15px] font-chakrapetch font-bold tabular-nums leading-none",
+                      c.winrate >= 60
+                        ? "text-jade"
+                        : c.winrate >= 50
+                        ? "text-flash/85"
+                        : "text-error/80"
+                    )}
+                  >
+                    {c.winrate}%
+                  </span>
+                  <span className="text-[9px] font-jetbrains tracking-[0.15em] uppercase text-flash/40 mt-0.5">
+                    {c.deaths === 0 ? "PERF" : c.avgKda.toFixed(2)} KDA
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -6307,7 +6844,7 @@ export default function ScoutLobbyPage() {
               </TabsContent>
 
               <TabsContent value="champions" className="mt-0">
-                <ChampionsTab slug={slug!} />
+                <ChampionsTab slug={slug!} lobby={lobby} />
               </TabsContent>
             </Tabs>
           </div>
