@@ -2673,6 +2673,43 @@ function LiveTab({ slug }: { slug: string }) {
     );
   }
 
+  // Group sessions by gameId — duos / flex stacks should render as a
+  // single card with both members shown, not two cards for the same game.
+  const groups: LiveSessionGroupFE[] = (() => {
+    const byGame = new Map<number, LiveSessionGroupFE>();
+    for (const s of sessions) {
+      let g = byGame.get(s.gameId);
+      if (!g) {
+        g = {
+          gameId: s.gameId,
+          gameQueueConfigId: s.gameQueueConfigId,
+          gameMode: s.gameMode,
+          gameType: s.gameType,
+          gameStartTime: s.gameStartTime,
+          gameLength: s.gameLength,
+          mapId: s.mapId,
+          participants: s.participants,
+          bansBlue: s.bansBlue,
+          bansRed: s.bansRed,
+          members: [],
+        };
+        byGame.set(s.gameId, g);
+      }
+      g.members.push({
+        playerId: s.playerId,
+        displayName: s.displayName,
+        color: s.color,
+        iconId: s.iconId,
+        accountPuuid: s.accountPuuid,
+        region: s.region,
+        riotName: s.riotName,
+        riotTag: s.riotTag,
+        championId: s.championId,
+      });
+    }
+    return Array.from(byGame.values());
+  })();
+
   return (
     <div className="flex flex-col gap-3">
       {/* Header strip */}
@@ -2688,7 +2725,7 @@ function LiveTab({ slug }: { slug: string }) {
           Live now
         </h2>
         <span className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/40">
-          {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+          {groups.length} {groups.length === 1 ? "session" : "sessions"}
         </span>
         <div className="flex-1 h-[1px] bg-gradient-to-r from-jade/30 via-flash/10 to-transparent" />
         {polledAt > 0 && (
@@ -2698,10 +2735,10 @@ function LiveTab({ slug }: { slug: string }) {
         )}
       </div>
 
-      {sessions.map((s) => (
+      {groups.map((g) => (
         <LiveSessionCard
-          key={`${s.gameId}:${s.playerId}`}
-          session={s}
+          key={g.gameId}
+          group={g}
           championIdToName={championIdToName}
           now={now}
         />
@@ -2710,40 +2747,72 @@ function LiveTab({ slug }: { slug: string }) {
   );
 }
 
+// Aggregated view: 1+ lobby members in the same live game, merged so
+// we don't render duplicate cards for duos / flex stacks.
+type LiveSessionMemberFE = {
+  playerId: string;
+  displayName: string;
+  color: string | null;
+  iconId: number | null;
+  accountPuuid: string;
+  region: string;
+  riotName: string;
+  riotTag: string;
+  championId: number;
+};
+type LiveSessionGroupFE = {
+  gameId: number;
+  gameQueueConfigId: number;
+  gameMode: string;
+  gameType: string;
+  gameStartTime: number;
+  gameLength: number;
+  mapId: number;
+  participants: LiveParticipantSlimFE[];
+  bansBlue: number[];
+  bansRed: number[];
+  members: LiveSessionMemberFE[];
+};
+
 function LiveSessionCard({
-  session: s,
+  group,
   championIdToName,
   now,
 }: {
-  session: LiveSessionFE;
+  group: LiveSessionGroupFE;
   championIdToName: Record<string, string>;
   now: number;
 }) {
-  const champName =
-    championIdToName[String(s.championId)] ?? String(s.championId);
-  const champIcon = `${cdnBaseUrl()}/img/champion/${normalizeChampName(champName)}.png`;
-  const splash = cdnSplashUrl(normalizeChampName(champName));
+  const isMulti = group.members.length > 1;
+  // Splash + accent come from the first member.
+  const lead = group.members[0];
+  const leadChampName =
+    championIdToName[String(lead.championId)] ?? String(lead.championId);
+  const splash = cdnSplashUrl(normalizeChampName(leadChampName));
   const queueLabel =
-    LIVE_QUEUE_LABELS[s.gameQueueConfigId] ?? `QUEUE ${s.gameQueueConfigId}`;
+    LIVE_QUEUE_LABELS[group.gameQueueConfigId] ?? `QUEUE ${group.gameQueueConfigId}`;
+  const accent = lead.color || JADE;
 
   // gameStartTime is 0 until loading screen ends. While 0, fall back to
   // the snapshot gameLength.
   const elapsedSec =
-    s.gameStartTime > 0
-      ? Math.max(0, Math.floor((now - s.gameStartTime) / 1000))
-      : s.gameLength;
+    group.gameStartTime > 0
+      ? Math.max(0, Math.floor((now - group.gameStartTime) / 1000))
+      : group.gameLength;
   const mins = Math.floor(elapsedSec / 60);
   const secs = (elapsedSec % 60).toString().padStart(2, "0");
 
-  const blue = s.participants.filter((p) => p.teamId === 100);
-  const red = s.participants.filter((p) => p.teamId === 200);
+  const blue = group.participants.filter((p) => p.teamId === 100);
+  const red = group.participants.filter((p) => p.teamId === 200);
 
-  const summonerHref = `/summoners/${s.region.toLowerCase()}/${encodeURIComponent(
-    s.riotName
-  )}-${encodeURIComponent(s.riotTag)}`;
-  const liveGameHref = `${summonerHref}/livegame`;
+  // For the scoreboard highlight, mark ALL lobby members as "active" so
+  // the user sees both rows lit up in the duo case.
+  const activePuuids = new Set(group.members.map((m) => m.accountPuuid));
 
-  const accent = s.color || JADE;
+  const leadSummonerHref = `/summoners/${lead.region.toLowerCase()}/${encodeURIComponent(
+    lead.riotName
+  )}-${encodeURIComponent(lead.riotTag)}`;
+  const liveGameHref = `${leadSummonerHref}/livegame`;
 
   return (
     <div className="relative overflow-hidden rounded-md bg-black/30 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]">
@@ -2758,7 +2827,7 @@ function LiveSessionCard({
         <div className="absolute inset-0 bg-gradient-to-r from-liquirice/95 via-liquirice/80 to-liquirice/65" />
       </div>
 
-      {/* Left jade accent bar */}
+      {/* Left accent bar */}
       <div
         className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
         style={{
@@ -2768,44 +2837,41 @@ function LiveSessionCard({
       />
 
       <div className="relative z-[2] p-3 flex items-stretch gap-3">
-        {/* Champion portrait + lobby player avatar */}
-        <div className="flex flex-col items-center gap-1 shrink-0">
-          <div className="relative w-[52px] h-[52px]">
-            <img
-              src={champIcon}
-              alt={champName}
-              className="w-[52px] h-[52px] rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
-            />
-            {/* tiny lobby player avatar over the champ icon */}
-            <div
-              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
-              style={{ boxShadow: `0 0 6px color-mix(in srgb, ${accent} 50%, transparent)` }}
+        {/* Champion portrait(s) + lobby player avatar(s). When the lobby
+            has 2+ members in the same game we stack their portraits with
+            a subtle ↔ chain indicator so it's instantly readable as a duo. */}
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          {isMulti && (
+            <span
+              className="text-[8.5px] font-jetbrains tracking-[0.22em] uppercase font-bold leading-none"
+              style={{ color: accent }}
             >
-              {profileIconUrl(s.iconId) ? (
-                <img
-                  src={profileIconUrl(s.iconId)!}
-                  alt=""
-                  className="w-full h-full"
-                />
-              ) : (
-                <span
-                  className="w-full h-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
-                  style={{ color: accent, background: "rgba(0,0,0,0.6)" }}
-                >
-                  {s.displayName.slice(0, 1).toUpperCase()}
-                </span>
-              )}
-            </div>
-          </div>
-          <span
-            className="text-[9.5px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
-            style={{ color: accent }}
+              {group.members.length === 2 ? "Duo" : `${group.members.length}× Stack`}
+            </span>
+          )}
+          <div
+            className={cn(
+              "flex shrink-0 items-center",
+              isMulti ? "flex-col gap-2" : "gap-1"
+            )}
           >
-            {s.displayName}
-          </span>
+            {group.members.map((m, i) => (
+              <React.Fragment key={m.playerId}>
+                {i > 0 && isMulti && (
+                  <span className="text-jade/45 text-[10px] leading-none -my-0.5">+</span>
+                )}
+                <MemberPortrait
+                  member={m}
+                  championName={
+                    championIdToName[String(m.championId)] ?? String(m.championId)
+                  }
+                />
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
-        {/* Middle: queue + champion name + elapsed timer */}
+        {/* Middle: queue + names + champions + elapsed timer */}
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
@@ -2830,20 +2896,49 @@ function LiveSessionCard({
             </span>
           </div>
 
-          <div className="flex items-baseline gap-2 mt-0.5">
-            <Link
-              to={summonerHref}
-              className="text-[16px] font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker leading-tight"
-            >
-              {s.riotName}
-              <span className="text-flash/35 text-[12px] font-medium ml-0.5">
-                #{s.riotTag}
-              </span>
-            </Link>
-            <span className="text-flash/35 text-[11px]">on</span>
-            <span className="text-[14px] font-chakrapetch font-bold text-jade/85 truncate leading-tight">
-              {champName}
-            </span>
+          {/* One row per member: name + champion. Duo rows stay stacked
+              tight so the card height stays compact. */}
+          <div className={cn("mt-0.5 flex flex-col", isMulti ? "gap-0.5" : "")}>
+            {group.members.map((m) => {
+              const champ =
+                championIdToName[String(m.championId)] ?? String(m.championId);
+              const summonerHref = `/summoners/${m.region.toLowerCase()}/${encodeURIComponent(
+                m.riotName
+              )}-${encodeURIComponent(m.riotTag)}`;
+              return (
+                <div
+                  key={m.playerId}
+                  className="flex items-baseline gap-2 min-w-0"
+                >
+                  <Link
+                    to={summonerHref}
+                    className={cn(
+                      "font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker leading-tight",
+                      isMulti ? "text-[13px]" : "text-[16px]"
+                    )}
+                  >
+                    {m.riotName}
+                    <span
+                      className={cn(
+                        "text-flash/35 font-medium ml-0.5",
+                        isMulti ? "text-[10px]" : "text-[12px]"
+                      )}
+                    >
+                      #{m.riotTag}
+                    </span>
+                  </Link>
+                  <span className="text-flash/35 text-[10px] shrink-0">on</span>
+                  <span
+                    className={cn(
+                      "font-chakrapetch font-bold text-jade/85 truncate leading-tight",
+                      isMulti ? "text-[12px]" : "text-[14px]"
+                    )}
+                  >
+                    {champ}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Teams scoreboard — uses full remaining width now */}
@@ -2853,7 +2948,7 @@ function LiveSessionCard({
               accent="#5fa8ff"
               teamLabel="BLUE"
               championIdToName={championIdToName}
-              activePuuid={s.accountPuuid}
+              activePuuids={activePuuids}
               align="left"
             />
             <TeamRoster
@@ -2861,22 +2956,22 @@ function LiveSessionCard({
               accent="#ef4444"
               teamLabel="RED"
               championIdToName={championIdToName}
-              activePuuid={s.accountPuuid}
+              activePuuids={activePuuids}
               align="right"
             />
           </div>
 
-          {/* Bans row — blue left, red flushed right edge */}
+          {/* Bans row */}
           <div className="mt-2 flex items-center gap-4">
             <BansStrip
-              bans={s.bansBlue}
+              bans={group.bansBlue}
               accent="#5fa8ff"
               championIdToName={championIdToName}
               align="left"
             />
             <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/12 via-flash/20 to-flash/12" />
             <BansStrip
-              bans={s.bansRed}
+              bans={group.bansRed}
               accent="#ef4444"
               championIdToName={championIdToName}
               align="right"
@@ -2885,15 +2980,66 @@ function LiveSessionCard({
         </div>
       </div>
 
-      {/* Spectate button — pinned top-right of the card */}
+      {/* Spectate button — pinned top-right of the card. For multi-member
+          groups we link to the lead's livegame; it's the same in-game
+          session anyway. */}
       <Link
         to={liveGameHref}
         className="absolute top-3 right-3 z-[3] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-jade/35 bg-jade/[0.10] text-jade hover:bg-jade/[0.20] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[10px] font-jetbrains tracking-[0.22em] uppercase font-bold cursor-clicker transition-all"
       >
         <Eye className="w-3 h-3" />
         Spectate
-        <span className="text-jade/45 text-[8.5px] ml-1">{s.region}</span>
+        <span className="text-jade/45 text-[8.5px] ml-1">{lead.region}</span>
       </Link>
+    </div>
+  );
+}
+
+// Single portrait: champion icon with the lobby player's profile icon
+// stuck in the corner + the player's display name underneath.
+function MemberPortrait({
+  member,
+  championName,
+}: {
+  member: LiveSessionMemberFE;
+  championName: string;
+}) {
+  const accent = member.color || JADE;
+  const champIcon = `${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-[52px] h-[52px]">
+        <img
+          src={champIcon}
+          alt={championName}
+          className="w-[52px] h-[52px] rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
+        />
+        <div
+          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
+          style={{ boxShadow: `0 0 6px color-mix(in srgb, ${accent} 50%, transparent)` }}
+        >
+          {profileIconUrl(member.iconId) ? (
+            <img
+              src={profileIconUrl(member.iconId)!}
+              alt=""
+              className="w-full h-full"
+            />
+          ) : (
+            <span
+              className="w-full h-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
+              style={{ color: accent, background: "rgba(0,0,0,0.6)" }}
+            >
+              {member.displayName.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+        </div>
+      </div>
+      <span
+        className="text-[9.5px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
+        style={{ color: accent }}
+      >
+        {member.displayName}
+      </span>
     </div>
   );
 }
@@ -2903,14 +3049,17 @@ function TeamRoster({
   accent,
   teamLabel,
   championIdToName,
-  activePuuid,
+  activePuuids,
   align,
 }: {
   participants: LiveParticipantSlimFE[];
   accent: string;
   teamLabel: string;
   championIdToName: Record<string, string>;
-  activePuuid: string;
+  // Set of "the lobby players whose perspective this card is from". For
+  // a duo / stack card more than one row in the team scoreboard should
+  // light up jade.
+  activePuuids: Set<string>;
   align: "left" | "right";
 }) {
   return (
@@ -2927,7 +3076,7 @@ function TeamRoster({
         {participants.map((p) => {
           const champName =
             championIdToName[String(p.championId)] ?? String(p.championId);
-          const isActive = p.puuid === activePuuid;
+          const isActive = activePuuids.has(p.puuid);
           const isMate = p.isLobbyMember && !isActive;
           const nameClass = isActive
             ? "text-jade font-bold drop-shadow-[0_0_6px_rgba(0,217,146,0.4)]"
