@@ -7,6 +7,13 @@ export function timeAgo(timestamp: number): string {
   const diffWeeks = Math.floor(diffDays / 7);
   const diffMonths = Math.floor(diffDays / 30);
 
+  // Anything within the last 2 minutes reads as "just now" — feels more
+  // natural than "0 minutes ago" right after a game finishes, and
+  // sidesteps the awkward "1 minute ago" that flashes for a single tick.
+  if (diffMs < 2 * 60 * 1000) {
+    return "just now";
+  }
+
   if (diffMinutes < 60) {
     return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
   }

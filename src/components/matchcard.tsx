@@ -26,6 +26,7 @@ import {
   getKeystoneName,
   getStyleName,
 } from "@/constants/runes";
+import { MatchReplayDialog } from "@/components/matchreplay/MatchReplayDialog";
 
 export type ScoreboardParticipant = {
   puuid: string;
@@ -76,6 +77,11 @@ export type MatchCardData = {
   lpDelta?: number | null;
   rankChange?: "PROMOTION" | "DEMOTION" | null;
   rankAfter?: { tier: string; division: string | null } | null;
+  // Short-form region ("EUW" / "NA" / "KR" / …). Optional — when present we
+  // expose a REPLAY button that boots the Match Replay Viewer for this game.
+  // Omit (or pass null) and the REPLAY button is hidden, e.g. for surfaces
+  // where the match isn't ours to replay yet.
+  region?: string | null;
 };
 
 // Compact rank abbreviation: "DIAMOND IV" → "D4", "MASTER" → "M",
@@ -170,6 +176,7 @@ const coloredMatchBg = true;
 
 export function MatchCard({ data }: { data: MatchCardData }) {
   const {
+    matchId,
     queueLabel,
     win,
     isRemake,
@@ -190,7 +197,19 @@ export function MatchCard({ data }: { data: MatchCardData }) {
     lpDelta,
     rankChange,
     rankAfter,
+    region,
   } = data;
+
+  // Replay viewer state — owned by the card so the parent doesn't have to
+  // wire a dialog and there's no prop drilling. The dialog uses
+  // createPortal under the hood, so even though we render it inside the
+  // card markup, it attaches to <body> and overlays the whole page.
+  const [replayOpen, setReplayOpen] = useState(false);
+  // Click-to-expand state — toggled by clicking the card body. When true
+  // the action strip below the card slides into view (see CSS rules for
+  // .match-card-expanded in index.css).
+  const [expanded, setExpanded] = useState(false);
+  const canReplay = !isRemake && !!matchId;
 
   const team1 = (allParticipants ?? []).filter((p) => p.teamId === 100);
   const team2 = (allParticipants ?? []).filter((p) => p.teamId === 200);
@@ -244,6 +263,24 @@ export function MatchCard({ data }: { data: MatchCardData }) {
   })();
 
   return (
+    <div
+      // Click-to-expand wrapper, same pattern as the summoner page card.
+      // Clicking anywhere inside the card (except buttons/links) toggles
+      // an action strip below the card with the REPLAY action — the inline
+      // REPLAY chip in the meta row was removed in favour of this less
+      // crowded "tap to reveal" surface.
+      //
+      // The `match-card-expanded` / `match-card-collapsed` classes drive
+      // the action strip's height + opacity via index.css (already shared
+      // with the summoner page implementation).
+      className={cn(
+        expanded ? "match-card-expanded" : "match-card-collapsed"
+      )}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button, a")) return;
+        setExpanded((prev) => !prev);
+      }}
+    >
     <li
       className={cn(
         "relative overflow-hidden rounded-md p-3 text-flash transition",
@@ -288,10 +325,17 @@ export function MatchCard({ data }: { data: MatchCardData }) {
       <div className="flex items-center justify-center h-full relative z-10">
         <div className="w-full">
           {/* Left colored bar — narrower with a soft accent glow. Hints at
-              the result without dominating the card. */}
+              the result without dominating the card.
+
+              Inset 6px from top and bottom (top-1.5 / bottom-1.5) so the
+              10px box-shadow has room to fade smoothly INSIDE the card's
+              overflow-hidden boundary. Without the inset, the bar reached
+              the rounded edges and the shadow was sharply clipped right
+              at the corner — the "tagliato" jade glow the user was
+              seeing at the bottom of every match card. */}
           <div
             className={cn(
-              "absolute left-0 top-0 h-full w-[3px] rounded-l-sm z-10",
+              "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-sm z-10",
               isRemake
                 ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010] shadow-[0_0_10px_rgba(245,166,35,0.32)]"
                 : win
@@ -399,7 +443,11 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                 </span>
 
                 <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px]">
-                  {timeAgo(gameCreationMs)}
+                  {/* timeAgo from game END, not game START — the
+                      previous "26 minutes ago" right after a game
+                      finished was actually counting from when it
+                      started ~26 min before that. */}
+                  {timeAgo(gameCreationMs + (gameDurationSeconds ?? 0) * 1000)}
                 </span>
               </div>
 
@@ -603,7 +651,67 @@ export function MatchCard({ data }: { data: MatchCardData }) {
           </div>
         </div>
       </div>
+
     </li>
+
+    {/* Action strip — only mounted when expanded. We deliberately
+        skip CSS transitions/animations here because every approach
+        (class-based transition, inline transition, keyframes) ended
+        up frozen at the initial opacity in this codebase — the global
+        `.match-action-wrap` rule and the constant scout-lobby
+        refresh-tick re-renders were interfering with the cascade.
+        Mounting + unmounting on each click reads as instant snap,
+        which is what the user asked for ("click-collapsible"). */}
+    {expanded && (
+      <div
+        style={{ marginTop: "-1px" }}
+      >
+        <div className="match-action-tabs flex items-center justify-between px-4 py-1">
+        <span className="flex items-center gap-1.5 text-[9px] font-mono text-flash/50 tabular-nums tracking-wider mt-0.5">
+          <span className="text-jade/30">&#x25C8;</span>
+          {new Date(
+            gameCreationMs + (gameDurationSeconds ?? 0) * 1000
+          ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <div className="flex gap-1.5">
+          {canReplay && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setReplayOpen(true);
+              }}
+              className="relative px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase text-jade/80 hover:text-jade border-b border-jade/30 hover:border-jade/70 bg-jade/[0.04] hover:bg-jade/[0.10] transition-all duration-200 cursor-clicker group/replay"
+              title="Open the full match replay — every event on the map"
+            >
+              {/* Pulsating accent dot */}
+              <span
+                aria-hidden
+                className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-jade shadow-[0_0_4px_rgba(0,217,146,0.8)] animate-pulse"
+              />
+              <span className="ml-2">REPLAY</span>
+            </button>
+          )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Match Replay Viewer — portal-rendered, only mounts content while
+        open so closed cards cost nothing. staticMatch is null since the
+        scout feed payload doesn't include match-v5 detail; bans simply
+        won't render. Timeline data is fetched on open. */}
+    {canReplay && (
+      <MatchReplayDialog
+        open={replayOpen}
+        onClose={() => setReplayOpen(false)}
+        matchId={matchId}
+        region={(region ?? "EUW").toUpperCase()}
+        staticMatch={null}
+        focusPuuid={highlightPuuid ?? null}
+      />
+    )}
+    </div>
   );
 }
 
