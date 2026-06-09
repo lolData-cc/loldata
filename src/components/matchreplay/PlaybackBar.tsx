@@ -22,12 +22,29 @@ export interface PlaybackBarProps {
   onSeek: (ms: number) => void;
   onSetSpeed: (s: ReplaySpeed) => void;
   onStep: (deltaMs: number) => void;
+  // ── Shift-click loop range ──
+  loopRange?: { start: number; end: number } | null;
+  pendingLoopStart?: number | null;
+  /** Called instead of onSeek when the user shift-clicks the scrubber. */
+  onShiftSeek?: (ms: number) => void;
+  onClearLoop?: () => void;
 }
+
+// Cyber-blue palette for the loop-range UI — tuned to the BLUE_TEAM
+// tint already used by the playback bar's kill markers, glow boosted
+// so the highlighted band reads clearly against the dark backdrop.
+const LOOP_BLUE = "#5BA8E6";
+const LOOP_GLOW = "rgba(91,168,230,0.7)";
 
 export function PlaybackBar({
   timeline, durationMs, timeMs, onSeek,
+  loopRange = null, pendingLoopStart = null, onShiftSeek, onClearLoop,
 }: PlaybackBarProps) {
   const scrubRef = useRef<HTMLDivElement>(null);
+  // Tracks the modifier state at pointerdown so the move handler can
+  // ignore drags that started as a shift-click marker placement —
+  // otherwise dragging after a shift+click would also scrub the head.
+  const isShiftDownRef = useRef(false);
 
   // Event markers along the time axis. Compact; mouse-over reveals what.
   const markers = useMemo(() => {
@@ -85,12 +102,30 @@ export function PlaybackBar({
 
   const onScrubPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    isShiftDownRef.current = e.shiftKey && !!onShiftSeek;
+    if (isShiftDownRef.current) {
+      // Marker placement — don't scrub the head, just notify the
+      // parent of the clicked timestamp.
+      const el = scrubRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const pct = x / rect.width;
+      onShiftSeek?.(pct * durationMs);
+      return;
+    }
     seekFromEvent(e.clientX);
-  }, [seekFromEvent]);
+  }, [seekFromEvent, onShiftSeek, durationMs]);
   const onScrubPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!(e.buttons & 1)) return;
+    // Dragging after a shift-click placement shouldn't suddenly scrub
+    // the head — the user is still in marker mode for this gesture.
+    if (isShiftDownRef.current) return;
     seekFromEvent(e.clientX);
   }, [seekFromEvent]);
+  const onScrubPointerUp = useCallback(() => {
+    isShiftDownRef.current = false;
+  }, []);
 
   // Minute tick labels (every 2.5 min).
   const minuteTicks = useMemo(() => {
@@ -112,7 +147,7 @@ export function PlaybackBar({
               type="button"
               onClick={() => onSeek(m.t)}
               title={m.label}
-              className="absolute top-1/2 -translate-y-1/2 cursor-pointer focus:outline-none"
+              className="absolute top-1/2 -translate-y-1/2 cursor-clicker focus:outline-none"
               style={{ left: `${left}%`, transform: "translate(-50%, -50%)" }}
             >
               <div
@@ -132,12 +167,69 @@ export function PlaybackBar({
         ref={scrubRef}
         onPointerDown={onScrubPointerDown}
         onPointerMove={onScrubPointerMove}
-        className="relative h-1.5 bg-flash/5 rounded-full cursor-pointer mb-1"
+        onPointerUp={onScrubPointerUp}
+        title="Shift-click to mark a loop range start / end"
+        className="relative h-1.5 bg-flash/5 rounded-full cursor-clicker mb-1"
       >
         <div
           className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-jade/40 to-jade/70"
           style={{ width: `${playheadPct}%` }}
         />
+
+        {/* Loop range glow band — sealed both ends. The band sits
+            BEHIND the playhead and ABOVE the fill so it reads against
+            the jade trail; markers extend slightly past the bar's top
+            and bottom so they stay legible at this height. */}
+        {loopRange && durationMs > 0 && (() => {
+          const startPct = (loopRange.start / durationMs) * 100;
+          const endPct = (loopRange.end / durationMs) * 100;
+          return (
+            <>
+              <div
+                className="absolute top-0 h-full rounded-sm pointer-events-none"
+                style={{
+                  left: `${startPct}%`,
+                  width: `${Math.max(0.5, endPct - startPct)}%`,
+                  background: "linear-gradient(180deg, rgba(91,168,230,0.45) 0%, rgba(91,168,230,0.18) 100%)",
+                  boxShadow: `0 0 12px ${LOOP_GLOW}, inset 0 0 0 0.5px ${LOOP_BLUE}`,
+                }}
+              />
+              <div
+                className="absolute -top-[4px] -bottom-[4px] w-[2px] rounded-full pointer-events-none"
+                style={{
+                  left: `${startPct}%`,
+                  transform: "translateX(-50%)",
+                  background: LOOP_BLUE,
+                  boxShadow: `0 0 8px ${LOOP_GLOW}, 0 0 2px rgba(0,0,0,0.7)`,
+                }}
+              />
+              <div
+                className="absolute -top-[4px] -bottom-[4px] w-[2px] rounded-full pointer-events-none"
+                style={{
+                  left: `${endPct}%`,
+                  transform: "translateX(-50%)",
+                  background: LOOP_BLUE,
+                  boxShadow: `0 0 8px ${LOOP_GLOW}, 0 0 2px rgba(0,0,0,0.7)`,
+                }}
+              />
+            </>
+          );
+        })()}
+
+        {/* Pending single marker — drawn while waiting for the user's
+            second shift-click. Soft pulse so it reads as "armed". */}
+        {pendingLoopStart != null && durationMs > 0 && (
+          <div
+            className="absolute -top-[4px] -bottom-[4px] w-[2px] rounded-full pointer-events-none animate-pulse"
+            style={{
+              left: `${(pendingLoopStart / durationMs) * 100}%`,
+              transform: "translateX(-50%)",
+              background: LOOP_BLUE,
+              boxShadow: `0 0 10px ${LOOP_GLOW}, 0 0 2px rgba(0,0,0,0.7)`,
+            }}
+          />
+        )}
+
         <div
           className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-jade shadow-[0_0_8px_rgba(0,217,146,0.8),0_0_2px_rgba(0,0,0,0.8)] pointer-events-none"
           style={{ left: `${playheadPct}%`, transform: "translate(-50%, -50%)" }}
@@ -161,6 +253,30 @@ export function PlaybackBar({
             );
           })}
         </div>
+        {/* Loop range chip — sits to the left of the timecode so the
+            user can dismiss the band without leaving the bar. Hint
+            tells them how to repeat the gesture. */}
+        {(loopRange || pendingLoopStart != null) && (
+          <button
+            type="button"
+            onClick={onClearLoop}
+            title="Clear loop range (Esc)"
+            className="absolute right-[88px] bottom-0 flex items-center gap-1 font-mono tabular-nums leading-none px-1.5 py-[2px] rounded-sm cursor-clicker transition-colors"
+            style={{
+              background: "rgba(91,168,230,0.10)",
+              border: "1px solid rgba(91,168,230,0.35)",
+              color: LOOP_BLUE,
+            }}
+          >
+            <span className="text-[9px] tracking-wider uppercase">
+              {loopRange
+                ? `Loop ${fmtClock(loopRange.start)}–${fmtClock(loopRange.end)}`
+                : "Set end"}
+            </span>
+            <span className="text-[10px] leading-none opacity-70">×</span>
+          </button>
+        )}
+
         {/* Timecode — pinned to the right edge */}
         <div className="absolute right-0 bottom-0 flex items-baseline gap-1 font-mono tabular-nums leading-none bg-liquirice/80 px-1 rounded-sm">
           <span className="text-jade text-[11px] font-semibold">{fmtClock(timeMs)}</span>

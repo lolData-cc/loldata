@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { formatChampName } from "@/utils/formatchampname"
 import { formatRank } from "@/utils/rankConverter"
+import { getRankImage } from "@/utils/rankIcons"
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config"
 import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { cn } from "@/lib/utils"
@@ -287,7 +288,13 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
               <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 shrink-0">
                 {!isStreamerMode && (
                   <img
-                    src={`https://cdn2.loldata.cc/${getLegacyRankIcons() ? "miniranks-legacy" : "miniranks"}/${formatRank(rankStr!)}.png`}
+                    // Use the shared getRankImage helper — it points at
+                    // `https://cdn2.loldata.cc/ranks/<tier>.png`, the
+                    // path that actually serves icons (the previous
+                    // /miniranks/ path 404'd, both at root and under
+                    // the versioned /img/ prefix). Same helper as the
+                    // search dialog, summoner page, rankings page.
+                    src={getRankImage(rankStr)}
                     className="w-5 h-5 shrink-0 object-contain"
                   />
                 )}

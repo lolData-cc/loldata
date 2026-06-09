@@ -9,6 +9,10 @@ type ShowCyberToastOptions = {
   duration?: number
   action?: { label: string; onClick: () => void }
   closeButton?: boolean
+  /** Stable id — passing the same id makes a new toast REPLACE the
+   *  previous one (Sonner dedupes by id). Use for events that repeat,
+   *  e.g. auto-refresh tickers, so they don't pile up. */
+  id?: string | number
 }
 
 export function showCyberToast({
@@ -19,9 +23,10 @@ export function showCyberToast({
   duration = 3000,
   action,
   closeButton = false,
+  id,
 }: ShowCyberToastOptions) {
   toast.custom(
-    (id) => (
+    (toastId) => (
       <CyberToast
         title={title}
         description={description}
@@ -29,11 +34,11 @@ export function showCyberToast({
         variant={variant}
         action={action ? {
           label: action.label,
-          onClick: () => { action.onClick(); toast.dismiss(id); },
+          onClick: () => { action.onClick(); toast.dismiss(toastId); },
         } : undefined}
-        onDismiss={closeButton ? () => toast.dismiss(id) : undefined}
+        onDismiss={closeButton ? () => toast.dismiss(toastId) : undefined}
       />
     ),
-    { duration },
+    { duration, ...(id !== undefined && { id }) },
   )
 }

@@ -65,8 +65,10 @@ import { Button } from "@/components/ui/button";
 import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
+import { enrichRecentProfile } from "@/lib/recentSearchedProfiles";
 import { GlassOverlays } from "@/components/ui/glass-overlays";
 import { MatchReplayDialog } from "@/components/matchreplay/MatchReplayDialog";
+import { AnimatedOutline } from "@/components/ui/animated-outline";
 
 const itemKeys: (keyof Participant)[] = [
   "item0",
@@ -242,31 +244,6 @@ export default function SummonerPage() {
     const now = new Date();
     return now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase();
   }, []);
-
-  const recentBadgeCount = useMemo(() => {
-    if (!summonerInfo?.puuid || matches.length === 0) return 0;
-
-    // prendiamo gli ultimi 10 (quelli visibili)
-    const recent = matches.slice(0, 10);
-
-    let count = 0;
-    for (const m of recent) {
-      const participants = m.match.info.participants;
-      const { mvpWin, mvpLose } = calculateLolDataScores(participants);
-      if (mvpWin === summonerInfo.puuid || mvpLose === summonerInfo.puuid) {
-        count++;
-      }
-    }
-    return count;
-  }, [matches, summonerInfo?.puuid]);
-
-  const recentBadgeLabel = useMemo<null | "GODLIKE" | "SOLOCARRY" | "CARRY">(() => {
-    if (recentBadgeCount >= 8) return "GODLIKE";
-    if (recentBadgeCount >= 5) return "SOLOCARRY";
-    if (recentBadgeCount >= 4) return "CARRY";
-    return null;
-  }, [recentBadgeCount]);
-
 
   const recentRating = useMemo(() => {
     return calculatePlayerRating(matches, summonerInfo?.puuid ?? "", 15);
@@ -721,6 +698,33 @@ export default function SummonerPage() {
       document.title = defaultTitle;
     };
   }, [slug, summonerInfo?.name]);
+
+  // Backfill the search-dialog "recently viewed" trail with whatever
+  // icon/rank we just loaded. The trail is populated client-side by
+  // the dialog (localStorage); when the user types a manual
+  // "Name#Tag" submit that has no autocomplete match the entry lands
+  // with icon_id / rank both null. Visiting this page IS the act of
+  // resolving the profile, so we patch the trail in place — next time
+  // the dialog opens, the avatar + rank chip are already there
+  // without forcing the user to re-search.
+  useEffect(() => {
+    if (!summonerInfo?.name || !summonerInfo?.tag || !region) return;
+    enrichRecentProfile(
+      summonerInfo.name,
+      summonerInfo.tag,
+      region.toUpperCase(),
+      {
+        icon_id: summonerInfo.profileIconId ?? null,
+        rank: summonerInfo.rank ?? null,
+      }
+    );
+  }, [
+    region,
+    summonerInfo?.name,
+    summonerInfo?.tag,
+    summonerInfo?.profileIconId,
+    summonerInfo?.rank,
+  ]);
 
   useEffect(() => {
     if (!summonerInfo?.name || !summonerInfo?.tag) return
@@ -1270,38 +1274,38 @@ export default function SummonerPage() {
             return (
               <>
                 {displayChamps.map((champ) => (
-                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full">
-                    <div className="flex items-center gap-3">
-                      <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full" />
-                      <div className="flex flex-col text-xs text-white gap-1 justify-start text-[11px] min-w-[100px]">
-                        <div className="text-[#979D9B] font-bold uppercase truncate w-[90px]">{champ.champion}</div>
-                        <div className="text-white font-thin text-[11px]">
+                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center xl:gap-4">
+                    <div className="flex items-center gap-3 xl:justify-self-start">
+                      <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full ring-1 ring-flash/10" />
+                      <div className="flex flex-col gap-0.5 justify-start min-w-[100px]">
+                        <div className="font-chakrapetch font-bold uppercase tracking-[0.04em] text-[13px] text-flash truncate w-[100px]">{champ.champion}</div>
+                        <div className="font-mono text-[10.5px] tabular-nums text-flash/55">
                           {(() => {
                             const num = Number(champ.csPerMin);
                             const rounded = Math.round(num * 10) / 10;
                             return Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
-                          })()}{" "}CS/({champ.avgGold})
+                          })()} CS
                         </div>
                       </div>
                     </div>
 
                     {/* Center KDA column — visible only at xl+ */}
-                    <div className="hidden xl:flex flex-col items-center text-xs text-white gap-1 w-[90px] whitespace-nowrap text-[11px]">
-                      <div className={getKdaClass(champ.avgKda)}>{champ.avgKda} KDA</div>
-                      <div>
-                        {formatStat(champ.kills / champ.games)}/
-                        {formatStat(champ.deaths / champ.games)}/
-                        {formatStat(champ.assists / champ.games)}
+                    <div className="hidden xl:flex flex-col items-center gap-0.5 whitespace-nowrap xl:justify-self-center xl:ml-[24px]">
+                      <div className={cn("font-chakrapetch font-bold text-[13px] tabular-nums leading-none", getKdaClass(champ.avgKda))}>
+                        {champ.avgKda} KDA
+                      </div>
+                      <div className="font-mono text-[10.5px] tabular-nums text-flash/55">
+                        {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1">
+                    <div className="flex items-center gap-4 xl:flex-col xl:items-end xl:gap-1 xl:justify-self-end">
                       {/* KDA with tooltip — visible only below xl */}
                       <div className="xl:hidden">
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className={cn("text-[11px] cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
+                              <div className={cn("font-chakrapetch font-bold text-[13px] tabular-nums cursor-default", getKdaClass(champ.avgKda))}>{champ.avgKda} KDA</div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
                               {formatStat(champ.kills / champ.games)} / {formatStat(champ.deaths / champ.games)} / {formatStat(champ.assists / champ.games)}
@@ -1315,7 +1319,7 @@ export default function SummonerPage() {
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className={cn("text-[11px] cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
+                              <div className={cn("font-chakrapetch font-bold text-[13px] tabular-nums cursor-default", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
                               {champ.games} matches
@@ -1325,8 +1329,12 @@ export default function SummonerPage() {
                       </div>
 
                       {/* Winrate + matches text — visible at xl+ */}
-                      <div className={cn("hidden xl:block text-[11px]", getWinrateClass(champ.winrate, champ.games))}>{champ.winrate}%</div>
-                      <div className="hidden xl:block text-[11px] text-white">{champ.games} MATCHES</div>
+                      <div className={cn("hidden xl:block font-chakrapetch font-bold text-[13px] tabular-nums leading-none", getWinrateClass(champ.winrate, champ.games))}>
+                        {champ.winrate}%
+                      </div>
+                      <div className="hidden xl:block font-mono text-[9.5px] tracking-[0.18em] uppercase text-flash/40">
+                        {champ.games} matches
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1744,22 +1752,6 @@ export default function SummonerPage() {
 
                     </div>
 
-                    {/* MVP badge */}
-                    {recentBadgeLabel && (
-                      <div className="flex justify-end px-1 mt-2">
-                        <span
-                          className="text-[9px] font-orbitron font-bold tracking-[0.15em] px-2 py-[2px] rounded-[2px]"
-                          style={{
-                            background: "linear-gradient(135deg, rgba(0,217,146,0.12), rgba(0,184,255,0.08))",
-                            color: "#00d992",
-                            boxShadow: "0 0 8px rgba(0,217,146,0.2)",
-                          }}
-                        >
-                          {recentBadgeCount}/{recentDetailedStats.games} MVP · {recentBadgeLabel}
-                        </span>
-                      </div>
-                    )}
-
                   </div>
                 );
               })()}
@@ -1804,8 +1796,8 @@ export default function SummonerPage() {
                           key={tab.value}
                           value={tab.value}
                           className={cn(
-                            "group relative font-mono text-[10px] tracking-[0.2em] uppercase px-1 py-2.5 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker",
-                            "text-flash/30 hover:text-flash/50",
+                            "group relative font-chakrapetch text-[12px] tracking-[0.18em] uppercase px-1 py-2.5 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker",
+                            "text-flash/40 hover:text-flash/65",
                             "data-[state=active]:text-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                           )}
                         >
@@ -1869,7 +1861,7 @@ export default function SummonerPage() {
 
                   <Link
                     to={`/summoners/${region}/${slug}/season`}
-                    className="flex items-center justify-center gap-1.5 mt-auto mb-4 pt-2 mx-auto text-[11px] font-jetbrains tracking-[0.15em] uppercase text-flash/30 hover:text-jade transition-colors cursor-clicker"
+                    className="flex items-center justify-center gap-1.5 mt-auto mb-4 pt-2 mx-auto text-[11px] font-chakrapetch tracking-[0.18em] uppercase text-flash/45 hover:text-jade transition-colors cursor-clicker"
                   >
                     Show more
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -2182,48 +2174,110 @@ export default function SummonerPage() {
                 <div className="flex items-center justify-center gap-0 h-full">
                   <div className="flex flex-col items-center gap-1 min-w-[160px]">
                     <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
+                    {/* Rank icon — crossfade + scale/blur morph on solo↔flex toggle.
+                        The popLayout mode lets the incoming icon enter while the
+                        outgoing one finishes its exit so the swap reads as a
+                        gradient between the two PNGs instead of a hard cut. The
+                        rounded backdrop stays static behind so the eye has an
+                        anchor while the icon dissolves. */}
                     <div className="relative w-28 h-28 flex items-center justify-center">
                       <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <img
-                        src={
-                          !currentRank || currentRank.toLowerCase() === "unranked"
-                            ? "/img/unranked.png"
-                            : getRankImage(currentRank)
-                        }
-                        alt="Rank icon"
-                        className="w-28 h-28 z-10 relative"
-                        draggable={false}
-                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                      />
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.img
+                            key={`current-${rankQueueView}`}
+                            src={
+                              !currentRank || currentRank.toLowerCase() === "unranked"
+                                ? "/img/unranked.png"
+                                : getRankImage(currentRank)
+                            }
+                            alt="Rank icon"
+                            className="w-32 h-32"
+                            draggable={false}
+                            onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                            initial={{ opacity: 0, scale: 0.82, filter: "blur(4px)" }}
+                            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                            exit={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
+                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                          />
+                        </AnimatePresence>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center text-sm min-w-[180px]">
-                      <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
-                      {currentRank && currentRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-geist font-black text-jade/60 tabular-nums">{currentLp} <span className="text-[11px] text-jade/30">LP</span></span>
-                      )}
+                    {/* Rank text + LP also crossfade in sync so name/LP don't
+                        flicker out of phase with the icon morph. */}
+                    <div className="flex flex-col items-center text-sm min-w-[180px] relative">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                          key={`current-text-${rankQueueView}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex flex-col items-center"
+                        >
+                          <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
+                          {currentRank && currentRank.toLowerCase() !== "unranked" && (
+                            <span
+                              className="text-[16px] font-chakrapetch font-bold text-flash tabular-nums"
+                              style={{
+                                textShadow:
+                                  "0 0 10px rgba(255,255,255,0.45), 0 0 22px rgba(255,255,255,0.18)",
+                              }}
+                            >
+                              {currentLp}{" "}
+                              <span className="text-[11px] text-flash/55" style={{ textShadow: "0 0 8px rgba(255,255,255,0.25)" }}>
+                                LP
+                              </span>
+                            </span>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1 min-w-[160px]">
                     <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
                     <div className="relative w-28 h-28 flex items-center justify-center">
                       <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <img
-                        src={
-                          !peakRank || peakRank.toLowerCase() === "unranked"
-                            ? "/img/unranked.png"
-                            : getRankImage(peakRank)
-                        }
-                        alt="Highest Rank icon"
-                        className="w-32 h-32 z-10 relative opacity-70"
-                        draggable={false}
-                        onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                      />
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.img
+                            key={`peak-${rankQueueView}`}
+                            src={
+                              !peakRank || peakRank.toLowerCase() === "unranked"
+                                ? "/img/unranked.png"
+                                : getRankImage(peakRank)
+                            }
+                            alt="Highest Rank icon"
+                            className="w-32 h-32"
+                            draggable={false}
+                            onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                            // Peak runs at 0.7 opacity at rest — animate to that
+                            // target so the entering icon settles into the right
+                            // visual weight.
+                            initial={{ opacity: 0, scale: 0.82, filter: "blur(4px)" }}
+                            animate={{ opacity: 0.7, scale: 1, filter: "blur(0px)" }}
+                            exit={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
+                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                          />
+                        </AnimatePresence>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center text-sm min-w-[180px]">
-                      <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
-                      {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                        <span className="text-[16px] font-geist font-black text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
-                      )}
+                    <div className="flex flex-col items-center text-sm min-w-[180px] relative">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                          key={`peak-text-${rankQueueView}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex flex-col items-center"
+                        >
+                          <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
+                          {peakRank && peakRank.toLowerCase() !== "unranked" && (
+                            <span className="text-[16px] font-chakrapetch font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
                   </div>
                 </div>
@@ -2301,13 +2355,13 @@ export default function SummonerPage() {
                     ) : (
                       <>
                         <span className={cn(
-                          "font-bold font-mono text-flash tracking-wide leading-none",
+                          "font-bold font-chakrapetch text-flash tracking-wide leading-none",
                           (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
                         )}>
                           {summonerInfo.name}
                         </span>
                         {summonerInfo.tag && (
-                          <span className="text-[18px] font-mono text-flash/30 ml-1">#{summonerInfo.tag}</span>
+                          <span className="text-[18px] font-chakrapetch text-flash/30 ml-1">#{summonerInfo.tag}</span>
                         )}
                       </>
                     )}
@@ -2387,7 +2441,7 @@ export default function SummonerPage() {
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={cn(
-                    "group relative font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 h-[32px] rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 overflow-hidden",
+                    "group relative font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-3.5 h-[32px] rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 overflow-hidden",
                     "border backdrop-blur-lg",
                     selectedQueue !== "All"
                       ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
@@ -2416,7 +2470,7 @@ export default function SummonerPage() {
               {/* Champion — dialog picker */}
               <div
                 className={cn(
-                  "font-orbitron text-[10px] tracking-[0.15em] uppercase px-3.5 rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[32px]",
+                  "font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-3.5 rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[32px]",
                   "border backdrop-blur-lg",
                   selectedChampion
                     ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
@@ -2427,7 +2481,7 @@ export default function SummonerPage() {
                   champions={allChampions}
                   selectedChampion={selectedChampion}
                   onSelect={(champName) => setSelectedChampion(champName)}
-                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-orbitron"
+                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-chakrapetch"
                 />
               </div>
 
@@ -2446,7 +2500,7 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
                     className={cn(
-                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[32px] px-2 h-[32px] transition-all duration-300 cursor-clicker flex items-center justify-center",
+                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase min-w-[32px] px-2 h-[32px] transition-all duration-300 cursor-clicker flex items-center justify-center",
                       "border border-flash/10 backdrop-blur-lg",
                       i === 0 && "rounded-l-[2px]",
                       i === arr.length - 1 && "rounded-r-[2px]",
@@ -2473,7 +2527,7 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedResult(opt.value)}
                     className={cn(
-                      "font-orbitron text-[10px] tracking-[0.15em] uppercase px-2.5 h-[32px] transition-all duration-300 cursor-clicker",
+                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-2.5 h-[32px] transition-all duration-300 cursor-clicker",
                       "border border-flash/10 backdrop-blur-lg",
                       i === 0 && "rounded-l-[2px]",
                       i === arr.length - 1 && "rounded-r-[2px]",
@@ -2499,7 +2553,7 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setRankQueueView(mode)}
                     className={cn(
-                      "font-orbitron text-[10px] tracking-[0.15em] uppercase min-w-[48px] text-center px-3 h-[32px] transition-all duration-300 cursor-clicker",
+                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase min-w-[48px] text-center px-3 h-[32px] transition-all duration-300 cursor-clicker",
                       "border border-flash/10 backdrop-blur-lg",
                       i === 0 && "rounded-l-[2px]",
                       i === arr.length - 1 && "rounded-r-[2px]",
@@ -2987,16 +3041,19 @@ export default function SummonerPage() {
                                                       return (
                                                         <div
                                                           key={index}
-                                                          className="w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
+                                                          className="group relative w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
                                                         >
                                                           {typeof itemId === "number" && itemId > 0 && (
-                                                            <Link to={`/items/${itemId}`} className="cursor-clicker">
-                                                              <img
-                                                                src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
-                                                                alt={`Item ${itemId}`}
-                                                                className="w-full h-full rounded-sm"
-                                                              />
-                                                            </Link>
+                                                            <>
+                                                              <Link to={`/items/${itemId}`} className="cursor-clicker">
+                                                                <img
+                                                                  src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
+                                                                  alt={`Item ${itemId}`}
+                                                                  className="w-full h-full rounded-sm"
+                                                                />
+                                                              </Link>
+                                                              <AnimatedOutline rx={2} />
+                                                            </>
                                                           )}
                                                         </div>
                                                       );
@@ -3005,13 +3062,21 @@ export default function SummonerPage() {
 
                                                   {typeof participant.item6 === "number" && participant.item6 > 0 && (
                                                     <div className="flex items-center justify-center ml-1">
-                                                      <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
-                                                        <img
-                                                          src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`}
-                                                          alt={`Trinket ${participant.item6}`}
-                                                          className="w-full h-full rounded-full"
-                                                        />
-                                                      </div>
+                                                      <Link
+                                                        to={`/items/${participant.item6}`}
+                                                        className="cursor-clicker group relative w-6 h-6 block"
+                                                      >
+                                                        <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
+                                                          <img
+                                                            src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`}
+                                                            alt={`Trinket ${participant.item6}`}
+                                                            className="w-full h-full rounded-full"
+                                                          />
+                                                        </div>
+                                                        {/* rx=12 = w/2 (w-6 = 24px) → circle outline matching
+                                                            the trinket's rounded-full shape. */}
+                                                        <AnimatedOutline rx={12} />
+                                                      </Link>
                                                     </div>
                                                   )}
                                                 </div>
@@ -3039,19 +3104,43 @@ export default function SummonerPage() {
                                                     </div>
                                                   );
                                                 })()}
-                                                <span className="font-geist text-xs font-thin text-flash/40 ml-1">
-                                                  {typeof kda === "number" ? kda.toFixed(2) : kda} KDA
-                                                </span>
+                                                {/* KDA caption — stacked big value + tiny label,
+                                                    mirrors the scout matchcard look. */}
+                                                <div className="flex flex-col leading-tight ml-3 tabular-nums">
+                                                  <span className="font-chakrapetch font-medium tabular-nums text-flash/75 text-[13px]">
+                                                    {typeof kda === "number" ? kda.toFixed(2) : kda}
+                                                  </span>
+                                                  <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                                                    KDA
+                                                  </span>
+                                                </div>
+                                                {/* KP caption — same stack, value coloured by tier:
+                                                    ≥65% jade, ≥45% neutral flash, else red. Matches
+                                                    KpDetailBox in components/matchcard.tsx. */}
                                                 {participant && (() => {
                                                   const team = participant.teamId === 100 ? team1 : team2;
                                                   const teamKills = team.reduce((sum, p) => sum + p.kills, 0);
                                                   const kp = teamKills > 0
                                                     ? Math.round(((participant.kills + participant.assists) / teamKills) * 100)
                                                     : 0;
+                                                  const kpValueClass =
+                                                    kp >= 65
+                                                      ? "text-jade/85"
+                                                      : kp >= 45
+                                                        ? "text-flash/75"
+                                                        : "text-[#d63336]/80";
                                                   return (
-                                                    <span className="font-geist text-xs font-thin text-flash/40 pl-1">
-                                                      {kp}% KP
-                                                    </span>
+                                                    <div
+                                                      title={`${kp}% kill participation`}
+                                                      className="flex flex-col leading-tight ml-4 tabular-nums"
+                                                    >
+                                                      <span className={cn("font-chakrapetch font-medium text-[13px]", kpValueClass)}>
+                                                        {kp}%
+                                                      </span>
+                                                      <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                                                        KP
+                                                      </span>
+                                                    </div>
                                                   );
                                                 })()}
 

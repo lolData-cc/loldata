@@ -20,7 +20,8 @@
 //   - dead state: grayscale + skull overlay (~9s death timer hint)
 
 import * as React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 import {
@@ -89,6 +90,15 @@ interface DeathInfo {
   timestamp: number;
 }
 
+// Zoom configuration — discrete levels for + / − buttons, hard min/max
+// for wheel/pinch so the user never zooms past usable.
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.5;
+const ZOOM_WHEEL_FACTOR_IN = 1.18;
+const ZOOM_WHEEL_FACTOR_OUT = 1 / 1.18;
+const PAN_CLICK_THRESHOLD_PX = 5;
+
 export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids, onFocusPid, calibration, debug, debugOverrides, setDebugOverrides }: RiftMapProps) {
   const cal: MapCalibration = calibration ?? { scaleX: 1.0, scaleY: 1.0, offsetXPct: 0, offsetYPct: 0 };
   // Position lookup function — used by activeWardsAt to back-trace
@@ -96,6 +106,157 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
   const posOf = React.useCallback(
     (pid: number, ts: number) => positionsAt(timeline, ts).get(pid) ?? null,
     [timeline]
+  );
+
+  // ── Zoom + pan ───────────────────────────────────────────────────
+  // Zoom is the multiplier applied uniformly to BOTH layers (bg image
+  // + coord/sprite layer) so their calibration alignment is preserved.
+  // Pan is in screen pixels relative to the visible viewport center,
+  // applied AFTER scale (`translate(panPx) scale(zoom)`). Clicking the
+  // zoom controls or pressing the buttons resets pan when going back
+  // to 1× so the map snaps back to the canonical view.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  // Clamp the pan to whatever the current zoom allows. At 1× the map
+  // exactly fills the viewport, so pan must be 0; at N× the user can
+  // shift by up to half the overhang on each axis.
+  const clampPan = useCallback(
+    (next: { x: number; y: number }, atZoom: number) => {
+      const el = containerRef.current;
+      if (!el || atZoom <= 1) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      const maxX = ((atZoom - 1) * rect.width) / 2;
+      const maxY = ((atZoom - 1) * rect.height) / 2;
+      return {
+        x: Math.max(-maxX, Math.min(maxX, next.x)),
+        y: Math.max(-maxY, Math.min(maxY, next.y)),
+      };
+    },
+    []
+  );
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((z) => {
+      const next = Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2));
+      // Re-clamp pan to the tighter/looser bound (zoom in keeps it,
+      // zoom out usually shrinks the window).
+      setPan((p) => clampPan(p, next));
+      return next;
+    });
+  }, [clampPan]);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((z) => {
+      const next = Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2));
+      setPan((p) => clampPan(p, next));
+      return next;
+    });
+  }, [clampPan]);
+
+  const handleZoomReset = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  // Wheel zoom toward cursor — keeps the point under the cursor
+  // visually anchored as the scale changes. Standard pan-zoom math:
+  // map-space coord at cursor = (cursor − pan) / zoom. Solving for
+  // newPan to preserve it gives newPan = cursor − mapCoord × newZoom.
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = containerRef.current;
+      if (!el) return;
+      // We use preventDefault to keep the page from scrolling while
+      // zooming inside the dialog — passive: false is the default for
+      // onWheel in React, so this works.
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left - rect.width / 2;
+      const py = e.clientY - rect.top - rect.height / 2;
+
+      const factor = e.deltaY > 0 ? ZOOM_WHEEL_FACTOR_OUT : ZOOM_WHEEL_FACTOR_IN;
+      const nextZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * factor));
+      if (nextZoom === zoom) return;
+
+      // Map-space coord under cursor BEFORE the zoom change.
+      const mapX = (px - pan.x) / zoom;
+      const mapY = (py - pan.y) / zoom;
+      const nextPanX = px - mapX * nextZoom;
+      const nextPanY = py - mapY * nextZoom;
+
+      setZoom(nextZoom);
+      setPan(
+        nextZoom <= 1
+          ? { x: 0, y: 0 }
+          : clampPan({ x: nextPanX, y: nextPanY }, nextZoom)
+      );
+    },
+    [zoom, pan, clampPan]
+  );
+
+  // Drag-to-pan when zoomed in. We DON'T grab pointer capture
+  // immediately — we wait until the user moves past a small threshold
+  // so quick clicks on sprites still fire their onClick handlers.
+  const panStateRef = useRef<{
+    pointerId: number;
+    startClient: { x: number; y: number };
+    startPan: { x: number; y: number };
+    captured: boolean;
+  } | null>(null);
+
+  const onMapPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (zoom <= 1) return;
+      // Ignore drags that started on the zoom controls cluster — the
+      // data attribute is the cheapest opt-out signal.
+      if ((e.target as HTMLElement).closest("[data-rift-zoom-control]")) return;
+      panStateRef.current = {
+        pointerId: e.pointerId,
+        startClient: { x: e.clientX, y: e.clientY },
+        startPan: { ...pan },
+        captured: false,
+      };
+    },
+    [zoom, pan]
+  );
+
+  const onMapPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const s = panStateRef.current;
+      if (!s || s.pointerId !== e.pointerId) return;
+      const dx = e.clientX - s.startClient.x;
+      const dy = e.clientY - s.startClient.y;
+      if (!s.captured) {
+        if (Math.hypot(dx, dy) <= PAN_CLICK_THRESHOLD_PX) return;
+        s.captured = true;
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(s.pointerId);
+        } catch {
+          /* some browsers reject capture if the pointer already left */
+        }
+      }
+      setPan(clampPan({ x: s.startPan.x + dx, y: s.startPan.y + dy }, zoom));
+      e.preventDefault();
+    },
+    [zoom, clampPan]
+  );
+
+  const onMapPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const s = panStateRef.current;
+      if (!s || s.pointerId !== e.pointerId) return;
+      if (s.captured) {
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(s.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+      panStateRef.current = null;
+    },
+    []
   );
 
   const positions = useMemo(() => positionsAt(timeline, timeMs), [timeline, timeMs]);
@@ -214,11 +375,37 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
   const coordTransform = `translate(${cal.offsetXPct}%, ${cal.offsetYPct}%) scale(${BASE_ZOOM * cal.scaleX}, ${BASE_ZOOM * cal.scaleY})`;
   return (
     <div
-      className="relative aspect-[3/2] w-full select-none overflow-hidden rounded-lg"
+      ref={containerRef}
+      className={cn(
+        "relative aspect-[3/2] w-full select-none overflow-hidden rounded-lg",
+        // Cursor flips to "move" while panning is possible; otherwise
+        // it's the regular hover cursor so sprite clicks still feel
+        // clickable.
+        zoom > 1 && (panStateRef.current?.captured ? "cursor-grabbing" : "cursor-grab")
+      )}
       style={{
         filter: "drop-shadow(0 16px 26px rgba(0,0,0,0.55)) drop-shadow(0 4px 10px rgba(0,217,146,0.10))",
       }}
+      onPointerDown={onMapPointerDown}
+      onPointerMove={onMapPointerMove}
+      onPointerUp={onMapPointerUp}
+      onPointerCancel={onMapPointerUp}
+      onWheel={handleWheel}
     >
+      {/* Zoom + pan wrapper — wraps BOTH layers so their calibration
+          alignment is preserved. The transform applies uniformly to
+          the bg image and the coord/sprite layer, so the user can pan
+          + zoom without the sprites drifting away from the map.
+          Frame, vignette and zoom controls live OUTSIDE this wrapper
+          and stay anchored to the visible viewport. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: "center",
+          willChange: zoom > 1 ? "transform" : undefined,
+        }}
+      >
       {/* Layer 1: BG IMAGE — never stretched, only base zoom. */}
       <div
         className="absolute inset-0"
@@ -255,9 +442,16 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
         style={{
           transform: coordTransform,
           transformOrigin: "center",
-          // @ts-ignore — custom CSS properties for sprite counter-scale
-          "--inv-sx": 1 / (BASE_ZOOM * cal.scaleX),
-          "--inv-sy": 1 / (BASE_ZOOM * cal.scaleY),
+          // @ts-ignore — custom CSS properties for sprite counter-scale.
+          // The inverse now also folds in the user-zoom factor: when
+          // the outer wrapper magnifies the map by N×, sprites compute
+          // their counter-scale as 1/(cal.scale × N) so they keep a
+          // CONSTANT viewport size. Effect on the eye: the rift looks
+          // bigger but champion / ward icons don't bloat with it.
+          // Without this, a 3× zoom turned each champion sprite into a
+          // ~110px blob that ate the lanes.
+          "--inv-sx": 1 / (BASE_ZOOM * cal.scaleX * zoom),
+          "--inv-sy": 1 / (BASE_ZOOM * cal.scaleY * zoom),
         } as React.CSSProperties}
       >
 
@@ -432,6 +626,18 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
             style={{
               left: `${nx * 100}%`, top: `${ny * 100}%`,
               transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
+              // Promote each sprite to its OWN GPU compositing layer
+              // ONLY when the user has zoomed in. Without this, the
+              // sprite is rasterized inside the coord-layer texture at
+              // container resolution — so at 4× zoom the browser just
+              // upscales those few raster pixels and the champion icon
+              // turns into a mosaic. `will-change: transform` (or a
+              // translateZ hint) forces an independent layer the
+              // compositor can sample directly at the final on-screen
+              // resolution. We gate it on zoom>1 so idle viewing of
+              // the map doesn't pay the GPU-memory cost for 10 sprites.
+              willChange: zoom > 1 ? "transform" : undefined,
+              backfaceVisibility: zoom > 1 ? "hidden" : undefined,
             }}
             title={`${sp.championName} — Lv ${m?.level ?? "?"}`}
           >
@@ -488,6 +694,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
         setOverrides={setDebugOverrides ?? (() => {})}
       />
       </div>{/* /coord layer */}
+      </div>{/* /zoom+pan wrapper */}
 
       {/* Overlays that hug the OUTER (unscaled) square — they should
           frame the visible viewport, not move with the zoomed content. */}
@@ -501,6 +708,67 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
           background: "radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.30) 100%)",
         }}
       />
+
+      {/* ── Zoom controls — bottom-right floating cluster ─────────
+          Magnifying-glass + / − buttons with the current zoom level
+          in the middle (click to reset). Glass styling matches the
+          dialog's other floating overlays; data-rift-zoom-control
+          lets the pan handler ignore drags that start here. */}
+      <div
+        data-rift-zoom-control
+        className="absolute bottom-3 right-3 z-50 flex flex-col gap-1"
+      >
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          disabled={zoom >= ZOOM_MAX}
+          title="Zoom in"
+          className={cn(
+            "w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker",
+            "bg-black/65 backdrop-blur-sm border border-flash/15",
+            "hover:border-jade/45 hover:bg-jade/15 hover:text-jade",
+            "text-flash/75 transition-colors",
+            "disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
+        >
+          <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleZoomReset}
+          disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
+          title="Reset zoom (100%)"
+          className={cn(
+            "w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker",
+            "bg-black/65 backdrop-blur-sm border border-flash/15",
+            "hover:border-jade/45 hover:bg-jade/15 hover:text-jade",
+            "transition-colors",
+            zoom > 1
+              ? "text-jade font-mono text-[9px] tabular-nums tracking-tight"
+              : "text-flash/55",
+            "disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
+        >
+          {zoom > 1 ? `${Math.round(zoom * 100)}` : <Maximize2 className="w-3 h-3" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          disabled={zoom <= ZOOM_MIN}
+          title="Zoom out"
+          className={cn(
+            "w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker",
+            "bg-black/65 backdrop-blur-sm border border-flash/15",
+            "hover:border-jade/45 hover:bg-jade/15 hover:text-jade",
+            "text-flash/75 transition-colors",
+            "disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
