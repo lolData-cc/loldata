@@ -552,9 +552,7 @@ function SessionRankPill({
 }) {
   const startShort = formatRankShortPill(startRank);
   const endShort = formatRankShortPill(endRank);
-  const delta =
-    ladderScoreFE({ ...endRank, wins: 0, losses: 0 }) -
-    ladderScoreFE({ ...startRank, wins: 0, losses: 0 });
+  const delta = ladderScoreFE(endRank) - ladderScoreFE(startRank);
   const positive = delta > 0;
   const negative = delta < 0;
   const endColor = positive
@@ -2810,7 +2808,13 @@ const DIVISION_INDEX: Record<string, number> = { IV: 1, III: 2, II: 3, I: 4 };
 // 100), per-division offset is (idx − 1) × 100 with IV=1 / III=2 / II=3 /
 // I=4 so IV contributes 0 and I contributes 300. Master+ is divisionless
 // and just adds raw LP onto where DIAMOND I 100 ended (2800).
-function ladderScoreFE(rank: CurrentRank | null): number {
+// Accepts any shape with the three fields that contribute to the
+// score — wins/losses are tracked on the full CurrentRank but aren't
+// part of the math, so callers passing the slim account-side rank
+// (which omits them) type-check cleanly.
+function ladderScoreFE(
+  rank: Pick<CurrentRank, "tier" | "rankDivision" | "lp"> | null
+): number {
   if (!rank) return -1; // unranked sinks
   const t = LADDER_TIER_INDEX[rank.tier.toUpperCase()] ?? 0;
   // MASTER index 7 — anything ≥ 7 ignores division.

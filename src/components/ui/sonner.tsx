@@ -10,13 +10,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      // Keep the dismiss timer running even when the tab is in the
-      // background. Sonner 2.x pauses timers on `visibilitychange:hidden`
-      // by default, which means leaving the tab in another window
-      // causes auto-refresh toasts (every 10 min) to pile up and only
-      // start counting down when you come back. Forcing this to false
-      // makes a toast with duration=3000 always disappear after 3s.
-      pauseWhenPageIsHidden={false}
+      // Note on background-tab pile-up: Sonner 2.x hardcodes a
+      // visibility-based pause on dismiss timers (no public prop to
+      // disable), so toasts queued while the tab is hidden don't
+      // count down until you come back. The actual user-pain — N
+      // identical "Lobby refreshed" toasts stacked after a long away
+      // — is solved by passing a stable `id` to showCyberToast: each
+      // new emission replaces the previous one instead of stacking.
       toastOptions={{
         classNames: {
           toast:
