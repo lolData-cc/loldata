@@ -24,12 +24,31 @@ export default defineConfig({
     ],
   },
   server: {
+    // host: true binds to all network interfaces (0.0.0.0) so phones on
+    // the same WiFi can hit http://<PC-LAN-IP>:5173. Without this Vite
+    // listens only on 127.0.0.1 and the phone times out.
+    host: true,
     proxy: {
+      // ORDER MATTERS — Vite matches proxies by the FIRST hit on the
+      // path prefix. The AI chat lives on :3002, so we route it
+      // first; everything else under /api falls through to the
+      // scout backend at :3001.
       "/api/loldata-ai": {
         target: "http://localhost:3002",
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/api\/loldata-ai$/, "/chat/ask"),
+      },
+
+      // Catch-all backend proxy. Letting Vite forward /api means the
+      // phone hits http://<PC-LAN-IP>:5173/api/scout/feed/... and Vite
+      // talks to localhost:3001 on the PC's behalf — no need to expose
+      // the backend on the LAN. Frontend should fetch with relative
+      // URLs (see src/config.ts → API_BASE_URL = "" in dev).
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        secure: false,
       },
 
       "/lolcdn": {

@@ -57,6 +57,10 @@ type LobbyAccount = {
   riotTag: string;
   isPrimary: boolean;
   orderIndex: number;
+  // Current solo-queue rank from the latest scout_rank_snapshots row.
+  // Used by the matches tab to render a "start → current" pill on each
+  // group card. Null when the account has no snapshots yet.
+  currentRank?: { tier: string; rankDivision: string | null; lp: number } | null;
 };
 
 type LobbyPlayer = {
@@ -222,8 +226,8 @@ type StatsPeriod = "day" | "week" | "month";
 
 const JADE = "#00d992";
 const QUEUE_LABELS: Record<number, string> = {
-  420: "RANKED SOLO/DUO",
-  440: "RANKED FLEX",
+  420: "SOLOQ",
+  440: "FLEX",
   400: "NORMAL",
   430: "NORMAL BLIND",
   450: "ARAM",
@@ -268,7 +272,11 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
 
   return (
     <div
-      className="relative w-screen left-1/2 -translate-x-1/2 h-[420px] overflow-hidden mb-6"
+      // Mobile: 320px so the splash actually shows (the -80px
+      // negative top margin pulls the hero under the navbar, leaving
+      // ~240px of splash visible below it — enough to read the lobby
+      // name with breathing room). Desktop keeps the cinematic 420px.
+      className="relative w-screen left-1/2 -translate-x-1/2 h-[320px] sm:h-[420px] overflow-hidden mb-1 sm:mb-6"
       style={{ marginTop: "-80px" /* navbar h-16 + content mt-4 — hero goes behind */ }}
     >
       <img
@@ -293,10 +301,20 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
       <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-b from-liquirice to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-t from-liquirice to-transparent" />
 
-      {/* Content */}
-      <div className="absolute inset-0 z-10 flex items-end justify-center pb-6">
-        <div className="w-full xl:w-[65%] min-[2560px]:w-[55%] px-4">
-          <div className="flex items-center gap-3 mb-2">
+      {/* Content — matches the tab/content wrapper below so the hero
+          title left-aligns with the tablist instead of floating in
+          its own xl:w-[65%] column.
+
+          Mobile gets pl-8 (instead of px-4) to absorb the additional
+          inner padding of the mobile Matches/Players selects below
+          (16px of <select pl-4>). Desktop keeps px-4 since the tab
+          triggers below only carry px-2 — close enough to look
+          flush. */}
+      <div className="absolute inset-0 z-10 flex items-end justify-center pb-3 sm:pb-6">
+        <div className="w-full max-w-[1280px] pl-8 pr-4 sm:px-4">
+          {/* Scout :: Lobby · slug — desktop only. On mobile the
+              brand line was just stealing rows from the hero. */}
+          <div className="hidden sm:flex items-center gap-3 mb-2">
             <span style={{ color: JADE, fontSize: "12px" }}>◈</span>
             <span className="text-[11px] font-jetbrains tracking-[0.25em] uppercase text-jade/60">
               Scout :: Lobby
@@ -307,7 +325,7 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
             </span>
           </div>
 
-          <h1 className="text-[48px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+          <h1 className="text-[34px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
             {lobby.name}
           </h1>
         </div>
@@ -487,7 +505,13 @@ function SessionStatChip({
     <div
       title={title}
       className={cn(
-        "flex flex-col items-center justify-center gap-px w-[78px] h-[34px] rounded-[3px] ring-1 tabular-nums",
+        // Slim row-aligned chip — height 26px so it sits inline with
+        // the 16px player name without bumping the title row taller.
+        // Value + label render on a SINGLE horizontal line now (was
+        // stacked) since the row height isn't tall enough for two
+        // baselines. Width is auto-sized via px-2 so longer values
+        // ("PERF", "100%") don't get truncated.
+        "inline-flex items-center justify-center gap-1 h-[26px] px-2 rounded-[3px] ring-1 tabular-nums whitespace-nowrap",
         palette.ring,
         palette.bg,
         palette.glow
@@ -495,7 +519,7 @@ function SessionStatChip({
     >
       <span
         className={cn(
-          "text-[12px] font-chakrapetch font-bold tracking-wide leading-none",
+          "text-[11.5px] font-chakrapetch font-bold tracking-wide leading-none",
           palette.value
         )}
       >
@@ -511,6 +535,95 @@ function SessionStatChip({
       </span>
     </div>
   );
+}
+
+/* ─── rank-journey pill ────────────────────────────────────────────────
+ * Visual recap of where the active member's account *started* this
+ * session and where it is *now*. Two rank icons + abbreviated tier and
+ * LP, separated by a soft arrow. Sits in the section header next to
+ * the W/L / WR / LP / KDA stat chips.
+ */
+function SessionRankPill({
+  startRank,
+  endRank,
+}: {
+  startRank: { tier: string; rankDivision: string | null; lp: number };
+  endRank: { tier: string; rankDivision: string | null; lp: number };
+}) {
+  const startShort = formatRankShortPill(startRank);
+  const endShort = formatRankShortPill(endRank);
+  const delta =
+    ladderScoreFE({ ...endRank, wins: 0, losses: 0 }) -
+    ladderScoreFE({ ...startRank, wins: 0, losses: 0 });
+  const positive = delta > 0;
+  const negative = delta < 0;
+  const endColor = positive
+    ? "text-jade"
+    : negative
+      ? "text-[#d63336]"
+      : "text-flash/80";
+
+  return (
+    <div
+      title={`Started ${startRank.tier} ${startRank.rankDivision ?? ""} ${startRank.lp}LP → Now ${endRank.tier} ${endRank.rankDivision ?? ""} ${endRank.lp}LP`}
+      className="inline-flex items-center gap-1.5 h-[26px] px-1.5 rounded-[3px] ring-1 ring-flash/[0.08] bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] whitespace-nowrap"
+    >
+      {/* START side — single-line layout to match the slim chip height. */}
+      <img
+        src={getRankImage(startRank.tier)}
+        alt={startRank.tier}
+        className="w-4 h-4 shrink-0 opacity-70"
+      />
+      <span className="text-[11px] font-chakrapetch font-bold tracking-wide text-flash/70 tabular-nums leading-none">
+        {startShort}
+      </span>
+      <span className="text-[8.5px] font-jetbrains tracking-[0.12em] uppercase text-flash/35 tabular-nums leading-none">
+        {startRank.lp}LP
+      </span>
+
+      {/* Arrow */}
+      <span
+        aria-hidden
+        className="text-flash/35 text-[9px] leading-none"
+      >
+        ▶
+      </span>
+
+      {/* END side */}
+      <img
+        src={getRankImage(endRank.tier)}
+        alt={endRank.tier}
+        className="w-4 h-4 shrink-0"
+      />
+      <span
+        className={cn(
+          "text-[11px] font-chakrapetch font-bold tracking-wide tabular-nums leading-none",
+          endColor
+        )}
+      >
+        {endShort}
+      </span>
+      <span className="text-[8.5px] font-jetbrains tracking-[0.12em] uppercase text-flash/55 tabular-nums leading-none">
+        {endRank.lp}LP
+      </span>
+    </div>
+  );
+}
+
+// Short rank label used inside the session pill — e.g. "E4", "D2",
+// "MAS" / "GM" / "CHA" for the apex tiers (where division is null).
+function formatRankShortPill(r: {
+  tier: string;
+  rankDivision: string | null;
+}): string {
+  const tier = r.tier.toUpperCase();
+  if (tier === "MASTER") return "M";
+  if (tier === "GRANDMASTER") return "GM";
+  if (tier === "CHALLENGER") return "C";
+  const tLetter = tier[0] ?? "?";
+  const divNum: Record<string, string> = { IV: "4", III: "3", II: "2", I: "1" };
+  const div = r.rankDivision ? divNum[r.rankDivision.toUpperCase()] ?? "" : "";
+  return `${tLetter}${div}`;
 }
 
 /* ─── player/squad section card ─────────────────────────────────────── */
@@ -633,7 +746,12 @@ function PlayerSectionCard({
         }}
       />
 
-      {/* Header — name(s) + account(s); active member styled jade */}
+      {/* Header — name(s) + account(s); active member styled jade.
+
+          Pills (W/L, WR, LP, KDA + the rank-journey pill) live on the
+          SAME row as the title now, anchored right with ml-auto. The
+          old "between title and subtitle" placement felt floating; this
+          aligns them visually with the player's name. */}
       <div className="relative z-[2] flex items-center gap-3 px-4 py-3 border-b border-flash/[0.06]">
         <SectionAvatars
           members={uniquePlayers}
@@ -641,9 +759,12 @@ function PlayerSectionCard({
           accent={accent}
           onSelect={isSquad ? setActivePlayerId : undefined}
         />
-        <div className="flex flex-col min-w-0">
-          {/* Title row — each name colored by active state, clickable in squads */}
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col min-w-0 flex-1">
+          {/* Title row — names + DUO badge on the left, stat pills on
+              the right (ml-auto). Flex-wraps on narrow widths so pills
+              drop below the name instead of squeezing into it on
+              mobile. */}
+          <div className="flex items-center gap-2 gap-y-1.5 w-full flex-wrap">
             {uniquePlayers.map((m, i) => {
               const isActive = m.player.id === activePlayerId;
               const NameSpan = (
@@ -682,7 +803,10 @@ function PlayerSectionCard({
             })}
             {isSquad && (
               <span
-                className="text-[9px] font-jetbrains font-medium tracking-[0.2em] uppercase px-1.5 py-[2px] rounded-[2px] flex items-center gap-1"
+                // Hidden on mobile — the DUO/TRIO label was eating row
+                // space without adding much info, and the names "&"-
+                // joined already convey the squad relationship.
+                className="hidden sm:flex text-[9px] font-jetbrains font-medium tracking-[0.2em] uppercase px-1.5 py-[2px] rounded-[2px] items-center gap-1"
                 style={{
                   color: JADE,
                   background: "rgba(0,217,146,0.10)",
@@ -693,6 +817,63 @@ function PlayerSectionCard({
                 {squadLabel(uniquePlayers.length)}
               </span>
             )}
+            {/* Session stat pills — inline on the title row, anchored
+                right via ml-auto. Slim height (26px) so they sit
+                comfortably next to the 16px player name without
+                bulging the row. Hidden on mobile (< sm) — phones get
+                a stripped-down header with just avatar + name +
+                account subtitle. */}
+            <div className="hidden sm:flex ml-auto items-center gap-1.5 shrink-0">
+              {(() => {
+                const activeMember = uniquePlayers.find(
+                  (m) => m.player.id === activePlayerId
+                );
+                const currentRank = activeMember?.account?.currentRank ?? null;
+                if (!currentRank || sessionStats.lpCounted === 0) return null;
+                const endScore = ladderScoreFE(currentRank);
+                const startRank = rankFromLadderScoreFE(
+                  endScore - sessionStats.lpTotal
+                );
+                if (!startRank) return null;
+                return (
+                  <SessionRankPill
+                    startRank={startRank}
+                    endRank={currentRank}
+                  />
+                );
+              })()}
+              <SessionStatChip
+                label="W/L"
+                value={`${sectionWins}-${sectionLosses}`}
+                tone="neutral"
+              />
+              <SessionStatChip
+                label="WR"
+                value={`${sessionStats.winrate}%`}
+                tone={
+                  sessionStats.winrate >= 60
+                    ? "good"
+                    : sessionStats.winrate >= 50
+                      ? "neutral"
+                      : "bad"
+                }
+              />
+              <SessionStatChip
+                label="LP"
+                value={
+                  sessionStats.lpCounted === 0
+                    ? "—"
+                    : `${sessionStats.lpTotal > 0 ? "+" : ""}${sessionStats.lpTotal}`
+                }
+                tone={
+                  sessionStats.lpTotal > 0
+                    ? "good"
+                    : sessionStats.lpTotal < 0
+                      ? "bad"
+                      : "neutral"
+                }
+              />
+            </div>
           </div>
           {/* Subtitle: account list separated by + */}
           <div className="text-[11px] font-jetbrains tracking-[0.1em] text-flash/55 mt-1 truncate">
@@ -713,57 +894,6 @@ function PlayerSectionCard({
               </span>
             ))}
           </div>
-        </div>
-        {/* Session stats — compact stat pills for the active player */}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <SessionStatChip
-            label="W/L"
-            value={`${sectionWins}-${sectionLosses}`}
-            tone="neutral"
-          />
-          <SessionStatChip
-            label="WR"
-            value={`${sessionStats.winrate}%`}
-            tone={
-              sessionStats.winrate >= 60
-                ? "good"
-                : sessionStats.winrate >= 50
-                  ? "neutral"
-                  : "bad"
-            }
-          />
-          <SessionStatChip
-            label="LP"
-            value={
-              sessionStats.lpCounted === 0
-                ? "—"
-                : `${sessionStats.lpTotal > 0 ? "+" : ""}${sessionStats.lpTotal}`
-            }
-            tone={
-              sessionStats.lpTotal > 0
-                ? "good"
-                : sessionStats.lpTotal < 0
-                  ? "bad"
-                  : "neutral"
-            }
-          />
-          <SessionStatChip
-            label="KDA"
-            value={
-              sessionStats.kdaRatio === Infinity
-                ? "PERF"
-                : sessionStats.kdaRatio.toFixed(2)
-            }
-            tone={
-              sessionStats.kdaRatio === Infinity ||
-              sessionStats.kdaRatio >= 3
-                ? "good"
-                : sessionStats.kdaRatio >= 2
-                  ? "neutral"
-                  : "bad"
-            }
-            sub={`${sessionStats.kills}/${sessionStats.deaths}/${sessionStats.assists}`}
-          />
         </div>
       </div>
 
@@ -893,6 +1023,18 @@ function PlayerSectionCard({
       // a lobby account (shouldn't happen for our own row, but defensive).
       region:
         lobbyAccountByPuuid[item.participant.puuid]?.region ?? "EUW",
+      // Aegis-of-Valor (double-LP) heuristic: a normal ranked win caps
+      // around 25-30 LP, even with promo bonuses. A delta of 35+ on a
+      // win basically can't happen without the 2x modifier, so flag it
+      // so the MatchCard renders the Aegis watermark backdrop. Losses
+      // are ignored — the cosmetic doubles LP gain, not loss.
+      //
+      // TODO: when Riot exposes a per-match double-LP flag in match-v5,
+      // swap this heuristic for the canonical field.
+      hasDoubleLp:
+        item.participant.win &&
+        typeof item.participant.lpDelta === "number" &&
+        item.participant.lpDelta >= 35,
     };
     const showPerMatchSquadBadge =
       !isSquad && squadMatchIds.has(item.matchId);
@@ -1108,10 +1250,111 @@ function PlayerFilterBar({
     onFilterChange({ kind: "duo", ids: [draggingId, targetId] });
   };
 
+  // Currently-selected player id in single mode — drives the mobile
+  // <select>'s value. "all" stands for the "no filter" option; duo
+  // mode is desktop-only (you need drag-and-drop to form one), so the
+  // select falls back to "all" while a duo is active.
+  const mobileSelectValue =
+    filterMode.kind === "single"
+      ? filterMode.id
+      : "all";
+
+  // Per-click rotation accumulator for the mobile Main toggle. Each
+  // tap adds a full 360° turn so the icon spins fluidly — both on
+  // the activate AND deactivate transition — instead of snapping
+  // back. Using cumulative degrees (not toggling between 0/360)
+  // means consecutive taps don't reverse-spin.
+  const [mainRotation, setMainRotation] = useState(0);
+
   return (
-    <div className={cn(glassDark, "px-3 h-12 flex items-center")}>
-      <GlowBackdrop subtle />
-      <div className="relative z-[1] flex items-center gap-3 w-full h-full">
+    <div
+      className={cn(
+        // Desktop keeps the dark glass card wrapper; mobile drops the
+        // box entirely so the <select> + Main button float on the
+        // page like a row of inputs (matches mobile-app conventions
+        // better than a "card inside a card"). All the glass styling
+        // is gated behind sm: so it only applies from tablet up.
+        "h-12 flex items-center",
+        "sm:px-3 sm:relative sm:overflow-hidden sm:rounded-md sm:bg-black/15 sm:backdrop-blur-lg sm:saturate-150 sm:shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+      )}
+    >
+      {/* Backdrop glow — desktop only, mobile sheds the whole box. */}
+      <div className="hidden sm:block absolute inset-0 pointer-events-none">
+        <GlowBackdrop subtle />
+      </div>
+
+      {/* MOBILE — native <select>. Same logic as the tab picker
+          above: closed-state is custom-styled to fit the glass-jade
+          theme, open-state (the actual list) is delegated to the OS
+          picker because iOS won't let you replace the bottom-sheet
+          and Android won't let you replace the wheel. Duo mode + the
+          drag-and-drop ritual are desktop-only. */}
+      <div className="relative z-[1] flex sm:hidden items-center gap-2 w-full">
+        <label className="relative flex-1 min-w-0">
+          <select
+            value={mobileSelectValue}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "all") onFilterChange({ kind: "all" });
+              else onFilterChange({ kind: "single", id: v });
+            }}
+            className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-flash/15 rounded-md pl-4 pr-9 py-2.5 text-[13px] font-chakrapetch font-bold tracking-[0.16em] uppercase text-flash/90 cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_3px_14px_rgba(0,0,0,0.35)]"
+          >
+            <option value="all">
+              All players · {totalMatches}
+            </option>
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName} · {countByPlayer.get(p.id) ?? 0}
+              </option>
+            ))}
+          </select>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-jade/55 text-[10px]"
+          >
+            ▼
+          </span>
+        </label>
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={mainOnly}
+          onClick={() => {
+            // Tap → flip the underlying state AND add a full 360° to
+            // the rotation accumulator. Cumulative degrees keep the
+            // spin going in the same direction every tap (no jarring
+            // reverse-spin on the deactivate transition). The bouncy
+            // cubic-bezier easing makes it feel snappy without being
+            // cartoonish.
+            onToggleMainOnly();
+            setMainRotation((r) => r + 360);
+          }}
+          title="Show only matches played on each player's primary account"
+          className={cn(
+            "shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-md cursor-clicker",
+            mainOnly
+              ? "bg-jade/[0.18] ring-1 ring-jade/65 text-jade shadow-[0_0_18px_rgba(0,217,146,0.30)]"
+              : "bg-black/55 ring-1 ring-flash/15 text-flash/45 hover:text-flash/75 backdrop-blur-md"
+          )}
+          style={{
+            transform: `rotate(${mainRotation}deg)`,
+            transition:
+              "transform 520ms cubic-bezier(0.34,1.56,0.64,1), background-color 220ms ease, box-shadow 220ms ease, color 220ms ease",
+          }}
+        >
+          {mainOnly ? (
+            <Check className="w-4 h-4" strokeWidth={3} />
+          ) : (
+            <span className="text-[11px] font-chakrapetch font-bold tracking-wide">
+              M
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* DESKTOP — the existing chip row + drag-and-drop duo mode. */}
+      <div className="relative z-[1] hidden sm:flex items-center gap-3 w-full h-full">
         {/* Tab-style filter row: name + small count, underline accent on
             active. Horizontal scroll on overflow (scrollbar hidden) so
             the bar height stays fixed. */}
@@ -1513,7 +1756,16 @@ function MatchesTab({
     const seenMatchByBucket = new Map<string, Set<string>>(); // dayKey:sig → matchIds
 
     for (const item of filteredItems) {
-      const ts = new Date(item.gameCreation).getTime();
+      // Sort + bucket by gameEnd (gameCreation + duration), not by
+      // gameCreation. The "X minutes ago" label already uses gameEnd,
+      // so the section order needs to match: a long game that started
+      // earlier but ended later should rank as "more recent" than a
+      // short game that started later but ended sooner. Using
+      // gameCreation produced the opposite — a 23-min game ending 17
+      // min ago could outrank a 40-min game ending just now because
+      // the former started later.
+      const durationMs = (item.gameDurationSeconds ?? 0) * 1000;
+      const ts = new Date(item.gameCreation).getTime() + durationMs;
       const d = new Date(ts);
       d.setHours(0, 0, 0, 0);
       const dayKey = String(d.getTime());
@@ -1575,6 +1827,22 @@ function MatchesTab({
       const sections = Array.from(dayMap.values()).sort(
         (a, b) => b.latestMatchTs - a.latestMatchTs
       );
+      // Sort matches WITHIN each section by gameEnd desc as well, so
+      // matches[0] (the visible row in collapsed mode) is always the
+      // most recently-ended game. The feed API hands them to us in
+      // gameCreation order, which can disagree with end time when game
+      // durations differ.
+      for (const sec of sections) {
+        sec.matches.sort((a, b) => {
+          const ae =
+            new Date(a.gameCreation).getTime() +
+            (a.gameDurationSeconds ?? 0) * 1000;
+          const be =
+            new Date(b.gameCreation).getTime() +
+            (b.gameDurationSeconds ?? 0) * 1000;
+          return be - ae;
+        });
+      }
       out.push({ label: meta.label, sortKey: meta.sortKey, sections });
     }
     return out.sort((a, b) => b.sortKey - a.sortKey);
@@ -2553,6 +2821,41 @@ function ladderScoreFE(rank: CurrentRank | null): number {
   return t * 400 + (dIdx - 1) * 100 + rank.lp;
 }
 
+// Inverse of ladderScoreFE — given a composite score, return the
+// (tier, division, lp) triple it represents. Used by the session pill
+// to reconstruct the "started at" rank from current_rank − lpDelta_total.
+const TIER_ORDER_FE = [
+  "IRON",
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "EMERALD",
+  "DIAMOND",
+  "MASTER",
+];
+const DIVISION_LABELS: Record<number, string> = {
+  1: "IV",
+  2: "III",
+  3: "II",
+  4: "I",
+};
+function rankFromLadderScoreFE(
+  score: number
+): { tier: string; rankDivision: string | null; lp: number } | null {
+  if (!isFinite(score) || score < 0) return null;
+  // MASTER+ (score ≥ 2800): no division, lp = remainder.
+  if (score >= 7 * 400) {
+    return { tier: "MASTER", rankDivision: null, lp: Math.max(0, score - 7 * 400) };
+  }
+  const tIdx = Math.floor(score / 400);
+  const tier = TIER_ORDER_FE[tIdx] ?? "IRON";
+  const offsetInTier = score - tIdx * 400;
+  const dIdx = Math.min(4, Math.floor(offsetInTier / 100) + 1);
+  const lp = Math.max(0, Math.min(99, offsetInTier - (dIdx - 1) * 100));
+  return { tier, rankDivision: DIVISION_LABELS[dIdx] ?? "IV", lp };
+}
+
 /* ─── live tab ─────────────────────────────────────────────────────────
  * Polls /api/scout/live/:slug every 30s, renders a card per lobby
  * player currently in game. Card shows the champion they picked, the
@@ -2597,9 +2900,9 @@ type LiveSessionFE = {
 
 const LIVE_QUEUE_LABELS: Record<number, string> = {
   400: "NORMAL DRAFT",
-  420: "RANKED SOLO/DUO",
+  420: "SOLOQ",
   430: "NORMAL BLIND",
-  440: "RANKED FLEX",
+  440: "FLEX",
   450: "ARAM",
   490: "QUICKPLAY",
   700: "CLASH",
@@ -4752,7 +5055,28 @@ function SidebarLeaderboard({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`${API_BASE_URL}/api/scout/leaderboard/${slug}?window=${window}`)
+    // For "today", send the client's LOCAL midnight as the cutoff.
+    // The backend's default `today` uses UTC midnight, which means at
+    // 01:56 CEST the widget would still count everything played after
+    // UTC 00:00 (= 02:00 local the previous day) — i.e. nearly 24h
+    // worth of games labelled as "today". With `since` overriding it
+    // server-side, the reset happens at the user's local midnight as
+    // they expect.
+    const params = new URLSearchParams({ window });
+    if (window === "today") {
+      const now = new Date();
+      const localMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0
+      );
+      params.set("since", localMidnight.toISOString());
+    }
+    fetch(`${API_BASE_URL}/api/scout/leaderboard/${slug}?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => !cancelled && setLeaderboard(d?.accounts ?? []))
       .catch(console.error)
@@ -5789,10 +6113,16 @@ function RefreshClock({
           onRefreshDone(d.lastRefreshAt);
           if (!d.skipped) {
             showCyberToast({
+              // Stable id so the auto-refresh ticker (every ~10 min)
+              // never accumulates multiple "Lobby refreshed" toasts —
+              // a new one always replaces the previous instead of
+              // queuing up behind it.
+              id: "scout-lobby-refreshed",
               title: "Lobby refreshed",
               description: `${d.accountsRefreshed ?? 0} accounts updated`,
               tag: "SYNC",
               variant: "status",
+              duration: 3000,
             });
           }
         })
@@ -6701,6 +7031,17 @@ export default function ScoutLobbyPage() {
     };
   }, [slug, refreshTick]);
 
+  // Sync the browser tab title to the current lobby name. Restored on unmount
+  // so backing out of the scout page leaves a clean default for other routes.
+  useEffect(() => {
+    if (!lobby?.name) return;
+    const prev = document.title;
+    document.title = `lolData - ${lobby.name}`;
+    return () => {
+      document.title = prev;
+    };
+  }, [lobby?.name]);
+
   const loadMore = useCallback(async () => {
     if (!slug || !cursor || loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -6775,7 +7116,47 @@ export default function ScoutLobbyPage() {
                 navigate(next, { replace: false });
               }}
             >
-              <div className="flex items-end justify-between border-b border-flash/[0.06] mb-6">
+              {/* MOBILE — native <select>. The closed trigger below is
+                  pure styling; tapping it on iOS/Android opens the OS
+                  picker (iOS 26's blurred bottom sheet, Android's
+                  Material bottom sheet). The OS picker UI is NOT
+                  customizable — only the closed-state button is — so
+                  we style this to look like a glass chip, then let
+                  the system handle the actual selection UI. Hidden on
+                  desktop where the proper TabsList takes over. */}
+              <div className="sm:hidden mb-4">
+                <label className="relative block group">
+                  {/* Subtle inner highlight + jade ring on focus so the
+                      chip feels tappable and matches the rest of the
+                      cyber-jade UI. */}
+                  <select
+                    value={activeTab}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const next =
+                        v === "matches" ? `/scout/${slug}` : `/scout/${slug}/${v}`;
+                      navigate(next, { replace: false });
+                    }}
+                    className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-jade/30 rounded-md pl-4 pr-10 py-3.5 text-[14px] font-chakrapetch font-bold tracking-[0.18em] uppercase text-jade cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(0,0,0,0.4)]"
+                  >
+                    <option value="matches">Matches</option>
+                    <option value="live">Live</option>
+                    <option value="leaderboard">Leaderboard</option>
+                    <option value="trending">Trending</option>
+                    <option value="habits">Habits</option>
+                    <option value="champions">Champions</option>
+                  </select>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-jade/65 text-[10px]"
+                  >
+                    ▼
+                  </span>
+                </label>
+              </div>
+
+              {/* DESKTOP — existing tab list + RefreshClock layout. */}
+              <div className="hidden sm:flex items-end justify-between border-b border-flash/[0.06] mb-6 gap-2">
                 <TabsList className="flex justify-start mx-0 bg-transparent h-auto p-0 gap-7 border-0">
                   {(
                     [
@@ -6791,7 +7172,7 @@ export default function ScoutLobbyPage() {
                       key={tab.value}
                       value={tab.value}
                       className={cn(
-                        "group relative font-jetbrains text-[11px] tracking-[0.22em] uppercase px-2 py-3 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker",
+                        "group relative font-jetbrains text-[11px] tracking-[0.22em] uppercase px-2 py-3 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker shrink-0",
                         "text-flash/40 hover:text-flash/65 font-medium",
                         "data-[state=active]:text-jade data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                       )}

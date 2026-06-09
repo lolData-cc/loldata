@@ -33,6 +33,14 @@ export function cdnSplashUrl(champName: string, skinNum = 0) {
   return `${CDN_ORIGIN}/img/champion/splash/${champName}_${skinNum}.jpg`;
 }
 
+/** Aegis of Valor — Riot's cosmetic that grants double LP for a game.
+ *  Custom asset hosted on our R2, version-less just like other UI
+ *  badges (eg /img/class/…). Used as a watermark backdrop on match
+ *  cards for games that earned the double-LP bonus. */
+export function doubleLpBadgeUrl() {
+  return `${CDN_ORIGIN}/img/badge/double-lp.svg`;
+}
+
 /** Perk/rune images — not in dragontail, served from Riot's CDN */
 /** Perk/rune images — ddragon has correct paths for all runes */
 export const PERK_CDN = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
@@ -66,9 +74,15 @@ const SUMMONER_SPELL_MAP: Record<number, string> = {
 // Prefer cdnBaseUrl() for dynamic version.
 export const CDN_BASE_URL = `${CDN_ORIGIN}/${FALLBACK_VERSION}`;
 
+// In development we leave the base URL empty so fetches hit the same
+// origin as the page (`/api/...`), and Vite's proxy forwards them to
+// the local backend on :3001. The win: the phone can hit
+// http://<PC-LAN-IP>:5173 and everything Just Works — no separate
+// backend exposure on the LAN, no CORS noise. In production the
+// frontend talks to the real api.loldata.cc.
 export const API_BASE_URL =
   import.meta.env.MODE === "development"
-    ? "http://localhost:3001"
+    ? ""
     : "https://api.loldata.cc";
 export const champPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/champion`;
 export const itemPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/item`;

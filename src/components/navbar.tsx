@@ -93,9 +93,13 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
     ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
     : "fixed top-0 left-0 md:static"
 
+  // Mobile (< md): keep the navbar barely-there — heavy blur + low
+  // opacity so it reads as a faint glass strip over the splash hero
+  // instead of a solid black bar that fights the content underneath.
+  // Desktop keeps the original solid-ish backdrop.
   const bg = sticky
-    ? "bg-[#040A0C]/80 backdrop-blur-sm"
-    : "bg-[#040A0C]/80 backdrop-blur-sm md:bg-transparent"
+    ? "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-[#040A0C]/80 md:backdrop-blur-sm md:saturate-100"
+    : "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-transparent md:backdrop-blur-none md:saturate-100"
 
   const border = sticky && scrolled ? "border-b border-flash/10" : ""
 

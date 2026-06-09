@@ -19,13 +19,13 @@
 //   └──────────────────────────────────────────────────────────────────────┘
 
 import * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X, Map as MapIcon, ListChecks, LineChart, Play, Pause, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 
-import type { MatchTimeline, StaticMatch } from "./types";
+import type { MatchTimeline, StaticMatch, TeamId } from "./types";
 import { useMatchTimeline } from "./timelineApi";
 import { useReplayPlayback, type ReplaySpeed } from "./useReplayPlayback";
 import {
@@ -42,10 +42,27 @@ import { RosterPanel } from "./RosterPanel";
 import { ScoreboardLive } from "./ScoreboardLive";
 import { GoldDiffChart } from "./GoldDiffChart";
 import { DrawingOverlay, DrawingToolbar, DRAW_COLORS, type Stroke, type DrawTool } from "./DrawingOverlay";
-import { CalibrationPanel, DEFAULT_CALIBRATION, type MapCalibration, type LandmarkOverrides } from "./DebugMapOverlay";
+import { CalibrationPanel, DEFAULT_CALIBRATION, DEFAULT_LANDMARK_OVERRIDES, type MapCalibration, type LandmarkOverrides } from "./DebugMapOverlay";
 import { dragonColor, eliteMonsterIcon, TowerIcon, InhibitorIcon } from "./eventIcons";
 
 type CenterView = "map" | "scoreboard" | "golddiff";
+
+/** Minimal per-participant info the scout feed already has — enough to
+ *  build a stand-in staticMatch when the parent doesn't have the full
+ *  match-v5 payload (the scout feed doesn't include it). The dialog
+ *  pairs each puuid with the timeline's metadata.participants ordering
+ *  to assign the correct participantId. */
+export interface RosterFallbackParticipant {
+  puuid: string;
+  championName: string | null;
+  teamId: number | null;
+  summonerName: string | null;
+  riotTagline?: string | null;
+  win: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+}
 
 export interface MatchReplayDialogProps {
   open: boolean;
@@ -57,12 +74,71 @@ export interface MatchReplayDialogProps {
   staticMatch: StaticMatch | null;
   /** Optional puuid of the "main" player — kicks off focus. */
   focusPuuid?: string | null;
+  /** Stand-in roster used when staticMatch is null. The scout feed
+   *  doesn't ship the full match-v5 blob, so without this the roster
+   *  panel / damage bars / event log all draw blank because
+   *  staticParticipantByPid returns null for every PID. */
+  rosterFallback?: RosterFallbackParticipant[];
 }
 
 export function MatchReplayDialog({
-  open, onClose, matchId, region, staticMatch, focusPuuid,
+  open, onClose, matchId, region, staticMatch, focusPuuid, rosterFallback,
 }: MatchReplayDialogProps) {
   const { data: timeline, loading, error } = useMatchTimeline(open ? matchId : null, region);
+
+  // Build a stand-in StaticMatch from the timeline's puuid ordering +
+  // the scout feed's rosterFallback. Only kicks in when the parent
+  // didn't pass a real staticMatch (the scout MatchCard's case). The
+  // timeline puts participants in the canonical 1..10 order via
+  // metadata.participants[]; we look each puuid up in rosterFallback
+  // to get the championName / summonerName / k/d/a. Fields we don't
+  // know (items, perks, gold totals, level — all of which the timeline
+  // supplies anyway) get safe zero defaults so the type stays happy.
+  const syntheticStaticMatch = useMemo<StaticMatch | null>(() => {
+    if (staticMatch) return null; // parent already gave us the real thing
+    if (!timeline || !rosterFallback || rosterFallback.length === 0) return null;
+    const byPuuid = new Map(rosterFallback.map((p) => [p.puuid, p]));
+    const participants = timeline.metadata.participants.map((puuid, idx) => {
+      const p = byPuuid.get(puuid);
+      const tid: TeamId = (p?.teamId === 200 ? 200 : 100) as TeamId;
+      return {
+        puuid,
+        participantId: idx + 1,
+        teamId: tid,
+        championId: 0,
+        championName: p?.championName ?? "Unknown",
+        riotIdGameName: p?.summonerName ?? undefined,
+        riotIdTagline: p?.riotTagline ?? undefined,
+        summonerName: p?.summonerName ?? undefined,
+        summoner1Id: 0,
+        summoner2Id: 0,
+        champLevel: 1,
+        kills: p?.kills ?? 0,
+        deaths: p?.deaths ?? 0,
+        assists: p?.assists ?? 0,
+        totalDamageDealtToChampions: 0,
+        goldEarned: 0,
+        totalMinionsKilled: 0,
+        neutralMinionsKilled: 0,
+        item0: 0, item1: 0, item2: 0, item3: 0, item4: 0, item5: 0, item6: 0,
+        win: p?.win ?? false,
+      };
+    });
+    return {
+      metadata: { matchId },
+      info: {
+        gameDuration: 0,
+        queueId: 0,
+        participants,
+        teams: [
+          { teamId: 100 as TeamId, win: participants.find((p) => p.teamId === 100)?.win ?? false, bans: [] },
+          { teamId: 200 as TeamId, win: participants.find((p) => p.teamId === 200)?.win ?? false, bans: [] },
+        ],
+      },
+    };
+  }, [staticMatch, timeline, rosterFallback, matchId]);
+
+  const effectiveStaticMatch = staticMatch ?? syntheticStaticMatch;
 
   // Lock body scroll AND any inner scroll-container while open.
   // The site's RootLayout uses a wrapping <div> with
@@ -122,7 +198,7 @@ export function MatchReplayDialog({
         {timeline ? (
           <Loaded
             timeline={timeline}
-            staticMatch={staticMatch}
+            staticMatch={effectiveStaticMatch}
             focusPuuid={focusPuuid ?? null}
             onClose={onClose}
           />
@@ -186,10 +262,79 @@ function Loaded({
   onClose: () => void;
 }) {
   const dur = useMemo(() => durationMs(timeline), [timeline]);
-  const playback = useReplayPlayback({ durationMs: dur, initialMs: 0, initialSpeed: 4 });
+
+  // ── Shift-click loop range ─────────────────────────────────────
+  // Shift+click on the scrubber drops a marker. The first click sets
+  // pendingLoopStart; the second seals the range and the playback bar
+  // shows a glowing blue band. Any subsequent shift+click clears the
+  // existing range and starts a new pending marker. Escape clears at
+  // any moment. While a range is set, useReplayPlayback loops the
+  // playhead inside it, and DamageBars subtracts the cumulative damage
+  // at range.start from the running totals so the chart reads "damage
+  // dealt during this segment" only.
+  const [pendingLoopStart, setPendingLoopStart] = useState<number | null>(null);
+  const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null);
+
+  const playback = useReplayPlayback({
+    durationMs: dur,
+    initialMs: 0,
+    initialSpeed: 4,
+    loopRange,
+  });
 
   const [view, setView] = useState<CenterView>("map");
   const [hiddenPids, setHiddenPids] = useState<Set<number>>(new Set());
+
+  const handleShiftSeek = useCallback(
+    (t: number) => {
+      if (loopRange) {
+        // Already have a range — third shift+click resets and starts
+        // a new pending marker at this position.
+        setLoopRange(null);
+        setPendingLoopStart(t);
+        return;
+      }
+      if (pendingLoopStart != null) {
+        // Second click — seal the range. Order doesn't matter (we
+        // sort), and we require a minimum 500ms span to avoid an
+        // accidental double-tap creating a zero-width band.
+        const start = Math.min(pendingLoopStart, t);
+        const end = Math.max(pendingLoopStart, t);
+        if (end - start < 500) {
+          // Reposition the pending marker instead of sealing.
+          setPendingLoopStart(t);
+          return;
+        }
+        setLoopRange({ start, end });
+        setPendingLoopStart(null);
+        playback.seek(start);
+        return;
+      }
+      // First click — just stash the start.
+      setPendingLoopStart(t);
+    },
+    [loopRange, pendingLoopStart, playback]
+  );
+
+  const handleClearLoop = useCallback(() => {
+    setLoopRange(null);
+    setPendingLoopStart(null);
+  }, []);
+
+  // Escape dismisses any pending marker / sealed range. Only mounted
+  // while there's something to dismiss so we don't compete with the
+  // dialog's own Esc-to-close on the empty case.
+  useEffect(() => {
+    if (!loopRange && pendingLoopStart == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        handleClearLoop();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [loopRange, pendingLoopStart, handleClearLoop]);
 
   // Drawing state — shared across mounts/unmounts within the dialog
   // so switching to scoreboard tab and back doesn't wipe annotations.
@@ -203,7 +348,11 @@ function Loaded({
   // transform (least-squares) and slap it on the wrapper.
   const [debugMap, setDebugMap] = useState(false);
   const [calibration, setCalibration] = useState<MapCalibration>(DEFAULT_CALIBRATION);
-  const [landmarkOverrides, setLandmarkOverrides] = useState<LandmarkOverrides>({});
+  // Seed the per-landmark anchors with the user's converged positions
+  // so opening the debug overlay shows the calibrated state, and the
+  // auto-fit button re-derives the same scaleX/scaleY/offsets the
+  // dialog ships with by default.
+  const [landmarkOverrides, setLandmarkOverrides] = useState<LandmarkOverrides>(DEFAULT_LANDMARK_OVERRIDES);
 
   // Map the focus puuid to a participantId once timeline arrives.
   const initialFocusPid = useMemo<number | null>(() => {
@@ -259,8 +408,23 @@ function Loaded({
       <div className="flex-1 min-h-0 grid grid-cols-[minmax(130px,1fr)_auto_minmax(150px,1fr)] gap-0 px-1 pt-1 pb-1 relative z-10">
         {/* LEFT — DAMAGE */}
         <section className="rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2.5 overflow-y-auto cyber-scrollbar">
-          <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-flash/45 mb-2">
-            Damage Chart
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div
+              className={cn(
+                "text-[9px] font-mono uppercase tracking-[0.22em] transition-colors",
+                loopRange ? "text-[#5BA8E6]" : "text-flash/45"
+              )}
+            >
+              {loopRange ? "Damage in Window" : "Damage Chart"}
+            </div>
+            {loopRange && (
+              <span
+                className="text-[8px] font-mono tabular-nums text-[#5BA8E6]/80 px-1 py-[1px] rounded-sm border border-[#5BA8E6]/30 bg-[#5BA8E6]/[0.08]"
+                title="Cumulative damage during the highlighted band"
+              >
+                {Math.round((loopRange.end - loopRange.start) / 1000)}s
+              </span>
+            )}
           </div>
           <DamageBars
             timeline={timeline}
@@ -268,6 +432,7 @@ function Loaded({
             timeMs={playback.timeMs}
             focusedPid={focusedPid}
             onFocusPid={setFocusedPid}
+            windowStart={loopRange?.start ?? null}
           />
         </section>
 
@@ -379,6 +544,10 @@ function Loaded({
           onSeek={playback.seek}
           onSetSpeed={playback.setSpeed}
           onStep={playback.step}
+          loopRange={loopRange}
+          pendingLoopStart={pendingLoopStart}
+          onShiftSeek={handleShiftSeek}
+          onClearLoop={handleClearLoop}
         />
       </div>
 

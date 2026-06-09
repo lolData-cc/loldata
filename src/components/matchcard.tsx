@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, doubleLpBadgeUrl } from "@/config";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { AnimatedOutline } from "@/components/ui/animated-outline";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 import { timeAgo } from "@/utils/timeAgo";
 import { getKdaBackgroundStyle } from "@/utils/kdaColor";
@@ -82,6 +83,12 @@ export type MatchCardData = {
   // Omit (or pass null) and the REPLAY button is hidden, e.g. for surfaces
   // where the match isn't ours to replay yet.
   region?: string | null;
+  // True when this game earned the Aegis-of-Valor double-LP bonus. When set
+  // we paint the Aegis SVG as a large opaque watermark on the right side of
+  // the card to flag it visually. The detection lives in the parent (the
+  // scout lobby page heuristic-flags games whose lpDelta is too high for a
+  // normal ranked gain).
+  hasDoubleLp?: boolean;
 };
 
 // Compact rank abbreviation: "DIAMOND IV" → "D4", "MASTER" → "M",
@@ -198,6 +205,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
     rankChange,
     rankAfter,
     region,
+    hasDoubleLp,
   } = data;
 
   // Replay viewer state — owned by the card so the parent doesn't have to
@@ -322,6 +330,30 @@ export function MatchCard({ data }: { data: MatchCardData }) {
       />
       <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
 
+      {/* Double-LP watermark — Aegis of Valor as a large opaque
+          backdrop pinned to the right edge. The <li>'s overflow-hidden
+          clips the parts that overflow top/bottom/right, giving the
+          "huge background, cropped" look. z-[1] sits above the bg
+          tint but below the content (which is at z-10), so the
+          scoreboard and items stay perfectly readable. Anchored to the
+          right edge with translate-x so ~30% of the icon spills
+          beyond the card border and gets cut off — exactly the
+          watermark effect you asked for. */}
+      {hasDoubleLp && (
+        <img
+          src={doubleLpBadgeUrl()}
+          alt=""
+          aria-hidden
+          className="pointer-events-none select-none absolute top-1/2 -translate-y-1/2 right-0 translate-x-[8%] h-[150%] w-auto z-[1] opacity-[0.18]"
+          style={{
+            // Subtle warm citrine tint so the icon doesn't read as a
+            // neutral grey blob — picks up the cyber palette.
+            filter:
+              "saturate(0.85) brightness(1.05) drop-shadow(0 0 18px rgba(255,182,21,0.18))",
+          }}
+        />
+      )}
+
       <div className="flex items-center justify-center h-full relative z-10">
         <div className="w-full">
           {/* Left colored bar — narrower with a soft accent glow. Hints at
@@ -350,18 +382,26 @@ export function MatchCard({ data }: { data: MatchCardData }) {
             <div className="ml-2">
               {/* Top meta row — typographic W/L instead of a boxed chip.
                   VICTORY / DEFEAT reads as a label, not a pill, and feels
-                  more like a HUD readout. */}
+                  more like a HUD readout.
+
+                  Mobile (< sm): collapses to just queue + timeAgo on a
+                  single row. The VICTORY/DEFEAT chip, the centered
+                  duration, and the inline LP delta are all hidden —
+                  they were squeezing into each other at narrow widths.
+                  The LP delta moves to an absolutely-positioned badge
+                  in the bottom-right of the card body (rendered below
+                  in the main content row). */}
               <div className="relative flex justify-between items-center pb-2 mb-2.5 border-b border-flash/[0.06]">
-                <span className="relative z-20 flex items-baseline gap-2">
-                  <span className="text-[10.5px] font-jetbrains tracking-[0.22em] uppercase text-flash/40">
+                <span className="relative z-20 flex items-baseline gap-2 min-w-0">
+                  <span className="text-[10.5px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 truncate">
                     {queueLabel}
                   </span>
-                  <span className="text-flash/30 text-[8px] leading-none">
+                  <span className="hidden sm:inline text-flash/30 text-[8px] leading-none">
                     ◆
                   </span>
                   <span
                     className={cn(
-                      "font-chakrapetch font-bold tracking-[0.22em] uppercase text-[10.5px] leading-none",
+                      "hidden sm:inline font-chakrapetch font-bold tracking-[0.22em] uppercase text-[10.5px] leading-none",
                       isRemake
                         ? "text-[#f5a623]/85"
                         : win
@@ -383,8 +423,9 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     {isRemake ? "REMAKE" : win ? "VICTORY" : "DEFEAT"}
                   </span>
 
-                  {/* LP delta — inline text after the result. Renders only
-                      when we have rank-snapshot data for this match. */}
+                  {/* LP delta — inline text after the result on desktop
+                      only; on mobile the same delta renders as a chip in
+                      the bottom-right of the card body (see below). */}
                   {(() => {
                     const hasDelta =
                       typeof lpDelta === "number" && lpDelta !== 0;
@@ -405,12 +446,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     );
                     return (
                       <>
-                        <span className="text-flash/30 text-[8px] leading-none">
+                        <span className="hidden sm:inline text-flash/30 text-[8px] leading-none">
                           ◆
                         </span>
                         <span
                           className={cn(
-                            "font-chakrapetch font-bold tracking-[0.18em] uppercase text-[10.5px] leading-none tabular-nums",
+                            "hidden sm:inline font-chakrapetch font-bold tracking-[0.18em] uppercase text-[10.5px] leading-none tabular-nums",
                             accentText
                           )}
                           style={{ textShadow: accentGlow }}
@@ -438,11 +479,14 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                   })()}
                 </span>
 
-                <span className="absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider text-[11px]">
+                {/* Game duration — centered on desktop, hidden on
+                    mobile to make room for queue + timeAgo on the
+                    same row. */}
+                <span className="hidden sm:block absolute left-1/2 transform -translate-x-1/2 z-20 font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider text-[11px]">
                   {minutes}:{seconds}
                 </span>
 
-                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px]">
+                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px] whitespace-nowrap shrink-0">
                   {/* timeAgo from game END, not game START — the
                       previous "26 minutes ago" right after a game
                       finished was actually counting from when it
@@ -520,19 +564,22 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                           {mainItems.map((itemId, idx) => (
                             <div
                               key={idx}
-                              className="w-[26px] h-[26px] rounded-[3px] bg-[#0a0a0a] border border-flash/[0.08]"
+                              className="group relative w-[26px] h-[26px] rounded-[3px] bg-[#0a0a0a] border border-flash/[0.08]"
                             >
                               {typeof itemId === "number" && itemId > 0 && (
-                                <Link
-                                  to={`/items/${itemId}`}
-                                  className="cursor-clicker"
-                                >
-                                  <img
-                                    src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
-                                    alt={`Item ${itemId}`}
-                                    className="w-full h-full rounded-sm"
-                                  />
-                                </Link>
+                                <>
+                                  <Link
+                                    to={`/items/${itemId}`}
+                                    className="cursor-clicker"
+                                  >
+                                    <img
+                                      src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
+                                      alt={`Item ${itemId}`}
+                                      className="w-full h-full rounded-sm"
+                                    />
+                                  </Link>
+                                  <AnimatedOutline rx={3} />
+                                </>
                               )}
                             </div>
                           ))}
@@ -540,13 +587,18 @@ export function MatchCard({ data }: { data: MatchCardData }) {
 
                         {typeof trinket === "number" && trinket > 0 && (
                           <div className="flex items-center justify-center ml-1.5">
-                            <div className="w-[26px] h-[26px] bg-[#0a0a0a] rounded-full ring-1 ring-flash/[0.08]">
-                              <img
-                                src={`${cdnBaseUrl()}/img/item/${trinket}.png`}
-                                alt={`Trinket ${trinket}`}
-                                className="w-full h-full rounded-full"
-                              />
-                            </div>
+                            <Link to={`/items/${trinket}`} className="cursor-clicker group relative w-[26px] h-[26px] block">
+                              <div className="w-[26px] h-[26px] bg-[#0a0a0a] rounded-full ring-1 ring-flash/[0.08]">
+                                <img
+                                  src={`${cdnBaseUrl()}/img/item/${trinket}.png`}
+                                  alt={`Trinket ${trinket}`}
+                                  className="w-full h-full rounded-full"
+                                />
+                              </div>
+                              {/* rx=13 = w/2 → circle outline matching the
+                                  trinket's rounded-full shape. */}
+                              <AnimatedOutline rx={13} />
+                            </Link>
                           </div>
                         )}
                       </div>
@@ -652,6 +704,55 @@ export function MatchCard({ data }: { data: MatchCardData }) {
         </div>
       </div>
 
+      {/* Mobile-only LP delta badge — pinned to the bottom-right of
+          the card body. Matches the inline delta hidden from the meta
+          row on small screens so the LP change stays visible without
+          fighting the queue label + timeAgo for space. */}
+      {(() => {
+        const hasDelta = typeof lpDelta === "number" && lpDelta !== 0;
+        const hasRankChange = rankChange != null;
+        if (!hasDelta && !hasRankChange) return null;
+        const positive =
+          rankChange === "PROMOTION" ||
+          (rankChange == null && hasDelta && lpDelta! > 0);
+        const rankShort = formatRankShort(
+          rankAfter?.tier,
+          rankAfter?.division
+        );
+        return (
+          <div
+            className={cn(
+              "sm:hidden absolute bottom-2 right-2 z-20 inline-flex items-center gap-1 px-2 py-1 rounded-[3px] tabular-nums",
+              positive
+                ? "bg-jade/[0.10] ring-1 ring-jade/35"
+                : "bg-[#d63336]/[0.10] ring-1 ring-[#d63336]/35"
+            )}
+          >
+            {hasDelta && (
+              <span
+                className={cn(
+                  "text-[11px] font-chakrapetch font-bold tracking-wide leading-none",
+                  positive ? "text-jade" : "text-[#d63336]"
+                )}
+              >
+                {lpDelta! > 0 ? "+" : ""}
+                {lpDelta}
+                <span className="text-[8px] opacity-65 ml-0.5">LP</span>
+              </span>
+            )}
+            {hasRankChange && rankShort && (
+              <span
+                className={cn(
+                  "text-[9px] font-chakrapetch font-bold tracking-wide leading-none",
+                  positive ? "text-jade/90" : "text-[#d63336]/90"
+                )}
+              >
+                {positive ? "▲" : "▼"} {rankShort}
+              </span>
+            )}
+          </div>
+        );
+      })()}
     </li>
 
     {/* Action strip — only mounted when expanded. We deliberately
@@ -698,9 +799,15 @@ export function MatchCard({ data }: { data: MatchCardData }) {
     )}
 
     {/* Match Replay Viewer — portal-rendered, only mounts content while
-        open so closed cards cost nothing. staticMatch is null since the
-        scout feed payload doesn't include match-v5 detail; bans simply
-        won't render. Timeline data is fetched on open. */}
+        open so closed cards cost nothing. staticMatch is null because
+        the scout feed payload doesn't include the full match-v5 blob;
+        instead we pass `rosterFallback` with the per-participant info
+        we DO have (puuid + championName + summonerName + k/d/a +
+        teamId + win), and the dialog builds a stand-in staticMatch
+        once the timeline loads (the timeline supplies the canonical
+        participantId order via metadata.participants). Without this
+        the roster panel / damage bars / event log all stay blank
+        because staticParticipantByPid returns null for every PID. */}
     {canReplay && (
       <MatchReplayDialog
         open={replayOpen}
@@ -709,6 +816,17 @@ export function MatchCard({ data }: { data: MatchCardData }) {
         region={(region ?? "EUW").toUpperCase()}
         staticMatch={null}
         focusPuuid={highlightPuuid ?? null}
+        rosterFallback={(allParticipants ?? []).map((p) => ({
+          puuid: p.puuid,
+          championName: p.championName,
+          teamId: p.teamId,
+          summonerName: p.summonerName,
+          riotTagline: p.riotTagline ?? null,
+          win: p.win,
+          kills: p.kills,
+          deaths: p.deaths,
+          assists: p.assists,
+        }))}
       />
     )}
     </div>
