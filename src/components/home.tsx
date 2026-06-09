@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { FlickeringGrid } from "./ui/flickering-grid"
 import { Separator } from "./ui/separator"
+import { ShortcutSlots } from "./home-shortcuts/ShortcutSlots"
 
 type Props = { onDiscover?: () => void }
 
@@ -330,6 +331,23 @@ export const HomeYasuo: React.FC<Props> = ({ onDiscover }) => {
               Discover
             </span>
           </button>
+
+          {/* ── Customizable shortcut row ──
+              Three rhombi the user can configure to point at any
+              champion / summoner / scout lobby / learn / loldle /
+              leaderboard target. Empty slots show a `+`; configured
+              slots show the target icon and a label, click to navigate,
+              hover to reveal Edit / × micro-actions. State lives in
+              localStorage so it persists per-device. */}
+          <div
+            className={`
+              mt-14 transition-all duration-600
+              ${showButton ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}
+            `}
+            style={{ transitionDelay: showButton ? "200ms" : "0ms" }}
+          >
+            <ShortcutSlots />
+          </div>
         </div>
 
         {/* ── Inline keyframes ── */}
