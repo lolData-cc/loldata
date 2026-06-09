@@ -584,88 +584,31 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
       <DialogContent
         className={cn(
-          "w-[95vw] max-w-[500px] bg-transparent shadow-none border-none p-0",
-          "top-[9vh] translate-y-0",
+          "w-[95vw] max-w-[580px] bg-transparent shadow-none border-none p-0",
+          "top-[10vh] translate-y-0",
           "[&>button]:hidden"
         )}
       >
         {/* relative wrapper — results dropdown anchors here */}
         <div className="relative w-full">
-          {/* ── Search card (short and wide) ──
-              Open animation: same CRT-power-on motion as the homepage
-              shortcut config dialog — clip-path collapses to a single
-              centred slit then ramps open vertically while a jade zap
-              line races across the full width and fades. Inner
-              content cross-fades after the geometry settles so the
-              user reads it as the screen booting, not a snap-in. */}
+          {/* ── Search card (short and wide) ── */}
           <motion.div
-            initial={{
-              clipPath: "inset(49.5% 49.5% 49.5% 49.5%)",
-              scale: 0.96,
-              opacity: 0.85,
-            }}
-            animate={{
-              clipPath: [
-                "inset(49.5% 49.5% 49.5% 49.5%)",
-                "inset(48% 0% 48% 0%)",
-                "inset(0% 0% 0% 0%)",
-              ],
-              scale: [0.96, 0.98, 1],
-              opacity: [0.85, 1, 1],
-            }}
-            transition={{
-              duration: 0.6,
-              times: [0, 0.32, 1],
-              ease: [0.4, 0, 0.2, 1],
-            }}
+            initial={{ opacity: 0, scale: 0.98, y: -4, filter: "blur(4px)" }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.28, ease: EASE_OUT }}
             className={cn(
               "relative overflow-hidden rounded-md",
               "bg-black/75 backdrop-blur-xl saturate-150",
               "shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_40px_rgba(0,217,146,0.08),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.04)]"
             )}
           >
-            {/* CRT zap line — the bright jade neon that spawns at
-                centre, races outward to the card's full width during
-                the slit phase, then fades as the card finishes
-                opening. Same shape + timing as the shortcut config
-                dialog so the two surfaces share a "this is a loldata
-                modal" signature. */}
-            <motion.span
-              aria-hidden
-              className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] pointer-events-none z-20"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent 0%, rgba(0,217,146,0.95) 12%, rgba(255,255,255,1) 50%, rgba(0,217,146,0.95) 88%, transparent 100%)",
-                boxShadow:
-                  "0 0 18px rgba(0,217,146,1), 0 0 36px rgba(0,217,146,0.5), 0 0 60px rgba(0,217,146,0.25)",
-                transformOrigin: "center",
-              }}
-              initial={{ scaleX: 0.05, opacity: 0 }}
-              animate={{
-                scaleX: [0.05, 1, 1],
-                opacity: [0, 1, 0],
-              }}
-              transition={{
-                duration: 0.6,
-                times: [0, 0.32, 0.85],
-                ease: "easeOut",
-              }}
-            />
-
             <BorderBeam duration={8} size={140} />
 
-            {/* Inner content — settles in after the geometry opens, so
-                the boot reads as the screen stabilising. */}
-            <motion.div
-              className="relative z-10 px-5 py-7"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.22, delay: 0.42, ease: "easeOut" }}
-            >
+            <div className="relative z-10 px-5 py-5">
               <DialogTitle className="sr-only">Search a player</DialogTitle>
 
               {/* Header row */}
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-1 h-4 bg-jade rounded-full shadow-[0_0_10px_rgba(0,217,146,0.45)]" />
                   <span className="text-[12px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
@@ -710,7 +653,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     spellCheck={false}
                     autoComplete="off"
                     className={cn(
-                      "w-full h-12 bg-white/[0.03] border border-white/[0.06] rounded-sm",
+                      "w-full h-11 bg-white/[0.03] border border-white/[0.06] rounded-sm",
                       "pl-10 pr-3 text-[14px] font-jetbrains text-flash",
                       "placeholder:text-flash/20",
                       "focus:outline-none focus:border-jade/30",
@@ -731,7 +674,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     className={cn(
-                      "h-12 px-3.5 rounded-sm cursor-clicker outline-none shrink-0",
+                      "h-11 px-3.5 rounded-sm cursor-clicker outline-none shrink-0",
                       "font-chakrapetch text-[11px] tracking-[0.18em] uppercase",
                       "flex items-center gap-1.5",
                       "border text-jade bg-jade/10 border-jade/30",
@@ -772,7 +715,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </form>
-            </motion.div>
+            </div>
           </motion.div>
 
           {/* ── Results dropdown (absolute, anchored below card) ── */}
