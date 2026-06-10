@@ -1,8 +1,13 @@
 'use client';
 import React, { useEffect, useRef, useState, Children, isValidElement, cloneElement } from "react";
 import { Separator } from "./ui/separator";
-import { Sword, BarChart3, Clock, Brain } from "lucide-react";
+import { Sword, BarChart3, Clock, Brain, type LucideIcon } from "lucide-react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import SearchDialogMock from "@/components/searchdialogmock";
+
+// Brand easing — shared with hero / search dialog / Learn / Jax so
+// this section's reveals slot into the site's motion vocabulary.
+const SPF_EASE_BRAND = [0.22, 1, 0.36, 1] as const;
 
 /* ===== utils: animazioni ===== */
 function useActivateAt30pct<T extends HTMLElement>() {
@@ -184,17 +189,41 @@ export function SearchPageFeature() {
                 : null;
 
     return (
-        <div>
-            <div className="flex flex-col-reverse md:flex-row justify-between items-center md:items-end gap-4 md:space-x-24">
-                <img src="/img/katarina.png" className="w-[60%] md:w-[45%]"/>
-                <span className="text-2xl md:text-4xl text-jade py-6 font-scifi text-center md:text-right"> Detail page functionalities </span>
-            </div>
+        <div className="relative">
+            {/* Ambient backdrop — same faint dot-grid signature used in
+                the Learn section, kept at low opacity (5%) so it
+                reads as atmosphere rather than texture. Sits behind
+                everything; pointer-events-none so it never catches
+                a click. */}
+            <div
+                aria-hidden
+                className="
+                    absolute inset-x-0 top-0 h-[2400px] -z-10
+                    pointer-events-none opacity-[0.05]
+                    [background-image:radial-gradient(rgba(0,217,146,0.6)_1px,transparent_1px)]
+                    [background-size:24px_24px]
+                    [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_75%)]
+                    [-webkit-mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_75%)]
+                "
+            />
+
+            {/* Header row — Katarina splash + section title. Both
+                animate on view: the title slides up from the right
+                while the splash rises from below with a slight scale
+                so it feels like she's stepping into frame. */}
+            <SearchFeatureHeader />
 
             <Separator className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen border-t border-flash/20" />
 
             {/* ── Desktop: scroll-pin layout ── */}
             <div ref={containerRef} className="hidden md:flex justify-between px-6 lg:px-24 relative">
-                <div className="flex flex-col items-center h-[1000px] pt-6">
+                <motion.div
+                    className="flex flex-col items-center h-[1000px] pt-6"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ duration: 1.1, ease: SPF_EASE_BRAND, delay: 0.15 }}
+                >
                     {Array.from({ length: lineLength }).map((_, i) => {
                         const opacity = 1 - i / lineLength;
                         return (
@@ -203,7 +232,7 @@ export function SearchPageFeature() {
                             </span>
                         );
                     })}
-                </div>
+                </motion.div>
 
                 {/* ===== PROFILE PAGE: ghost image che definisce posizione/dimensione ===== */}
                 <img
@@ -264,18 +293,31 @@ export function SearchPageFeature() {
 
                 {/* ===== colonna destra ===== */}
                 <div className="relative left-[50%] w-[50%] pt-5 space-y-12 text-sm px-4 lg:px-8 font-geist">
-                    {/* Heading nel flow: nascondi quando il relativo pin è attivo */}
-                    <div className={`${prof.phase === 'pin' ? 'invisible' : ''}`}> PROFILE PAGE </div>
+                    {/* Heading nel flow: nascondi quando il relativo pin è attivo.
+                        Now has a small jade accent line drawn under it on
+                        view, so it reads as a deliberate section break. */}
+                    <SectionLabel
+                        label="PROFILE PAGE"
+                        invisible={prof.phase === 'pin'}
+                    />
 
-                    {/* Overlay label: priorità champion, poi profile */}
-                    {overlay && (
-                        <div
-                            className="fixed z-30 font-geist tracking-wide text-sm w-[27%] bg-[#010202] pt-3.5 pb-3 border-b border-flash/10 px-8"
-                            style={{ left: FIXED_LABEL_LEFT, top: FIXED_LABEL_TOP }}
-                        >
-                            {overlay}
-                        </div>
-                    )}
+                    {/* Overlay label — fades in and out instead of
+                        snap-swapping when the pin phase changes. */}
+                    <AnimatePresence>
+                        {overlay && (
+                            <motion.div
+                                key={overlay}
+                                className="fixed z-30 font-geist tracking-wide text-sm w-[27%] bg-[#010202] pt-3.5 pb-3 border-b border-flash/10 px-8"
+                                style={{ left: FIXED_LABEL_LEFT, top: FIXED_LABEL_TOP }}
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.32, ease: SPF_EASE_BRAND }}
+                            >
+                                {overlay}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <AnimatedSection>
                         <p className="transition-colors duration-700 group-data-[activated=true]:text-white">
@@ -336,7 +378,11 @@ export function SearchPageFeature() {
                     </AnimatedSection>
 
                     {/* ======== INIZIO SEZIONE CHAMPION PAGE ======== */}
-                    <div className={`${champ.phase === 'pin' ? 'invisible' : ''} pt-24`}> CHAMPION PAGE </div>
+                    <SectionLabel
+                        label="CHAMPION PAGE"
+                        invisible={champ.phase === 'pin'}
+                        className="pt-24"
+                    />
 
                     <AnimatedSection>
                         <p className="transition-colors duration-700 group-data-[activated=true]:text-white">
@@ -406,39 +452,212 @@ export function SearchPageFeature() {
                 </div>
             </div>
 
-            {/* ── Mobile: simplified text layout ── */}
+            {/* ── Mobile: simplified text layout with on-view reveals ──
+                Each block fades up as it enters the viewport, with
+                its own internal stagger across paragraphs + icon
+                labels. Matches the desktop choreography rhythm. */}
             <div className="md:hidden px-4 py-8 space-y-10 font-geist text-sm">
-                <div className="space-y-4">
-                    <p className="text-flash/40 uppercase text-xs tracking-wider font-jetbrains">Profile Page</p>
-                    <p className="text-flash/80">
-                        The profile page tells the full story of how you play. Every match is tracked with clarity, giving you a complete view of your journey.
-                    </p>
-                    <p className="text-flash/80">
-                        Each game is broken down in detail — timelines, runes, damage, builds — so you can dive deep into what worked and what didn't.
-                    </p>
-                    <div className="space-y-2 text-flash/50">
-                        <div className="flex items-center gap-2"><Sword className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Build Analysis</span></div>
-                        <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Items and Runes</span></div>
-                        <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Events Timeline</span></div>
-                    </div>
-                </div>
+                <MobileFeatureBlock
+                    label="Profile Page"
+                    paragraphs={[
+                        "The profile page tells the full story of how you play. Every match is tracked with clarity, giving you a complete view of your journey.",
+                        "Each game is broken down in detail — timelines, runes, damage, builds — so you can dive deep into what worked and what didn't.",
+                    ]}
+                    bullets={[
+                        { icon: Sword, label: "Build Analysis" },
+                        { icon: BarChart3, label: "Items and Runes" },
+                        { icon: Clock, label: "Events Timeline" },
+                    ]}
+                />
 
                 <Separator className="bg-flash/10" />
 
-                <div className="space-y-4">
-                    <p className="text-flash/40 uppercase text-xs tracking-wider font-jetbrains">Champion Page</p>
-                    <p className="text-flash/80">
-                        Every champion is a story waiting to be explored. Current patch performance is tracked in real time so you understand their power level as the meta evolves.
-                    </p>
-                    <p className="text-flash/80">
-                        Matchups aren't left to guesswork — detailed winrates are paired with AI-powered insights so you know exactly what to expect.
-                    </p>
-                    <div className="space-y-2 text-flash/50">
-                        <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">Matchup Stats</span></div>
-                        <div className="flex items-center gap-2"><Brain className="w-4 h-4 text-jade" /><span className="uppercase text-xs tracking-wide">AI Analysis</span></div>
-                    </div>
-                </div>
+                <MobileFeatureBlock
+                    label="Champion Page"
+                    paragraphs={[
+                        "Every champion is a story waiting to be explored. Current patch performance is tracked in real time so you understand their power level as the meta evolves.",
+                        "Matchups aren't left to guesswork — detailed winrates are paired with AI-powered insights so you know exactly what to expect.",
+                    ]}
+                    bullets={[
+                        { icon: BarChart3, label: "Matchup Stats" },
+                        { icon: Brain, label: "AI Analysis" },
+                    ]}
+                />
             </div>
         </div>
+    );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────
+
+/**
+ * Header for the section: Katarina splash + section title.
+ * Both animate in on view — title slides from the right, splash
+ * rises with a slight scale so it reads as walking into frame.
+ */
+function SearchFeatureHeader() {
+    const ref = useRef<HTMLDivElement>(null);
+    const inView = useInView(ref, { once: true, amount: 0.3 });
+
+    return (
+        <div
+            ref={ref}
+            className="flex flex-col-reverse md:flex-row justify-between items-center md:items-end gap-4 md:space-x-24"
+        >
+            <motion.img
+                src="/img/katarina.png"
+                className="w-[60%] md:w-[45%]"
+                initial={{ opacity: 0, y: 24, scale: 1.04 }}
+                animate={
+                    inView
+                        ? { opacity: 1, y: 0, scale: 1 }
+                        : { opacity: 0, y: 24, scale: 1.04 }
+                }
+                transition={{ duration: 0.85, ease: SPF_EASE_BRAND }}
+                draggable={false}
+            />
+            <motion.span
+                className="text-2xl md:text-4xl text-jade py-6 font-scifi text-center md:text-right"
+                initial={{ opacity: 0, x: 24 }}
+                animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: 24 }}
+                transition={{ duration: 0.7, ease: SPF_EASE_BRAND, delay: 0.15 }}
+            >
+                Detail page functionalities
+            </motion.span>
+        </div>
+    );
+}
+
+/**
+ * "PROFILE PAGE" / "CHAMPION PAGE" inline labels. Adds a small jade
+ * accent line that draws in beneath the text when it scrolls into
+ * view, so each label reads as a deliberate section break rather
+ * than just an inline string.
+ */
+function SectionLabel({
+    label,
+    invisible,
+    className = "",
+}: {
+    label: string;
+    invisible: boolean;
+    className?: string;
+}) {
+    const ref = useRef<HTMLDivElement>(null);
+    const inView = useInView(ref, { once: true, amount: 0.6 });
+
+    return (
+        <div
+            ref={ref}
+            className={`${invisible ? "invisible" : ""} ${className}`}
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                transition={{ duration: 0.55, ease: SPF_EASE_BRAND }}
+                className="flex items-center gap-3"
+            >
+                <span>{label}</span>
+                <motion.span
+                    aria-hidden
+                    className="h-[1px] w-20 origin-left"
+                    style={{
+                        background:
+                            "linear-gradient(90deg, rgba(0,217,146,0.7), transparent)",
+                    }}
+                    initial={{ scaleX: 0 }}
+                    animate={inView ? { scaleX: 1 } : { scaleX: 0 }}
+                    transition={{
+                        duration: 0.65,
+                        ease: SPF_EASE_BRAND,
+                        delay: 0.2,
+                    }}
+                />
+            </motion.div>
+        </div>
+    );
+}
+
+/**
+ * One mobile feature block — animates on view with a paragraph
+ * stagger and bullet cascade. Mirrors the desktop choreography so
+ * the two layouts read as the same component, not two designs.
+ */
+function MobileFeatureBlock({
+    label,
+    paragraphs,
+    bullets,
+}: {
+    label: string;
+    paragraphs: string[];
+    bullets: { icon: LucideIcon; label: string }[];
+}) {
+    const ref = useRef<HTMLDivElement>(null);
+    const inView = useInView(ref, { once: true, amount: 0.35 });
+
+    return (
+        <motion.div
+            ref={ref}
+            className="space-y-4"
+            initial="hidden"
+            animate={inView ? "show" : "hidden"}
+            variants={{
+                hidden: {},
+                show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+            }}
+        >
+            <motion.p
+                className="text-flash/40 uppercase text-xs tracking-wider font-jetbrains flex items-center gap-3"
+                variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    show: { opacity: 1, x: 0, transition: { duration: 0.5, ease: SPF_EASE_BRAND } },
+                }}
+            >
+                <span>{label}</span>
+                <span
+                    aria-hidden
+                    className="h-[1px] flex-1"
+                    style={{
+                        background:
+                            "linear-gradient(90deg, rgba(0,217,146,0.55), transparent)",
+                    }}
+                />
+            </motion.p>
+
+            {paragraphs.map((p, i) => (
+                <motion.p
+                    key={i}
+                    className="text-flash/80"
+                    variants={{
+                        hidden: { opacity: 0, y: 10 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: SPF_EASE_BRAND } },
+                    }}
+                >
+                    {p}
+                </motion.p>
+            ))}
+
+            <motion.div
+                className="space-y-2 text-flash/50"
+                variants={{
+                    hidden: {},
+                    show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+                }}
+            >
+                {bullets.map(({ icon: Icon, label }, i) => (
+                    <motion.div
+                        key={i}
+                        className="flex items-center gap-2"
+                        variants={{
+                            hidden: { opacity: 0, x: -8 },
+                            show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: SPF_EASE_BRAND } },
+                        }}
+                    >
+                        <Icon className="w-4 h-4 text-jade" />
+                        <span className="uppercase text-xs tracking-wide">{label}</span>
+                    </motion.div>
+                ))}
+            </motion.div>
+        </motion.div>
     );
 }
