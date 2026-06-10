@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import { supabase } from "@/lib/supabaseClient";
 import { API_BASE_URL } from "@/config";
@@ -8,12 +8,27 @@ import { Button } from "./ui/button";
 import { Globe } from "./ui/globe";
 import { Example } from "./example";
 import { LightRays } from "./ui/light-rays";
+import { showCyberToast } from "@/lib/toast-utils";
 
 export function PricingPlans() {
-  const { plan } = useAuth();
+  const { plan, session } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<"premium" | "elite" | null>(null);
 
   async function goCheckout(nextPlan: "premium" | "elite") {
+    // Logged-out guard — without a Supabase session the backend will
+    // reject the request anyway. Catch it here so the user gets a
+    // useful toast instead of a generic error.
+    if (!session?.user) {
+      showCyberToast({
+        title: "Sign in required",
+        description: "Log in or create a free account before subscribing.",
+        tag: "AUTH",
+        variant: "error",
+        duration: 4000,
+      });
+      return;
+    }
+
     try {
       setLoadingPlan(nextPlan);
       const { data } = await supabase.auth.getSession();
@@ -28,17 +43,33 @@ export function PricingPlans() {
         body: JSON.stringify({ plan: nextPlan }),
       });
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status} ${body}`.trim());
+      }
       const { url } = await resp.json();
       if (!url) throw new Error("Missing checkout URL");
 
       window.location.href = url; // redirect a Stripe Checkout
     } catch (err) {
       console.error("Checkout error:", err);
-      alert("Errore nell'avvio del checkout. Riprova tra un attimo.");
+      showCyberToast({
+        title: "Couldn't start checkout",
+        description: "Something blocked the payment session. Please try again in a moment.",
+        tag: "STRIPE",
+        variant: "error",
+        duration: 4500,
+        id: "stripe-checkout-error",
+      });
       setLoadingPlan(null);
     }
   }
+
+  // Renders inside a Button child — small jade spinner glyph that
+  // makes the load state legible at a glance.
+  const Spinner = () => (
+    <Loader2 className="inline-block w-3.5 h-3.5 animate-spin mr-2 align-[-2px]" />
+  );
 
   return (
     <div className="relative w-full">
@@ -146,7 +177,14 @@ export function PricingPlans() {
                 aria-label="Purchase Premium"
               >
                 <div className="purchase-content flex items-center justify-center text-sm font-jetbrains">
-                  {loadingPlan === "premium" ? "REDIRECTING..." : "PURCHASE"}
+                  {loadingPlan === "premium" ? (
+                    <>
+                      <Spinner />
+                      REDIRECTING…
+                    </>
+                  ) : (
+                    "PURCHASE"
+                  )}
                 </div>
               </button>
             )}
@@ -215,7 +253,14 @@ export function PricingPlans() {
                 aria-label="Purchase Elite"
               >
                 <div className="purchase-content-inactive flex items-center justify-center text-sm font-jetbrains">
-                  {loadingPlan === "elite" ? "REDIRECTING..." : "PURCHASE"}
+                  {loadingPlan === "elite" ? (
+                    <>
+                      <Spinner />
+                      REDIRECTING…
+                    </>
+                  ) : (
+                    "PURCHASE"
+                  )}
                 </div>
               </button>
             )}

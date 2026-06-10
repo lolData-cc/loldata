@@ -34,15 +34,18 @@ import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreferenc
 import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ChangePassword } from "@/components/changepassword";
 import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
-import { cdnBaseUrl } from "@/config";
+import { cdnBaseUrl, API_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
+import { Loader2, CreditCard, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
   const { pickerMode, setPickerMode } = useChampionPicker();
 
-  const { session, isAdmin, nametag, avatarUrl, region: userRegion } = useAuth();
+  const { session, isAdmin, nametag, avatarUrl, region: userRegion, plan } = useAuth();
 
   useEffect(() => {
     document.title = "Dashboard - lolData";
@@ -378,18 +381,7 @@ export default function DashboardPage() {
 
               {/* BILLING TAB */}
               <TabsContent value="billing" className="outline-none">
-                <div className="flex flex-col gap-6 p-4 px-6">
-                  <div className="space-y-2">
-                    <h3 className="text-flash/60">BILLING</h3>
-                    <div className="rounded-md border border-flash/10 bg-neutral-950/60 p-4 text-sm text-flash/70">
-                      <p className="mb-1">Billing panel coming soon.</p>
-                      <p className="text-xs text-flash/50">
-                        You&apos;ll be able to manage your subscription, view
-                        invoices and update your payment details from here.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <BillingTabContent plan={plan} />
               </TabsContent>
 
               {/* ADMIN TAB: PRO APPLICATIONS */}
@@ -415,6 +407,151 @@ export default function DashboardPage() {
           </Tabs>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Billing tab inner panel ────────────────────────────────────────
+// Shows the user's current plan, status, and a button to open the
+// Stripe customer portal where they can update payment methods,
+// download invoices and cancel/upgrade their subscription.
+//
+// Portal opening flows through the backend `/api/billing/portal-session`
+// endpoint — Stripe requires a fresh session URL on every visit
+// (URLs expire after a short window), so we never cache it.
+function BillingTabContent({ plan }: { plan: string | null }) {
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const isPaid = !!plan && plan !== "free";
+  const displayPlan = (plan ?? "free").toUpperCase();
+
+  async function openPortal() {
+    try {
+      setLoadingPortal(true);
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const resp = await fetch(`${API_BASE_URL}/api/billing/portal-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status} ${body}`.trim());
+      }
+      const { url } = await resp.json();
+      if (!url) throw new Error("Missing portal URL");
+      // Stripe portal opens in the same tab so the browser back-button
+      // returns to the dashboard naturally.
+      window.location.href = url;
+    } catch (err) {
+      console.error("Portal error:", err);
+      showCyberToast({
+        title: "Couldn't open the portal",
+        description:
+          "Stripe didn't return a session URL. Refresh and try again in a moment.",
+        tag: "STRIPE",
+        variant: "error",
+        duration: 4500,
+        id: "stripe-portal-error",
+      });
+      setLoadingPortal(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-4 px-6">
+      <div className="space-y-2">
+        <h3 className="text-flash/60">BILLING</h3>
+        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-flash/35">
+          :: SUBSCRIPTION ::
+        </p>
+      </div>
+
+      {/* Current plan card. */}
+      <div className="relative rounded-md border border-flash/10 bg-black/35 backdrop-blur-md p-5 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[10px] font-mono tracking-[0.25em] uppercase text-flash/45 mb-2">
+              Current plan
+            </div>
+            <div
+              className={cn(
+                "font-jetbrains font-bold text-2xl md:text-3xl tabular-nums",
+                isPaid ? "text-jade" : "text-flash/85"
+              )}
+              style={
+                isPaid
+                  ? {
+                      textShadow:
+                        "0 0 18px rgba(0,217,146,0.4), 0 0 36px rgba(0,217,146,0.15)",
+                    }
+                  : undefined
+              }
+            >
+              {displayPlan}
+            </div>
+            <p className="mt-2 text-[12px] text-flash/55 leading-relaxed max-w-md">
+              {isPaid
+                ? "Subscription is active. You can manage your billing details — invoices, payment method, cancellation — from the secure Stripe portal below."
+                : "You're on the free plan. Upgrade to unlock the AI coach, unlimited player analysis and higher scout lobby quotas."}
+            </p>
+          </div>
+
+          {/* Status pill. */}
+          <span
+            className={cn(
+              "shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-sm font-mono text-[10px] tracking-[0.2em] uppercase border",
+              isPaid
+                ? "bg-jade/10 border-jade/40 text-jade"
+                : "bg-flash/[0.05] border-flash/15 text-flash/50"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block w-1.5 h-1.5 rounded-full",
+                isPaid ? "bg-jade" : "bg-flash/40"
+              )}
+            />
+            {isPaid ? "ACTIVE" : "FREE TIER"}
+          </span>
+        </div>
+      </div>
+
+      {/* Actions. */}
+      <div className="flex flex-wrap gap-3">
+        {isPaid ? (
+          <Button
+            variant="solid"
+            onClick={openPortal}
+            disabled={loadingPortal}
+            className="cursor-clicker"
+          >
+            <span className="inline-flex items-center gap-2">
+              {loadingPortal ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CreditCard className="w-4 h-4" />
+              )}
+              {loadingPortal ? "OPENING…" : "MANAGE SUBSCRIPTION"}
+              {!loadingPortal && <ExternalLink className="w-3 h-3 opacity-75" />}
+            </span>
+          </Button>
+        ) : (
+          <Button variant="solid" asChild className="cursor-clicker">
+            <Link to="/pricing" className="inline-flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              VIEW PLANS
+            </Link>
+          </Button>
+        )}
+      </div>
+
+      <p className="text-[10px] font-mono tracking-[0.18em] uppercase text-flash/30 leading-relaxed">
+        Payments and refunds are handled by Stripe. We never store your card
+        details on our servers.
+      </p>
     </div>
   );
 }

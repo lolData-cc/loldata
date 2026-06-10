@@ -50,6 +50,8 @@ import StreamersPage from "@/pages/streamerspage";
 import ScoutPage from "@/pages/scoutpage";
 import ScoutCreateLobbyPage from "@/pages/scoutcreatelobbypage";
 import ScoutLobbyPage from "@/pages/scoutlobbypage";
+import BillingSuccessPage from "@/pages/billingsuccess";
+import BillingCancelPage from "@/pages/billingcancel";
 //
 
 declare global {
@@ -220,6 +222,8 @@ function App() {
               <Route path="/auth/riot/callback" element={<RiotCallbackPage />} />
               <Route path="/overlay/:region/:slug" element={<OverlayPage />} />
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
+              <Route path="/billing/success" element={<RootLayout> <BillingSuccessPage /> </RootLayout>}/>
+              <Route path="/billing/cancel" element={<RootLayout> <BillingCancelPage /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />
