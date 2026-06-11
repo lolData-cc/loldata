@@ -92,31 +92,61 @@ export const LANDMARKS = [
     { id: "t1-bot-r", riotX: 13866, riotY: 4505, label: "T1 Bot Red", color: "#d63336", kind: "tower" },
 ];
 // DEFAULT_CALIBRATION — final converged values from the user's
-// 9-landmark drag session on the Wiki S14 asset:
+// 14-landmark drag session on the Wiki S14 asset. This is a refit
+// over the original 9 anchors plus the 4 bounding corners and a
+// re-tuned Blue fountain, all delivered as direct landmark
+// percentages:
 //
-//   Red fountain   (12700, 12700) → wrapper (78.8%,  9.9%)
-//   Drake pit      (9866, 4414)   → wrapper (63.5%, 64.8%)
-//   Baron pit      (4928, 10406)  → wrapper (32.0%, 27.3%)
-//   T1 Top Blue                   → wrapper (22.2%, 28.6%)
-//   T1 Bot Blue                   → wrapper (67.5%, 93.7%)
-//   T1 Top Red                    → wrapper (27.6%, 11.7%)
-//   T1 Mid Red                    → wrapper (55.8%, 36.7%)
-//   T1 Bot Red                    → wrapper (85.3%, 69.5%)
-//   Corner BR (15k,0)             → wrapper (78.5%, 92.5%)
-//   Corner TL (0,15k)             → wrapper (23.0%,  8.3%)
+//   Corner BL (0,0)         → wrapper ( 9.2%, 97.6%)
+//   Corner BR (15k,0)       → wrapper (80.2%, 86.5%)
+//   Corner TL (0,15k)       → wrapper (28.5%, 10.1%)
+//   Corner TR (15k,15k)     → wrapper (73.6%, 11.1%)
+//   Blue fountain  (1750,1750)   → wrapper ( 5.5%, 86.8%)
+//   Red fountain  (12700,12700)  → wrapper (74.7%, 15.5%)
+//   Drake pit                    → wrapper (70.0%, 65.6%)
+//   Baron pit                    → wrapper (35.8%, 26.8%)
+//   T1 Top Blue                  → wrapper (14.2%, 28.0%)
+//   T1 Mid Blue                  → wrapper (37.2%, 46.3%)
+//   T1 Bot Blue                  → wrapper (67.1%, 80.3%)
+//   T1 Top Red                   → wrapper (35.6%, 10.2%)
+//   T1 Mid Red                   → wrapper (53.0%, 33.1%)
+//   T1 Bot Red                   → wrapper (81.9%, 64.3%)
 //
 // Best-fit affine transform (least-squares per axis):
-//   scaleX = 0.690   offsetXPct = +0.61
-//   scaleY = 0.929   offsetYPct = −2.07
+//   scaleX = 0.703   offsetXPct = −1.96
+//   scaleY = 0.852   offsetYPct = −3.09
 //
-// The Wiki asset is rendered isometrically, so a pure scale+translate
-// can never be PERFECT for every point. This is the best 4-parameter
-// approximation across the user's 9 anchors — residuals are sub-2%.
+// The Wiki S14 asset is rendered isometrically, so a pure
+// scale+translate can never be PERFECT for every point — but the
+// 14-anchor refit closes the gap tighter than the original 9: a
+// noticeably flatter scaleY (0.852 vs 0.929) gets the verticals
+// straight, and the negative offX/offY pulls the whole sprite layer
+// up-and-left to land on the playfield squarely.
 export const DEFAULT_CALIBRATION = {
-    scaleX: 0.690,
-    scaleY: 0.929,
-    offsetXPct: 0.61,
-    offsetYPct: -2.07,
+    scaleX: 0.703,
+    scaleY: 0.852,
+    offsetXPct: -1.96,
+    offsetYPct: -3.09,
+};
+// DEFAULT_LANDMARK_OVERRIDES — the per-landmark anchor positions
+// (wrapper %) the user converged on. Wired up via prop so future
+// dialogs hydrate the debug overlay with these exact points, and the
+// auto-calibrator can re-derive the affine transform from them.
+export const DEFAULT_LANDMARK_OVERRIDES = {
+    "corner-bl": { nx: 0.092, ny: 0.976 },
+    "corner-br": { nx: 0.802, ny: 0.865 },
+    "corner-tl": { nx: 0.285, ny: 0.101 },
+    "corner-tr": { nx: 0.736, ny: 0.111 },
+    "fountain-b": { nx: 0.055, ny: 0.868 },
+    "fountain-r": { nx: 0.747, ny: 0.155 },
+    "drake": { nx: 0.700, ny: 0.656 },
+    "baron": { nx: 0.358, ny: 0.268 },
+    "t1-top-b": { nx: 0.142, ny: 0.280 },
+    "t1-mid-b": { nx: 0.372, ny: 0.463 },
+    "t1-bot-b": { nx: 0.671, ny: 0.803 },
+    "t1-top-r": { nx: 0.356, ny: 0.102 },
+    "t1-mid-r": { nx: 0.530, ny: 0.331 },
+    "t1-bot-r": { nx: 0.819, ny: 0.643 },
 };
 /**
  * Riot world → naive normalized (0..1, no calibration applied).

@@ -20,7 +20,8 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 //   - subtle glow ring for the focused/highlighted player
 //   - dead state: grayscale + skull overlay (~9s death timer hint)
 import * as React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 import { positionsAt, toMapNorm, eventsUpTo, activeWardsAt, teamOf, staticParticipantByPid, metricsAt, fmtShortNum, } from "./derive";
@@ -47,11 +48,145 @@ const GOLD_FLASH_MS = 2800;
 const OBJ_FLASH_MS = 4500;
 const TOWER_FLASH_MS = 3500;
 const DEATH_TIMER_MS = 9000; // very rough; real timer is level-based
+// Zoom configuration — discrete levels for + / − buttons, hard min/max
+// for wheel/pinch so the user never zooms past usable.
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.5;
+const ZOOM_WHEEL_FACTOR_IN = 1.18;
+const ZOOM_WHEEL_FACTOR_OUT = 1 / 1.18;
+const PAN_CLICK_THRESHOLD_PX = 5;
 export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids, onFocusPid, calibration, debug, debugOverrides, setDebugOverrides }) {
     const cal = calibration ?? { scaleX: 1.0, scaleY: 1.0, offsetXPct: 0, offsetYPct: 0 };
     // Position lookup function — used by activeWardsAt to back-trace
     // ward positions from the creator's position at place time.
     const posOf = React.useCallback((pid, ts) => positionsAt(timeline, ts).get(pid) ?? null, [timeline]);
+    // ── Zoom + pan ───────────────────────────────────────────────────
+    // Zoom is the multiplier applied uniformly to BOTH layers (bg image
+    // + coord/sprite layer) so their calibration alignment is preserved.
+    // Pan is in screen pixels relative to the visible viewport center,
+    // applied AFTER scale (`translate(panPx) scale(zoom)`). Clicking the
+    // zoom controls or pressing the buttons resets pan when going back
+    // to 1× so the map snaps back to the canonical view.
+    const containerRef = useRef(null);
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    // Clamp the pan to whatever the current zoom allows. At 1× the map
+    // exactly fills the viewport, so pan must be 0; at N× the user can
+    // shift by up to half the overhang on each axis.
+    const clampPan = useCallback((next, atZoom) => {
+        const el = containerRef.current;
+        if (!el || atZoom <= 1)
+            return { x: 0, y: 0 };
+        const rect = el.getBoundingClientRect();
+        const maxX = ((atZoom - 1) * rect.width) / 2;
+        const maxY = ((atZoom - 1) * rect.height) / 2;
+        return {
+            x: Math.max(-maxX, Math.min(maxX, next.x)),
+            y: Math.max(-maxY, Math.min(maxY, next.y)),
+        };
+    }, []);
+    const handleZoomIn = useCallback(() => {
+        setZoom((z) => {
+            const next = Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2));
+            // Re-clamp pan to the tighter/looser bound (zoom in keeps it,
+            // zoom out usually shrinks the window).
+            setPan((p) => clampPan(p, next));
+            return next;
+        });
+    }, [clampPan]);
+    const handleZoomOut = useCallback(() => {
+        setZoom((z) => {
+            const next = Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2));
+            setPan((p) => clampPan(p, next));
+            return next;
+        });
+    }, [clampPan]);
+    const handleZoomReset = useCallback(() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    }, []);
+    // Wheel zoom toward cursor — keeps the point under the cursor
+    // visually anchored as the scale changes. Standard pan-zoom math:
+    // map-space coord at cursor = (cursor − pan) / zoom. Solving for
+    // newPan to preserve it gives newPan = cursor − mapCoord × newZoom.
+    const handleWheel = useCallback((e) => {
+        const el = containerRef.current;
+        if (!el)
+            return;
+        // We use preventDefault to keep the page from scrolling while
+        // zooming inside the dialog — passive: false is the default for
+        // onWheel in React, so this works.
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const px = e.clientX - rect.left - rect.width / 2;
+        const py = e.clientY - rect.top - rect.height / 2;
+        const factor = e.deltaY > 0 ? ZOOM_WHEEL_FACTOR_OUT : ZOOM_WHEEL_FACTOR_IN;
+        const nextZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * factor));
+        if (nextZoom === zoom)
+            return;
+        // Map-space coord under cursor BEFORE the zoom change.
+        const mapX = (px - pan.x) / zoom;
+        const mapY = (py - pan.y) / zoom;
+        const nextPanX = px - mapX * nextZoom;
+        const nextPanY = py - mapY * nextZoom;
+        setZoom(nextZoom);
+        setPan(nextZoom <= 1
+            ? { x: 0, y: 0 }
+            : clampPan({ x: nextPanX, y: nextPanY }, nextZoom));
+    }, [zoom, pan, clampPan]);
+    // Drag-to-pan when zoomed in. We DON'T grab pointer capture
+    // immediately — we wait until the user moves past a small threshold
+    // so quick clicks on sprites still fire their onClick handlers.
+    const panStateRef = useRef(null);
+    const onMapPointerDown = useCallback((e) => {
+        if (zoom <= 1)
+            return;
+        // Ignore drags that started on the zoom controls cluster — the
+        // data attribute is the cheapest opt-out signal.
+        if (e.target.closest("[data-rift-zoom-control]"))
+            return;
+        panStateRef.current = {
+            pointerId: e.pointerId,
+            startClient: { x: e.clientX, y: e.clientY },
+            startPan: { ...pan },
+            captured: false,
+        };
+    }, [zoom, pan]);
+    const onMapPointerMove = useCallback((e) => {
+        const s = panStateRef.current;
+        if (!s || s.pointerId !== e.pointerId)
+            return;
+        const dx = e.clientX - s.startClient.x;
+        const dy = e.clientY - s.startClient.y;
+        if (!s.captured) {
+            if (Math.hypot(dx, dy) <= PAN_CLICK_THRESHOLD_PX)
+                return;
+            s.captured = true;
+            try {
+                e.currentTarget.setPointerCapture(s.pointerId);
+            }
+            catch {
+                /* some browsers reject capture if the pointer already left */
+            }
+        }
+        setPan(clampPan({ x: s.startPan.x + dx, y: s.startPan.y + dy }, zoom));
+        e.preventDefault();
+    }, [zoom, clampPan]);
+    const onMapPointerUp = useCallback((e) => {
+        const s = panStateRef.current;
+        if (!s || s.pointerId !== e.pointerId)
+            return;
+        if (s.captured) {
+            try {
+                e.currentTarget.releasePointerCapture(s.pointerId);
+            }
+            catch {
+                /* ignore */
+            }
+        }
+        panStateRef.current = null;
+    }, []);
     const positions = useMemo(() => positionsAt(timeline, timeMs), [timeline, timeMs]);
     // Get recent events for flashes.
     const recentEvents = useMemo(() => {
@@ -160,120 +295,149 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
     const BASE_ZOOM = 1.0;
     const imgTransform = `scale(${BASE_ZOOM})`;
     const coordTransform = `translate(${cal.offsetXPct}%, ${cal.offsetYPct}%) scale(${BASE_ZOOM * cal.scaleX}, ${BASE_ZOOM * cal.scaleY})`;
-    return (_jsxs("div", { className: "relative aspect-[3/2] w-full select-none overflow-hidden rounded-lg", style: {
+    return (_jsxs("div", { ref: containerRef, className: cn("relative aspect-[3/2] w-full select-none overflow-hidden rounded-lg", 
+        // Cursor flips to "move" while panning is possible; otherwise
+        // it's the regular hover cursor so sprite clicks still feel
+        // clickable.
+        zoom > 1 && (panStateRef.current?.captured ? "cursor-grabbing" : "cursor-grab")), style: {
             filter: "drop-shadow(0 16px 26px rgba(0,0,0,0.55)) drop-shadow(0 4px 10px rgba(0,217,146,0.10))",
-        }, children: [_jsx("div", { className: "absolute inset-0", style: { transform: imgTransform, transformOrigin: "center" }, children: _jsx("img", { src: MAP_URL_PRIMARY, onError: (ev) => {
-                        const img = ev.currentTarget;
-                        if (img.src.indexOf(MAP_URL_PRIMARY) >= 0) {
-                            img.src = MAP_URL_FALLBACK;
-                        }
-                        else if (img.src.indexOf(MAP_URL_FALLBACK) >= 0) {
-                            img.src = MAP_URL_FALLBACK_2;
-                        }
-                    }, alt: "Summoner's Rift", className: "absolute inset-0 w-full h-full object-cover", style: {
-                        filter: "saturate(1.10) contrast(1.05) brightness(1.02)",
-                        imageRendering: "auto",
-                    }, draggable: false }) }), _jsxs("div", { className: "absolute inset-0", style: {
-                    transform: coordTransform,
+        }, onPointerDown: onMapPointerDown, onPointerMove: onMapPointerMove, onPointerUp: onMapPointerUp, onPointerCancel: onMapPointerUp, onWheel: handleWheel, children: [_jsxs("div", { className: "absolute inset-0", style: {
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                     transformOrigin: "center",
-                    // @ts-ignore — custom CSS properties for sprite counter-scale
-                    "--inv-sx": 1 / (BASE_ZOOM * cal.scaleX),
-                    "--inv-sy": 1 / (BASE_ZOOM * cal.scaleY),
-                }, children: [wards.map((w) => {
-                        const { nx, ny } = toMapNorm(w.position);
-                        const Icon = wardIcon(w.wardType);
-                        const team = teamOf(w.creatorId);
-                        const tint = team === 100 ? "#5BA8E6" : "#d63336";
-                        return (_jsx("div", { className: "absolute z-[20] pointer-events-none", style: {
-                                left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
-                                color: tint,
-                            }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[6px] opacity-50", style: { background: tint } }), _jsx(Icon, { className: "relative w-3 h-3 drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" })] }) }, w.id));
-                    }), buildingFlashes.map((b) => {
-                        const { nx, ny } = toMapNorm({ x: b.x, y: b.y });
-                        const winner = b.loserTeam === 100 ? "#d63336" : "#5BA8E6";
-                        const fade = 1 - b.age / TOWER_FLASH_MS;
-                        return (_jsx("div", { className: "absolute z-[40] pointer-events-none", style: {
-                                left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
-                                opacity: Math.max(0, fade),
-                                color: winner,
-                            }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[10px]", style: { background: winner, opacity: fade * 0.6 } }), b.isInhib ? (_jsx(InhibitorIcon, { className: "relative w-6 h-6" })) : (_jsx(TowerIcon, { className: "relative w-6 h-6" }))] }) }, b.id));
-                    }), killFlashes.map((k) => {
-                        const { nx, ny } = toMapNorm({ x: k.x, y: k.y });
-                        const tint = k.killerTeam === 100 ? "#5BA8E6" : "#d63336";
-                        const fade = 1 - k.age / KILL_FLASH_MS;
-                        const scale = 1 + (k.age / KILL_FLASH_MS) * 0.6;
-                        return (_jsxs(React.Fragment, { children: [_jsx("div", { className: "absolute z-[35] pointer-events-none rounded-full border-2", style: {
-                                        left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                        width: 28, height: 28,
-                                        transform: `translate(-50%, -50%) scale(${scale}) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
-                                        borderColor: tint,
-                                        opacity: fade * 0.6,
-                                    } }), _jsx("div", { className: "absolute z-[36] pointer-events-none", style: {
+                    willChange: zoom > 1 ? "transform" : undefined,
+                }, children: [_jsx("div", { className: "absolute inset-0", style: { transform: imgTransform, transformOrigin: "center" }, children: _jsx("img", { src: MAP_URL_PRIMARY, onError: (ev) => {
+                                const img = ev.currentTarget;
+                                if (img.src.indexOf(MAP_URL_PRIMARY) >= 0) {
+                                    img.src = MAP_URL_FALLBACK;
+                                }
+                                else if (img.src.indexOf(MAP_URL_FALLBACK) >= 0) {
+                                    img.src = MAP_URL_FALLBACK_2;
+                                }
+                            }, alt: "Summoner's Rift", className: "absolute inset-0 w-full h-full object-cover", style: {
+                                filter: "saturate(1.10) contrast(1.05) brightness(1.02)",
+                                imageRendering: "auto",
+                            }, draggable: false }) }), _jsxs("div", { className: "absolute inset-0", style: {
+                            transform: coordTransform,
+                            transformOrigin: "center",
+                            // @ts-ignore — custom CSS properties for sprite counter-scale.
+                            // The inverse now also folds in the user-zoom factor: when
+                            // the outer wrapper magnifies the map by N×, sprites compute
+                            // their counter-scale as 1/(cal.scale × N) so they keep a
+                            // CONSTANT viewport size. Effect on the eye: the rift looks
+                            // bigger but champion / ward icons don't bloat with it.
+                            // Without this, a 3× zoom turned each champion sprite into a
+                            // ~110px blob that ate the lanes.
+                            "--inv-sx": 1 / (BASE_ZOOM * cal.scaleX * zoom),
+                            "--inv-sy": 1 / (BASE_ZOOM * cal.scaleY * zoom),
+                        }, children: [wards.map((w) => {
+                                const { nx, ny } = toMapNorm(w.position);
+                                const Icon = wardIcon(w.wardType);
+                                const team = teamOf(w.creatorId);
+                                const tint = team === 100 ? "#5BA8E6" : "#d63336";
+                                return (_jsx("div", { className: "absolute z-[20] pointer-events-none", style: {
                                         left: `${nx * 100}%`, top: `${ny * 100}%`,
                                         transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
                                         color: tint,
-                                        opacity: fade,
-                                    }, children: _jsx(SkullIcon, { className: "w-4 h-4 drop-shadow-[0_0_4px_rgba(0,0,0,0.9)]" }) })] }, k.id));
-                    }), objFlashes.map((o) => {
-                        const { nx, ny } = toMapNorm({ x: o.x, y: o.y });
-                        const fade = 1 - o.age / OBJ_FLASH_MS;
-                        const tint = o.kind === "DRAGON" ? dragonColor(o.subType) :
-                            o.team === 100 ? "#5BA8E6" : "#d63336";
-                        const Icon = eliteMonsterIcon(o.kind);
-                        const scale = 1 + (o.age / OBJ_FLASH_MS) * 0.5;
-                        return (_jsxs(React.Fragment, { children: [_jsx("div", { className: "absolute z-[37] pointer-events-none rounded-full", style: {
-                                        left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                        width: 36, height: 36,
-                                        transform: `translate(-50%, -50%) scale(${scale}) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
-                                        background: `radial-gradient(circle, ${tint}88 0%, transparent 70%)`,
-                                        opacity: fade,
-                                    } }), _jsx("div", { className: "absolute z-[38] pointer-events-none", style: {
+                                    }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[6px] opacity-50", style: { background: tint } }), _jsx(Icon, { className: "relative w-3 h-3 drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" })] }) }, w.id));
+                            }), buildingFlashes.map((b) => {
+                                const { nx, ny } = toMapNorm({ x: b.x, y: b.y });
+                                const winner = b.loserTeam === 100 ? "#d63336" : "#5BA8E6";
+                                const fade = 1 - b.age / TOWER_FLASH_MS;
+                                return (_jsx("div", { className: "absolute z-[40] pointer-events-none", style: {
                                         left: `${nx * 100}%`, top: `${ny * 100}%`,
                                         transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
-                                        color: tint,
+                                        opacity: Math.max(0, fade),
+                                        color: winner,
+                                    }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[10px]", style: { background: winner, opacity: fade * 0.6 } }), b.isInhib ? (_jsx(InhibitorIcon, { className: "relative w-6 h-6" })) : (_jsx(TowerIcon, { className: "relative w-6 h-6" }))] }) }, b.id));
+                            }), killFlashes.map((k) => {
+                                const { nx, ny } = toMapNorm({ x: k.x, y: k.y });
+                                const tint = k.killerTeam === 100 ? "#5BA8E6" : "#d63336";
+                                const fade = 1 - k.age / KILL_FLASH_MS;
+                                const scale = 1 + (k.age / KILL_FLASH_MS) * 0.6;
+                                return (_jsxs(React.Fragment, { children: [_jsx("div", { className: "absolute z-[35] pointer-events-none rounded-full border-2", style: {
+                                                left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                                width: 28, height: 28,
+                                                transform: `translate(-50%, -50%) scale(${scale}) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
+                                                borderColor: tint,
+                                                opacity: fade * 0.6,
+                                            } }), _jsx("div", { className: "absolute z-[36] pointer-events-none", style: {
+                                                left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                                transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
+                                                color: tint,
+                                                opacity: fade,
+                                            }, children: _jsx(SkullIcon, { className: "w-4 h-4 drop-shadow-[0_0_4px_rgba(0,0,0,0.9)]" }) })] }, k.id));
+                            }), objFlashes.map((o) => {
+                                const { nx, ny } = toMapNorm({ x: o.x, y: o.y });
+                                const fade = 1 - o.age / OBJ_FLASH_MS;
+                                const tint = o.kind === "DRAGON" ? dragonColor(o.subType) :
+                                    o.team === 100 ? "#5BA8E6" : "#d63336";
+                                const Icon = eliteMonsterIcon(o.kind);
+                                const scale = 1 + (o.age / OBJ_FLASH_MS) * 0.5;
+                                return (_jsxs(React.Fragment, { children: [_jsx("div", { className: "absolute z-[37] pointer-events-none rounded-full", style: {
+                                                left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                                width: 36, height: 36,
+                                                transform: `translate(-50%, -50%) scale(${scale}) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
+                                                background: `radial-gradient(circle, ${tint}88 0%, transparent 70%)`,
+                                                opacity: fade,
+                                            } }), _jsx("div", { className: "absolute z-[38] pointer-events-none", style: {
+                                                left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                                transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
+                                                color: tint,
+                                                opacity: fade,
+                                            }, children: _jsx(Icon, { className: "w-5 h-5 drop-shadow-[0_0_6px_rgba(0,0,0,0.9)]" }) })] }, o.id));
+                            }), goldFlashes.map((g) => {
+                                const { nx, ny } = toMapNorm({ x: g.x, y: g.y });
+                                const fade = 1 - g.age / GOLD_FLASH_MS;
+                                const yOffset = -((g.age / GOLD_FLASH_MS) * 28); // float upward
+                                const color = g.team === 100 ? "#9fffc3" : "#ffb38a";
+                                return (_jsxs("div", { className: "absolute z-[45] pointer-events-none flex items-center gap-1 font-chakrapetch font-bold tabular-nums text-xs", style: {
+                                        left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                        transform: `translate(-50%, calc(-50% + ${yOffset}px)) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
+                                        color,
                                         opacity: fade,
-                                    }, children: _jsx(Icon, { className: "w-5 h-5 drop-shadow-[0_0_6px_rgba(0,0,0,0.9)]" }) })] }, o.id));
-                    }), goldFlashes.map((g) => {
-                        const { nx, ny } = toMapNorm({ x: g.x, y: g.y });
-                        const fade = 1 - g.age / GOLD_FLASH_MS;
-                        const yOffset = -((g.age / GOLD_FLASH_MS) * 28); // float upward
-                        const color = g.team === 100 ? "#9fffc3" : "#ffb38a";
-                        return (_jsxs("div", { className: "absolute z-[45] pointer-events-none flex items-center gap-1 font-chakrapetch font-bold tabular-nums text-xs", style: {
-                                left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                transform: `translate(-50%, calc(-50% + ${yOffset}px)) scale(var(--inv-sx, 1), var(--inv-sy, 1))`,
-                                color,
-                                opacity: fade,
-                                textShadow: "0 0 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)",
-                            }, children: [_jsx(CoinIcon, { className: "w-3 h-3" }), _jsxs("span", { children: ["+", fmtShortNum(g.amount)] })] }, g.id));
-                    }), Array.from({ length: 10 }, (_, i) => i + 1).map((pid) => {
-                        if (hiddenPids.has(pid))
-                            return null;
-                        const pos = positions.get(pid);
-                        if (!pos)
-                            return null;
-                        const sp = staticParticipantByPid(staticMatch, pid);
-                        if (!sp)
-                            return null;
-                        const { nx, ny } = toMapNorm(pos);
-                        const teamTint = sp.teamId === 100 ? "#5BA8E6" : "#d63336";
-                        const m = metricsAt(timeline, pid, timeMs);
-                        const dead = deathsByVictim.has(pid);
-                        const isFocused = focusedPid === pid;
-                        return (_jsx("button", { type: "button", onClick: (e) => {
-                                e.stopPropagation();
-                                onFocusPid?.(focusedPid === pid ? null : pid);
-                            }, className: "absolute z-[50] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-jade rounded-full", style: {
-                                left: `${nx * 100}%`, top: `${ny * 100}%`,
-                                transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
-                            }, title: `${sp.championName} — Lv ${m?.level ?? "?"}`, children: _jsxs("div", { className: "relative", children: [isFocused && (_jsx("div", { className: "absolute inset-0 rounded-full -m-2 animate-pulse", style: { boxShadow: `0 0 0 2px ${teamTint}, 0 0 14px ${teamTint}` } })), _jsxs("div", { className: cn("relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center", dead && "grayscale brightness-50"), style: {
-                                            boxShadow: `0 0 0 2px ${teamTint}, 0 0 8px rgba(0,0,0,0.7)`,
-                                            background: "#040A0C",
-                                        }, children: [_jsx("img", { src: `${cdnBaseUrl()}/img/champion/${normalizeChampName(sp.championName)}.png`, alt: sp.championName, className: "w-full h-full object-cover", draggable: false }), dead && (_jsx("div", { className: "absolute inset-0 flex items-center justify-center bg-black/60", children: _jsx(SkullIcon, { className: "w-5 h-5 text-flash/90" }) }))] }), m && !dead && (_jsx("div", { className: "absolute -bottom-1 -right-1 px-1 rounded-sm text-[9px] font-mono font-bold tabular-nums", style: { background: "#040A0C", color: teamTint, boxShadow: `0 0 0 1px ${teamTint}80` }, children: m.level }))] }) }, pid));
-                    }), _jsx(DebugMapOverlay, { enabled: !!debug, overrides: debugOverrides ?? {}, setOverrides: setDebugOverrides ?? (() => { }) })] }), _jsx("div", { className: "absolute inset-0 pointer-events-none", style: {
+                                        textShadow: "0 0 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)",
+                                    }, children: [_jsx(CoinIcon, { className: "w-3 h-3" }), _jsxs("span", { children: ["+", fmtShortNum(g.amount)] })] }, g.id));
+                            }), Array.from({ length: 10 }, (_, i) => i + 1).map((pid) => {
+                                if (hiddenPids.has(pid))
+                                    return null;
+                                const pos = positions.get(pid);
+                                if (!pos)
+                                    return null;
+                                const sp = staticParticipantByPid(staticMatch, pid);
+                                if (!sp)
+                                    return null;
+                                const { nx, ny } = toMapNorm(pos);
+                                const teamTint = sp.teamId === 100 ? "#5BA8E6" : "#d63336";
+                                const m = metricsAt(timeline, pid, timeMs);
+                                const dead = deathsByVictim.has(pid);
+                                const isFocused = focusedPid === pid;
+                                return (_jsx("button", { type: "button", onClick: (e) => {
+                                        e.stopPropagation();
+                                        onFocusPid?.(focusedPid === pid ? null : pid);
+                                    }, className: "absolute z-[50] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-jade rounded-full", style: {
+                                        left: `${nx * 100}%`, top: `${ny * 100}%`,
+                                        transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
+                                        // Promote each sprite to its OWN GPU compositing layer
+                                        // ONLY when the user has zoomed in. Without this, the
+                                        // sprite is rasterized inside the coord-layer texture at
+                                        // container resolution — so at 4× zoom the browser just
+                                        // upscales those few raster pixels and the champion icon
+                                        // turns into a mosaic. `will-change: transform` (or a
+                                        // translateZ hint) forces an independent layer the
+                                        // compositor can sample directly at the final on-screen
+                                        // resolution. We gate it on zoom>1 so idle viewing of
+                                        // the map doesn't pay the GPU-memory cost for 10 sprites.
+                                        willChange: zoom > 1 ? "transform" : undefined,
+                                        backfaceVisibility: zoom > 1 ? "hidden" : undefined,
+                                    }, title: `${sp.championName} — Lv ${m?.level ?? "?"}`, children: _jsxs("div", { className: "relative", children: [isFocused && (_jsx("div", { className: "absolute inset-0 rounded-full -m-2 animate-pulse", style: { boxShadow: `0 0 0 2px ${teamTint}, 0 0 14px ${teamTint}` } })), _jsxs("div", { className: cn("relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center", dead && "grayscale brightness-50"), style: {
+                                                    boxShadow: `0 0 0 2px ${teamTint}, 0 0 8px rgba(0,0,0,0.7)`,
+                                                    background: "#040A0C",
+                                                }, children: [_jsx("img", { src: `${cdnBaseUrl()}/img/champion/${normalizeChampName(sp.championName)}.png`, alt: sp.championName, className: "w-full h-full object-cover", draggable: false }), dead && (_jsx("div", { className: "absolute inset-0 flex items-center justify-center bg-black/60", children: _jsx(SkullIcon, { className: "w-5 h-5 text-flash/90" }) }))] }), m && !dead && (_jsx("div", { className: "absolute -bottom-1 -right-1 px-1 rounded-sm text-[9px] font-mono font-bold tabular-nums", style: { background: "#040A0C", color: teamTint, boxShadow: `0 0 0 1px ${teamTint}80` }, children: m.level }))] }) }, pid));
+                            }), _jsx(DebugMapOverlay, { enabled: !!debug, overrides: debugOverrides ?? {}, setOverrides: setDebugOverrides ?? (() => { }) })] })] }), _jsx("div", { className: "absolute inset-0 pointer-events-none", style: {
                     boxShadow: "inset 0 0 0 1px rgba(0,217,146,0.18), inset 0 0 28px rgba(0,0,0,0.35)",
                 } }), _jsx("div", { className: "absolute inset-0 pointer-events-none", style: {
                     background: "radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.30) 100%)",
-                } })] }));
+                } }), _jsxs("div", { "data-rift-zoom-control": true, className: "absolute bottom-3 right-3 z-50 flex flex-col gap-1", children: [_jsx("button", { type: "button", onClick: handleZoomIn, disabled: zoom >= ZOOM_MAX, title: "Zoom in", className: cn("w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker", "bg-black/65 backdrop-blur-sm border border-flash/15", "hover:border-jade/45 hover:bg-jade/15 hover:text-jade", "text-flash/75 transition-colors", "disabled:opacity-30 disabled:cursor-not-allowed"), children: _jsx(ZoomIn, { className: "w-3.5 h-3.5" }) }), _jsx("button", { type: "button", onClick: handleZoomReset, disabled: zoom === 1 && pan.x === 0 && pan.y === 0, title: "Reset zoom (100%)", className: cn("w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker", "bg-black/65 backdrop-blur-sm border border-flash/15", "hover:border-jade/45 hover:bg-jade/15 hover:text-jade", "transition-colors", zoom > 1
+                            ? "text-jade font-mono text-[9px] tabular-nums tracking-tight"
+                            : "text-flash/55", "disabled:opacity-30 disabled:cursor-not-allowed"), children: zoom > 1 ? `${Math.round(zoom * 100)}` : _jsx(Maximize2, { className: "w-3 h-3" }) }), _jsx("button", { type: "button", onClick: handleZoomOut, disabled: zoom <= ZOOM_MIN, title: "Zoom out", className: cn("w-7 h-7 rounded-sm flex items-center justify-center cursor-clicker", "bg-black/65 backdrop-blur-sm border border-flash/15", "hover:border-jade/45 hover:bg-jade/15 hover:text-jade", "text-flash/75 transition-colors", "disabled:opacity-30 disabled:cursor-not-allowed"), children: _jsx(ZoomOut, { className: "w-3.5 h-3.5" }) })] })] }));
 }

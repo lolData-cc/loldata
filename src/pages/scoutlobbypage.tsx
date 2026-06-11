@@ -22,6 +22,16 @@ import {
   Gamepad2,
   Award,
   RefreshCw,
+  Swords,
+  Flame,
+  Crown,
+  Coins,
+  Shield,
+  Sparkles,
+  Zap,
+  Wheat,
+  Target,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
@@ -3909,6 +3919,9 @@ function LeaderboardTab({
 
       {/* LP timeline chart — per-player, with day/week/month granularity */}
       <LpTimelineChart slug={slug} refreshTick={refreshTick} />
+
+      {/* Bounty leaderboard — all-time claim count per player. */}
+      <BountyLeaderboardPanel slug={slug} refreshTick={refreshTick} />
     </div>
   );
 }
@@ -5092,7 +5105,14 @@ function SidebarLeaderboard({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Window selector */}
+      {/* Daily Bounty — sits at the very top of the sidebar so the
+          metallic card is the first thing the eye lands on. State
+          machine: ACTIVE shows the challenge + threshold; CLAIMED
+          shows the winner & value. */}
+      <DailyBountyBox slug={slug} refreshTick={refreshTick} />
+
+      {/* Window selector — scopes the stat widgets below to today /
+          week / all-time. */}
       <div className={cn(glassDark, "p-3")}>
         <GlowBackdrop subtle />
         <div className="relative z-[1] flex items-center gap-1">
@@ -5359,6 +5379,557 @@ function LeaderboardStatBox({
         ) : (
           <div className="h-[58px] flex items-center justify-center text-[11px] font-jetbrains tracking-[0.15em] uppercase text-flash/30">
             {emptyText}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── daily bounty (sidebar widget) ─────────────────────────────────── */
+//
+// Shows today's challenge for the lobby. Two visual states:
+//   • active  — challenge title, description, threshold metric
+//   • claimed — first player's avatar, name, actual achieved value,
+//               and a small "CLAIMED" badge
+//
+// Re-fetches on `refreshTick` so the moment a match lands and the
+// backend hook flips the bounty to claimed, the next periodic refresh
+// surfaces the winner.
+
+type BountyMetric =
+  | "kills"
+  | "damage"
+  | "kp_pct"
+  | "vision"
+  | "gold"
+  | "kda"
+  | "zero_deaths_win"
+  | "assists"
+  | "quick_win"
+  | "cs";
+
+type BountyPayload = {
+  template: {
+    code: string;
+    title: string;
+    description: string;
+    metric: BountyMetric;
+    threshold: number;
+    rarity: "common" | "rare" | "legendary";
+    icon: string;
+  };
+  day_utc: string;
+  state: "active" | "claimed";
+  claimed_at: string | null;
+  claimed_value: number | null;
+  claimed_match_id: string | null;
+  claimed_by: {
+    lobby_player_id: string;
+    display_name: string | null;
+    color: string | null;
+  } | null;
+};
+
+function bountyIconFor(iconKey: string): React.ReactNode {
+  const cls = "w-4 h-4";
+  switch (iconKey) {
+    case "swords":   return <Swords className={cls} />;
+    case "flame":    return <Flame className={cls} />;
+    case "crown":    return <Crown className={cls} />;
+    case "eye":      return <Eye className={cls} />;
+    case "coins":    return <Coins className={cls} />;
+    case "shield":   return <Shield className={cls} />;
+    case "sparkles": return <Sparkles className={cls} />;
+    case "users":    return <Users className={cls} />;
+    case "zap":      return <Zap className={cls} />;
+    case "wheat":    return <Wheat className={cls} />;
+    default:         return <Target className={cls} />;
+  }
+}
+
+// Human-readable threshold + achieved-value formatters per metric.
+function formatBountyTarget(metric: BountyMetric, threshold: number): string {
+  switch (metric) {
+    case "kills":     return `${threshold} kills`;
+    case "damage":    return `${(threshold / 1000).toFixed(0)}k dmg`;
+    case "kp_pct":    return `${Math.round(threshold * 100)}% KP`;
+    case "vision":    return `${threshold} vision`;
+    case "gold":      return `${(threshold / 1000).toFixed(0)}k gold`;
+    case "kda":       return `${threshold.toFixed(1)} KDA`;
+    case "zero_deaths_win": return "0 deaths · WIN";
+    case "assists":   return `${threshold} assists`;
+    case "quick_win": return `< ${Math.round(threshold / 60)} min`;
+    case "cs":        return `${threshold} CS`;
+  }
+}
+
+function formatBountyAchieved(metric: BountyMetric, value: number): string {
+  switch (metric) {
+    case "kills":     return `${value}`;
+    case "damage":    return `${(value / 1000).toFixed(1)}k`;
+    case "kp_pct":    return `${Math.round(value * 100)}%`;
+    case "vision":    return `${value}`;
+    case "gold":      return `${(value / 1000).toFixed(1)}k`;
+    case "kda":       return value.toFixed(2);
+    case "zero_deaths_win": return "PERFECT";
+    case "assists":   return `${value}`;
+    case "quick_win": return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
+    case "cs":        return `${value}`;
+  }
+}
+
+// Per-rarity accent palette. Common = jade (in line with the rest of
+// the sidebar), rare = citrine, legendary = a pinkish flash to set
+// the chase challenges apart visually.
+const RARITY_ACCENT: Record<
+  BountyPayload["template"]["rarity"],
+  { color: string; label: string }
+> = {
+  common:    { color: "#00d992", label: "COMMON" },
+  rare:      { color: "#FFB615", label: "RARE" },
+  legendary: { color: "#ff5db5", label: "LEGENDARY" },
+};
+
+function DailyBountyBox({
+  slug,
+  refreshTick,
+}: {
+  slug: string;
+  refreshTick: number;
+}) {
+  const [payload, setPayload] = useState<BountyPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${API_BASE_URL}/api/scout/bounty/today/${slug}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !cancelled && setPayload(d))
+      .catch(console.error)
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, refreshTick]);
+
+  // Skeleton-equivalent: same metallic chrome (jade-tinted placeholder
+  // since we don't know the bounty's rarity yet) so the layout doesn't
+  // reflow when the request resolves.
+  if (loading || !payload) {
+    return (
+      <div
+        className="relative overflow-hidden rounded-md"
+        style={{
+          background: `
+            linear-gradient(180deg,
+              rgba(255,255,255,0.06) 0%,
+              transparent 25%,
+              transparent 75%,
+              rgba(0,0,0,0.22) 100%
+            ),
+            linear-gradient(135deg,
+              color-mix(in srgb, ${JADE} 22%, #0a0e10) 0%,
+              color-mix(in srgb, ${JADE} 10%, #0a0e10) 50%,
+              color-mix(in srgb, ${JADE} 18%, #0a0e10) 100%
+            )
+          `,
+          boxShadow: `
+            0 14px 36px rgba(0,0,0,0.6),
+            0 2px 10px color-mix(in srgb, ${JADE} 18%, transparent),
+            inset 0 1px 0 rgba(255,255,255,0.18),
+            inset 0 -1px 0 rgba(0,0,0,0.5),
+            inset 0 0 0 0.5px rgba(255,255,255,0.08)
+          `,
+        }}
+      >
+        <div className="relative z-[2] p-3.5">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span
+              className="w-5 h-5 rounded-[3px] flex items-center justify-center shrink-0 text-jade/70"
+              style={{
+                background: `color-mix(in srgb, ${JADE} 10%, transparent)`,
+                border: `0.5px solid color-mix(in srgb, ${JADE} 30%, transparent)`,
+              }}
+            >
+              <Target className="w-3 h-3" />
+            </span>
+            <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/70 font-semibold">
+              Daily Bounty
+            </span>
+            <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
+          </div>
+          <div className="h-[64px] flex items-center justify-center">
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-jade/60" />
+            ) : (
+              <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/35">
+                no bounty today
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const rarity = RARITY_ACCENT[payload.template.rarity];
+  const isClaimed = payload.state === "claimed";
+  const winnerColor = payload.claimed_by?.color || JADE;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-md"
+      style={{
+        // Polished-metal card aesthetic.
+        //
+        // Stack (back → front) — composited via CSS multi-background:
+        //   1. Anisotropic top→bottom sheen (white top edge → dark
+        //      bottom edge) → suggests brushed metal curvature.
+        //   2. Static diagonal "shine band" across the centre, like
+        //      a luxury credit card catching light.
+        //   3. Rarity-tinted metal base. The rarity colour is mixed
+        //      into a dark base at varying ratios across a 135° axis
+        //      so the surface reads as coloured metal (jade-tinted
+        //      steel, citrine-tinted brass, rose-gold) without
+        //      tipping into "neon glow."
+        background: `
+          linear-gradient(115deg,
+            transparent 0%,
+            transparent 30%,
+            rgba(255,255,255,0.04) 44%,
+            rgba(255,255,255,0.14) 50%,
+            rgba(255,255,255,0.04) 56%,
+            transparent 70%,
+            transparent 100%
+          ),
+          linear-gradient(180deg,
+            rgba(255,255,255,0.06) 0%,
+            transparent 25%,
+            transparent 75%,
+            rgba(0,0,0,0.22) 100%
+          ),
+          linear-gradient(135deg,
+            color-mix(in srgb, ${rarity.color} 32%, #0a0e10) 0%,
+            color-mix(in srgb, ${rarity.color} 14%, #0a0e10) 35%,
+            color-mix(in srgb, ${rarity.color} 10%, #0a0e10) 65%,
+            color-mix(in srgb, ${rarity.color} 26%, #0a0e10) 100%
+          )
+        `,
+        // Box shadow layers:
+        //   • outer drop — sits the card above its neighbours
+        //   • coloured ambient — a soft tinted halo so the card has
+        //     a presence on the page without a bright accent border
+        //   • inset highlights — embossed top edge, recessed bottom
+        //     edge (the classic metal-card depth illusion)
+        //   • hairline outline — keeps the silhouette crisp
+        boxShadow: `
+          0 14px 36px rgba(0,0,0,0.6),
+          0 2px 10px color-mix(in srgb, ${rarity.color} 22%, transparent),
+          inset 0 1px 0 rgba(255,255,255,0.22),
+          inset 0 -1px 0 rgba(0,0,0,0.5),
+          inset 0 0 0 0.5px rgba(255,255,255,0.08)
+        `,
+      }}
+    >
+      <div className="relative z-[2] p-3.5">
+        {/* Header row — compact treatment that still distinguishes the
+            card from neighbours via the icon chip + rarity badge. */}
+        <div className="flex items-center gap-2 mb-2.5">
+          <span
+            className="w-5 h-5 rounded-[3px] flex items-center justify-center shrink-0"
+            style={{
+              background: `color-mix(in srgb, ${rarity.color} 14%, transparent)`,
+              border: `0.5px solid color-mix(in srgb, ${rarity.color} 40%, transparent)`,
+              color: rarity.color,
+            }}
+          >
+            <span className="scale-75 origin-center">
+              {bountyIconFor(payload.template.icon)}
+            </span>
+          </span>
+          <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/70 font-semibold">
+            Daily Bounty
+          </span>
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
+          <span
+            className="text-[7px] font-jetbrains tracking-[0.25em] uppercase font-bold px-1.5 py-[3px] rounded-sm"
+            style={{
+              color: rarity.color,
+              backgroundColor: `color-mix(in srgb, ${rarity.color} 16%, transparent)`,
+              border: `0.5px solid color-mix(in srgb, ${rarity.color} 40%, transparent)`,
+            }}
+          >
+            {rarity.label}
+          </span>
+        </div>
+
+        {/* Title + description — both in chakrapetch to match the
+            metric numerals and reinforce the "membership card" feel.
+            Subtitle uses the freshly-loaded 300 weight for an airy,
+            luxe contrast against the bold title. */}
+        <div className="mb-2.5">
+          <div className="text-[14px] font-chakrapetch font-bold text-flash leading-tight tracking-[0.01em]">
+            {payload.template.title}
+          </div>
+          <div
+            className="text-[11px] font-chakrapetch text-flash/65 mt-0.5 leading-snug tracking-[0.02em]"
+            style={{ fontWeight: 300 }}
+          >
+            {payload.template.description}
+          </div>
+        </div>
+
+        {isClaimed && payload.claimed_by ? (
+          // ── CLAIMED state ─────────────────────────────────────────
+          // The chip needs a solid dark backdrop so the card's static
+          // shine band doesn't bleed through it — the chip should
+          // read as a clean panel sitting on top of the metal.
+          <div
+            className="relative overflow-hidden rounded-md p-2.5"
+            style={{
+              background: `
+                linear-gradient(135deg, color-mix(in srgb, ${winnerColor} 14%, transparent) 0%, rgba(0,0,0,0.55) 100%),
+                rgba(8, 12, 14, 0.95)
+              `,
+              border: `0.5px solid color-mix(in srgb, ${winnerColor} 28%, transparent)`,
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{
+                  background: "rgba(0,0,0,0.45)",
+                  border: `1.5px solid color-mix(in srgb, ${winnerColor} 55%, transparent)`,
+                  boxShadow: `0 0 12px color-mix(in srgb, ${winnerColor} 30%, transparent)`,
+                }}
+              >
+                <span
+                  className="text-[12px] font-jetbrains font-bold"
+                  style={{ color: winnerColor }}
+                >
+                  {(payload.claimed_by.display_name ?? "?")
+                    .slice(0, 1)
+                    .toUpperCase()}
+                </span>
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[12px] font-geist font-semibold text-flash truncate leading-tight">
+                  {payload.claimed_by.display_name ?? "Unknown"}
+                </span>
+                <span className="text-[8px] font-jetbrains tracking-[0.22em] uppercase text-flash/55 mt-0.5 flex items-center gap-1 font-medium">
+                  <CheckCircle2 className="w-2.5 h-2.5" style={{ color: winnerColor }} />
+                  Claimed
+                </span>
+              </div>
+              <div className="flex flex-col items-end shrink-0">
+                <span
+                  className="text-[17px] font-chakrapetch font-bold tabular-nums leading-none"
+                  style={{ color: winnerColor }}
+                >
+                  {payload.claimed_value !== null
+                    ? formatBountyAchieved(payload.template.metric, payload.claimed_value)
+                    : "—"}
+                </span>
+                <span className="text-[7.5px] font-jetbrains tracking-[0.22em] uppercase text-flash/45 mt-1 font-medium">
+                  {payload.template.metric === "zero_deaths_win"
+                    ? "PERFECT"
+                    : "ACHIEVED"}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // ── ACTIVE state ──────────────────────────────────────────
+          // Target + status side by side now (instead of stacked) —
+          // saves vertical space while keeping the metric hero-sized.
+          // Solid dark backdrop layer ensures the card's static shine
+          // doesn't bleed through the chip.
+          <div
+            className="relative overflow-hidden rounded-md py-2 px-3 flex items-center justify-between gap-3"
+            style={{
+              background: `
+                linear-gradient(180deg, color-mix(in srgb, ${rarity.color} 12%, transparent) 0%, rgba(0,0,0,0.55) 100%),
+                rgba(8, 12, 14, 0.95)
+              `,
+              border: `0.5px solid color-mix(in srgb, ${rarity.color} 26%, transparent)`,
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] font-jetbrains tracking-[0.3em] uppercase text-flash/45 font-medium">
+                Target
+              </span>
+              <span
+                className="text-[16px] font-chakrapetch font-bold tabular-nums leading-tight mt-0.5 tracking-[-0.01em] truncate"
+                style={{
+                  color: rarity.color,
+                  textShadow: `0 0 14px color-mix(in srgb, ${rarity.color} 40%, transparent)`,
+                }}
+              >
+                {formatBountyTarget(payload.template.metric, payload.template.threshold)}
+              </span>
+            </div>
+            <span className="text-[8.5px] font-jetbrains tracking-[0.25em] uppercase text-jade font-bold flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-jade/[0.08] border border-jade/25 shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-jade opacity-60 animate-ping" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-jade" />
+              </span>
+              Active
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── bounty leaderboard panel (LeaderboardTab footer) ──────────────── */
+//
+// All-time bounty claims, grouped by claimer. The backend hands us
+// rows already sorted by total claims, so we just render them with
+// medal accents for the podium and the most recent claim as a
+// trailing chip.
+
+type BountyLeaderboardRow = {
+  lobby_player_id: string;
+  display_name: string | null;
+  color: string | null;
+  total_claims: number;
+  last_claim_at: string;
+  last_template_code: string;
+  last_template_title: string;
+  last_value: number | null;
+};
+
+function BountyLeaderboardPanel({
+  slug,
+  refreshTick,
+}: {
+  slug: string;
+  refreshTick: number;
+}) {
+  const [rows, setRows] = useState<BountyLeaderboardRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${API_BASE_URL}/api/scout/bounty/leaderboard/${slug}`)
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d) => !cancelled && setRows(d?.rows ?? []))
+      .catch(console.error)
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, refreshTick]);
+
+  // Medal colours for the top-3 — gold / silver / bronze. Matches the
+  // luxury aesthetic without leaning too hard on the brand palette.
+  const medalFor = (idx: number): string | null => {
+    if (idx === 0) return "#FFB615"; // citrine — gold
+    if (idx === 1) return "#cdd5dd"; // silver
+    if (idx === 2) return "#cd7f32"; // bronze
+    return null;
+  };
+
+  return (
+    <div className={cn(glassDark, "p-5 md:p-6")}>
+      <GlowBackdrop subtle />
+      <div className="relative z-[1]">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <span className="text-jade">
+            <Target className="w-4 h-4" />
+          </span>
+          <span className="text-[11px] font-jetbrains tracking-[0.25em] uppercase text-flash/70 font-medium">
+            Bounty Leaderboard
+          </span>
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/15 to-transparent" />
+          <span className="text-[9px] font-jetbrains tracking-[0.25em] uppercase text-flash/35">
+            ALL-TIME
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="py-10 flex items-center justify-center">
+            <Loader2 className="w-4 h-4 animate-spin text-jade/60" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-10 text-center">
+            <div className="text-[12px] font-jetbrains tracking-[0.2em] uppercase text-flash/35">
+              No bounties claimed yet
+            </div>
+            <div className="text-[10px] font-jetbrains tracking-[0.1em] text-flash/25 mt-2">
+              Be the first to claim today's challenge
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {rows.map((row, idx) => {
+              const medal = medalFor(idx);
+              const accent = row.color || JADE;
+              return (
+                <div
+                  key={row.lobby_player_id}
+                  className="relative flex items-center gap-3 px-3 py-2.5 rounded-md bg-black/15 border border-flash/[0.05] hover:bg-black/25 transition-colors"
+                >
+                  {/* Rank pip */}
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[11px] font-jetbrains font-bold tabular-nums"
+                    style={{
+                      background: medal
+                        ? `color-mix(in srgb, ${medal} 18%, transparent)`
+                        : "rgba(0,0,0,0.35)",
+                      color: medal ?? "#a8b0b6",
+                      border: `1px solid color-mix(in srgb, ${medal ?? "#3a4248"} 45%, transparent)`,
+                    }}
+                  >
+                    {idx + 1}
+                  </div>
+
+                  {/* Player avatar pill */}
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                    style={{
+                      background: "rgba(0,0,0,0.4)",
+                      border: `1.5px solid color-mix(in srgb, ${accent} 45%, transparent)`,
+                      boxShadow: `0 0 10px color-mix(in srgb, ${accent} 25%, transparent)`,
+                    }}
+                  >
+                    <span
+                      className="text-[12px] font-jetbrains font-bold"
+                      style={{ color: accent }}
+                    >
+                      {(row.display_name ?? "?").slice(0, 1).toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Name + last claim */}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[13px] font-geist font-medium text-flash truncate">
+                      {row.display_name ?? "Unknown"}
+                    </span>
+                    <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/35 mt-0.5 truncate">
+                      Last: {row.last_template_title}
+                    </span>
+                  </div>
+
+                  {/* Total claim count + label */}
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-[18px] font-chakrapetch font-bold tabular-nums text-jade leading-none">
+                      {row.total_claims}
+                    </span>
+                    <span className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mt-1">
+                      {row.total_claims === 1 ? "CLAIM" : "CLAIMS"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
