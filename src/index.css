@@ -227,6 +227,13 @@ html, body {
   src: url("/fonts/chakra-petch-700.ttf") format("truetype")
 }
 
+@font-face {
+  font-family: chakrapetch;
+  font-style: normal;
+  font-weight: 300;
+  src: url("/fonts/chakra-petch-300.ttf") format("truetype")
+}
+
 html, body {
   @apply bg-liquirice;
 }
