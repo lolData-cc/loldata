@@ -19,7 +19,7 @@
 // pick up from where we left off without snapping.
 import { useCallback, useEffect, useRef, useState } from "react";
 export function useReplayPlayback(opts) {
-    const { durationMs, initialMs = 0, initialSpeed = 4, loop = false } = opts;
+    const { durationMs, initialMs = 0, initialSpeed = 4, loop = false, loopRange = null } = opts;
     const [timeMs, setTimeMs] = useState(initialMs);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeedState] = useState(initialSpeed);
@@ -28,10 +28,12 @@ export function useReplayPlayback(opts) {
     const timeRef = useRef(timeMs);
     const playingRef = useRef(isPlaying);
     const durationRef = useRef(durationMs);
+    const loopRangeRef = useRef(loopRange);
     useEffect(() => { speedRef.current = speed; }, [speed]);
     useEffect(() => { timeRef.current = timeMs; }, [timeMs]);
     useEffect(() => { playingRef.current = isPlaying; }, [isPlaying]);
     useEffect(() => { durationRef.current = durationMs; }, [durationMs]);
+    useEffect(() => { loopRangeRef.current = loopRange; }, [loopRange]);
     // Clamp on duration change (loading completion).
     useEffect(() => {
         if (durationMs > 0 && timeRef.current > durationMs) {
@@ -48,7 +50,20 @@ export function useReplayPlayback(opts) {
             if (playingRef.current) {
                 const nextRaw = timeRef.current + dt * speedRef.current;
                 const dur = durationRef.current;
-                if (dur > 0 && nextRaw >= dur) {
+                const range = loopRangeRef.current;
+                if (range) {
+                    // Range-loop mode: bounce back to start when we cross the
+                    // end marker. If the head is BELOW range.start (user seeked
+                    // outside while playing), pull it back to start too so the
+                    // loop hook always re-enters at the band's leading edge.
+                    if (nextRaw >= range.end || timeRef.current < range.start) {
+                        setTimeMs(range.start);
+                    }
+                    else {
+                        setTimeMs(nextRaw);
+                    }
+                }
+                else if (dur > 0 && nextRaw >= dur) {
                     if (loop) {
                         setTimeMs(0);
                     }
@@ -68,8 +83,17 @@ export function useReplayPlayback(opts) {
         return () => cancelAnimationFrame(raf);
     }, [loop]);
     const play = useCallback(() => {
-        // If we're at the end, rewind first.
-        if (timeRef.current >= durationRef.current && durationRef.current > 0) {
+        const range = loopRangeRef.current;
+        const dur = durationRef.current;
+        if (range) {
+            // Pull the head back into the band on play so pressing play
+            // after an out-of-range seek does what the user expects.
+            if (timeRef.current < range.start || timeRef.current >= range.end) {
+                setTimeMs(range.start);
+            }
+        }
+        else if (timeRef.current >= dur && dur > 0) {
+            // No range — wrap from end-of-match.
             setTimeMs(0);
         }
         setIsPlaying(true);

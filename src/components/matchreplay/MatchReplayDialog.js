@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X, Map as MapIcon, ListChecks, LineChart, Play, Pause, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -14,10 +14,64 @@ import { RosterPanel } from "./RosterPanel";
 import { ScoreboardLive } from "./ScoreboardLive";
 import { GoldDiffChart } from "./GoldDiffChart";
 import { DrawingOverlay, DrawingToolbar, DRAW_COLORS } from "./DrawingOverlay";
-import { CalibrationPanel, DEFAULT_CALIBRATION } from "./DebugMapOverlay";
+import { CalibrationPanel, DEFAULT_CALIBRATION, DEFAULT_LANDMARK_OVERRIDES } from "./DebugMapOverlay";
 import { dragonColor, eliteMonsterIcon, TowerIcon, InhibitorIcon } from "./eventIcons";
-export function MatchReplayDialog({ open, onClose, matchId, region, staticMatch, focusPuuid, }) {
+export function MatchReplayDialog({ open, onClose, matchId, region, staticMatch, focusPuuid, rosterFallback, }) {
     const { data: timeline, loading, error } = useMatchTimeline(open ? matchId : null, region);
+    // Build a stand-in StaticMatch from the timeline's puuid ordering +
+    // the scout feed's rosterFallback. Only kicks in when the parent
+    // didn't pass a real staticMatch (the scout MatchCard's case). The
+    // timeline puts participants in the canonical 1..10 order via
+    // metadata.participants[]; we look each puuid up in rosterFallback
+    // to get the championName / summonerName / k/d/a. Fields we don't
+    // know (items, perks, gold totals, level — all of which the timeline
+    // supplies anyway) get safe zero defaults so the type stays happy.
+    const syntheticStaticMatch = useMemo(() => {
+        if (staticMatch)
+            return null; // parent already gave us the real thing
+        if (!timeline || !rosterFallback || rosterFallback.length === 0)
+            return null;
+        const byPuuid = new Map(rosterFallback.map((p) => [p.puuid, p]));
+        const participants = timeline.metadata.participants.map((puuid, idx) => {
+            const p = byPuuid.get(puuid);
+            const tid = (p?.teamId === 200 ? 200 : 100);
+            return {
+                puuid,
+                participantId: idx + 1,
+                teamId: tid,
+                championId: 0,
+                championName: p?.championName ?? "Unknown",
+                riotIdGameName: p?.summonerName ?? undefined,
+                riotIdTagline: p?.riotTagline ?? undefined,
+                summonerName: p?.summonerName ?? undefined,
+                summoner1Id: 0,
+                summoner2Id: 0,
+                champLevel: 1,
+                kills: p?.kills ?? 0,
+                deaths: p?.deaths ?? 0,
+                assists: p?.assists ?? 0,
+                totalDamageDealtToChampions: 0,
+                goldEarned: 0,
+                totalMinionsKilled: 0,
+                neutralMinionsKilled: 0,
+                item0: 0, item1: 0, item2: 0, item3: 0, item4: 0, item5: 0, item6: 0,
+                win: p?.win ?? false,
+            };
+        });
+        return {
+            metadata: { matchId },
+            info: {
+                gameDuration: 0,
+                queueId: 0,
+                participants,
+                teams: [
+                    { teamId: 100, win: participants.find((p) => p.teamId === 100)?.win ?? false, bans: [] },
+                    { teamId: 200, win: participants.find((p) => p.teamId === 200)?.win ?? false, bans: [] },
+                ],
+            },
+        };
+    }, [staticMatch, timeline, rosterFallback, matchId]);
+    const effectiveStaticMatch = staticMatch ?? syntheticStaticMatch;
     // Lock body scroll AND any inner scroll-container while open.
     // The site's RootLayout uses a wrapping <div> with
     // overflow-y-scroll, so just freezing the body wasn't enough —
@@ -63,7 +117,7 @@ export function MatchReplayDialog({ open, onClose, matchId, region, staticMatch,
     }, [open, onClose]);
     if (!open)
         return null;
-    return createPortal(_jsx("div", { className: "fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200", onClick: onClose, children: _jsxs("div", { onClick: (e) => e.stopPropagation(), className: "relative w-full max-w-[1400px] h-[92vh] bg-liquirice/95 rounded-lg ring-1 ring-flash/10 shadow-[0_30px_120px_-20px_rgba(0,0,0,0.9),0_8px_28px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden flex flex-col", children: [_jsx("div", { className: "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,217,146,0.06),transparent_60%)]" }), timeline ? (_jsx(Loaded, { timeline: timeline, staticMatch: staticMatch, focusPuuid: focusPuuid ?? null, onClose: onClose })) : (_jsx(LoadingState, { loading: loading, error: error, onClose: onClose }))] }) }), document.body);
+    return createPortal(_jsx("div", { className: "fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200", onClick: onClose, children: _jsxs("div", { onClick: (e) => e.stopPropagation(), className: "relative w-full max-w-[1400px] h-[92vh] bg-liquirice/95 rounded-lg ring-1 ring-flash/10 shadow-[0_30px_120px_-20px_rgba(0,0,0,0.9),0_8px_28px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden flex flex-col", children: [_jsx("div", { className: "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,217,146,0.06),transparent_60%)]" }), timeline ? (_jsx(Loaded, { timeline: timeline, staticMatch: effectiveStaticMatch, focusPuuid: focusPuuid ?? null, onClose: onClose })) : (_jsx(LoadingState, { loading: loading, error: error, onClose: onClose }))] }) }), document.body);
 }
 // ─── Loading / error state ────────────────────────────────────────────
 function LoadingState({ loading, error, onClose }) {
@@ -72,9 +126,71 @@ function LoadingState({ loading, error, onClose }) {
 // ─── Loaded body ──────────────────────────────────────────────────────
 function Loaded({ timeline, staticMatch, focusPuuid, onClose, }) {
     const dur = useMemo(() => durationMs(timeline), [timeline]);
-    const playback = useReplayPlayback({ durationMs: dur, initialMs: 0, initialSpeed: 4 });
+    // ── Shift-click loop range ─────────────────────────────────────
+    // Shift+click on the scrubber drops a marker. The first click sets
+    // pendingLoopStart; the second seals the range and the playback bar
+    // shows a glowing blue band. Any subsequent shift+click clears the
+    // existing range and starts a new pending marker. Escape clears at
+    // any moment. While a range is set, useReplayPlayback loops the
+    // playhead inside it, and DamageBars subtracts the cumulative damage
+    // at range.start from the running totals so the chart reads "damage
+    // dealt during this segment" only.
+    const [pendingLoopStart, setPendingLoopStart] = useState(null);
+    const [loopRange, setLoopRange] = useState(null);
+    const playback = useReplayPlayback({
+        durationMs: dur,
+        initialMs: 0,
+        initialSpeed: 4,
+        loopRange,
+    });
     const [view, setView] = useState("map");
     const [hiddenPids, setHiddenPids] = useState(new Set());
+    const handleShiftSeek = useCallback((t) => {
+        if (loopRange) {
+            // Already have a range — third shift+click resets and starts
+            // a new pending marker at this position.
+            setLoopRange(null);
+            setPendingLoopStart(t);
+            return;
+        }
+        if (pendingLoopStart != null) {
+            // Second click — seal the range. Order doesn't matter (we
+            // sort), and we require a minimum 500ms span to avoid an
+            // accidental double-tap creating a zero-width band.
+            const start = Math.min(pendingLoopStart, t);
+            const end = Math.max(pendingLoopStart, t);
+            if (end - start < 500) {
+                // Reposition the pending marker instead of sealing.
+                setPendingLoopStart(t);
+                return;
+            }
+            setLoopRange({ start, end });
+            setPendingLoopStart(null);
+            playback.seek(start);
+            return;
+        }
+        // First click — just stash the start.
+        setPendingLoopStart(t);
+    }, [loopRange, pendingLoopStart, playback]);
+    const handleClearLoop = useCallback(() => {
+        setLoopRange(null);
+        setPendingLoopStart(null);
+    }, []);
+    // Escape dismisses any pending marker / sealed range. Only mounted
+    // while there's something to dismiss so we don't compete with the
+    // dialog's own Esc-to-close on the empty case.
+    useEffect(() => {
+        if (!loopRange && pendingLoopStart == null)
+            return;
+        const onKey = (e) => {
+            if (e.key === "Escape") {
+                e.stopPropagation();
+                handleClearLoop();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+    }, [loopRange, pendingLoopStart, handleClearLoop]);
     // Drawing state — shared across mounts/unmounts within the dialog
     // so switching to scoreboard tab and back doesn't wipe annotations.
     const [drawTool, setDrawTool] = useState("off");
@@ -86,7 +202,11 @@ function Loaded({ timeline, staticMatch, focusPuuid, onClose, }) {
     // transform (least-squares) and slap it on the wrapper.
     const [debugMap, setDebugMap] = useState(false);
     const [calibration, setCalibration] = useState(DEFAULT_CALIBRATION);
-    const [landmarkOverrides, setLandmarkOverrides] = useState({});
+    // Seed the per-landmark anchors with the user's converged positions
+    // so opening the debug overlay shows the calibrated state, and the
+    // auto-fit button re-derives the same scaleX/scaleY/offsets the
+    // dialog ships with by default.
+    const [landmarkOverrides, setLandmarkOverrides] = useState(DEFAULT_LANDMARK_OVERRIDES);
     // Map the focus puuid to a participantId once timeline arrives.
     const initialFocusPid = useMemo(() => {
         if (!focusPuuid)
@@ -142,7 +262,7 @@ function Loaded({ timeline, staticMatch, focusPuuid, onClose, }) {
         window.addEventListener("keydown", fn);
         return () => window.removeEventListener("keydown", fn);
     }, [playback]);
-    return (_jsxs(_Fragment, { children: [_jsx(Header, { view: view, setView: setView, onClose: onClose, staticMatch: staticMatch }), _jsxs("div", { className: "flex-1 min-h-0 grid grid-cols-[minmax(130px,1fr)_auto_minmax(150px,1fr)] gap-0 px-1 pt-1 pb-1 relative z-10", children: [_jsxs("section", { className: "rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2.5 overflow-y-auto cyber-scrollbar", children: [_jsx("div", { className: "text-[9px] font-mono uppercase tracking-[0.22em] text-flash/45 mb-2", children: "Damage Chart" }), _jsx(DamageBars, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, onFocusPid: setFocusedPid })] }), _jsxs("div", { className: "relative min-h-0", children: [view === "map" && (_jsx("div", { className: "relative w-full h-full flex items-center justify-center", children: _jsxs("div", { className: "relative aspect-[3/2] h-full max-h-full max-w-full", children: [_jsx(RiftMap, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, hiddenPids: hiddenPids, onFocusPid: setFocusedPid, calibration: calibration, debug: debugMap, debugOverrides: landmarkOverrides, setDebugOverrides: setLandmarkOverrides }), _jsx(DrawingOverlay, { tool: drawTool, color: drawColor, strokes: strokes, setStrokes: setStrokes }), _jsx(DrawingToolbar, { tool: drawTool, setTool: setDrawTool, color: drawColor, setColor: setDrawColor, onClear: () => setStrokes([]), onUndo: () => setStrokes((p) => p.slice(0, -1)), hasStrokes: strokes.length > 0 }), _jsx(CalibrationPanel, { debug: debugMap, setDebug: setDebugMap, overrides: landmarkOverrides, setOverrides: setLandmarkOverrides, appliedCalibration: calibration, onApply: (c) => setCalibration(c), onResetCalibration: () => setCalibration(DEFAULT_CALIBRATION) }), _jsx(ScoreTopOverlay, { timeline: timeline, timeMs: playback.timeMs }), _jsx(SpeedControlsOverlay, { speed: playback.speed, onSetSpeed: playback.setSpeed }), _jsx(PlaybackControlsOverlay, { isPlaying: playback.isPlaying, onToggle: playback.toggle, onStep: playback.step })] }) })), view === "scoreboard" && (_jsx("div", { className: "w-full h-full overflow-y-auto cyber-scrollbar p-3", children: _jsx(ScoreboardLive, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs }) })), view === "golddiff" && (_jsx("div", { className: "w-full h-full overflow-y-auto cyber-scrollbar p-4 flex flex-col justify-center", children: _jsx(GoldDiffChart, { timeline: timeline, durationMs: dur, timeMs: playback.timeMs, onSeek: playback.seek }) }))] }), _jsxs("section", { className: "min-h-0 rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2.5 overflow-y-auto cyber-scrollbar", children: [_jsx("div", { className: "text-[9px] font-mono uppercase tracking-[0.22em] text-flash/45 mb-2", children: "Players" }), _jsx(RosterPanel, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, hiddenPids: hiddenPids, onFocusPid: setFocusedPid, onToggleHidden: toggleHidden })] })] }), _jsx("div", { className: "px-4 pb-1 pt-1 border-t border-flash/[0.05] bg-flash/[0.015] relative z-10", children: _jsx(PlaybackBar, { timeline: timeline, durationMs: dur, timeMs: playback.timeMs, isPlaying: playback.isPlaying, speed: playback.speed, onTogglePlay: playback.toggle, onSeek: playback.seek, onSetSpeed: playback.setSpeed, onStep: playback.step }) }), _jsx("div", { className: "px-2 pb-1.5 pt-1 border-t border-flash/[0.05] bg-flash/[0.01] relative z-10 h-[220px]", children: _jsx("div", { className: "rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2 h-full flex flex-col", children: _jsx(EventLog, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, onSeek: playback.seek, onFocusPid: setFocusedPid }) }) })] }));
+    return (_jsxs(_Fragment, { children: [_jsx(Header, { view: view, setView: setView, onClose: onClose, staticMatch: staticMatch }), _jsxs("div", { className: "flex-1 min-h-0 grid grid-cols-[minmax(130px,1fr)_auto_minmax(150px,1fr)] gap-0 px-1 pt-1 pb-1 relative z-10", children: [_jsxs("section", { className: "rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2.5 overflow-y-auto cyber-scrollbar", children: [_jsxs("div", { className: "flex items-center justify-between mb-2 gap-2", children: [_jsx("div", { className: cn("text-[9px] font-mono uppercase tracking-[0.22em] transition-colors", loopRange ? "text-[#5BA8E6]" : "text-flash/45"), children: loopRange ? "Damage in Window" : "Damage Chart" }), loopRange && (_jsxs("span", { className: "text-[8px] font-mono tabular-nums text-[#5BA8E6]/80 px-1 py-[1px] rounded-sm border border-[#5BA8E6]/30 bg-[#5BA8E6]/[0.08]", title: "Cumulative damage during the highlighted band", children: [Math.round((loopRange.end - loopRange.start) / 1000), "s"] }))] }), _jsx(DamageBars, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, onFocusPid: setFocusedPid, windowStart: loopRange?.start ?? null })] }), _jsxs("div", { className: "relative min-h-0", children: [view === "map" && (_jsx("div", { className: "relative w-full h-full flex items-center justify-center", children: _jsxs("div", { className: "relative aspect-[3/2] h-full max-h-full max-w-full", children: [_jsx(RiftMap, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, hiddenPids: hiddenPids, onFocusPid: setFocusedPid, calibration: calibration, debug: debugMap, debugOverrides: landmarkOverrides, setDebugOverrides: setLandmarkOverrides }), _jsx(DrawingOverlay, { tool: drawTool, color: drawColor, strokes: strokes, setStrokes: setStrokes }), _jsx(DrawingToolbar, { tool: drawTool, setTool: setDrawTool, color: drawColor, setColor: setDrawColor, onClear: () => setStrokes([]), onUndo: () => setStrokes((p) => p.slice(0, -1)), hasStrokes: strokes.length > 0 }), _jsx(CalibrationPanel, { debug: debugMap, setDebug: setDebugMap, overrides: landmarkOverrides, setOverrides: setLandmarkOverrides, appliedCalibration: calibration, onApply: (c) => setCalibration(c), onResetCalibration: () => setCalibration(DEFAULT_CALIBRATION) }), _jsx(ScoreTopOverlay, { timeline: timeline, timeMs: playback.timeMs }), _jsx(SpeedControlsOverlay, { speed: playback.speed, onSetSpeed: playback.setSpeed }), _jsx(PlaybackControlsOverlay, { isPlaying: playback.isPlaying, onToggle: playback.toggle, onStep: playback.step })] }) })), view === "scoreboard" && (_jsx("div", { className: "w-full h-full overflow-y-auto cyber-scrollbar p-3", children: _jsx(ScoreboardLive, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs }) })), view === "golddiff" && (_jsx("div", { className: "w-full h-full overflow-y-auto cyber-scrollbar p-4 flex flex-col justify-center", children: _jsx(GoldDiffChart, { timeline: timeline, durationMs: dur, timeMs: playback.timeMs, onSeek: playback.seek }) }))] }), _jsxs("section", { className: "min-h-0 rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2.5 overflow-y-auto cyber-scrollbar", children: [_jsx("div", { className: "text-[9px] font-mono uppercase tracking-[0.22em] text-flash/45 mb-2", children: "Players" }), _jsx(RosterPanel, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, focusedPid: focusedPid, hiddenPids: hiddenPids, onFocusPid: setFocusedPid, onToggleHidden: toggleHidden })] })] }), _jsx("div", { className: "px-4 pb-1 pt-1 border-t border-flash/[0.05] bg-flash/[0.015] relative z-10", children: _jsx(PlaybackBar, { timeline: timeline, durationMs: dur, timeMs: playback.timeMs, isPlaying: playback.isPlaying, speed: playback.speed, onTogglePlay: playback.toggle, onSeek: playback.seek, onSetSpeed: playback.setSpeed, onStep: playback.step, loopRange: loopRange, pendingLoopStart: pendingLoopStart, onShiftSeek: handleShiftSeek, onClearLoop: handleClearLoop }) }), _jsx("div", { className: "px-2 pb-1.5 pt-1 border-t border-flash/[0.05] bg-flash/[0.01] relative z-10 h-[220px]", children: _jsx("div", { className: "rounded-sm bg-flash/[0.015] ring-1 ring-flash/[0.06] p-2 h-full flex flex-col", children: _jsx(EventLog, { timeline: timeline, staticMatch: staticMatch, timeMs: playback.timeMs, onSeek: playback.seek, onFocusPid: setFocusedPid }) }) })] }));
 }
 // ─── Score top-center overlay — sits on the map's top edge ──────────
 //

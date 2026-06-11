@@ -3,8 +3,30 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 import { damageRankedAt, fmtShortNum, staticParticipantByPid, teamOf } from "./derive";
-export function DamageBars({ timeline, staticMatch, timeMs, focusedPid, onFocusPid }) {
-    const ranked = useMemo(() => damageRankedAt(timeline, timeMs), [timeline, timeMs]);
+export function DamageBars({ timeline, staticMatch, timeMs, focusedPid, onFocusPid, windowStart }) {
+    // Baseline = cumulative damage at the window's leading edge. Captured
+    // once per (timeline, windowStart) change so it's cheap to subtract
+    // every frame as the playhead advances.
+    const baseline = useMemo(() => {
+        if (windowStart == null)
+            return null;
+        const arr = damageRankedAt(timeline, windowStart);
+        const map = new Map();
+        for (const r of arr)
+            map.set(r.pid, r.dmg);
+        return map;
+    }, [timeline, windowStart]);
+    const ranked = useMemo(() => {
+        const current = damageRankedAt(timeline, timeMs);
+        if (!baseline)
+            return current;
+        // Subtract per-pid baseline, clamp to 0 (the playhead can briefly
+        // sit before windowStart between the seek and the next frame —
+        // we don't want negative bars in that one-frame gap).
+        return current
+            .map((r) => ({ pid: r.pid, dmg: Math.max(0, r.dmg - (baseline.get(r.pid) ?? 0)) }))
+            .sort((a, b) => b.dmg - a.dmg);
+    }, [timeline, timeMs, baseline]);
     const maxDmg = ranked[0]?.dmg ?? 1;
     const totalDmg = ranked.reduce((s, r) => s + r.dmg, 0) || 1;
     return (_jsx("div", { className: "space-y-1.5", children: ranked.map(({ pid, dmg }) => {
