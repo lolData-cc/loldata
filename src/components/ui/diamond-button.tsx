@@ -31,6 +31,18 @@ const COLOR_MAP = {
     icon: "text-[#c93232]",
     label: "text-[#c93232]/50",
   },
+  // Light blue — used by the lobby-verify FAB. Pulled from the cyber
+  // palette so it harmonises with jade/citrine without competing.
+  blue: {
+    border: "border-[#5bb8ff]/40",
+    hoverBorder: "group-hover:border-[#5bb8ff]/80",
+    hoverBg: "group-hover:bg-[#5bb8ff]/10",
+    hoverShadow: "group-hover:shadow-[0_0_18px_rgba(91,184,255,0.35),inset_0_0_8px_rgba(91,184,255,0.08)]",
+    shadow: "shadow-[0_0_8px_rgba(91,184,255,0.18)]",
+    scanline: "rgba(91,184,255,0.5)",
+    icon: "text-[#5bb8ff]",
+    label: "text-[#5bb8ff]/55",
+  },
 } as const
 
 export type DiamondColor = keyof typeof COLOR_MAP

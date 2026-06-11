@@ -50,6 +50,7 @@ import StreamersPage from "@/pages/streamerspage";
 import ScoutPage from "@/pages/scoutpage";
 import ScoutCreateLobbyPage from "@/pages/scoutcreatelobbypage";
 import ScoutLobbyPage from "@/pages/scoutlobbypage";
+import ScoutClaimPage from "@/pages/scoutclaimpage";
 import BillingSuccessPage from "@/pages/billingsuccess";
 import BillingCancelPage from "@/pages/billingcancel";
 //
@@ -238,6 +239,16 @@ function App() {
                       <ScoutCreateLobbyPage />
                     </RootLayout>
                   </AuthGuard>
+                }
+              />
+              {/* Claim page is registered BEFORE /scout/:slug so the
+                  static "claim" segment wins over the dynamic slug. */}
+              <Route
+                path="/scout/claim/:token"
+                element={
+                  <RootLayout>
+                    <ScoutClaimPage />
+                  </RootLayout>
                 }
               />
               <Route
