@@ -59,14 +59,13 @@ export function ChatTab({
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const verifyMode = lobby.verifyMode ?? "full";
   const me = userId
     ? lobby.players.find((p) => p.claimedByProfileId === userId) ?? null
     : null;
-  // UI gating: signed in is enough when verification is disabled;
-  // otherwise the user must be claimed in the lobby. (Backend
-  // enforces the same.)
-  const canPost = !!userId && (verifyMode === "disabled" || !!me);
+  // Posting requires a claimed (certified) identity in this lobby —
+  // always. No anonymous messages, regardless of verify_mode. The
+  // backend enforces the same rule.
+  const canPost = !!me;
 
   // Build a lookup from profile_id → current player data (for badge).
   const playerByProfileId = new Map<

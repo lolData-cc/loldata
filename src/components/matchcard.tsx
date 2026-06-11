@@ -537,8 +537,8 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                     permanently otherwise. The natural flex re-layout
                     on max-width change handles the timeAgo shift —
                     no explicit translate needed. */}
-                <span className="relative z-20 flex items-center gap-1.5">
-                  <span className="font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px] whitespace-nowrap shrink-0">
+                <span className="relative z-20 flex items-center gap-2">
+                  <span className="font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px] leading-none whitespace-nowrap shrink-0">
                     {timeAgo(gameCreationMs + (gameDurationSeconds ?? 0) * 1000)}
                   </span>
                   {data.social && (

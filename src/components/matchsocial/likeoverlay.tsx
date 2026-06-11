@@ -119,38 +119,31 @@ export function LikeOverlay({
               "shrink-0 overflow-hidden transition-all duration-200 ease-out cursor-clicker",
               alwaysVisible
                 ? // Permanent state: pinned expanded regardless of hover.
-                  "max-w-[60px] opacity-100 translate-x-0"
+                  "max-w-[80px] opacity-100 translate-x-0"
                 : // No likes yet: collapsed until the card is hovered.
-                  "max-w-0 opacity-0 -translate-x-1 group-hover/match:max-w-[60px] group-hover/match:opacity-100 group-hover/match:translate-x-0"
+                  "max-w-0 opacity-0 -translate-x-1 group-hover/match:max-w-[80px] group-hover/match:opacity-100 group-hover/match:translate-x-0"
             )}
             aria-label={iLiked ? "Unlike" : "Like this match"}
           >
             <span
               className={cn(
-                "inline-flex items-center gap-1 px-1.5 h-[18px] rounded-full border transition-colors",
+                "inline-flex items-center gap-1.5 px-2.5 h-[26px] rounded-full border transition-colors",
                 iLiked
-                  ? "bg-[#ff3e6c]/[0.18] border-[#ff3e6c]/55"
-                  : "bg-black/40 border-flash/20 hover:border-flash/40 hover:bg-black/60"
+                  ? "bg-[#ff3e6c]/[0.18] border-[#ff3e6c]/60 shadow-[0_0_10px_rgba(255,62,108,0.3)]"
+                  : "bg-black/55 border-flash/30 hover:border-flash/50 hover:bg-black/70"
               )}
             >
               <Heart
                 className={cn(
-                  "w-3 h-3 transition-colors",
-                  iLiked ? "text-[#ff3e6c] fill-[#ff3e6c]" : "text-flash/75"
+                  "w-[15px] h-[15px] transition-colors",
+                  iLiked ? "text-[#ff3e6c] fill-[#ff3e6c]" : "text-flash/85"
                 )}
               />
               {count > 0 && (
                 <span
                   className={cn(
-                    // Use chakrapetch (tabular nums + heavier metrics
-                    // sit lower in the line box than jetbrains-mono,
-                    // which was floating high next to the heart).
-                    // translate-y nudges to optical centre with the
-                    // heart icon — flexbox's items-center alone wasn't
-                    // enough because the digit's visual centre is a
-                    // bit above its line-box centre.
-                    "text-[10px] font-chakrapetch font-bold tabular-nums leading-none translate-y-[0.5px]",
-                    iLiked ? "text-[#ff3e6c]" : "text-flash/85"
+                    "text-[12px] font-chakrapetch font-bold tabular-nums leading-none",
+                    iLiked ? "text-[#ff3e6c]" : "text-flash/90"
                   )}
                 >
                   {count}

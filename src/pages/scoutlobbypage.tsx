@@ -33,6 +33,7 @@ import {
   Target,
   CheckCircle2,
   ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
@@ -111,6 +112,9 @@ type Lobby = {
   slug: string;
   name: string;
   isPublic: boolean;
+  /** True when the lobby is private AND the viewer isn't a member —
+   *  the payload is a hero-only stub and the body renders locked. */
+  locked?: boolean;
   createdAt: string;
   lastActiveAt: string;
   lastRefreshAt: string | null;
@@ -337,7 +341,15 @@ function profileIconUrl(iconId: number | null) {
 }
 
 /* ─── hero (Yunara splash + lobby title) ────────────────────────────── */
-function LobbyHero({ lobby }: { lobby: Lobby }) {
+function LobbyHero({
+  lobby,
+  refreshSlot,
+}: {
+  lobby: Lobby;
+  /** RefreshClock rendered by the parent (it owns the refresh
+   *  state/handlers). Placed on the lobby-name row, right-aligned. */
+  refreshSlot?: React.ReactNode;
+}) {
   const heroName = lobby.heroChampion || DEFAULT_HERO_CHAMPION;
   const splash = cdnSplashUrl(normalizeChampName(heroName));
 
@@ -396,15 +408,75 @@ function LobbyHero({ lobby }: { lobby: Lobby }) {
             </span>
           </div>
 
-          <h1 className="text-[34px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
-            {lobby.name}
-          </h1>
+          {/* Name + NEXT UPDATE on one row. Name left, clock pinned
+              bottom-right so it sits on the name's baseline. Wraps on
+              narrow widths so the clock drops below the name instead
+              of squeezing it. */}
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <h1 className="text-[34px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+              {lobby.name}
+            </h1>
+            {refreshSlot && (
+              <div className="shrink-0 pb-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                {refreshSlot}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+
+/* ─── locked (private lobby) body ───────────────────────────────────── */
+function LockedLobbyBody() {
+  return (
+    <div className="flex justify-center px-4 mt-10">
+      <div
+        className={cn(glassDark, "relative w-full max-w-[680px] p-10 sm:p-14 text-center overflow-hidden")}
+      >
+        <GlowBackdrop />
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Lock icon in a glowing ring */}
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+            style={{
+              background: "radial-gradient(circle, rgba(0,217,146,0.14), transparent 70%)",
+              border: "1px solid color-mix(in srgb, #00d992 30%, transparent)",
+            }}
+          >
+            <Lock
+              className="w-9 h-9 text-jade"
+              style={{ filter: "drop-shadow(0 0 10px rgba(0,217,146,0.5))" }}
+            />
+          </div>
+
+          <h2 className="text-[24px] sm:text-[30px] font-chakrapetch font-bold text-flash mb-2 tracking-tight">
+            This lobby is private
+          </h2>
+          <p className="text-[13px] sm:text-[14px] text-flash/55 font-geist leading-snug max-w-[440px] mb-1">
+            Only verified members of this lobby can view its matches,
+            stats and activity.
+          </p>
+          <p className="text-[12px] text-flash/40 font-geist leading-snug max-w-[440px]">
+            If you belong here, claim your identity from an invite link
+            an admin sent you — then this page unlocks automatically.
+          </p>
+
+          {/* Decorative hairline */}
+          <div className="mt-8 flex items-center gap-2 text-flash/25">
+            <span className="h-px w-12 bg-gradient-to-r from-transparent to-flash/20" />
+            <span className="text-[9px] font-jetbrains tracking-[0.3em] uppercase">
+              Private
+            </span>
+            <span className="h-px w-12 bg-gradient-to-l from-transparent to-flash/20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── day bucket helpers ─────────────────────────────────────────────── */
 const MS_PER_DAY = 86_400_000;
@@ -1848,10 +1920,11 @@ function MatchesTab({
     () => lobby.players.find((p) => p.claimedByProfileId === myProfileId) ?? null,
     [lobby.players, myProfileId]
   );
-  const verifyMode = lobby.verifyMode ?? "full";
   const canLike = !!myProfileId;
-  const canComment =
-    verifyMode === "disabled" ? !!myProfileId : !!myClaimedPlayer;
+  // Commenting requires a claimed (certified) identity in this lobby —
+  // always. No anonymous comments, regardless of verify_mode. The
+  // backend enforces the same rule.
+  const canComment = !!myClaimedPlayer;
   const matchIdsForSocial = useMemo(
     () => Array.from(new Set(items.map((i) => i.matchId))),
     [items]
@@ -7100,11 +7173,14 @@ function RefreshClock({
   refreshing,
   onRefreshDone,
   slug,
+  large = false,
 }: {
   lastRefreshAt: string | null;
   refreshing: boolean;
   onRefreshDone: (newLastRefreshAt: string) => void;
   slug: string;
+  /** Larger variant used in the lobby hero (next to the name). */
+  large?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
   const [localRefreshing, setLocalRefreshing] = useState(false);
@@ -7267,21 +7343,28 @@ function RefreshClock({
       aria-disabled={isRefreshing}
       title={error ?? "Click to refresh now"}
       className={cn(
-        "group flex items-center gap-2 text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/50",
-        "rounded-[3px] px-2 py-1 -mx-2 -my-1 transition-colors cursor-clicker",
-        "hover:bg-flash/[0.05]"
+        "group flex items-center font-jetbrains tracking-[0.2em] uppercase text-flash/50",
+        "rounded-[3px] transition-colors cursor-clicker hover:bg-flash/[0.05]",
+        large
+          ? "gap-2.5 text-[13px] px-2.5 py-1.5 -mx-2.5 -my-1.5"
+          : "gap-2 text-[10px] px-2 py-1 -mx-2 -my-1"
       )}
     >
       {showIcon ? (
         <RefreshCw
           className={cn(
-            "w-3.5 h-3.5",
+            large ? "w-4 h-4" : "w-3.5 h-3.5",
             error ? "text-error/70" : "text-jade/70",
             isRefreshing && "animate-spin"
           )}
         />
       ) : (
-        <RefreshCw className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60 text-jade/70 transition-opacity" />
+        <RefreshCw
+          className={cn(
+            large ? "w-4 h-4" : "w-3.5 h-3.5",
+            "opacity-0 group-hover:opacity-60 text-jade/70 transition-opacity"
+          )}
+        />
       )}
       <span className="text-flash/40">Next update</span>
       <span className={cn("tabular-nums", valueClass)}>{label}</span>
@@ -7536,6 +7619,10 @@ function EditLobbyDialog({
   const [verifyMode, setVerifyMode] = useState<VerifyMode>(
     lobby.verifyMode ?? "full"
   );
+  // Private lobby — when true only claimed members + admins can view.
+  const [isPrivate, setIsPrivate] = useState<boolean>(
+    lobby.isPublic === false
+  );
   // Collapsible sections — all open by default. Stored as a Set of
   // section keys so toggling is O(1) and order-independent.
   const [openSections, setOpenSections] = useState<Set<EditSectionKey>>(
@@ -7575,6 +7662,7 @@ function EditLobbyDialog({
     setHeroChampion(lobby.heroChampion ?? DEFAULT_HERO_CHAMPION);
     setEnabledTabs(lobby.enabledTabs ?? DEFAULT_ENABLED_TABS);
     setVerifyMode(lobby.verifyMode ?? "full");
+    setIsPrivate(lobby.isPublic === false);
     setPlayers(
       lobby.players.map((p) => ({
         uid: makeUid(),
@@ -7681,6 +7769,7 @@ function EditLobbyDialog({
           heroChampion: heroChampion?.trim() || null,
           enabledTabs,
           verifyMode,
+          isPublic: !isPrivate,
           players: players.map((p) => ({
             // Pass the original DB id so the backend can match this
             // EditPlayer to an existing scout_lobby_players row and
@@ -7877,19 +7966,76 @@ function EditLobbyDialog({
               />
             </EditCollapsible>
 
-            {/* Verify mode */}
+            {/* Verify mode + privacy */}
             <EditCollapsible
               open={openSections.has("verify")}
               onToggle={() => toggleSection("verify")}
               title="Verify"
               summary={
-                verifyMode === "disabled"
+                (isPrivate ? "Private · " : "") +
+                (verifyMode === "disabled"
                   ? "Disabled"
                   : verifyMode === "claim_only"
                     ? "Grade 1 only"
-                    : "Full (Grade 1 + Grade 2)"
+                    : "Full")
               }
             >
+              {/* Private toggle */}
+              <button
+                type="button"
+                onClick={() => setIsPrivate((p) => !p)}
+                className={cn(
+                  "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[3px] border cursor-clicker transition-all text-left mb-3",
+                  isPrivate
+                    ? "border-jade/45 bg-jade/[0.08]"
+                    : "border-flash/10 bg-black/15 hover:border-flash/25"
+                )}
+              >
+                <Lock
+                  className={cn(
+                    "w-4 h-4 mt-0.5 shrink-0",
+                    isPrivate ? "text-jade" : "text-flash/45"
+                  )}
+                />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-[11px] font-chakrapetch font-bold",
+                        isPrivate ? "text-flash" : "text-flash/70"
+                      )}
+                    >
+                      Private lobby
+                    </span>
+                    {/* Switch */}
+                    <span
+                      className={cn(
+                        "relative ml-auto w-8 h-4 rounded-full transition-colors shrink-0",
+                        isPrivate
+                          ? "bg-jade/40 border border-jade/60"
+                          : "bg-flash/10 border border-flash/15"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-[1px] w-[14px] h-[14px] rounded-full transition-all",
+                          isPrivate
+                            ? "left-[15px] bg-jade shadow-[0_0_6px_rgba(0,217,146,0.6)]"
+                            : "left-[1px] bg-flash/40"
+                        )}
+                      />
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+                    Only claimed members + admins can view the lobby.
+                    Everyone else sees a locked page.
+                  </span>
+                </div>
+              </button>
+
+              <div className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mb-1.5">
+                Verification mode
+              </div>
               <VerifyModeRadio value={verifyMode} onChange={setVerifyMode} />
             </EditCollapsible>
 
@@ -8783,12 +8929,23 @@ export default function ScoutLobbyPage() {
         `[ScoutLobby] reload (refreshTick=${refreshTick}, isFirst=${isFirst})`
       );
       try {
+        // Send the auth token so the backend can decide private-lobby
+        // access (claimed members + admins see the full payload; others
+        // get a locked stub).
+        const {
+          data: { session: authSession },
+        } = await supabase.auth.getSession();
+        const authHeaders: HeadersInit = authSession?.access_token
+          ? { Authorization: `Bearer ${authSession.access_token}` }
+          : {};
         const [lobbyRes, feedRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/scout/lobby/${slug}`, {
             cache: "no-store",
+            headers: authHeaders,
           }),
           fetch(`${API_BASE_URL}/api/scout/feed/${slug}`, {
             cache: "no-store",
+            headers: authHeaders,
           }),
         ]);
 
@@ -8899,9 +9056,30 @@ export default function ScoutLobbyPage() {
     );
   }
 
+  // Private lobby + non-member → hero (no refresh clock) + locked body.
+  if (lobby.locked) {
+    return (
+      <div className="w-full pb-24 font-geist">
+        <LobbyHero lobby={lobby} />
+        <LockedLobbyBody />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full pb-24 font-geist">
-      <LobbyHero lobby={lobby} />
+      <LobbyHero
+        lobby={lobby}
+        refreshSlot={
+          <RefreshClock
+            lastRefreshAt={lobby.lastRefreshAt}
+            refreshing={refreshing}
+            onRefreshDone={handleRefreshDone}
+            slug={slug!}
+            large
+          />
+        }
+      />
 
       <div className="flex justify-center">
         <div className="w-full max-w-[1280px] px-4 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
@@ -8993,14 +9171,8 @@ export default function ScoutLobbyPage() {
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                <div className="pb-3">
-                  <RefreshClock
-                    lastRefreshAt={lobby.lastRefreshAt}
-                    refreshing={refreshing}
-                    onRefreshDone={handleRefreshDone}
-                    slug={slug!}
-                  />
-                </div>
+                {/* RefreshClock moved up to the lobby hero (next to the
+                    lobby name, right-aligned). */}
               </div>
 
               <TabsContent value="matches" className="mt-0">
