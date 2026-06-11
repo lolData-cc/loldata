@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AnimatedOutline } from "@/components/ui/animated-outline";
+import { LikeOverlay } from "@/components/matchsocial/likeoverlay";
+import { MatchCommentsPanel } from "@/components/matchsocial/matchcommentspanel";
 import { cdnBaseUrl, normalizeChampName } from "@/config";
 import { timeAgo } from "@/utils/timeAgo";
 import { getKdaBackgroundStyle } from "@/utils/kdaColor";
@@ -46,6 +48,12 @@ export type LobbyAccountInfo = {
   riotName: string;
   riotTag: string;
   region: string;                  // "EUW" / "NA" / "KR" — already short form
+  // Identity verification — when both `showVerifyBadge` is true and
+  // verifyGrade >= 1, the scoreboard row renders the green Meta-style
+  // seal next to the player name. Optional so existing callers keep
+  // compiling.
+  showVerifyBadge?: boolean;
+  verifyGrade?: 0 | 1 | 2;
 };
 
 export type MatchCardData = {
@@ -89,6 +97,36 @@ export type MatchCardData = {
   // scout lobby page heuristic-flags games whose lpDelta is too high for a
   // normal ranked gain).
   hasDoubleLp?: boolean;
+  // Social — per-match likes + comments. Optional: when omitted (e.g.
+  // on the summoner page) the like overlay + comments button stay
+  // hidden. When provided, the scout lobby threads down the lobby
+  // slug + auth-gated counts so the card can toggle/post inline.
+  social?: MatchSocialProps;
+};
+
+export type MatchSocialProps = {
+  /** Lobby slug — needed for the like + comment endpoints. */
+  lobbySlug: string;
+  likeCount: number;
+  iLiked: boolean;
+  commentCount: number;
+  /** People who liked this match. The tooltip on the heart renders
+   *  these names so users can see who reacted. Unknown profiles
+   *  (signed-in users who aren't claimed in this lobby) come back
+   *  with displayName="Someone". */
+  likers?: Array<{ profileId: string; displayName: string; color: string | null }>;
+  /** True when the user is signed in. Likes are open to any signed-in
+   *  user; the API enforces this. */
+  canLike: boolean;
+  /** True when the user passes the lobby's verify_mode gating
+   *  (claimed in the lobby, OR verify_mode=disabled + signed in). */
+  canComment: boolean;
+  /** Called after a successful like toggle so the parent can update
+   *  its batch cache. Receives the new local state. */
+  onLikeChanged?: (next: { iLiked: boolean; likeCount: number }) => void;
+  /** Called after a successful comment post so the parent can bump
+   *  the comment counter. */
+  onCommentPosted?: () => void;
 };
 
 // Compact rank abbreviation: "DIAMOND IV" → "D4", "MASTER" → "M",
@@ -213,6 +251,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
   // createPortal under the hood, so even though we render it inside the
   // card markup, it attaches to <body> and overlays the whole page.
   const [replayOpen, setReplayOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   // Click-to-expand state — toggled by clicking the card body. When true
   // the action strip below the card slides into view (see CSS rules for
   // .match-card-expanded in index.css).
@@ -281,7 +320,13 @@ export function MatchCard({ data }: { data: MatchCardData }) {
       // The `match-card-expanded` / `match-card-collapsed` classes drive
       // the action strip's height + opacity via index.css (already shared
       // with the summoner page implementation).
+      // `group/match` scopes the like-overlay's hover state to this
+      // single card so other cards' overlays don't react.
+      // `relative` is the anchor for the LikeOverlay tab, which lives
+      // OUTSIDE the <li> (because the <li> has overflow-hidden) and
+      // pokes up above the card's top edge.
       className={cn(
+        "relative group/match",
         expanded ? "match-card-expanded" : "match-card-collapsed"
       )}
       onClick={(e) => {
@@ -318,6 +363,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
           <div className="pointer-events-none absolute inset-0 z-[1] rounded-md shadow-[inset_0_0_0_1px_rgba(245,166,35,0.15)]" />
         </>
       )}
+
 
       {/* Radial highlight top-left */}
       <div
@@ -486,12 +532,21 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                   {minutes}:{seconds}
                 </span>
 
-                <span className="relative z-20 font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px] whitespace-nowrap shrink-0">
-                  {/* timeAgo from game END, not game START — the
-                      previous "26 minutes ago" right after a game
-                      finished was actually counting from when it
-                      started ~26 min before that. */}
-                  {timeAgo(gameCreationMs + (gameDurationSeconds ?? 0) * 1000)}
+                {/* timeAgo + like — flex row. The like is collapsed
+                    (max-w-0) when the match has zero likes, expanded
+                    permanently otherwise. The natural flex re-layout
+                    on max-width change handles the timeAgo shift —
+                    no explicit translate needed. */}
+                <span className="relative z-20 flex items-center gap-1.5">
+                  <span className="font-jetbrains tracking-[0.15em] text-flash/40 text-[10.5px] whitespace-nowrap shrink-0">
+                    {timeAgo(gameCreationMs + (gameDurationSeconds ?? 0) * 1000)}
+                  </span>
+                  {data.social && (
+                    <LikeOverlay
+                      matchId={data.matchId}
+                      social={data.social}
+                    />
+                  )}
                 </span>
               </div>
 
@@ -775,6 +830,24 @@ export function MatchCard({ data }: { data: MatchCardData }) {
           ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
         <div className="flex gap-1.5">
+          {data.social && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommentsOpen((p) => !p);
+              }}
+              className={cn(
+                "relative px-4 py-1 text-[9px] font-mono tracking-[0.15em] uppercase border-b transition-all duration-200 cursor-clicker",
+                commentsOpen
+                  ? "text-flash border-flash/60 bg-flash/[0.10]"
+                  : "text-flash/70 hover:text-flash border-flash/25 hover:border-flash/55 bg-flash/[0.03] hover:bg-flash/[0.08]"
+              )}
+              title="Add a comment to this match"
+            >
+              {commentsOpen ? "CANCEL" : "ADD COMMENT"}
+            </button>
+          )}
           {canReplay && (
             <button
               type="button"
@@ -795,8 +868,26 @@ export function MatchCard({ data }: { data: MatchCardData }) {
           )}
           </div>
         </div>
+
       </div>
     )}
+
+    {/* Comments — list ALWAYS visible when there's at least one,
+        regardless of expanded state. Composer only appears when the
+        user clicks ADD COMMENT inside the expanded action strip. */}
+    {data.social &&
+      (data.social.commentCount > 0 || (expanded && commentsOpen)) && (
+        <MatchCommentsPanel
+          lobbySlug={data.social.lobbySlug}
+          matchId={data.matchId}
+          canComment={data.social.canComment}
+          showComposer={expanded && commentsOpen}
+          onCommentPosted={() => {
+            data.social?.onCommentPosted?.();
+            setCommentsOpen(false);
+          }}
+        />
+      )}
 
     {/* Match Replay Viewer — portal-rendered, only mounts content while
         open so closed cards cost nothing. staticMatch is null because
@@ -955,6 +1046,10 @@ function ScoreboardRow({
         />
       )}
       {NameEl}
+      {/* NB: verify badge intentionally NOT shown here. It belongs
+          next to the lobby player's display name (the human identity)
+          in the section-group header, not next to each Riot account
+          name in the scoreboard. */}
     </li>
   );
 }

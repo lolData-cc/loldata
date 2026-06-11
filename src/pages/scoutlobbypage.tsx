@@ -32,6 +32,7 @@ import {
   Wheat,
   Target,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
@@ -57,6 +58,13 @@ import {
 import { Plus, X, Check, Pencil, Trash2, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/authcontext";
+import { VerifyBadge } from "@/components/verifybadge";
+import {
+  VerifyAccountsDialog,
+  type VerifyAccountRow,
+} from "@/components/verifyaccountsdialog";
+import { ChatTab } from "@/components/scoutchat/chattab";
+import { CompareTab } from "@/components/scoutcompare/comparetab";
 
 /* ─── shapes ─────────────────────────────────────────────────────────── */
 type LobbyAccount = {
@@ -67,6 +75,10 @@ type LobbyAccount = {
   riotTag: string;
   isPrimary: boolean;
   orderIndex: number;
+  /** ISO timestamp set when the account passed the icon-change
+   *  challenge. Drives the per-account "verified" badge in the
+   *  verify dialog and feeds into the player's verifyGrade. */
+  verifiedAt?: string | null;
   // Current solo-queue rank from the latest scout_rank_snapshots row.
   // Used by the matches tab to render a "start → current" pill on each
   // group card. Null when the account has no snapshots yet.
@@ -80,7 +92,20 @@ type LobbyPlayer = {
   iconId: number | null;
   orderIndex: number;
   accounts: LobbyAccount[];
+  // Identity verification (Phase 1).
+  claimedByProfileId?: string | null;
+  claimedAt?: string | null;
+  showVerifyBadge?: boolean;
+  verifyGrade?: 0 | 1 | 2;
 };
+
+type LobbyAdmin = {
+  profileId: string;
+  grantedAt: string;
+  grantedBy: string | null;
+};
+
+type VerifyMode = "disabled" | "claim_only" | "full";
 
 type Lobby = {
   slug: string;
@@ -91,7 +116,15 @@ type Lobby = {
   lastRefreshAt: string | null;
   ownerUserId: string | null;
   heroChampion: string | null;
+  /** Which tab keys are enabled for this lobby. Defaults from backend
+   *  to the classic 7 (no chat/compare) but admin can toggle any. */
+  enabledTabs?: string[];
+  /** "disabled" → no claim/verify at all
+   *  "claim_only" → Phase 1 only (claim invites + Grade 1 badge)
+   *  "full" → Phase 1 + Phase 2 icon challenge (default) */
+  verifyMode?: VerifyMode;
   players: LobbyPlayer[];
+  admins?: LobbyAdmin[];
 };
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;     // must match backend
@@ -179,7 +212,35 @@ type LeaderboardAccount = {
   assists: number;
   avgKda: number;
   balance: number;       // LP balance (signed) since lobby creation
+  streak: number;        // longest consecutive-wins run in window
+  primaryPartner: {
+    playerId: string;
+    displayName: string;
+    color: string | null;
+    iconId: number | null;
+    sharedGames: number;
+    sharedWins: number;
+  } | null;
 };
+
+// Top-of-lobby duo aggregates returned by the leaderboard endpoint.
+// Used by sidebar widgets to swap into duo display when a pair's
+// metric strictly exceeds the best individual.
+type LeaderboardDuo = {
+  playerIdA: string;
+  playerIdB: string;
+  displayNameA: string;
+  displayNameB: string;
+  colorA: string | null;
+  colorB: string | null;
+  iconIdA: number | null;
+  iconIdB: number | null;
+  sharedGames: number;
+  sharedWins: number;
+};
+type LeaderboardDuoStreak = LeaderboardDuo & { length: number };
+type LeaderboardDuoKda = LeaderboardDuo & { avgKda: number };
+type LeaderboardDuoWinrate = LeaderboardDuo & { winrate: number };
 
 type StatsBucket = {
   bucketStart: string;
@@ -638,18 +699,48 @@ function formatRankShortPill(r: {
 // Renders matches owned by 1+ (player, account) combos. When 2+ members
 // played the EXACT same match set in a day, they're merged into a single
 // "A & B" card.
+type MatchSocialBatch = {
+  counts: Record<string, { likes: number; comments: number }>;
+  likers: Record<string, LikerInfo[]>;
+  myLikes: Set<string>;
+  bumpComment: (matchId: string, delta?: number) => void;
+  setLike: (
+    matchId: string,
+    next: { iLiked: boolean; likeCount: number }
+  ) => void;
+};
+
 function PlayerSectionCard({
   members,
   matches,
   itemsByMatch,
   squadMatchIds,
   lobbyAccountByPuuid,
+  lobbySlug,
+  social,
+  canLike,
+  canComment,
 }: {
   members: SectionMember[];
   matches: FeedItem[];
   itemsByMatch: Map<string, FeedItem[]>;
   squadMatchIds: Set<string>;
-  lobbyAccountByPuuid: Record<string, { riotName: string; riotTag: string; region: string }>;
+  lobbyAccountByPuuid: Record<
+    string,
+    {
+      riotName: string;
+      riotTag: string;
+      region: string;
+      showVerifyBadge?: boolean;
+      verifyGrade?: 0 | 1 | 2;
+    }
+  >;
+  /** Lobby slug — needed by the like + comment endpoints. */
+  lobbySlug: string;
+  /** Per-match like + comment counts batched at the MatchesTab level. */
+  social: MatchSocialBatch;
+  canLike: boolean;
+  canComment: boolean;
 }) {
   const accent = members[0].player.color || JADE;
 
@@ -775,19 +866,34 @@ function PlayerSectionCard({
           <div className="flex items-center gap-2 gap-y-1.5 w-full flex-wrap">
             {uniquePlayers.map((m, i) => {
               const isActive = m.player.id === activePlayerId;
+              const showBadge =
+                !!m.player.showVerifyBadge &&
+                (m.player.verifyGrade ?? 0) >= 1;
               const NameSpan = (
-                <span
-                  className={cn(
-                    "text-[16px] font-chakrapetch font-semibold leading-none truncate tracking-wide",
-                    isActive ? "text-jade" : "text-flash/80"
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-[16px] font-chakrapetch font-semibold leading-none truncate tracking-wide",
+                      isActive ? "text-jade" : "text-flash/80"
+                    )}
+                    style={
+                      isActive
+                        ? { textShadow: "0 0 14px rgba(0,217,146,0.45)" }
+                        : undefined
+                    }
+                  >
+                    {m.player.displayName}
+                  </span>
+                  {/* Verify badge — sits next to the lobby player's
+                      display name (the human identity), NOT next to
+                      the Riot account name. Only when admin has the
+                      toggle ON and the player is at grade ≥ 1. */}
+                  {showBadge && (
+                    <VerifyBadge
+                      grade={m.player.verifyGrade === 2 ? 2 : 1}
+                      size={13}
+                    />
                   )}
-                  style={
-                    isActive
-                      ? { textShadow: "0 0 14px rgba(0,217,146,0.45)" }
-                      : undefined
-                  }
-                >
-                  {m.player.displayName}
                 </span>
               );
               return (
@@ -1043,6 +1149,17 @@ function PlayerSectionCard({
         item.participant.win &&
         typeof item.participant.lpDelta === "number" &&
         item.participant.lpDelta >= 35,
+      social: {
+        lobbySlug,
+        likeCount: social.counts[item.matchId]?.likes ?? 0,
+        commentCount: social.counts[item.matchId]?.comments ?? 0,
+        iLiked: social.myLikes.has(item.matchId),
+        likers: social.likers[item.matchId] ?? [],
+        canLike,
+        canComment,
+        onLikeChanged: (next) => social.setLike(item.matchId, next),
+        onCommentPosted: () => social.bumpComment(item.matchId, 1),
+      },
     };
     const showPerMatchSquadBadge =
       !isSquad && squadMatchIds.has(item.matchId);
@@ -1605,6 +1722,92 @@ function PlayerFilterTab({
   );
 }
 
+/** Batch-fetch the like + comment counts for a set of matches.
+ *  Refreshes when the matchIds change or when refreshTick bumps.
+ *  Used by MatchesTab to feed every MatchCard's `data.social` prop. */
+type LikerInfo = {
+  profileId: string;
+  displayName: string;
+  color: string | null;
+};
+
+function useMatchSocialBatch(
+  slug: string,
+  matchIds: string[],
+  refreshTick: number
+) {
+  const [counts, setCounts] = useState<
+    Record<string, { likes: number; comments: number }>
+  >({});
+  const [likers, setLikers] = useState<Record<string, LikerInfo[]>>({});
+  const [myLikes, setMyLikes] = useState<Set<string>>(new Set());
+
+  // Stable key for the matchIds set so the effect doesn't loop when
+  // the array identity changes but contents don't.
+  const idsKey = useMemo(() => [...matchIds].sort().join(","), [matchIds]);
+
+  useEffect(() => {
+    if (!idsKey) return;
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const ids = idsKey.split(",").filter(Boolean);
+      if (ids.length === 0) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/lobby/${slug}/match-social?ids=${encodeURIComponent(
+          ids.join(",")
+        )}`,
+        session?.access_token
+          ? { headers: { Authorization: `Bearer ${session.access_token}` } }
+          : undefined
+      );
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      if (cancelled) return;
+      setCounts(data.counts ?? {});
+      setLikers(data.likers ?? {});
+      setMyLikes(new Set<string>(data.myLikes ?? []));
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, idsKey, refreshTick]);
+
+  // Local mutators so optimistic updates (after a like or comment)
+  // propagate without re-fetching the whole batch.
+  const bumpComment = useCallback((matchId: string, delta = 1) => {
+    setCounts((prev) => ({
+      ...prev,
+      [matchId]: {
+        likes: prev[matchId]?.likes ?? 0,
+        comments: (prev[matchId]?.comments ?? 0) + delta,
+      },
+    }));
+  }, []);
+
+  const setLike = useCallback(
+    (matchId: string, next: { iLiked: boolean; likeCount: number }) => {
+      setCounts((prev) => ({
+        ...prev,
+        [matchId]: {
+          comments: prev[matchId]?.comments ?? 0,
+          likes: next.likeCount,
+        },
+      }));
+      setMyLikes((prev) => {
+        const s = new Set(prev);
+        next.iLiked ? s.add(matchId) : s.delete(matchId);
+        return s;
+      });
+    },
+    []
+  );
+
+  return { counts, likers, myLikes, bumpComment, setLike };
+}
+
 function MatchesTab({
   items,
   lobby,
@@ -1635,6 +1838,29 @@ function MatchesTab({
     obs.observe(el);
     return () => obs.disconnect();
   }, [loadMore, items.length, hasMore]);
+
+  // Social: batch-fetch per-match likes + comment counts. The signed-in
+  // user (if any) decides whether we send the auth header so the
+  // backend can also return their personal `myLikes` list.
+  const { session } = useAuth();
+  const myProfileId = session?.user?.id ?? null;
+  const myClaimedPlayer = useMemo(
+    () => lobby.players.find((p) => p.claimedByProfileId === myProfileId) ?? null,
+    [lobby.players, myProfileId]
+  );
+  const verifyMode = lobby.verifyMode ?? "full";
+  const canLike = !!myProfileId;
+  const canComment =
+    verifyMode === "disabled" ? !!myProfileId : !!myClaimedPlayer;
+  const matchIdsForSocial = useMemo(
+    () => Array.from(new Set(items.map((i) => i.matchId))),
+    [items]
+  );
+  const social = useMatchSocialBatch(
+    lobby.slug,
+    matchIdsForSocial,
+    items.length
+  );
 
   // Filter mode: { kind:'all' } = no filter, { kind:'single', id } = show one
   // player's matches, { kind:'duo', ids:[a,b] } = show only matches where both
@@ -1725,13 +1951,27 @@ function MatchesTab({
   // to build summoner links even for matches ingested before riot_id_tagline
   // existed in DB.
   const lobbyAccountByPuuid = useMemo(() => {
-    const map: Record<string, { riotName: string; riotTag: string; region: string }> = {};
+    const map: Record<
+      string,
+      {
+        riotName: string;
+        riotTag: string;
+        region: string;
+        showVerifyBadge?: boolean;
+        verifyGrade?: 0 | 1 | 2;
+      }
+    > = {};
     for (const p of lobby.players) {
       for (const a of p.accounts) {
+        // Verify info is per-player (per-human identity), but we
+        // attach it to every account so the scoreboard can render
+        // the badge regardless of which Riot account played.
         map[a.puuid] = {
           riotName: a.riotName,
           riotTag: a.riotTag,
           region: a.region,
+          showVerifyBadge: p.showVerifyBadge,
+          verifyGrade: p.verifyGrade,
         };
       }
     }
@@ -1977,6 +2217,10 @@ function MatchesTab({
                           itemsByMatch={section.itemsByMatch}
                           squadMatchIds={squadMatchIds}
                           lobbyAccountByPuuid={lobbyAccountByPuuid}
+                          lobbySlug={lobby.slug}
+                          social={social}
+                          canLike={canLike}
+                          canComment={canComment}
                         />
                       </motion.div>
                     );
@@ -5067,6 +5311,8 @@ function SidebarLeaderboard({
   // "no games yet" everywhere.
   const [window, setWindow] = useState<StatsWindow>("all");
   const [leaderboard, setLeaderboard] = useState<LeaderboardAccount[]>([]);
+  const [topDuoStreak, setTopDuoStreak] = useState<LeaderboardDuoStreak | null>(null);
+  const [topDuoWinrate, setTopDuoWinrate] = useState<LeaderboardDuoWinrate | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -5095,7 +5341,12 @@ function SidebarLeaderboard({
     }
     fetch(`${API_BASE_URL}/api/scout/leaderboard/${slug}?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setLeaderboard(d?.accounts ?? []))
+      .then((d) => {
+        if (cancelled) return;
+        setLeaderboard(d?.accounts ?? []);
+        setTopDuoStreak(d?.topDuoStreak ?? null);
+        setTopDuoWinrate(d?.topDuoWinrate ?? null);
+      })
       .catch(console.error)
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -5134,6 +5385,8 @@ function SidebarLeaderboard({
         </div>
       </div>
 
+      {/* Top Player (KDA) — always a single player. The "Top Player"
+          spot belongs to one MVP; duos don't make sense here. */}
       <LeaderboardStatBox
         loading={loading}
         icon={<Trophy className="w-3.5 h-3.5" />}
@@ -5143,6 +5396,7 @@ function SidebarLeaderboard({
         highlightLabel="KDA"
         emptyText="No games tracked"
       />
+
       <LeaderboardStatBox
         loading={loading}
         icon={<TrendingUp className="w-3.5 h-3.5" />}
@@ -5152,15 +5406,15 @@ function SidebarLeaderboard({
         highlightLabel="LP"
         emptyText="No rank data"
       />
-      <LeaderboardStatBox
+
+      {/* Best Winrate — swaps to duo when a pair's joint WR exceeds
+          the best individual's. */}
+      <TopWinrateOrDuoBox
         loading={loading}
-        icon={<Award className="w-3.5 h-3.5" />}
-        label="Best Winrate"
-        player={pickBestWinrate(leaderboard)}
-        highlightFn={(p) => `${p.winrate}%`}
-        highlightLabel="WR"
-        emptyText="No games tracked"
+        leaderboard={leaderboard}
+        topDuoWinrate={topDuoWinrate}
       />
+
       <LeaderboardStatBox
         loading={loading}
         icon={<Gamepad2 className="w-3.5 h-3.5" />}
@@ -5169,6 +5423,15 @@ function SidebarLeaderboard({
         highlightFn={(p) => String(p.games)}
         highlightLabel="Games"
         emptyText="No games tracked"
+      />
+
+      {/* Longest Streak — the new widget. Picks the entity (individual
+          or duo) with the longest consecutive-wins run in the window.
+          Duo wins on tie. */}
+      <LongestStreakBox
+        loading={loading}
+        leaderboard={leaderboard}
+        topDuoStreak={topDuoStreak}
       />
     </div>
   );
@@ -5346,17 +5609,39 @@ function LeaderboardStatBox({
               </div>
             )}
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-[14px] font-geist font-medium text-flash truncate">
+              <span className="text-[14px] font-chakrapetch font-bold text-flash truncate tracking-[0.01em]">
                 {player.riotName}
-                <span className="text-flash/30">#{player.riotTag}</span>
+                <span className="text-flash/30 font-normal">#{player.riotTag}</span>
               </span>
               {player.currentRank ? (
-                <span className="text-[10px] font-jetbrains tracking-[0.15em] uppercase mt-0.5 truncate">
-                  <span className={cn(rankColorClass(player.currentRank.tier), "font-medium")}>
-                    {formatRankShort(player.currentRank)}
+                // Rank as `[icon] LP` — tighter and more recognisable
+                // than the old `GOLD 2 · 12G ...` text row. Stats live
+                // beside it as a separator-divided sub-chip.
+                <span className="flex items-center mt-1 truncate">
+                  <img
+                    src={getRankImage(player.currentRank.tier)}
+                    alt={player.currentRank.tier}
+                    className="w-[22px] h-[22px] object-contain shrink-0 -ml-0.5 mr-1"
+                  />
+                  {/* Division (I/II/III/IV) — Master+ tiers have null
+                      rankDivision and skip this label. Coloured per
+                      tier so the chip matches the icon at a glance. */}
+                  {player.currentRank.rankDivision && (
+                    <span
+                      className={cn(
+                        "font-chakrapetch font-bold text-[12px] leading-none mr-1.5",
+                        rankColorClass(player.currentRank.tier)
+                      )}
+                    >
+                      {player.currentRank.rankDivision}
+                    </span>
+                  )}
+                  <span className="font-chakrapetch font-bold tabular-nums text-[14px] text-flash/90 leading-none">
+                    {player.currentRank.lp.toLocaleString()}
+                    <span className="text-[10px] text-flash/45 ml-1 font-medium">LP</span>
                   </span>
-                  <span className="text-flash/30"> · </span>
-                  <span className="text-flash/40">
+                  <span className="text-flash/25 text-[11px] leading-none mx-2">·</span>
+                  <span className="text-[10px] font-jetbrains tracking-[0.12em] uppercase text-flash/50 truncate">
                     {player.games}G {player.wins}W {player.losses}L
                   </span>
                 </span>
@@ -5383,6 +5668,239 @@ function LeaderboardStatBox({
         )}
       </div>
     </div>
+  );
+}
+
+/* ─── duo stat box — same chrome as LeaderboardStatBox, two avatars ─── */
+//
+// Used when a widget swaps to duo display because a pair's metric beats
+// (or ties) the best individual. Renders two overlapping avatars on the
+// left, joined names + shared-game metadata, and the metric on the right.
+
+function LeaderboardDuoStatBox({
+  icon,
+  label,
+  duo,
+  highlightValue,
+  highlightLabel,
+  subText,
+  loading,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  duo: LeaderboardDuo;
+  highlightValue: string;
+  highlightLabel: string;
+  subText?: string;
+  loading: boolean;
+}) {
+  const colorA = duo.colorA || JADE;
+  const colorB = duo.colorB || JADE;
+  const renderAvatar = (
+    iconId: number | null,
+    color: string,
+    name: string,
+    extraClass: string
+  ) => {
+    const url = profileIconUrl(iconId);
+    if (url) {
+      return (
+        <img
+          src={url}
+          alt=""
+          className={cn("w-9 h-9 rounded-full shrink-0", extraClass)}
+          style={{
+            boxShadow: `0 0 12px color-mix(in srgb, ${color} 30%, transparent)`,
+            border: `1.5px solid color-mix(in srgb, ${color} 40%, transparent)`,
+          }}
+        />
+      );
+    }
+    return (
+      <div
+        className={cn(
+          "w-9 h-9 rounded-full flex items-center justify-center shrink-0",
+          extraClass
+        )}
+        style={{
+          background: "rgba(0,0,0,0.4)",
+          border: `1.5px solid color-mix(in srgb, ${color} 40%, transparent)`,
+        }}
+      >
+        <span
+          className="text-[13px] font-jetbrains font-bold"
+          style={{ color }}
+        >
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+      </div>
+    );
+  };
+  return (
+    <div className="relative overflow-hidden rounded-md bg-black/18 backdrop-blur-lg saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <GlowBackdrop subtle />
+      <div className="relative z-[1] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-jade">{icon}</span>
+          <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/55 font-medium">
+            {label}
+          </span>
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
+          <span className="text-[8px] font-jetbrains tracking-[0.28em] uppercase font-bold px-1.5 py-[3px] rounded-sm text-jade bg-jade/[0.14] border border-jade/35">
+            DUO
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="h-[58px] flex items-center justify-center">
+            <Loader2 className="w-4 h-4 animate-spin text-jade/60" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            {/* Overlapping avatars — the classic "duo" visual cue. */}
+            <div className="flex shrink-0">
+              {renderAvatar(duo.iconIdA, colorA, duo.displayNameA, "")}
+              {renderAvatar(
+                duo.iconIdB,
+                colorB,
+                duo.displayNameB,
+                "-ml-3 ring-2 ring-liquirice/60"
+              )}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1 ml-1">
+              <span className="text-[13px] font-chakrapetch font-bold text-flash truncate leading-tight tracking-[0.01em]">
+                <span style={{ color: colorA }}>{duo.displayNameA}</span>
+                <span className="text-flash/35 mx-1 font-normal">+</span>
+                <span style={{ color: colorB }}>{duo.displayNameB}</span>
+              </span>
+              <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/40 mt-1 truncate">
+                {subText ?? `${duo.sharedGames}G shared · ${duo.sharedWins}W`}
+              </span>
+            </div>
+            <div className="flex flex-col items-end shrink-0">
+              <span className="text-[20px] font-chakrapetch font-bold tabular-nums text-jade leading-none">
+                {highlightValue}
+              </span>
+              <span className="text-[9px] font-jetbrains tracking-[0.2em] uppercase text-flash/40 mt-1">
+                {highlightLabel}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── best winrate — individual or duo ───────────────────────────────── */
+
+function TopWinrateOrDuoBox({
+  loading,
+  leaderboard,
+  topDuoWinrate,
+}: {
+  loading: boolean;
+  leaderboard: LeaderboardAccount[];
+  topDuoWinrate: LeaderboardDuoWinrate | null;
+}) {
+  const player = pickBestWinrate(leaderboard);
+  const useDuo =
+    !!topDuoWinrate && (!player || topDuoWinrate.winrate >= player.winrate);
+  if (useDuo && topDuoWinrate) {
+    return (
+      <LeaderboardDuoStatBox
+        loading={loading}
+        icon={<Award className="w-3.5 h-3.5" />}
+        label="Best Winrate"
+        duo={topDuoWinrate}
+        highlightValue={`${topDuoWinrate.winrate}%`}
+        highlightLabel="WR"
+      />
+    );
+  }
+  return (
+    <LeaderboardStatBox
+      loading={loading}
+      icon={<Award className="w-3.5 h-3.5" />}
+      label="Best Winrate"
+      player={player}
+      highlightFn={(p) => `${p.winrate}%`}
+      highlightLabel="WR"
+      emptyText="No games tracked"
+    />
+  );
+}
+
+/* ─── longest streak — individual or duo ─────────────────────────────── */
+//
+// Picks the entity with the longest consecutive-wins run in the window.
+// Per the user spec:
+//   • Duo wins on tie or greater ("isac e gabri 7 di fila" wins over
+//     each of their individual 7-streaks since the shared narrative is
+//     more interesting).
+//   • Individual wins strictly greater ("isac vince un game da solo"
+//     after the 7-streak makes his individual 8 > duo 7 → show only
+//     Isac with 8).
+
+function LongestStreakBox({
+  loading,
+  leaderboard,
+  topDuoStreak,
+}: {
+  loading: boolean;
+  leaderboard: LeaderboardAccount[];
+  topDuoStreak: LeaderboardDuoStreak | null;
+}) {
+  // Streak is per-PLAYER (all accounts of the same human share it). De-dup.
+  const byPlayer = new Map<string, LeaderboardAccount>();
+  for (const a of leaderboard) {
+    const cur = byPlayer.get(a.playerId);
+    if (!cur || a.streak > cur.streak) byPlayer.set(a.playerId, a);
+  }
+  const sorted = [...byPlayer.values()].sort((x, y) => y.streak - x.streak);
+  const topIndividual = sorted[0] ?? null;
+  const individualLen = topIndividual?.streak ?? 0;
+  const duoLen = topDuoStreak?.length ?? 0;
+
+  // Empty: nothing to show if no one has even a 1-win streak.
+  if (!loading && individualLen <= 0 && duoLen <= 0) {
+    return (
+      <LeaderboardStatBox
+        loading={false}
+        icon={<Flame className="w-3.5 h-3.5" />}
+        label="Longest Streak"
+        player={null}
+        highlightFn={() => ""}
+        highlightLabel="W"
+        emptyText="No streaks yet"
+      />
+    );
+  }
+
+  const useDuo = !!topDuoStreak && duoLen >= individualLen;
+  if (useDuo && topDuoStreak) {
+    return (
+      <LeaderboardDuoStatBox
+        loading={loading}
+        icon={<Flame className="w-3.5 h-3.5" />}
+        label="Longest Streak"
+        duo={topDuoStreak}
+        highlightValue={`${topDuoStreak.length}W`}
+        highlightLabel="Streak"
+        subText={`${topDuoStreak.length} wins together`}
+      />
+    );
+  }
+  return (
+    <LeaderboardStatBox
+      loading={loading}
+      icon={<Flame className="w-3.5 h-3.5" />}
+      label="Longest Streak"
+      player={topIndividual}
+      highlightFn={(p) => `${p.streak}W`}
+      highlightLabel="Streak"
+      emptyText="No streaks yet"
+    />
   );
 }
 
@@ -6771,6 +7289,38 @@ function RefreshClock({
   );
 }
 
+/* ─── edit lobby dialog config ──────────────────────────────────────── */
+
+type EditSectionKey =
+  | "name"
+  | "hero"
+  | "players"
+  | "sections"
+  | "verify";
+
+// Canonical list of tab keys. The frontend tab rendering uses these
+// to gate which tabs render; SECTIONS_CATALOG is also what the
+// EditLobbyDialog's "Sections" panel renders as checkboxes.
+const SECTIONS_CATALOG: Array<{
+  key: string;
+  label: string;
+  description: string;
+  default: boolean;
+}> = [
+  { key: "matches",     label: "Matches",     description: "Per-player match feed", default: true },
+  { key: "live",        label: "Live",        description: "Currently in-game",     default: true },
+  { key: "leaderboard", label: "Leaderboard", description: "Per-account rankings",  default: true },
+  { key: "trending",    label: "Trending",    description: "Lobby-wide trends",     default: true },
+  { key: "habits",      label: "Habits",      description: "Time-of-day patterns",  default: true },
+  { key: "champions",   label: "Champions",   description: "Champion-pool view",    default: true },
+  { key: "chat",        label: "Chat",        description: "Group chat (verified)", default: false },
+  { key: "compare",     label: "Compare",     description: "VS player breakdown",   default: false },
+];
+
+const DEFAULT_ENABLED_TABS = SECTIONS_CATALOG
+  .filter((t) => t.default)
+  .map((t) => t.key);
+
 /* ─── edit lobby dialog (creator only) ──────────────────────────────── */
 type EditAccount = {
   uid: string;
@@ -6781,6 +7331,10 @@ type EditAccount = {
 };
 type EditPlayer = {
   uid: string;
+  // The original backend player_id (null for unsaved new players).
+  // We use this to know whether identity/invite controls are available
+  // for this row — they only work after the player exists in the DB.
+  originalId?: string | null;
   displayName: string;
   accounts: EditAccount[];
 };
@@ -6964,6 +7518,7 @@ function EditLobbyDialog({
   const [players, setPlayers] = useState<EditPlayer[]>(() =>
     lobby.players.map((p) => ({
       uid: makeUid(),
+      originalId: p.id,
       displayName: p.displayName,
       accounts: p.accounts.map((a) => ({
         uid: makeUid(),
@@ -6974,6 +7529,25 @@ function EditLobbyDialog({
       })),
     }))
   );
+  // v3 — admin-tunable lobby config.
+  const [enabledTabs, setEnabledTabs] = useState<string[]>(
+    () => lobby.enabledTabs ?? DEFAULT_ENABLED_TABS
+  );
+  const [verifyMode, setVerifyMode] = useState<VerifyMode>(
+    lobby.verifyMode ?? "full"
+  );
+  // Collapsible sections — all open by default. Stored as a Set of
+  // section keys so toggling is O(1) and order-independent.
+  const [openSections, setOpenSections] = useState<Set<EditSectionKey>>(
+    () => new Set(["name", "hero", "players", "sections", "verify"])
+  );
+  const toggleSection = (k: EditSectionKey) =>
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      next.has(k) ? next.delete(k) : next.add(k);
+      return next;
+    });
+
   const [saving, setSaving] = useState(false);
   // Two phases for the Save button label — first the PATCH ("Saving…"),
   // then the backend refresh that pre-warms ingestion ("Syncing…").
@@ -6999,9 +7573,12 @@ function EditLobbyDialog({
     if (!open) return;
     setName(lobby.name);
     setHeroChampion(lobby.heroChampion ?? DEFAULT_HERO_CHAMPION);
+    setEnabledTabs(lobby.enabledTabs ?? DEFAULT_ENABLED_TABS);
+    setVerifyMode(lobby.verifyMode ?? "full");
     setPlayers(
       lobby.players.map((p) => ({
         uid: makeUid(),
+        originalId: p.id,
         displayName: p.displayName,
         accounts: p.accounts.map((a) => ({
           uid: makeUid(),
@@ -7019,7 +7596,7 @@ function EditLobbyDialog({
     if (players.length >= EDIT_MAX_PLAYERS) return;
     setPlayers((prev) => [
       ...prev,
-      { uid: makeUid(), displayName: "", accounts: [] },
+      { uid: makeUid(), originalId: null, displayName: "", accounts: [] },
     ]);
   };
   const removePlayer = (uid: string) =>
@@ -7102,7 +7679,15 @@ function EditLobbyDialog({
         body: JSON.stringify({
           name: name.trim(),
           heroChampion: heroChampion?.trim() || null,
+          enabledTabs,
+          verifyMode,
           players: players.map((p) => ({
+            // Pass the original DB id so the backend can match this
+            // EditPlayer to an existing scout_lobby_players row and
+            // UPDATE it in place — preserving claim/badge/verify
+            // state. New players (added during edit) have id = null
+            // and get freshly inserted.
+            id: p.originalId ?? null,
             displayName: p.displayName.trim(),
             accounts: p.accounts.map((a) => ({
               puuid: a.puuid,
@@ -7186,37 +7771,45 @@ function EditLobbyDialog({
             </div>
 
             {/* Lobby name */}
-            <div className="mb-5">
-              <span className="text-[11px] font-jetbrains tracking-[0.18em] uppercase text-flash/55 mb-2 block">
-                ◆ Lobby name
-              </span>
+            <EditCollapsible
+              open={openSections.has("name")}
+              onToggle={() => toggleSection("name")}
+              title="Lobby name"
+              summary={name || "(no name)"}
+            >
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
                 className="w-full bg-black/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors"
               />
-            </div>
+            </EditCollapsible>
 
             {/* Hero champion picker */}
-            <div className="mb-5">
-              <span className="text-[11px] font-jetbrains tracking-[0.18em] uppercase text-flash/55 mb-2 block">
-                ◆ Hero splash
-              </span>
+            <EditCollapsible
+              open={openSections.has("hero")}
+              onToggle={() => toggleSection("hero")}
+              title="Hero splash"
+              summary={heroChampion || "Default"}
+            >
               <HeroChampionPicker
                 value={heroChampion}
                 onChange={setHeroChampion}
               />
-            </div>
+            </EditCollapsible>
 
             {/* Players */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-jetbrains tracking-[0.18em] uppercase text-flash/55">
-                  ◆ Players {players.length}/{EDIT_MAX_PLAYERS}
-                </span>
+            <EditCollapsible
+              open={openSections.has("players")}
+              onToggle={() => toggleSection("players")}
+              title="Players"
+              summary={`${players.length}/${EDIT_MAX_PLAYERS}`}
+              action={
                 <button
-                  onClick={addPlayer}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addPlayer();
+                  }}
                   disabled={players.length >= EDIT_MAX_PLAYERS}
                   className={cn(
                     "flex items-center gap-1.5 text-[10px] font-jetbrains tracking-[0.2em] uppercase font-medium px-2.5 py-1.5 rounded-[3px] border cursor-clicker transition-all",
@@ -7227,20 +7820,78 @@ function EditLobbyDialog({
                 >
                   <Plus className="w-3 h-3" /> Add player
                 </button>
-              </div>
+              }
+            >
+              {/* Co-admins list (above the player rows) */}
+              <LobbyAdminsPanel lobby={lobby} onChanged={onSaved} />
 
               <div className="flex flex-col gap-2">
-                {players.map((p, idx) => (
-                  <EditPlayerRow
-                    key={p.uid}
-                    index={idx}
-                    player={p}
-                    onChange={(next) => updatePlayer(p.uid, next)}
-                    onRemove={() => removePlayer(p.uid)}
-                  />
-                ))}
+                {players.map((p, idx) => {
+                  // Match the EditPlayer to its persisted LobbyPlayer
+                  // (via originalId) so we can show claim/badge state
+                  // for already-saved players.
+                  const persisted = p.originalId
+                    ? lobby.players.find((lp) => lp.id === p.originalId) ?? null
+                    : null;
+                  // EditPlayerRow + Identity panel share an outer
+                  // border so they read as ONE unit. Inner divider
+                  // is a hairline so the visual seam stays subtle.
+                  return (
+                    <div
+                      key={p.uid}
+                      className="rounded-[4px] border border-flash/[0.08] bg-black/[0.18] overflow-hidden"
+                    >
+                      <EditPlayerRow
+                        index={idx}
+                        player={p}
+                        onChange={(next) => updatePlayer(p.uid, next)}
+                        onRemove={() => removePlayer(p.uid)}
+                        seamless
+                      />
+                      {/* Hairline divider between row and identity */}
+                      <div className="h-[1px] bg-flash/[0.06]" />
+                      {/* Identity sub-row */}
+                      <PlayerIdentityPanel
+                        lobbySlug={lobby.slug}
+                        playerId={p.originalId ?? null}
+                        persisted={persisted}
+                        displayName={p.displayName}
+                        onChanged={onSaved}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            </EditCollapsible>
+
+            {/* Sections (tab chooser) */}
+            <EditCollapsible
+              open={openSections.has("sections")}
+              onToggle={() => toggleSection("sections")}
+              title="Sections"
+              summary={`${enabledTabs.length} enabled`}
+            >
+              <SectionsChooser
+                enabled={enabledTabs}
+                onChange={setEnabledTabs}
+              />
+            </EditCollapsible>
+
+            {/* Verify mode */}
+            <EditCollapsible
+              open={openSections.has("verify")}
+              onToggle={() => toggleSection("verify")}
+              title="Verify"
+              summary={
+                verifyMode === "disabled"
+                  ? "Disabled"
+                  : verifyMode === "claim_only"
+                    ? "Grade 1 only"
+                    : "Full (Grade 1 + Grade 2)"
+              }
+            >
+              <VerifyModeRadio value={verifyMode} onChange={setVerifyMode} />
+            </EditCollapsible>
 
             {err && (
               <div className="text-[11px] font-jetbrains tracking-[0.15em] uppercase text-error/80 mb-3">
@@ -7312,11 +7963,16 @@ function EditPlayerRow({
   player,
   onChange,
   onRemove,
+  seamless = false,
 }: {
   index: number;
   player: EditPlayer;
   onChange: (p: EditPlayer) => void;
   onRemove: () => void;
+  /** When true the row drops its own border/bg so it can sit inside
+   *  a parent container that owns the chrome (used by the Identity
+   *  panel wrapper to merge the row + panel into one visual unit). */
+  seamless?: boolean;
 }) {
   const slotLabel = `P${String(index + 1).padStart(2, "0")}`;
   const [adding, setAdding] = useState(false);
@@ -7372,7 +8028,14 @@ function EditPlayerRow({
   };
 
   return (
-    <div className="bg-black/25 border border-flash/15 rounded-[3px] p-3">
+    <div
+      className={cn(
+        "p-3",
+        seamless
+          ? "bg-transparent"
+          : "bg-black/25 border border-flash/15 rounded-[3px]"
+      )}
+    >
       <div className="flex items-center gap-2 mb-2">
         <span
           className="text-[10px] font-jetbrains font-medium tracking-[0.2em] uppercase px-1.5 py-[2px] rounded-[2px]"
@@ -7493,6 +8156,564 @@ function EditPlayerRow({
   );
 }
 
+/* ─── per-player identity panel (claim invite + badge toggle) ───────── */
+//
+// Sits under each EditPlayerRow inside the EditLobbyDialog. Lets the
+// admin generate a reusable claim link, revoke it, and toggle the
+// green verify badge on/off for that player.
+//
+// Auth — every mutation here hits an admin-only endpoint, so we send
+// the supabase session token as Bearer.
+
+function PlayerIdentityPanel({
+  lobbySlug,
+  playerId,
+  persisted,
+  displayName,
+  onChanged,
+}: {
+  lobbySlug: string;
+  playerId: string | null;
+  persisted: LobbyPlayer | null;
+  displayName: string;
+  onChanged: () => void;
+}) {
+  const [token, setToken] = useState<string | null>(null);
+  const [loadingInvite, setLoadingInvite] = useState(false);
+  const [showBadge, setShowBadge] = useState<boolean>(
+    !!persisted?.showVerifyBadge
+  );
+
+  // Sync local toggle when persisted changes (e.g. after onChanged → reload).
+  useEffect(() => {
+    setShowBadge(!!persisted?.showVerifyBadge);
+  }, [persisted?.showVerifyBadge]);
+
+  const isClaimed = !!persisted?.claimedByProfileId;
+
+  // Unsaved player → can't manage identity yet. Sits inside the
+  // shared parent border, so no border/bg of our own.
+  if (!playerId || !persisted) {
+    return (
+      <div className="px-3 py-2 bg-black/15">
+        <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/30">
+          Save to enable identity controls
+        </span>
+      </div>
+    );
+  }
+
+  const authHeader = async (): Promise<HeadersInit | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    return { Authorization: `Bearer ${session.access_token}` };
+  };
+
+  const generateInvite = async () => {
+    setLoadingInvite(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) {
+        showCyberToast({ title: "Sign in required", variant: "error" });
+        return;
+      }
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/lobby/${lobbySlug}/player/${playerId}/claim-invite`,
+        { method: "POST", headers }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showCyberToast({
+          title: "Invite failed",
+          description: body?.error,
+          variant: "error",
+        });
+        return;
+      }
+      const data = await res.json();
+      setToken(data.token);
+      const url = `${window.location.origin}/scout/claim/${data.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        showCyberToast({
+          title: "Invite link copied",
+          description: url,
+        });
+      } catch {
+        showCyberToast({ title: "Invite ready", description: url });
+      }
+    } finally {
+      setLoadingInvite(false);
+    }
+  };
+
+  const revokeInvite = async () => {
+    const headers = await authHeader();
+    if (!headers) return;
+    const res = await fetch(
+      `${API_BASE_URL}/api/scout/lobby/${lobbySlug}/player/${playerId}/claim-invite`,
+      { method: "DELETE", headers }
+    );
+    if (res.ok) {
+      setToken(null);
+      showCyberToast({ title: "Invite revoked" });
+    } else {
+      showCyberToast({ title: "Revoke failed", variant: "error" });
+    }
+  };
+
+  const toggleBadge = async (next: boolean) => {
+    setShowBadge(next);
+    const headers = await authHeader();
+    if (!headers) return;
+    const res = await fetch(
+      `${API_BASE_URL}/api/scout/lobby/${lobbySlug}/player/${playerId}/verify-badge`,
+      {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ show: next }),
+      }
+    );
+    if (!res.ok) {
+      setShowBadge(!next); // revert
+      showCyberToast({ title: "Badge toggle failed", variant: "error" });
+      return;
+    }
+    onChanged();
+  };
+
+  return (
+    <div className="px-3 py-2 bg-black/15">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Status pill */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isClaimed ? (
+            <>
+              <VerifyBadge grade={persisted.verifyGrade === 2 ? 2 : 1} size={12} />
+              <span className="text-[9px] font-jetbrains tracking-[0.2em] uppercase text-jade font-bold">
+                Claimed
+              </span>
+            </>
+          ) : (
+            <span className="text-[9px] font-jetbrains tracking-[0.2em] uppercase text-flash/40">
+              ◇ Unclaimed
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent min-w-[20px]" />
+
+        {/* Invite actions */}
+        {!isClaimed && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={generateInvite}
+              disabled={loadingInvite}
+              className="text-[9px] font-jetbrains tracking-[0.18em] uppercase font-medium px-2 py-1 rounded-[3px] border border-jade/30 text-jade bg-jade/[0.08] hover:bg-jade/[0.15] cursor-clicker transition-all disabled:opacity-50"
+            >
+              {loadingInvite ? "…" : token ? "↺ Copy again" : "+ Invite link"}
+            </button>
+            {token && (
+              <button
+                type="button"
+                onClick={revokeInvite}
+                className="text-[9px] font-jetbrains tracking-[0.18em] uppercase font-medium px-2 py-1 rounded-[3px] border border-flash/15 text-flash/55 hover:text-error/80 hover:border-error/30 cursor-clicker transition-all"
+              >
+                Revoke
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Badge toggle — only meaningful once claimed */}
+        {isClaimed && (
+          <label
+            className="flex items-center gap-2 cursor-clicker shrink-0"
+            title="Show verify badge next to player name in match feed"
+          >
+            <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/55">
+              Badge
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showBadge}
+              onClick={() => toggleBadge(!showBadge)}
+              className={cn(
+                "relative w-8 h-4 rounded-full transition-colors",
+                showBadge
+                  ? "bg-jade/40 border border-jade/60"
+                  : "bg-flash/10 border border-flash/15"
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-[1px] w-[14px] h-[14px] rounded-full transition-all",
+                  showBadge
+                    ? "left-[15px] bg-jade shadow-[0_0_6px_rgba(0,217,146,0.6)]"
+                    : "left-[1px] bg-flash/40"
+                )}
+              />
+            </button>
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── edit dialog v3 helpers ─────────────────────────────────────────── */
+//
+// All four pieces live next to PlayerIdentityPanel since they're
+// only used inside EditLobbyDialog. Function declarations hoist so
+// the dialog can reference them above.
+
+/** Collapsible section wrapper used by EditLobbyDialog. */
+function EditCollapsible({
+  open,
+  onToggle,
+  title,
+  summary,
+  action,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+  summary?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 rounded-[4px] border border-flash/10 overflow-hidden bg-black/15">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-3 py-2.5 cursor-clicker hover:bg-flash/[0.03] transition-colors"
+      >
+        <ChevronDown
+          className={cn(
+            "w-3.5 h-3.5 text-flash/55 shrink-0 transition-transform",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+        />
+        <span className="text-[11px] font-jetbrains tracking-[0.22em] uppercase text-flash/65 font-medium">
+          {title}
+        </span>
+        {summary && (
+          <span className="text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/35 truncate">
+            · {summary}
+          </span>
+        )}
+        <div className="flex-1" />
+        {action}
+      </button>
+      {open && (
+        <div className="px-4 pt-2 pb-4 border-t border-flash/[0.05]">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Co-admin promotion panel — current admins + promote/demote. */
+function LobbyAdminsPanel({
+  lobby,
+  onChanged,
+}: {
+  lobby: Lobby;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const admins = lobby.admins ?? [];
+  const adminIds = new Set(admins.map((a) => a.profileId));
+  const claimedPlayers = lobby.players.filter((p) => p.claimedByProfileId);
+
+  const authHeader = async (): Promise<HeadersInit | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    return {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    };
+  };
+
+  const promote = async (profileId: string) => {
+    setBusy(profileId);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/lobby/${lobby.slug}/admins`,
+        { method: "POST", headers, body: JSON.stringify({ profileId }) }
+      );
+      if (res.ok) {
+        showCyberToast({ title: "Promoted to co-admin" });
+        onChanged();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showCyberToast({
+          title: "Promote failed",
+          description: body?.error,
+          variant: "error",
+        });
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const demote = async (profileId: string) => {
+    setBusy(profileId);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/lobby/${lobby.slug}/admins/${profileId}`,
+        { method: "DELETE", headers }
+      );
+      if (res.ok) {
+        showCyberToast({ title: "Co-admin removed" });
+        onChanged();
+      } else {
+        showCyberToast({ title: "Remove failed", variant: "error" });
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const labelFor = (profileId: string): string => {
+    const p = lobby.players.find((x) => x.claimedByProfileId === profileId);
+    return p?.displayName ?? profileId.slice(0, 8);
+  };
+
+  const promotable = claimedPlayers.filter(
+    (p) => !adminIds.has(p.claimedByProfileId!)
+  );
+
+  return (
+    <div className="mb-3 rounded-[3px] bg-black/15 border border-flash/[0.06] p-3">
+      <div className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/50 mb-2">
+        ◇ Admins
+      </div>
+      {admins.length === 0 ? (
+        <div className="text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/30">
+          No admins yet
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5 mb-2">
+          {admins.map((a) => {
+            const isCreator = a.profileId === lobby.ownerUserId;
+            return (
+              <div
+                key={a.profileId}
+                className="flex items-center gap-2 text-[11px] font-chakrapetch text-flash"
+              >
+                <span
+                  className={cn(
+                    "px-1.5 py-[2px] rounded-[2px] text-[8px] font-jetbrains tracking-[0.2em] uppercase font-bold",
+                    isCreator
+                      ? "bg-citrine/15 text-citrine border border-citrine/35"
+                      : "bg-jade/10 text-jade border border-jade/30"
+                  )}
+                >
+                  {isCreator ? "Creator" : "Co-admin"}
+                </span>
+                <span className="truncate flex-1">
+                  {labelFor(a.profileId)}
+                </span>
+                {!isCreator && (
+                  <button
+                    type="button"
+                    onClick={() => demote(a.profileId)}
+                    disabled={busy === a.profileId}
+                    className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/40 hover:text-error/80 cursor-clicker disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {promotable.length > 0 && (
+        <>
+          <div className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mb-1.5 mt-3">
+            Promote claimed users
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {promotable.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => promote(p.claimedByProfileId!)}
+                disabled={busy === p.claimedByProfileId}
+                className="text-[9px] font-jetbrains tracking-[0.18em] uppercase font-medium px-2 py-1 rounded-[3px] border border-jade/25 text-jade/85 bg-jade/[0.06] hover:bg-jade/[0.15] cursor-clicker transition-all disabled:opacity-40"
+              >
+                + {p.displayName}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Tab chooser — checkbox grid. */
+function SectionsChooser({
+  enabled,
+  onChange,
+}: {
+  enabled: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const enabledSet = new Set(enabled);
+  const toggle = (key: string) => {
+    const next = new Set(enabledSet);
+    next.has(key) ? next.delete(key) : next.add(key);
+    onChange([...next]);
+  };
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      {SECTIONS_CATALOG.map((t) => {
+        const isOn = enabledSet.has(t.key);
+        const isOptIn = !t.default;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => toggle(t.key)}
+            className={cn(
+              "flex items-start gap-2.5 px-3 py-2 rounded-[3px] border cursor-clicker transition-all text-left",
+              isOn
+                ? "border-jade/40 bg-jade/[0.08]"
+                : "border-flash/10 bg-black/15 hover:border-flash/25"
+            )}
+          >
+            <div
+              className={cn(
+                "w-3.5 h-3.5 rounded-[2px] border flex items-center justify-center shrink-0 mt-0.5 transition-all",
+                isOn
+                  ? "bg-jade/40 border-jade/60"
+                  : "border-flash/20 bg-black/30"
+              )}
+            >
+              {isOn && <Check className="w-2.5 h-2.5 text-flash" />}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "text-[11px] font-chakrapetch font-bold",
+                    isOn ? "text-flash" : "text-flash/70"
+                  )}
+                >
+                  {t.label}
+                </span>
+                {isOptIn && (
+                  <span className="text-[7px] font-jetbrains tracking-[0.2em] uppercase text-citrine/80 bg-citrine/10 border border-citrine/30 px-1 py-[1px] rounded-[2px]">
+                    Opt-in
+                  </span>
+                )}
+              </div>
+              <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+                {t.description}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Verify-mode 3-way radio. */
+function VerifyModeRadio({
+  value,
+  onChange,
+}: {
+  value: VerifyMode;
+  onChange: (next: VerifyMode) => void;
+}) {
+  const options: Array<{
+    key: VerifyMode;
+    label: string;
+    helper: string;
+  }> = [
+    {
+      key: "full",
+      label: "Full (Grade 1 + Grade 2)",
+      helper:
+        "Claim invites are active, identity badges show in the feed, and verified users can run the per-account icon challenge to unlock Grade 2.",
+    },
+    {
+      key: "claim_only",
+      label: "Grade 1 only",
+      helper:
+        "Claim invites and identity badges work, but the rhombus Verify FAB and account-challenge dialog stay hidden.",
+    },
+    {
+      key: "disabled",
+      label: "Disabled",
+      helper:
+        "No claim invites, no badges, no FAB. Chat (when enabled) becomes open to anyone signed in.",
+    },
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map((o) => {
+        const isOn = value === o.key;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            className={cn(
+              "flex items-start gap-2.5 px-3 py-2 rounded-[3px] border cursor-clicker transition-all text-left",
+              isOn
+                ? "border-jade/45 bg-jade/[0.08]"
+                : "border-flash/10 bg-black/15 hover:border-flash/25"
+            )}
+          >
+            <div
+              className={cn(
+                "w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all",
+                isOn ? "border-jade/70" : "border-flash/25"
+              )}
+            >
+              {isOn && (
+                <span className="w-1.5 h-1.5 rounded-full bg-jade shadow-[0_0_6px_rgba(0,217,146,0.6)]" />
+              )}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span
+                className={cn(
+                  "text-[11px] font-chakrapetch font-bold",
+                  isOn ? "text-flash" : "text-flash/70"
+                )}
+              >
+                {o.label}
+              </span>
+              <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+                {o.helper}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─── main page ─────────────────────────────────────────────────────── */
 export default function ScoutLobbyPage() {
   const { slug, tab: tabParam } = useParams<{ slug: string; tab?: string }>();
@@ -7506,6 +8727,8 @@ export default function ScoutLobbyPage() {
         "trending",
         "habits",
         "champions",
+        "chat",
+        "compare",
       ]),
     []
   );
@@ -7521,6 +8744,7 @@ export default function ScoutLobbyPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const { session } = useAuth();
 
   useEffect(() => {
@@ -7733,16 +8957,22 @@ export default function ScoutLobbyPage() {
               {/* DESKTOP — existing tab list + RefreshClock layout. */}
               <div className="hidden sm:flex items-end justify-between border-b border-flash/[0.06] mb-6 gap-2">
                 <TabsList className="flex justify-start mx-0 bg-transparent h-auto p-0 gap-7 border-0">
-                  {(
-                    [
+                  {(() => {
+                    const enabled = new Set(
+                      lobby.enabledTabs ?? DEFAULT_ENABLED_TABS
+                    );
+                    const all: Array<{ value: string; label: string }> = [
                       { value: "matches", label: "Matches" },
                       { value: "live", label: "Live" },
                       { value: "leaderboard", label: "Leaderboard" },
                       { value: "trending", label: "Trending" },
                       { value: "habits", label: "Habits" },
                       { value: "champions", label: "Champions" },
-                    ] as const
-                  ).map((tab) => (
+                      { value: "chat", label: "Chat" },
+                      { value: "compare", label: "Compare" },
+                    ];
+                    return all.filter((t) => enabled.has(t.value));
+                  })().map((tab) => (
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
@@ -7802,6 +9032,14 @@ export default function ScoutLobbyPage() {
               <TabsContent value="champions" className="mt-0">
                 <ChampionsTab slug={slug!} lobby={lobby} />
               </TabsContent>
+
+              <TabsContent value="chat" className="mt-0">
+                <ChatTab slug={slug!} lobby={lobby} />
+              </TabsContent>
+
+              <TabsContent value="compare" className="mt-0">
+                <CompareTab slug={slug!} lobby={lobby} refreshTick={refreshTick} />
+              </TabsContent>
             </Tabs>
           </div>
 
@@ -7828,16 +9066,80 @@ export default function ScoutLobbyPage() {
         />
       </div>
 
-      {/* Edit lobby button — bottom-left, owner only */}
-      {!!session?.user?.id && session.user.id === lobby.ownerUserId && (
-        <div className="fixed bottom-10 left-10 z-50">
-          <DiamondButton
-            icon="edit"
-            label="EDIT"
-            onClick={() => setEditOpen(true)}
-          />
-        </div>
-      )}
+      {/* ─── Bottom-left FAB stack ──────────────────────────────────
+            Layout hierarchy:
+              [VERIFY]   ← above (when claimed and Grade < 2)
+              [EDIT]     ← bottom-anchored (when admin/owner)
+            When EDIT is hidden, VERIFY animates down to take its
+            place via framer-motion's `layout` prop. `flex-col-reverse`
+            keeps EDIT pinned to the bottom regardless of DOM order so
+            it stays at the same visual anchor when alone.
+        */}
+      {(() => {
+        const myProfileId = session?.user?.id ?? null;
+        const me = myProfileId
+          ? lobby.players.find(
+              (p) => p.claimedByProfileId === myProfileId
+            ) ?? null
+          : null;
+        const showEdit =
+          !!myProfileId && myProfileId === lobby.ownerUserId;
+        // Verify FAB is gated by lobby's verify_mode. Only the full
+        // mode runs the Phase 2 challenge; "claim_only" stops at
+        // Grade 1 so there's nothing to do here, and "disabled"
+        // turns the whole flow off.
+        const verifyMode = lobby.verifyMode ?? "full";
+        const showVerify =
+          verifyMode === "full" && !!me && (me.verifyGrade ?? 0) < 2;
+        if (!showEdit && !showVerify) return null;
+        return (
+          <div className="fixed bottom-10 left-10 z-50">
+            <div className="flex flex-col-reverse items-center gap-3">
+              <AnimatePresence initial={false}>
+                {showEdit && (
+                  <motion.div
+                    key="edit-fab"
+                    layout
+                    initial={{ opacity: 0, y: -10, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.85 }}
+                    transition={{
+                      duration: 0.28,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                  >
+                    <DiamondButton
+                      icon="edit"
+                      label="EDIT"
+                      onClick={() => setEditOpen(true)}
+                    />
+                  </motion.div>
+                )}
+                {showVerify && (
+                  <motion.div
+                    key="verify-fab"
+                    layout
+                    initial={{ opacity: 0, y: 10, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.85 }}
+                    transition={{
+                      duration: 0.28,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                  >
+                    <DiamondButton
+                      color="blue"
+                      icon={<ShieldCheck className="w-4 h-4" />}
+                      label="VERIFY"
+                      onClick={() => setVerifyOpen(true)}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        );
+      })()}
 
       {editOpen && (
         <EditLobbyDialog
@@ -7848,6 +9150,36 @@ export default function ScoutLobbyPage() {
           onDeleted={() => navigate("/dashboard/scout")}
         />
       )}
+
+      {/* Verify accounts dialog — mounted independently so closing
+          the dialog doesn't unmount the FAB stack mid-animation. */}
+      {(() => {
+        const myProfileId = session?.user?.id ?? null;
+        const me = myProfileId
+          ? lobby.players.find(
+              (p) => p.claimedByProfileId === myProfileId
+            ) ?? null
+          : null;
+        if (!me) return null;
+        const verifyRows: VerifyAccountRow[] = me.accounts.map((a) => ({
+          lobbyPlayerId: me.id,
+          puuid: a.puuid,
+          region: a.region,
+          riotName: a.riotName,
+          riotTag: a.riotTag,
+          verifiedAt: a.verifiedAt ?? null,
+        }));
+        return (
+          <VerifyAccountsDialog
+            open={verifyOpen}
+            onClose={() => setVerifyOpen(false)}
+            accounts={verifyRows}
+            playerDisplayName={me.displayName}
+            playerColor={me.color}
+            onChanged={() => setRefreshTick((t) => t + 1)}
+          />
+        );
+      })()}
     </div>
   );
 }
