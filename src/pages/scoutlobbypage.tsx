@@ -7694,7 +7694,7 @@ function HeroChampionPicker({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search champion…"
-              className="w-full bg-black/30 border border-flash/15 rounded-[3px] h-9 px-3 text-[13px] text-flash placeholder:text-flash/30 outline-none focus:border-jade/45 transition-colors font-geist"
+              className="w-full bg-black/30 border border-flash/15 rounded-[3px] h-9 px-3 text-[13px] text-flash placeholder:text-flash/30 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
             />
             <div className="grid grid-cols-9 gap-1 max-h-[180px] overflow-y-auto cyber-scrollbar pr-1 -mr-1">
               {filtered.map((c) => {
@@ -7989,7 +7989,7 @@ function EditLobbyDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-[640px] font-geist [&>button]:hidden">
+      <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-[640px] font-chakrapetch [&>button]:hidden">
         <DialogTitle className="sr-only">Edit lobby</DialogTitle>
         <div
           className="relative rounded-md overflow-hidden"
@@ -8029,7 +8029,7 @@ function EditLobbyDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
-                className="w-full bg-black/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors"
+                className="w-full bg-black/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
               />
             </EditCollapsible>
 
@@ -8185,7 +8185,7 @@ function EditLobbyDialog({
                       />
                     </span>
                   </div>
-                  <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+                  <span className="text-[9px] text-flash/45 font-chakrapetch mt-0.5 leading-snug">
                     Only claimed members + admins can view the lobby.
                     Everyone else sees a locked page.
                   </span>
@@ -8357,7 +8357,7 @@ function EditPlayerRow({
           onChange={(e) => onChange({ ...player, displayName: e.target.value })}
           placeholder="Player name"
           maxLength={40}
-          className="flex-1 bg-transparent text-sm text-flash placeholder:text-flash/30 outline-none border-b border-flash/0 focus:border-jade/40 transition-colors py-0.5"
+          className="flex-1 bg-transparent text-sm text-flash placeholder:text-flash/30 outline-none border-b border-flash/0 focus:border-jade/40 transition-colors py-0.5 font-chakrapetch"
         />
         <button
           onClick={onRemove}
@@ -8420,7 +8420,7 @@ function EditPlayerRow({
                   if (e.key === "Escape") setAdding(false);
                 }}
                 placeholder="name#tag"
-                className="flex-1 bg-black/30 border border-flash/15 rounded-[2px] text-xs text-flash placeholder:text-flash/30 px-2 py-1 outline-none focus:border-jade/40"
+                className="flex-1 bg-black/30 border border-flash/15 rounded-[2px] text-xs text-flash placeholder:text-flash/30 px-2 py-1 outline-none focus:border-jade/40 font-chakrapetch"
               />
               <button
                 onClick={submitAccount}
@@ -8930,7 +8930,7 @@ function SectionsChooser({
                   </span>
                 )}
               </div>
-              <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+              <span className="text-[9px] text-flash/45 font-chakrapetch mt-0.5 leading-snug">
                 {t.description}
               </span>
             </div>
@@ -9008,7 +9008,7 @@ function VerifyModeRadio({
               >
                 {o.label}
               </span>
-              <span className="text-[9px] text-flash/45 font-geist mt-0.5 leading-snug">
+              <span className="text-[9px] text-flash/45 font-chakrapetch mt-0.5 leading-snug">
                 {o.helper}
               </span>
             </div>
