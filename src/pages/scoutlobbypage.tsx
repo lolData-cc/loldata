@@ -34,6 +34,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Lock,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
@@ -65,6 +66,7 @@ import {
   type VerifyAccountRow,
 } from "@/components/verifyaccountsdialog";
 import { ChatTab } from "@/components/scoutchat/chattab";
+import { useScoutChat } from "@/components/scoutchat/usescoutchat";
 import { CompareTab } from "@/components/scoutcompare/comparetab";
 
 /* ─── shapes ─────────────────────────────────────────────────────────── */
@@ -156,6 +158,8 @@ type FeedItem = {
     goldEarned: number;
     totalDamageToChampions: number;
     visionScore: number;
+    // Total creep score (lane + jungle). Optional — older payloads omit it.
+    cs?: number | null;
     items: number[];
     perkPrimaryStyle: number | null;
     perkSubStyle: number | null;
@@ -767,6 +771,61 @@ function formatRankShortPill(r: {
   return `${tLetter}${div}`;
 }
 
+/* ─── jump-to-match (from the Daily Bounty claim) ───────────────────── */
+// Imperative, decoupled scroll-to-and-focus. Match cards are tagged with
+// `data-scout-match="<matchId>"`. We dispatch a `scout:focus-match`
+// event that any collapsed PlayerSectionCard containing the match listens
+// for and opens, then poll the DOM until the card is actually visible and
+// scroll it into view + run the 1s focus pulse. Polling absorbs the React
+// work of switching to the Matches tab + expanding the group.
+function focusScoutMatch(matchId: string) {
+  if (!matchId) return;
+
+  const fire = () =>
+    window.dispatchEvent(
+      new CustomEvent("scout:focus-match", { detail: { matchId } })
+    );
+  fire();
+
+  const safe =
+    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(matchId) : matchId;
+  const sel = `[data-scout-match="${safe}"]`;
+
+  let tries = 0;
+  const maxTries = 50; // ~50 × 50ms ≈ 2.5s before giving up
+  const run = () => {
+    const el = document.querySelector(sel) as HTMLElement | null;
+    if (el) {
+      // Card is mounted. Fire once more so the (now-mounted) group
+      // listener opens it, then let the 420ms expand animation settle
+      // before scrolling + shining — a collapsed row is in the DOM but
+      // clipped, so we can't reliably read "visible", we just wait it out.
+      fire();
+      window.setTimeout(() => {
+        // Apply the shine to the card box only (overflow-hidden → the
+        // glint is clipped to the card, never the comments panel below).
+        const card =
+          (el.querySelector("[data-scout-card]") as HTMLElement | null) ?? el;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.remove("scout-match-focus");
+        void card.offsetWidth; // restart the glint cleanly if re-triggered
+        card.classList.add("scout-match-focus");
+        window.setTimeout(
+          () => card.classList.remove("scout-match-focus"),
+          1400
+        );
+      }, 470);
+      return;
+    }
+    if (tries++ < maxTries) {
+      // Keep nudging groups that mount a beat late (after a tab switch).
+      if (tries % 4 === 0) fire();
+      window.setTimeout(run, 50);
+    }
+  };
+  window.setTimeout(run, 60);
+}
+
 /* ─── player/squad section card ─────────────────────────────────────── */
 // Renders matches owned by 1+ (player, account) combos. When 2+ members
 // played the EXACT same match set in a day, they're merged into a single
@@ -831,6 +890,24 @@ function PlayerSectionCard({
   // beneath unfolds the rest. Sections with a single match never need
   // the toggle. Lets a user with 15 daily games not flood the feed.
   const [expanded, setExpanded] = useState(false);
+
+  // Jump-to-match: when someone (the Daily Bounty card) requests focus on
+  // a match that lives in this section but isn't the always-visible first
+  // one, open the section so it can be scrolled into view + pulsed.
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent).detail?.matchId as string | undefined;
+      if (!id) return;
+      const idx = matches.findIndex((m) => m.matchId === id);
+      if (idx > 0) setExpanded(true);
+    };
+    window.addEventListener("scout:focus-match", onFocus as EventListener);
+    return () =>
+      window.removeEventListener(
+        "scout:focus-match",
+        onFocus as EventListener
+      );
+  }, [matches]);
 
   // Section outcome — drives the left border color.
   // Tie counts as a win-leaning result, so 50% winrate keeps the jade
@@ -1193,6 +1270,9 @@ function PlayerSectionCard({
       kills: item.participant.kills,
       deaths: item.participant.deaths,
       assists: item.participant.assists,
+      cs: item.participant.cs ?? null,
+      role: item.participant.role ?? null,
+      gold: item.participant.goldEarned ?? null,
       items: item.participant.items,
       allParticipants: item.allParticipants,
       highlightPuuid: item.participant.puuid,
@@ -1248,7 +1328,19 @@ function PlayerSectionCard({
 
     return (
       <div key={item.rowId}>
-        <div className="relative">
+        <div
+          className="relative"
+          data-scout-match={item.matchId}
+          style={
+            {
+              // Shine colour for the jump-to-match focus glint: jade on a
+              // win, red on a loss. Consumed by .scout-match-focus::after.
+              ["--scout-shine" as any]: card.win
+                ? "0, 217, 146"
+                : "214, 51, 54",
+            } as React.CSSProperties
+          }
+        >
           <MatchCard data={card} />
           {showPerMatchSquadBadge && (
             <div
@@ -6091,6 +6183,7 @@ function DailyBountyBox({
 }) {
   const [payload, setPayload] = useState<BountyPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -6278,7 +6371,11 @@ function DailyBountyBox({
           // shine band doesn't bleed through it — the chip should
           // read as a clean panel sitting on top of the metal.
           <div
-            className="relative overflow-hidden rounded-md p-2.5"
+            className={cn(
+              "group/jump relative overflow-hidden rounded-md p-2.5",
+              payload.claimed_match_id &&
+                "cursor-clicker transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99]"
+            )}
             style={{
               background: `
                 linear-gradient(135deg, color-mix(in srgb, ${winnerColor} 14%, transparent) 0%, rgba(0,0,0,0.55) 100%),
@@ -6287,6 +6384,24 @@ function DailyBountyBox({
               border: `0.5px solid color-mix(in srgb, ${winnerColor} 28%, transparent)`,
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
             }}
+            {...(payload.claimed_match_id
+              ? {
+                  role: "button" as const,
+                  tabIndex: 0,
+                  title: "Jump to the match where it was claimed",
+                  onClick: () => {
+                    navigate(`/scout/${slug}`);
+                    focusScoutMatch(payload.claimed_match_id!);
+                  },
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate(`/scout/${slug}`);
+                      focusScoutMatch(payload.claimed_match_id!);
+                    }
+                  },
+                }
+              : {})}
           >
             <div className="flex items-center gap-2.5">
               <div
@@ -6313,6 +6428,12 @@ function DailyBountyBox({
                 <span className="text-[8px] font-jetbrains tracking-[0.22em] uppercase text-flash/55 mt-0.5 flex items-center gap-1 font-medium">
                   <CheckCircle2 className="w-2.5 h-2.5" style={{ color: winnerColor }} />
                   Claimed
+                  {payload.claimed_match_id && (
+                    <span className="ml-1 inline-flex items-center gap-0.5 text-jade/0 group-hover/jump:text-jade/85 transition-colors duration-200">
+                      <Crosshair className="w-2.5 h-2.5" />
+                      View
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex flex-col items-end shrink-0">
@@ -8893,6 +9014,25 @@ export default function ScoutLobbyPage() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const { session } = useAuth();
 
+  // ── Live lobby chat — socket runs page-wide ─────────────────────────
+  // Mounted here (not inside the Chat tab) so the WebSocket stays open on
+  // every tab. That's what lets the Chat tab flash an unread dot when a
+  // message lands while the user is looking at another tab.
+  const chatUserId = session?.user?.id ?? null;
+  const {
+    messages: chatMessages,
+    loading: chatLoading,
+    sending: chatSending,
+    unread: chatUnread,
+    markRead: chatMarkRead,
+    send: chatSend,
+  } = useScoutChat({ slug: slug ?? "", activeTab });
+
+  // Clear the unread dot the moment the user opens the Chat tab.
+  useEffect(() => {
+    if (activeTab === "chat") chatMarkRead();
+  }, [activeTab, chatMarkRead]);
+
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -9167,6 +9307,11 @@ export default function ScoutLobbyPage() {
                       <span className="hidden group-data-[state=active]:inline text-jade/45 ml-1">
                         ]
                       </span>
+                      {/* Unread chat dot — only on the CHAT tab, only when
+                          a message arrived while the user was elsewhere. */}
+                      {tab.value === "chat" && chatUnread > 0 && (
+                        <span className="absolute top-1.5 -right-2 w-[7px] h-[7px] rounded-full bg-[#ff3e4e] shadow-[0_0_8px_rgba(255,62,78,0.85)] animate-pulse" />
+                      )}
                       <span className="absolute bottom-0 left-0 right-0 h-px bg-jade/70 scale-x-0 group-data-[state=active]:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_8px_rgba(0,217,146,0.4)]" />
                     </TabsTrigger>
                   ))}
@@ -9206,7 +9351,14 @@ export default function ScoutLobbyPage() {
               </TabsContent>
 
               <TabsContent value="chat" className="mt-0">
-                <ChatTab slug={slug!} lobby={lobby} />
+                <ChatTab
+                  lobby={lobby}
+                  userId={chatUserId}
+                  messages={chatMessages}
+                  loading={chatLoading}
+                  sending={chatSending}
+                  onSend={chatSend}
+                />
               </TabsContent>
 
               <TabsContent value="compare" className="mt-0">

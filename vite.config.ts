@@ -49,6 +49,9 @@ export default defineConfig({
         target: "http://localhost:3001",
         changeOrigin: true,
         secure: false,
+        // ws:true lets Vite proxy the WebSocket upgrade for live lobby
+        // chat (/api/scout/lobby/:slug/ws) through to the Bun backend.
+        ws: true,
       },
 
       "/lolcdn": {
