@@ -70,6 +70,16 @@ export type MatchCardData = {
   kills: number;
   deaths: number;
   assists: number;
+  // Creep score (minions + neutral monsters). Optional — when present
+  // the card shows a CS mini-caption next to KDA/KP, colour-coded by
+  // CS/min. Support roles always render it neutral grey.
+  cs?: number | null;
+  // Normalised role string ("UTILITY"/"SUPPORT"/"TOP"/… ). Used to
+  // detect support so CS isn't judged like a farming lane.
+  role?: string | null;
+  // Gold earned this match. Optional — surfaced in the CS caption tooltip
+  // (cs/min · gold) when present.
+  gold?: number | null;
   items: number[];                 // length 7 (item0..6, last is trinket)
   // Full 10-player roster for the inline scoreboard.
   allParticipants?: ScoreboardParticipant[] | null;
@@ -194,22 +204,118 @@ function KpDetailBox({
         : "text-[#d63336]/80";
 
   return (
-    <div
-      title={`${kpPct}% kill participation`}
-      className="flex flex-col leading-tight ml-2 tabular-nums"
-    >
-      <span
-        className={cn(
-          "font-chakrapetch font-medium text-[13px]",
-          valueClass
-        )}
-      >
-        {kpPct}%
-      </span>
-      <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
-        KP
-      </span>
-    </div>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex flex-col leading-tight ml-2 tabular-nums cursor-default">
+            <span
+              className={cn(
+                "font-chakrapetch font-bold text-[13px]",
+                valueClass
+              )}
+            >
+              {kpPct}%
+            </span>
+            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+              KP
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs bg-liquirice/80">
+          <span className="tabular-nums">{kpPct}% kill participation</span>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/* ── CS detail mini ──────────────────────────────────────────────────
+ * Creep-score caption next to KDA/KP. The value colour is driven by
+ * CS-per-minute (a far better skill signal than raw CS, since a 40-min
+ * game inflates totals):
+ *   • > 10 cs/min  → glowing bright green (exceptional farming)
+ *   • 8–10 cs/min  → bright green
+ *   • 6–8  cs/min  → yellow
+ *   • < 6  cs/min  → neutral grey
+ * Support roles are exempt — they don't farm, so their CS is always
+ * rendered in the neutral grey so it never reads as "bad farming".
+ */
+function isSupportRole(role: string | null | undefined): boolean {
+  if (!role) return false;
+  const r = role.toUpperCase();
+  return r === "UTILITY" || r === "SUPPORT" || r === "SUP";
+}
+
+function CsDetailBox({
+  cs,
+  gold,
+  gameDurationSeconds,
+  role,
+}: {
+  cs: number | null | undefined;
+  gold?: number | null;
+  gameDurationSeconds: number;
+  role: string | null | undefined;
+}) {
+  if (cs == null) return null;
+
+  const minutes = gameDurationSeconds > 0 ? gameDurationSeconds / 60 : 0;
+  const csPerMin = minutes > 0 ? cs / minutes : 0;
+  const support = isSupportRole(role);
+
+  // Colour + optional glow by cs/min tier. Support always neutral.
+  let valueClass = "text-flash/55";
+  let glowStyle: React.CSSProperties | undefined;
+  if (!support) {
+    if (csPerMin > 10) {
+      valueClass = "text-[#00ff9d]";
+      glowStyle = { textShadow: "0 0 10px rgba(0,255,157,0.7)" };
+    } else if (csPerMin >= 8) {
+      valueClass = "text-[#00ff9d]";
+    } else if (csPerMin >= 6) {
+      valueClass = "text-[#FFB615]";
+    } else {
+      valueClass = "text-flash/55";
+    }
+  }
+
+  // Italian-style decimal for cs/min ("7,2"); thousands-grouped gold ("14,732").
+  const csPerMinStr = csPerMin.toFixed(1).replace(".", ",");
+  const goldStr =
+    gold != null ? Math.round(gold).toLocaleString("en-US") : null;
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex flex-col leading-tight ml-2 tabular-nums cursor-default">
+            <span
+              className={cn(
+                "font-chakrapetch font-bold text-[13px]",
+                valueClass
+              )}
+              style={glowStyle}
+            >
+              {cs}
+            </span>
+            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+              CS
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs bg-liquirice/80">
+          <div className="flex flex-col items-center gap-1.5 py-0.5">
+            <span className="tabular-nums">{csPerMinStr} cs per minute</span>
+            {goldStr && (
+              <>
+                <div className="h-px w-full bg-flash/20" />
+                <span className="tabular-nums">{goldStr} gold</span>
+              </>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -335,6 +441,10 @@ export function MatchCard({ data }: { data: MatchCardData }) {
       }}
     >
     <li
+      // Marker for the jump-to-match focus shine — it's applied here (the
+      // card box, which is overflow-hidden) so the glint is clipped to the
+      // card and never bleeds onto the comments panel below.
+      data-scout-card=""
       className={cn(
         "relative overflow-hidden rounded-md p-3 text-flash transition",
         isRemake
@@ -708,7 +818,7 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                           </span>
                         </div>
                         <div className="flex flex-col leading-tight ml-1">
-                          <span className="font-chakrapetch font-medium tabular-nums text-flash/75 text-[13px]">
+                          <span className="font-chakrapetch font-bold tabular-nums text-flash/75 text-[13px]">
                             {typeof kdaValue === "number"
                               ? kdaValue.toFixed(2)
                               : kdaValue}
@@ -718,6 +828,12 @@ export function MatchCard({ data }: { data: MatchCardData }) {
                           </span>
                         </div>
 
+                        <CsDetailBox
+                          cs={data.cs}
+                          gold={data.gold}
+                          gameDurationSeconds={gameDurationSeconds}
+                          role={data.role}
+                        />
                         <KpDetailBox kpPct={kpPct} />
                       </div>
                     </div>

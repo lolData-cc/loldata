@@ -3107,13 +3107,88 @@ export default function SummonerPage() {
                                                 {/* KDA caption — stacked big value + tiny label,
                                                     mirrors the scout matchcard look. */}
                                                 <div className="flex flex-col leading-tight ml-3 tabular-nums">
-                                                  <span className="font-chakrapetch font-medium tabular-nums text-flash/75 text-[13px]">
+                                                  <span className="font-chakrapetch font-bold tabular-nums text-flash/75 text-[13px]">
                                                     {typeof kda === "number" ? kda.toFixed(2) : kda}
                                                   </span>
                                                   <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
                                                     KDA
                                                   </span>
                                                 </div>
+                                                {/* CS caption — same stack, value coloured by CS/min:
+                                                    >10 glowing jade, 8-10 jade, 6-8 citrine, else grey.
+                                                    Support roles are always neutral grey (their low CS
+                                                    isn't a performance signal). Mirrors CsDetailBox in
+                                                    components/matchcard.tsx. */}
+                                                {participant && (() => {
+                                                  const cs =
+                                                    (participant.totalMinionsKilled ?? 0) +
+                                                    (participant.neutralMinionsKilled ?? 0);
+                                                  const minutes =
+                                                    match.info.gameDuration > 0
+                                                      ? match.info.gameDuration / 60
+                                                      : 0;
+                                                  const csPerMin = minutes > 0 ? cs / minutes : 0;
+                                                  const roleUpper = (playerRole ?? "").toUpperCase();
+                                                  const support =
+                                                    roleUpper === "UTILITY" ||
+                                                    roleUpper === "SUPPORT" ||
+                                                    roleUpper === "SUP";
+                                                  let csValueClass = "text-flash/55";
+                                                  let csGlow: React.CSSProperties | undefined;
+                                                  if (!support) {
+                                                    if (csPerMin > 10) {
+                                                      csValueClass = "text-[#00ff9d]";
+                                                      csGlow = {
+                                                        textShadow:
+                                                          "0 0 10px rgba(0,255,157,0.7)",
+                                                      };
+                                                    } else if (csPerMin >= 8) {
+                                                      csValueClass = "text-[#00ff9d]";
+                                                    } else if (csPerMin >= 6) {
+                                                      csValueClass = "text-[#FFB615]";
+                                                    }
+                                                  }
+                                                  // Italian-style decimal for cs/min ("7,2");
+                                                  // thousands-grouped gold ("14,732").
+                                                  const csPerMinStr = csPerMin.toFixed(1).replace(".", ",");
+                                                  const goldStr =
+                                                    participant.goldEarned != null
+                                                      ? Math.round(participant.goldEarned).toLocaleString("en-US")
+                                                      : null;
+                                                  return (
+                                                    <TooltipProvider delayDuration={150}>
+                                                      <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                          <div className="flex flex-col leading-tight ml-4 tabular-nums cursor-default">
+                                                            <span
+                                                              className={cn(
+                                                                "font-chakrapetch font-bold text-[13px]",
+                                                                csValueClass
+                                                              )}
+                                                              style={csGlow}
+                                                            >
+                                                              {cs}
+                                                            </span>
+                                                            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                                                              CS
+                                                            </span>
+                                                          </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs bg-liquirice/80">
+                                                          <div className="flex flex-col items-center gap-1.5 py-0.5">
+                                                            <span className="tabular-nums">{csPerMinStr} cs per minute</span>
+                                                            {goldStr && (
+                                                              <>
+                                                                <div className="h-px w-full bg-flash/20" />
+                                                                <span className="tabular-nums">{goldStr} gold</span>
+                                                              </>
+                                                            )}
+                                                          </div>
+                                                        </TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
+                                                  );
+                                                })()}
                                                 {/* KP caption — same stack, value coloured by tier:
                                                     ≥65% jade, ≥45% neutral flash, else red. Matches
                                                     KpDetailBox in components/matchcard.tsx. */}
@@ -3130,17 +3205,23 @@ export default function SummonerPage() {
                                                         ? "text-flash/75"
                                                         : "text-[#d63336]/80";
                                                   return (
-                                                    <div
-                                                      title={`${kp}% kill participation`}
-                                                      className="flex flex-col leading-tight ml-4 tabular-nums"
-                                                    >
-                                                      <span className={cn("font-chakrapetch font-medium text-[13px]", kpValueClass)}>
-                                                        {kp}%
-                                                      </span>
-                                                      <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
-                                                        KP
-                                                      </span>
-                                                    </div>
+                                                    <TooltipProvider delayDuration={150}>
+                                                      <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                          <div className="flex flex-col leading-tight ml-4 tabular-nums cursor-default">
+                                                            <span className={cn("font-chakrapetch font-bold text-[13px]", kpValueClass)}>
+                                                              {kp}%
+                                                            </span>
+                                                            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
+                                                              KP
+                                                            </span>
+                                                          </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs bg-liquirice/80">
+                                                          <span className="tabular-nums">{kp}% kill participation</span>
+                                                        </TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
                                                   );
                                                 })()}
 
