@@ -3571,162 +3571,150 @@ function LiveSessionCard({
   )}-${encodeURIComponent(lead.riotTag)}`;
   const liveGameHref = `${leadSummonerHref}/livegame`;
 
+  // Which team each lobby member is on, so each member tile can carry its
+  // side accent (blue / red) — matters in the rare cross-team case.
+  const teamByPuuid = new Map<string, number>();
+  for (const p of group.participants) teamByPuuid.set(p.puuid, p.teamId);
+
+  const count = group.members.length;
+  const stackLabel =
+    count === 2 ? "DUO" : count === 3 ? "TRIO" : `${count}-STACK`;
+  // Uniform tiles that wrap, so a 5-stack reads as a tidy 3+2 grid instead
+  // of a lopsided 5-tall column.
+  const memberCols =
+    count === 1
+      ? "grid-cols-1"
+      : count === 2
+        ? "grid-cols-2"
+        : "grid-cols-2 sm:grid-cols-3";
+
+  const hasBans = group.bansBlue.length > 0 || group.bansRed.length > 0;
+
   return (
-    <div className="relative overflow-hidden rounded-md bg-black/30 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]">
-      {/* Splash background, very subdued */}
+    <div className="group/live relative overflow-hidden rounded-lg bg-black/30 backdrop-blur-lg saturate-150 ring-1 ring-white/[0.06] shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-shadow hover:shadow-[0_16px_44px_rgba(0,0,0,0.62)]">
+      {/* Splash background — lead champion, heavily subdued */}
       <div className="absolute inset-0 z-0">
         <img
           src={splash}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-25"
-          style={{ objectPosition: "center 25%" }}
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.16]"
+          style={{ objectPosition: "center 22%" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-liquirice/95 via-liquirice/80 to-liquirice/65" />
+        <div className="absolute inset-0 bg-gradient-to-b from-liquirice/80 via-liquirice/92 to-liquirice/97" />
+        <div className="absolute inset-0 bg-gradient-to-r from-liquirice/70 via-transparent to-transparent" />
       </div>
 
-      {/* Left accent bar */}
+      {/* Top accent hairline in the lead member's colour */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
+        className="absolute top-0 inset-x-0 h-[2px] z-[1]"
         style={{
-          background: `color-mix(in srgb, ${accent} 75%, transparent)`,
-          boxShadow: `0 0 10px color-mix(in srgb, ${accent} 40%, transparent)`,
+          background: `linear-gradient(to right, ${accent}, color-mix(in srgb, ${accent} 20%, transparent) 55%, transparent)`,
         }}
       />
 
-      <div className="relative z-[2] p-3 flex items-stretch gap-3">
-        {/* Champion portrait(s) + lobby player avatar(s). When the lobby
-            has 2+ members in the same game we stack their portraits with
-            a subtle ↔ chain indicator so it's instantly readable as a duo. */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
-          {isMulti && (
+      {/* ── Header: status · queue · timer … stack badge · spectate ── */}
+      <div className="relative z-[2] flex items-center gap-2.5 flex-wrap px-3.5 pt-3 pb-2.5">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="relative inline-flex">
             <span
-              className="text-[8.5px] font-jetbrains tracking-[0.22em] uppercase font-bold leading-none"
-              style={{ color: accent }}
-            >
-              {group.members.length === 2 ? "Duo" : `${group.members.length}× Stack`}
-            </span>
-          )}
-          <div
-            className={cn(
-              "flex shrink-0 items-center",
-              isMulti ? "flex-col gap-2" : "gap-1"
-            )}
+              className="absolute inset-0 rounded-full bg-jade/40 animate-ping"
+              style={{ animationDuration: "1.6s" }}
+            />
+            <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-jade" />
+          </span>
+          <span className="text-[10px] font-jetbrains tracking-[0.28em] uppercase text-jade font-bold">
+            LIVE
+          </span>
+        </span>
+        <span className="text-flash/20 text-[10px]">·</span>
+        <span className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/55">
+          {queueLabel}
+        </span>
+        <span className="text-flash/20 text-[10px]">·</span>
+        <span className="text-[11px] font-chakrapetch font-semibold text-flash/75 tabular-nums tracking-wide">
+          {mins}:{secs}
+        </span>
+
+        <span className="flex-1" />
+
+        {isMulti && (
+          <span
+            className="inline-flex items-center px-2 py-[3px] rounded-[3px] text-[9px] font-jetbrains tracking-[0.2em] uppercase font-bold leading-none"
+            style={{
+              color: accent,
+              background: `color-mix(in srgb, ${accent} 13%, transparent)`,
+              boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 32%, transparent)`,
+            }}
           >
-            {group.members.map((m, i) => (
-              <React.Fragment key={m.playerId}>
-                {i > 0 && isMulti && (
-                  <span className="text-jade/45 text-[10px] leading-none -my-0.5">+</span>
-                )}
-                <MemberPortrait
-                  member={m}
-                  championName={
-                    championIdToName[String(m.championId)] ?? String(m.championId)
-                  }
-                />
-              </React.Fragment>
-            ))}
+            {stackLabel}
+          </span>
+        )}
+
+        <Link
+          to={liveGameHref}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] border border-jade/35 bg-jade/[0.08] text-jade hover:bg-jade/[0.2] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[9.5px] font-jetbrains tracking-[0.2em] uppercase font-bold cursor-clicker transition-all"
+        >
+          <Eye className="w-3 h-3" />
+          Spectate
+          <span className="text-jade/45 text-[8px] ml-0.5">{lead.region}</span>
+        </Link>
+      </div>
+
+      {/* ── Lobby members in this game — the hero. Uniform tiles in a
+            wrapping grid so solo / duo / stack all stay balanced. ── */}
+      <div className="relative z-[2] px-3.5 pb-3">
+        <div className={cn("grid gap-2", memberCols)}>
+          {group.members.map((m) => (
+            <MemberTile
+              key={m.playerId}
+              member={m}
+              teamId={teamByPuuid.get(m.accountPuuid) ?? null}
+              championName={
+                championIdToName[String(m.championId)] ?? String(m.championId)
+              }
+              solo={count === 1}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Matchup (secondary context): rosters + bans ── */}
+      <div className="relative z-[2] border-t border-white/[0.06] px-3.5 py-3">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-stretch text-[10.5px] font-jetbrains">
+          <TeamRoster
+            participants={blue}
+            accent="#5fa8ff"
+            teamLabel="BLUE"
+            championIdToName={championIdToName}
+            activePuuids={activePuuids}
+            align="left"
+          />
+          <div className="flex flex-col items-center gap-1">
+            <span className="flex-1 w-px bg-gradient-to-b from-transparent to-flash/12" />
+            <span className="text-[8px] font-jetbrains tracking-[0.18em] text-flash/35 font-bold">
+              VS
+            </span>
+            <span className="flex-1 w-px bg-gradient-to-t from-transparent to-flash/12" />
           </div>
+          <TeamRoster
+            participants={red}
+            accent="#ef4444"
+            teamLabel="RED"
+            championIdToName={championIdToName}
+            activePuuids={activePuuids}
+            align="right"
+          />
         </div>
 
-        {/* Middle: queue + names + champions + elapsed timer */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="relative inline-flex">
-                <span
-                  className="absolute inset-0 rounded-full bg-jade/40 animate-ping"
-                  style={{ animationDuration: "1.5s" }}
-                />
-                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-jade" />
-              </span>
-              <span className="text-[10px] font-jetbrains tracking-[0.25em] uppercase text-jade/85 font-bold">
-                LIVE
-              </span>
-            </span>
-            <span className="text-flash/15 text-[10px]">·</span>
-            <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/55">
-              {queueLabel}
-            </span>
-            <span className="text-flash/15 text-[10px]">·</span>
-            <span className="text-[10px] font-chakrapetch font-medium text-flash/55 tabular-nums tracking-wider">
-              {mins}:{secs}
-            </span>
-          </div>
-
-          {/* One row per member: name + champion. Duo rows stay stacked
-              tight so the card height stays compact. */}
-          <div className={cn("mt-0.5 flex flex-col", isMulti ? "gap-0.5" : "")}>
-            {group.members.map((m) => {
-              const champ =
-                championIdToName[String(m.championId)] ?? String(m.championId);
-              const summonerHref = `/summoners/${m.region.toLowerCase()}/${encodeURIComponent(
-                m.riotName
-              )}-${encodeURIComponent(m.riotTag)}`;
-              return (
-                <div
-                  key={m.playerId}
-                  className="flex items-baseline gap-2 min-w-0"
-                >
-                  <Link
-                    to={summonerHref}
-                    className={cn(
-                      "font-chakrapetch font-bold text-flash hover:text-jade transition-colors tracking-tight truncate cursor-clicker leading-tight",
-                      isMulti ? "text-[13px]" : "text-[16px]"
-                    )}
-                  >
-                    {m.riotName}
-                    <span
-                      className={cn(
-                        "text-flash/35 font-medium ml-0.5",
-                        isMulti ? "text-[10px]" : "text-[12px]"
-                      )}
-                    >
-                      #{m.riotTag}
-                    </span>
-                  </Link>
-                  <span className="text-flash/35 text-[10px] shrink-0">on</span>
-                  <span
-                    className={cn(
-                      "font-chakrapetch font-bold text-jade/85 truncate leading-tight",
-                      isMulti ? "text-[12px]" : "text-[14px]"
-                    )}
-                  >
-                    {champ}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Teams scoreboard — uses full remaining width now */}
-          <div className="mt-1.5 grid grid-cols-2 gap-x-5 text-[10.5px] font-jetbrains">
-            <TeamRoster
-              participants={blue}
-              accent="#5fa8ff"
-              teamLabel="BLUE"
-              championIdToName={championIdToName}
-              activePuuids={activePuuids}
-              align="left"
-            />
-            <TeamRoster
-              participants={red}
-              accent="#ef4444"
-              teamLabel="RED"
-              championIdToName={championIdToName}
-              activePuuids={activePuuids}
-              align="right"
-            />
-          </div>
-
-          {/* Bans row */}
-          <div className="mt-2 flex items-center gap-4">
+        {hasBans && (
+          <div className="mt-2.5 flex items-center gap-3">
             <BansStrip
               bans={group.bansBlue}
               accent="#5fa8ff"
               championIdToName={championIdToName}
               align="left"
             />
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/12 via-flash/20 to-flash/12" />
+            <div className="flex-1 h-px bg-gradient-to-r from-flash/10 via-flash/16 to-flash/10" />
             <BansStrip
               bans={group.bansRed}
               accent="#ef4444"
@@ -3734,56 +3722,73 @@ function LiveSessionCard({
               align="right"
             />
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Spectate button — pinned top-right of the card. For multi-member
-          groups we link to the lead's livegame; it's the same in-game
-          session anyway. */}
-      <Link
-        to={liveGameHref}
-        className="absolute top-3 right-3 z-[3] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-jade/35 bg-jade/[0.10] text-jade hover:bg-jade/[0.20] hover:shadow-[0_0_12px_rgba(0,217,146,0.25)] text-[10px] font-jetbrains tracking-[0.22em] uppercase font-bold cursor-clicker transition-all"
-      >
-        <Eye className="w-3 h-3" />
-        Spectate
-        <span className="text-jade/45 text-[8.5px] ml-1">{lead.region}</span>
-      </Link>
     </div>
   );
 }
 
-// Single portrait: champion icon with the lobby player's profile icon
-// stuck in the corner + the player's display name underneath.
-function MemberPortrait({
+// One lobby member in this live game: champion portrait (ringed in their
+// team colour) with a profile-icon badge, the lobby display name, the
+// champion, and a small riot id. Rendered uniformly in the member grid so
+// solo / duo / stack all read as the same tidy tile.
+function MemberTile({
   member,
   championName,
+  teamId,
+  solo,
 }: {
   member: LiveSessionMemberFE;
   championName: string;
+  teamId: number | null;
+  solo: boolean;
 }) {
   const accent = member.color || JADE;
-  const champIcon = `${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`;
+  const teamColor =
+    teamId === 100 ? "#5fa8ff" : teamId === 200 ? "#ef4444" : accent;
+  const champIcon = `${cdnBaseUrl()}/img/champion/${normalizeChampName(
+    championName
+  )}.png`;
+  const summonerHref = `/summoners/${member.region.toLowerCase()}/${encodeURIComponent(
+    member.riotName
+  )}-${encodeURIComponent(member.riotTag)}`;
+  const icon = profileIconUrl(member.iconId);
+  const portrait = solo ? 56 : 46;
+  // Skip the riot-id line when it just repeats the lobby label.
+  const showRiotId =
+    member.displayName.trim().toLowerCase() !==
+    member.riotName.trim().toLowerCase();
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative w-[52px] h-[52px]">
+    <div className="relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 bg-white/[0.03] ring-1 ring-white/[0.06] overflow-hidden">
+      {/* team-side accent bar */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-0 bottom-0 w-[2px]"
+        style={{ background: `color-mix(in srgb, ${teamColor} 70%, transparent)` }}
+      />
+      {/* champion portrait + profile-icon badge */}
+      <div
+        className="relative shrink-0"
+        style={{ width: portrait, height: portrait }}
+      >
         <img
           src={champIcon}
           alt={championName}
-          className="w-[52px] h-[52px] rounded-md shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-jade/25"
+          className="w-full h-full rounded-md object-cover"
+          style={{
+            boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${teamColor} 62%, transparent), 0 2px 8px rgba(0,0,0,0.5)`,
+          }}
         />
         <div
-          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
+          className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full overflow-hidden ring-2 ring-liquirice bg-black"
           style={{ boxShadow: `0 0 6px color-mix(in srgb, ${accent} 50%, transparent)` }}
         >
-          {profileIconUrl(member.iconId) ? (
-            <img
-              src={profileIconUrl(member.iconId)!}
-              alt=""
-              className="w-full h-full"
-            />
+          {icon ? (
+            <img src={icon} alt="" className="w-full h-full" />
           ) : (
             <span
-              className="w-full h-full flex items-center justify-center text-[10px] font-jetbrains font-bold"
+              className="w-full h-full flex items-center justify-center text-[9px] font-jetbrains font-bold"
               style={{ color: accent, background: "rgba(0,0,0,0.6)" }}
             >
               {member.displayName.slice(0, 1).toUpperCase()}
@@ -3791,12 +3796,38 @@ function MemberPortrait({
           )}
         </div>
       </div>
-      <span
-        className="text-[9.5px] font-jetbrains tracking-[0.18em] uppercase font-bold leading-none"
-        style={{ color: accent }}
-      >
-        {member.displayName}
-      </span>
+      {/* identity */}
+      <div className="flex flex-col min-w-0 gap-[3px]">
+        <Link
+          to={summonerHref}
+          className="font-chakrapetch font-bold leading-none truncate hover:text-jade transition-colors cursor-clicker"
+          style={{ color: accent, fontSize: solo ? 15 : 13 }}
+        >
+          {member.displayName}
+        </Link>
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <span
+            className="font-chakrapetch font-semibold text-jade/85 truncate leading-none"
+            style={{ fontSize: solo ? 13 : 11.5 }}
+          >
+            {championName}
+          </span>
+          <span
+            aria-hidden
+            className="w-1 h-1 rounded-full shrink-0"
+            style={{ background: teamColor, boxShadow: `0 0 5px ${teamColor}` }}
+          />
+        </span>
+        {showRiotId && (
+          <span
+            className="text-flash/35 font-medium leading-none truncate"
+            style={{ fontSize: solo ? 10 : 9 }}
+          >
+            {member.riotName}
+            <span className="text-flash/25">#{member.riotTag}</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
