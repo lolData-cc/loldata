@@ -11,6 +11,7 @@
 
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, SendHorizontal, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -234,9 +235,16 @@ export function ChatTab({
         </div>
       ) : (
         <div className="border-t border-flash/[0.06] text-center text-[11px] font-chakrapetch tracking-[0.04em] uppercase text-flash/40 py-3">
-          {!userId
-            ? "Sign in to post"
-            : "Claim an identity in this lobby to post"}
+          {!userId ? (
+            <Link
+              to="/login"
+              className="text-jade/75 hover:text-jade underline-offset-2 hover:underline transition-colors cursor-clicker"
+            >
+              Sign in to post
+            </Link>
+          ) : (
+            "Claim an identity in this lobby to post"
+          )}
         </div>
       )}
     </div>

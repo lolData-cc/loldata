@@ -11,6 +11,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  memo,
 } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
@@ -35,6 +36,7 @@ import {
   ShieldCheck,
   Lock,
   Crosshair,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, summonerSpellUrl } from "@/config";
@@ -841,7 +843,7 @@ type MatchSocialBatch = {
   ) => void;
 };
 
-function PlayerSectionCard({
+function PlayerSectionCardImpl({
   members,
   matches,
   itemsByMatch,
@@ -1250,7 +1252,7 @@ function PlayerSectionCard({
 
   // Local renderer — same closure scope as the component so it can use
   // activePlayerId / itemsByMatch / lobbyAccountByPuuid / etc directly.
-  function renderMatchRow(repItem: FeedItem, idx: number) {
+  function renderMatchRow(repItem: FeedItem, _idx: number) {
     const matchItems = itemsByMatch.get(repItem.matchId) ?? [repItem];
     const item =
       matchItems.find((x) => x.ownerPlayerId === activePlayerId) ?? repItem;
@@ -1316,16 +1318,6 @@ function PlayerSectionCard({
     const showPerMatchSquadBadge =
       !isSquad && squadMatchIds.has(item.matchId);
 
-    let breakLabel: string | null = null;
-    const next = matches[idx + 1];
-    if (next) {
-      const newerStart = new Date(item.gameCreation).getTime();
-      const olderStart = new Date(next.gameCreation).getTime();
-      const olderEnd = olderStart + (next.gameDurationSeconds ?? 0) * 1000;
-      const gap = newerStart - olderEnd;
-      breakLabel = formatBreakLabel(gap);
-    }
-
     return (
       <div key={item.rowId}>
         <div
@@ -1357,11 +1349,16 @@ function PlayerSectionCard({
             </div>
           )}
         </div>
-        {breakLabel && <BreakDivider label={breakLabel} />}
       </div>
     );
   }
 }
+
+// Memoised: a section only re-renders when ITS props change. With the
+// social object now stable (memoised in useMatchSocialBatch) and the
+// section data coming from the dayGroups memo, unrelated parent renders
+// (filter UI, scroll observer, …) no longer cascade into every section.
+const PlayerSectionCard = memo(PlayerSectionCardImpl);
 
 function squadLabel(n: number): string {
   if (n === 2) return "DUO";
@@ -1405,77 +1402,6 @@ function rankColorClass(tier: string): string {
     default:
       return "text-flash/60";
   }
-}
-
-/* ─── break divider between consecutive matches ─────────────────────── */
-// Visible window: 1 hour ≤ gap < 4 hours. Shorter gaps are "back-to-back",
-// longer ones are a separate session — neither needs a marker.
-const BREAK_MIN_MS = 60 * 60 * 1000;
-const BREAK_MAX_MS = 4 * 60 * 60 * 1000;
-
-function formatBreakLabel(gapMs: number): string | null {
-  if (gapMs < BREAK_MIN_MS || gapMs >= BREAK_MAX_MS) return null;
-  const totalMin = Math.round(gapMs / 60_000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (m === 0) return `${h} ${h === 1 ? "HOUR" : "HOURS"} BREAK`;
-  return `${h}H ${String(m).padStart(2, "0")}M BREAK`;
-}
-
-function BreakDivider({ label }: { label: string }) {
-  return (
-    <div
-      className="relative flex items-center gap-2.5 my-2.5 select-none"
-      aria-hidden="true"
-    >
-      {/* Left line with gradient + jade fade */}
-      <div className="flex-1 relative h-[1px] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-jade/20 to-jade/35" />
-      </div>
-
-      {/* Cyber chip — markers + label with scan stripe */}
-      <div className="relative flex items-center gap-1.5 px-2 py-[3px] rounded-[2px]"
-        style={{
-          background: "rgba(0,217,146,0.04)",
-          border: "1px solid color-mix(in srgb, #00d992 22%, transparent)",
-          boxShadow: "0 0 14px rgba(0,217,146,0.10)",
-        }}
-      >
-        {/* Scan stripe (moving) */}
-        <div
-          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2px] opacity-60"
-          aria-hidden
-        >
-          <div
-            className="absolute inset-y-0 w-1/3 -translate-x-full"
-            style={{
-              background:
-                "linear-gradient(90deg, transparent, rgba(0,217,146,0.18), transparent)",
-              animation: "scoutBreakScan 3.5s linear infinite",
-            }}
-          />
-        </div>
-
-        <span style={{ color: "#00d992", fontSize: "8px" }}>◈</span>
-        <span className="relative text-[9px] font-jetbrains font-medium tracking-[0.28em] uppercase text-jade/75 tabular-nums">
-          {label}
-        </span>
-        <span style={{ color: "#00d992", fontSize: "8px" }}>◈</span>
-      </div>
-
-      {/* Right line (mirror) */}
-      <div className="flex-1 relative h-[1px] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-l from-transparent via-jade/20 to-jade/35" />
-      </div>
-
-      <style>{`
-        @keyframes scoutBreakScan {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(400%); }
-        }
-      `}</style>
-    </div>
-  );
 }
 
 /* ─── matches tab content ───────────────────────────────────────────── */
@@ -1910,29 +1836,73 @@ function useMatchSocialBatch(
   // the array identity changes but contents don't.
   const idsKey = useMemo(() => [...matchIds].sort().join(","), [matchIds]);
 
+  // Track which match ids we've already fetched social for, plus the last
+  // refresh/slug we saw — so an infinite-scroll append only fetches the
+  // NEW ids and merges them, instead of re-fetching the whole growing set
+  // on every page (which was O(n²) querystrings AND blew past the backend's
+  // 100-id cap once the feed got long).
+  const fetchedRef = useRef<Set<string>>(new Set());
+  const lastRefreshRef = useRef(refreshTick);
+  const lastSlugRef = useRef(slug);
+
   useEffect(() => {
     if (!idsKey) return;
+    const ids = idsKey.split(",").filter(Boolean);
+    if (ids.length === 0) return;
+
+    // A bumped refreshTick (or a new lobby) means server counts may have
+    // changed → re-fetch everything and replace. A pure idsKey change is
+    // a scroll append → fetch only the unseen ids and merge.
+    const isRefresh = refreshTick !== lastRefreshRef.current;
+    const isSlugChange = slug !== lastSlugRef.current;
+    lastRefreshRef.current = refreshTick;
+    lastSlugRef.current = slug;
+    if (isSlugChange) fetchedRef.current = new Set();
+
+    const replace = isRefresh || isSlugChange;
+    const toFetch = replace
+      ? ids
+      : ids.filter((id) => !fetchedRef.current.has(id));
+    if (toFetch.length === 0) return;
+
     let cancelled = false;
     (async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const ids = idsKey.split(",").filter(Boolean);
-      if (ids.length === 0) return;
-      const res = await fetch(
-        `${API_BASE_URL}/api/scout/lobby/${slug}/match-social?ids=${encodeURIComponent(
-          ids.join(",")
-        )}`,
-        session?.access_token
-          ? { headers: { Authorization: `Bearer ${session.access_token}` } }
-          : undefined
-      );
-      if (!res.ok || cancelled) return;
-      const data = await res.json();
-      if (cancelled) return;
-      setCounts(data.counts ?? {});
-      setLikers(data.likers ?? {});
-      setMyLikes(new Set<string>(data.myLikes ?? []));
+      const auth = session?.access_token
+        ? { headers: { Authorization: `Bearer ${session.access_token}` } }
+        : undefined;
+
+      // The endpoint caps `ids` at 100 — chunk defensively (a single
+      // scroll page is far smaller, so this rarely loops).
+      const CHUNK = 100;
+      for (let i = 0; i < toFetch.length; i += CHUNK) {
+        const chunk = toFetch.slice(i, i + CHUNK);
+        const res = await fetch(
+          `${API_BASE_URL}/api/scout/lobby/${slug}/match-social?ids=${encodeURIComponent(
+            chunk.join(",")
+          )}`,
+          auth
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+
+        const fresh = replace && i === 0; // first chunk of a full refresh clears
+        setCounts((prev) =>
+          fresh ? data.counts ?? {} : { ...prev, ...(data.counts ?? {}) }
+        );
+        setLikers((prev) =>
+          fresh ? data.likers ?? {} : { ...prev, ...(data.likers ?? {}) }
+        );
+        setMyLikes((prev) => {
+          const next = fresh ? new Set<string>() : new Set(prev);
+          for (const id of (data.myLikes ?? []) as string[]) next.add(id);
+          return next;
+        });
+        for (const id of chunk) fetchedRef.current.add(id);
+      }
     })().catch(() => {});
     return () => {
       cancelled = true;
@@ -1969,7 +1939,13 @@ function useMatchSocialBatch(
     []
   );
 
-  return { counts, likers, myLikes, bumpComment, setLike };
+  // Memoise the returned object so its identity only changes when the
+  // actual social data does — that's what lets the (memoised)
+  // PlayerSectionCards skip re-rendering on unrelated parent renders.
+  return useMemo(
+    () => ({ counts, likers, myLikes, bumpComment, setLike }),
+    [counts, likers, myLikes, bumpComment, setLike]
+  );
 }
 
 function MatchesTab({
@@ -2317,7 +2293,11 @@ function MatchesTab({
           {dayGroups.map((day, dayIdx) => (
             <motion.section
               key={day.label + day.sortKey}
-              layout
+              // No `layout` here: it forced framer to re-measure every
+              // tracked node on every reflow (infinite-scroll append, card
+              // expand) — the feed's main perf cost as it grows. Enter/exit
+              // fades stay; the (rare) filter-change reorder just snaps into
+              // place instead of sliding, which is a fine trade.
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -2367,7 +2347,9 @@ function MatchesTab({
                     return (
                       <motion.div
                         key={key}
-                        layout
+                        // `layout` removed (see the motion.section note) —
+                        // the section's own grid-rows expand animation +
+                        // normal flow already keep neighbours moving smoothly.
                         initial={{ opacity: 0, scale: 0.96, y: 12 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: -12 }}
@@ -6336,6 +6318,31 @@ function DailyBountyBox({
           <span className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/70 font-semibold">
             Daily Bounty
           </span>
+          {/* How-it-works tooltip — the claim is auto-detected server-side
+              (no button to hunt for), and the rules aren't obvious. */}
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="shrink-0 text-flash/30 hover:text-jade transition-colors cursor-clicker"
+                  aria-label="How the daily bounty works"
+                >
+                  <Info className="w-3 h-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="text-xs max-w-[230px] bg-liquirice/90"
+              >
+                <div className="font-geist leading-snug text-flash/85">
+                  The first lobby member to hit this in a ranked game today
+                  claims it — auto-tracked, no button needed. The best value
+                  holds and can be overtaken. Resets at midnight (Rome time).
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="flex-1 h-[1px] bg-gradient-to-r from-flash/10 to-transparent" />
           <span
             className="text-[7px] font-jetbrains tracking-[0.25em] uppercase font-bold px-1.5 py-[3px] rounded-sm"
@@ -9033,6 +9040,15 @@ export default function ScoutLobbyPage() {
     if (activeTab === "chat") chatMarkRead();
   }, [activeTab, chatMarkRead]);
 
+  // Single source of truth for which tabs are visible — the desktop
+  // TabsList AND the mobile <select> both derive from this, so they can
+  // never drift (the mobile picker used to hard-code 6 options, omitting
+  // Chat/Compare and ignoring enabledTabs).
+  const visibleTabs = useMemo(() => {
+    const enabled = new Set(lobby?.enabledTabs ?? DEFAULT_ENABLED_TABS);
+    return SECTIONS_CATALOG.filter((t) => enabled.has(t.key));
+  }, [lobby?.enabledTabs]);
+
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -9256,13 +9272,19 @@ export default function ScoutLobbyPage() {
                     }}
                     className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-jade/30 rounded-md pl-4 pr-10 py-3.5 text-[14px] font-chakrapetch font-bold tracking-[0.18em] uppercase text-jade cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(0,0,0,0.4)]"
                   >
-                    <option value="matches">Matches</option>
-                    <option value="live">Live</option>
-                    <option value="leaderboard">Leaderboard</option>
-                    <option value="trending">Trending</option>
-                    <option value="habits">Habits</option>
-                    <option value="champions">Champions</option>
+                    {visibleTabs.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
                   </select>
+                  {/* Unread-chat dot — mirrors the desktop tab dot when
+                      Chat is enabled and a message arrived off-tab. */}
+                  {chatUnread > 0 &&
+                    activeTab !== "chat" &&
+                    visibleTabs.some((t) => t.key === "chat") && (
+                      <span className="pointer-events-none absolute right-9 top-1/2 -translate-y-1/2 w-[7px] h-[7px] rounded-full bg-[#ff3e4e] shadow-[0_0_8px_rgba(255,62,78,0.85)] animate-pulse" />
+                    )}
                   <span
                     aria-hidden
                     className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-jade/65 text-[10px]"
@@ -9275,25 +9297,10 @@ export default function ScoutLobbyPage() {
               {/* DESKTOP — existing tab list + RefreshClock layout. */}
               <div className="hidden sm:flex items-end justify-between border-b border-flash/[0.06] mb-6 gap-2">
                 <TabsList className="flex justify-start mx-0 bg-transparent h-auto p-0 gap-7 border-0">
-                  {(() => {
-                    const enabled = new Set(
-                      lobby.enabledTabs ?? DEFAULT_ENABLED_TABS
-                    );
-                    const all: Array<{ value: string; label: string }> = [
-                      { value: "matches", label: "Matches" },
-                      { value: "live", label: "Live" },
-                      { value: "leaderboard", label: "Leaderboard" },
-                      { value: "trending", label: "Trending" },
-                      { value: "habits", label: "Habits" },
-                      { value: "champions", label: "Champions" },
-                      { value: "chat", label: "Chat" },
-                      { value: "compare", label: "Compare" },
-                    ];
-                    return all.filter((t) => enabled.has(t.value));
-                  })().map((tab) => (
+                  {visibleTabs.map((tab) => (
                     <TabsTrigger
-                      key={tab.value}
-                      value={tab.value}
+                      key={tab.key}
+                      value={tab.key}
                       className={cn(
                         "group relative font-jetbrains text-[11px] tracking-[0.22em] uppercase px-2 py-3 rounded-none bg-transparent border-none shadow-none transition-all duration-300 cursor-clicker shrink-0",
                         "text-flash/40 hover:text-flash/65 font-medium",
@@ -9309,7 +9316,7 @@ export default function ScoutLobbyPage() {
                       </span>
                       {/* Unread chat dot — only on the CHAT tab, only when
                           a message arrived while the user was elsewhere. */}
-                      {tab.value === "chat" && chatUnread > 0 && (
+                      {tab.key === "chat" && chatUnread > 0 && (
                         <span className="absolute top-1.5 -right-2 w-[7px] h-[7px] rounded-full bg-[#ff3e4e] shadow-[0_0_8px_rgba(255,62,78,0.85)] animate-pulse" />
                       )}
                       <span className="absolute bottom-0 left-0 right-0 h-px bg-jade/70 scale-x-0 group-data-[state=active]:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_8px_rgba(0,217,146,0.4)]" />

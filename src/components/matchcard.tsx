@@ -7,8 +7,9 @@
 // Summoner spells + champion level are skipped because the participants
 // table doesn't store them today — TODO when schema is extended.
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
 import { API_BASE_URL, doubleLpBadgeUrl } from "@/config";
 import {
   Tooltip,
@@ -325,7 +326,7 @@ const blueWinTint = false;         // TODO: hook into uiPrefs if needed
 // to scan very quickly so we always tint.
 const coloredMatchBg = true;
 
-export function MatchCard({ data }: { data: MatchCardData }) {
+function MatchCardImpl({ data }: { data: MatchCardData }) {
   const {
     matchId,
     queueLabel,
@@ -988,22 +989,41 @@ export function MatchCard({ data }: { data: MatchCardData }) {
       </div>
     )}
 
-    {/* Comments — list ALWAYS visible when there's at least one,
-        regardless of expanded state. Composer only appears when the
-        user clicks ADD COMMENT inside the expanded action strip. */}
-    {data.social &&
-      (data.social.commentCount > 0 || (expanded && commentsOpen)) && (
+    {/* Comments. The thread — and its network request — only mounts when
+        the card is EXPANDED, so we don't fire one comments fetch per
+        commented match on feed load. Collapsed cards with comments show a
+        lightweight count chip (from the already-batched count, no fetch);
+        clicking it expands the card, which loads the thread. */}
+    {data.social && expanded &&
+      (data.social.commentCount > 0 || commentsOpen) && (
         <MatchCommentsPanel
           lobbySlug={data.social.lobbySlug}
           matchId={data.matchId}
           canComment={data.social.canComment}
-          showComposer={expanded && commentsOpen}
+          showComposer={commentsOpen}
           onCommentPosted={() => {
             data.social?.onCommentPosted?.();
             setCommentsOpen(false);
           }}
         />
       )}
+    {data.social && !expanded && data.social.commentCount > 0 && (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(true);
+        }}
+        className="group/cmt inline-flex items-center gap-1.5 ml-4 mt-2 mb-1.5 px-2.5 py-1 rounded-[4px] border border-jade/30 bg-jade/[0.08] hover:bg-jade/[0.16] hover:border-jade/55 text-jade/85 hover:text-jade text-[11px] font-chakrapetch font-semibold tracking-[0.03em] transition-all duration-200 cursor-clicker shadow-[0_0_10px_rgba(0,217,146,0.08)]"
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+        {data.social.commentCount}{" "}
+        {data.social.commentCount === 1 ? "comment" : "comments"}
+        <span className="ml-0.5 text-jade/40 group-hover/cmt:text-jade/70 transition-colors">
+          ›
+        </span>
+      </button>
+    )}
 
     {/* Match Replay Viewer — portal-rendered, only mounts content while
         open so closed cards cost nothing. staticMatch is null because
@@ -1039,6 +1059,59 @@ export function MatchCard({ data }: { data: MatchCardData }) {
     </div>
   );
 }
+
+// Re-render a card only when something it actually renders changes. The
+// parent rebuilds `data` on every render, so default shallow memo would
+// never hit — but only two of its fields churn without a real change: the
+// `social` object literal and the derived `lobbyMatePuuids` array. We
+// compare those by content and everything else by value/reference (the
+// remaining object fields — items, allParticipants, lobbyAccountByPuuid —
+// are stable refs until the underlying feed item is refetched, at which
+// point a re-render is correct). Net effect: a like/comment on one match
+// re-renders only that card instead of the whole feed.
+function matchCardPropsEqual(
+  prev: { data: MatchCardData },
+  next: { data: MatchCardData }
+): boolean {
+  const a = prev.data;
+  const b = next.data;
+  if (a === b) return true;
+
+  const keys = Object.keys(a) as (keyof MatchCardData)[];
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const k of keys) {
+    if (k === "social" || k === "lobbyMatePuuids") continue;
+    if (a[k] !== b[k]) return false;
+  }
+
+  // lobbyMatePuuids — fresh .filter() each render, compare by content.
+  const pa = a.lobbyMatePuuids ?? [];
+  const pb = b.lobbyMatePuuids ?? [];
+  if (pa.length !== pb.length) return false;
+  for (let i = 0; i < pa.length; i++) if (pa[i] !== pb[i]) return false;
+
+  // social — fresh object each render; compare the bits that affect
+  // rendering (ignore the callbacks, which are behaviourally stable).
+  const sa = a.social;
+  const sb = b.social;
+  if (!sa !== !sb) return false;
+  if (sa && sb) {
+    if (
+      sa.likeCount !== sb.likeCount ||
+      sa.iLiked !== sb.iLiked ||
+      sa.commentCount !== sb.commentCount ||
+      sa.canLike !== sb.canLike ||
+      sa.canComment !== sb.canComment ||
+      sa.lobbySlug !== sb.lobbySlug ||
+      sa.likers !== sb.likers
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export const MatchCard = memo(MatchCardImpl, matchCardPropsEqual);
 
 /* ─── scoreboard row ───────────────────────────────────────────────── */
 const PLATFORM_TO_REGION: Record<string, string> = {
