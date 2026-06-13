@@ -794,7 +794,10 @@ function focusScoutMatch(matchId: string) {
   const sel = `[data-scout-match="${safe}"]`;
 
   let tries = 0;
-  const maxTries = 50; // ~50 × 50ms ≈ 2.5s before giving up
+  // ~240 × 50ms ≈ 12s. Long enough for the LobbyPage focus driver to page
+  // the match in when it sits beyond the first feed page, then for the row
+  // to mount, before we give up.
+  const maxTries = 240;
   const run = () => {
     const el = document.querySelector(sel) as HTMLElement | null;
     if (el) {
@@ -6200,14 +6203,34 @@ function DailyBountyBox({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetch(`${API_BASE_URL}/api/scout/bounty/today/${slug}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setPayload(d))
-      .catch(console.error)
-      .finally(() => !cancelled && setLoading(false));
+    let inFlight = false;
+    const load = (skeleton: boolean) => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      if (skeleton) setLoading(true);
+      fetch(`${API_BASE_URL}/api/scout/bounty/today/${slug}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => !cancelled && setPayload(d))
+        .catch(console.error)
+        .finally(() => {
+          inFlight = false;
+          if (!cancelled) setLoading(false);
+        });
+    };
+    // Initial load + on every lobby refresh (refreshTick).
+    load(true);
+    // Live: a bounty claim/surpass broadcast over the page-wide chat socket
+    // (usescoutchat dispatches `scout:bounty-updated`). Refetch silently so
+    // the sidebar box flips to "claimed" at once instead of waiting for the
+    // next lobby refresh. Also re-check on focus to catch the midnight roll
+    // while the tab sat open.
+    const onLive = () => load(false);
+    window.addEventListener("scout:bounty-updated", onLive);
+    window.addEventListener("focus", onLive);
     return () => {
       cancelled = true;
+      window.removeEventListener("scout:bounty-updated", onLive);
+      window.removeEventListener("focus", onLive);
     };
   }, [slug, refreshTick]);
 
@@ -9206,6 +9229,43 @@ export default function ScoutLobbyPage() {
       setLoadingMore(false);
     }
   }, [slug, cursor, loadingMore, hasMore]);
+
+  // Jump-to-match driver. The Daily Bounty "claimed" chip dispatches
+  // `scout:focus-match` to scroll a specific match into view + glint it
+  // (see focusScoutMatch). In an active lobby the claiming game can sit
+  // beyond the first feed page, so its row isn't in the DOM yet and the
+  // scroll target doesn't exist. Here we page more matches in (bounded)
+  // until that match is loaded; focusScoutMatch's own DOM poll then does
+  // the scroll + shine once the row mounts.
+  const focusTargetRef = useRef<string | null>(null);
+  const focusTriesRef = useRef(0);
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent).detail?.matchId as string | undefined;
+      if (!id) return;
+      if (focusTargetRef.current !== id) {
+        focusTargetRef.current = id;
+        focusTriesRef.current = 0;
+      }
+    };
+    window.addEventListener("scout:focus-match", onFocus as EventListener);
+    return () =>
+      window.removeEventListener("scout:focus-match", onFocus as EventListener);
+  }, []);
+  useEffect(() => {
+    const target = focusTargetRef.current;
+    if (!target) return;
+    if (items.some((it) => it.matchId === target)) {
+      focusTargetRef.current = null; // loaded — the DOM poll takes it now
+      return;
+    }
+    if (hasMore && !loadingMore && focusTriesRef.current < 40) {
+      focusTriesRef.current += 1;
+      loadMore();
+    } else if (!hasMore) {
+      focusTargetRef.current = null; // reached the end without finding it
+    }
+  }, [items, hasMore, loadingMore, loadMore]);
 
   if (lobbyError) {
     return (
