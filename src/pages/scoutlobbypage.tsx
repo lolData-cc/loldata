@@ -6208,7 +6208,9 @@ function DailyBountyBox({
       if (cancelled || inFlight) return;
       inFlight = true;
       if (skeleton) setLoading(true);
-      fetch(`${API_BASE_URL}/api/scout/bounty/today/${slug}`)
+      fetch(`${API_BASE_URL}/api/scout/bounty/today/${slug}`, {
+        cache: "no-store",
+      })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => !cancelled && setPayload(d))
         .catch(console.error)
