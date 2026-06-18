@@ -41,9 +41,10 @@ export function doubleLpBadgeUrl() {
   return `${CDN_ORIGIN}/img/badge/double-lp.svg`;
 }
 
-/** Perk/rune images — not in dragontail, served from Riot's CDN */
-/** Perk/rune images — ddragon has correct paths for all runes */
-export const PERK_CDN = "https://ddragon.leagueoflegends.com/cdn/img/perk-images";
+/** Perk/rune images — served from OUR CDN, which mirrors dragontail's
+ *  perk-images at an UNVERSIONED path (cdn2.loldata.cc/img/perk-images/Styles/…).
+ *  Self-reliant: no dependency on ddragon, and it carries every rune we've synced. */
+export const PERK_CDN = `${CDN_ORIGIN}/img/perk-images`;
 
 /** Summoner spell images by ID — custom path on our CDN, fallback to ddragon */
 export function summonerSpellUrl(spellId: number | string | undefined) {

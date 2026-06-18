@@ -4,8 +4,10 @@ import { useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { PERK_CDN, cdnBaseUrl } from "@/config"
-import { RUNE_TREES, type RuneTree, type RuneInfo } from "@/constants/rune-tree-data"
+import { type RuneTree, type RuneInfo } from "@/constants/rune-tree-data"
+import { useRuneTrees } from "@/constants/runeData"
 import { getKeystoneIcon, getKeystoneName } from "@/constants/runes"
+import { KeystoneDialog } from "@/components/keystone-dialog"
 import { Search, X } from "lucide-react"
 
 type RuneSelection = {
@@ -87,13 +89,12 @@ function TreeSelector({ trees, selectedId, onSelect, disabled }: {
   )
 }
 
-function PrimaryTreePanel({ tree, selection, onChange }: {
+function PrimaryTreePanel({ tree, selection, onPickKeystone, onChange }: {
   tree: RuneTree
   selection: { keystone: number; runes: number[] }
+  onPickKeystone: (treeId: number, keystoneId: number) => void
   onChange: (s: { keystone: number; runes: number[] }) => void
 }) {
-  const selectKeystone = (id: number) => onChange({ ...selection, keystone: id })
-
   const selectMinorRune = (rowIdx: number, runeId: number) => {
     const newRunes = [...selection.runes]
     // Ensure we have 3 slots
@@ -110,12 +111,24 @@ function PrimaryTreePanel({ tree, selection, onChange }: {
         <span className="text-[12px] font-mono text-flash/50 uppercase tracking-[0.15em]">{tree.name}</span>
       </div>
 
-      {/* Keystones */}
-      <div className="flex gap-3 justify-center">
-        {tree.keystones.map(ks => (
-          <RuneIcon key={ks.id} rune={ks} selected={selection.keystone === ks.id} onClick={() => selectKeystone(ks.id)} size="lg" />
-        ))}
-      </div>
+      {/* Keystone — opens the all-keystones dialog */}
+      <KeystoneDialog
+        selectedKeystone={selection.keystone}
+        onSelect={onPickKeystone}
+        trigger={
+          <button type="button" title="Change keystone"
+            className="group relative grid place-items-center w-16 h-16 rounded-full cursor-pointer transition-transform duration-200 hover:scale-105">
+            <span className="absolute inset-0 rounded-full border border-jade/45 group-hover:border-jade/80 transition-colors"
+              style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.5), 0 0 12px rgba(0,217,146,0.12)" }} />
+            {getKeystoneIcon(selection.keystone) ? (
+              <img src={getKeystoneIcon(selection.keystone)!} alt="" draggable={false}
+                className="w-[52px] h-[52px] rounded-full object-cover" />
+            ) : (
+              <span className="text-[8px] font-mono text-flash/40 uppercase tracking-widest">Pick</span>
+            )}
+          </button>
+        }
+      />
 
       {/* Separator */}
       <div className="w-8 h-[1px] bg-gradient-to-r from-transparent via-jade/15 to-transparent" />
@@ -206,6 +219,7 @@ export function RuneTreeEditor({ value, onChange, title, onTitleChange, descript
   const [showChampPicker, setShowChampPicker] = useState(false)
   const [champList, setChampList] = useState<{ id: string; name: string; tags: string[] }[]>([])
   const [champSearch, setChampSearch] = useState("")
+  const RUNE_TREES = useRuneTrees() // live roster (runesReforged.json), static fallback until loaded
 
   const loadChamps = () => {
     if (champList.length > 0) { setShowChampPicker(true); return }
@@ -270,6 +284,13 @@ export function RuneTreeEditor({ value, onChange, title, onTitleChange, descript
               <PrimaryTreePanel
                 tree={primaryTree}
                 selection={value.primary}
+                onPickKeystone={(treeId, keystoneId) => onChange({
+                  ...value,
+                  primary: { tree: treeId, keystone: keystoneId, runes: treeId === value.primary.tree ? value.primary.runes : [] },
+                  secondary: value.secondary.tree === treeId
+                    ? { tree: RUNE_TREES.find(t => t.id !== treeId)!.id, runes: [] }
+                    : value.secondary,
+                })}
                 onChange={(s) => onChange({ ...value, primary: { ...value.primary, ...s } })}
               />
             </div>

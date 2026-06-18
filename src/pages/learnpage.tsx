@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
 import { Navbar } from "@/components/navbar"
@@ -80,6 +81,7 @@ function getLpDelta(prev: any, curr: any): number {
 const TABS = [
     { id: "overview", label: "OVERVIEW", desc: "Daily report" },
     { id: "games", label: "YOUR GAMES", desc: "Tracked history" },
+    { id: "explorer", label: "EXPLORER", desc: "Node query builder" },
     { id: "itemization", label: "ITEMIZATION", desc: "Build intelligence" },
     { id: "loldata-ai", label: "LOLDATA AI", desc: "Ask anything" },
 ] as const
@@ -88,6 +90,7 @@ type TabId = typeof TABS[number]["id"]
 
 export default function LearnPage() {
     const { nametag, puuid, region } = useAuth()
+    const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [gamesList, setGamesList] = useState<any[]>([])
     const [loadingGames, setLoadingGames] = useState(true)
@@ -123,11 +126,11 @@ export default function LearnPage() {
             </div>
             <Separator className="bg-flash/[0.08] w-full shrink-0" />
 
-            {/* Main layout — 70% centered with floating sidebar */}
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
-                <div className="w-[65%] mx-auto py-6 relative">
-                    {/* ── Sidebar — positioned at left edge of 65% container, doesn't affect content flow ── */}
-                    <div className="absolute left-0 top-6 w-[160px]">
+            {/* Main layout — 65% centered; EXPLORER breaks out to full width */}
+            <div className="flex-1 min-h-0 scrollbar-hide relative overflow-y-auto">
+                <div className="w-[65%] mx-auto py-6 relative z-10">
+                    {/* ── Sidebar — floats; stays interactive even over the full-bleed canvas ── */}
+                    <div className="absolute left-0 top-6 w-[160px] pointer-events-auto">
                         <div className="relative">
                             {/* Header */}
                             <div className="mb-4">
@@ -148,7 +151,7 @@ export default function LearnPage() {
                                     {TABS.map((tab) => (
                                         <button
                                             key={tab.id}
-                                            onClick={() => setActiveTab(tab.id)}
+                                            onClick={() => tab.id === "explorer" ? navigate("/learn/explorer") : setActiveTab(tab.id)}
                                             className={cn(
                                                 "relative w-full text-left px-4 py-2.5 rounded-sm cursor-clicker transition-colors duration-200 border-l-2",
                                                 activeTab === tab.id
@@ -323,6 +326,7 @@ export default function LearnPage() {
                         </AnimatePresence>
                     </div>
                 </div>
+
             </div>
         </div>
     )

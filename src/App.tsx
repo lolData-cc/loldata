@@ -8,6 +8,7 @@ import SummonerPage from "@/pages/summonerpage"
 import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
 import LearnPage from "@/pages/learnpage"
+import ExplorerPage from "@/pages/explorerpage"
 import LoginPage from "@/pages/loginpage"
 import MatchPage from "@/pages/matchpage"
 import NotFoundPage from "@/pages/notfoundpage"
@@ -208,6 +209,14 @@ function App() {
                 element={
                   <AuthGuard>
                     <LearnPage />
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/learn/explorer"
+                element={
+                  <AuthGuard>
+                    <ExplorerPage />
                   </AuthGuard>
                 }
               />
