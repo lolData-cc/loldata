@@ -60,6 +60,17 @@
 }
 .explorer-flow .react-flow__handle-left:hover { transform: translate(-50%, -50%) scale(1.6); }
 .explorer-flow .react-flow__handle-right:hover { transform: translate(50%, -50%) scale(1.6); }
+
+/* a valid target input pulses while a wire is being dragged toward it, so it's
+   obvious where the connection should land. Target handles sit on the left edge
+   (translate -50%,-50%), so the keyframe keeps that translate while scaling. */
+.explorer-flow .react-flow__handle-left.explorer-handle-pulse {
+  animation: handleTargetPulse 0.9s ease-in-out infinite;
+}
+@keyframes handleTargetPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 6px rgba(0, 217, 146, 0.7); }
+  50% { transform: translate(-50%, -50%) scale(1.55); box-shadow: 0 0 18px rgba(0, 217, 146, 1), 0 0 5px rgba(0, 217, 146, 1); }
+}
 .explorer-flow .react-flow__connectionline path,
 .explorer-flow .react-flow__connection-path {
   stroke: #00d992;
@@ -93,4 +104,35 @@
 .explorer-flow .nodrag:focus-visible {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* DEEP DIVE — the result "expands" from the right sheet across the whole page
+   (clip-path wipe, leftward), fluid and linear; then each section fades up. */
+@keyframes deepDiveExpand {
+  from { clip-path: inset(0 0 0 78%); opacity: 0.35; }
+  to   { clip-path: inset(0 0 0 0%); opacity: 1; }
+}
+.deep-section { animation: deepSectionIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes deepSectionIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* snapshots list panel — slides up from the bottom-left controls */
+@keyframes snapPanelIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* HOLD-TO-CASCADE — a quick click on a module's ✕ removes just that module;
+   holding it fills this ring (over the press duration, set inline), and when it
+   completes the module AND everything attached upstream of it is removed. The
+   circle is pre-rotated -90° (via the SVG transform attr) so the fill starts at
+   12 o'clock; we animate only the dash offset from full circumference → 0. */
+.explorer-hold-ring {
+  animation: explorerHoldRing linear forwards;
+}
+@keyframes explorerHoldRing {
+  from { stroke-dashoffset: 62.83; } /* 2π·10 = empty */
+  to   { stroke-dashoffset: 0; }     /* full ring */
 }

@@ -5,6 +5,7 @@
 // match `participants.champion_name`; item icons key off the numeric id.
 
 import { cdnBaseUrl, normalizeChampName } from "@/config";
+import { itemDisplayName } from "@/hooks/useItems";
 
 export const ROLES = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"] as const;
 export type Role = (typeof ROLES)[number];
@@ -15,6 +16,24 @@ export const ROLE_LABEL: Record<Role, string> = {
   BOTTOM: "Bot",
   UTILITY: "Support",
 };
+
+// champion classes (Riot Data Dragon `tags`) — usable as Explorer category filters
+// ("enemy team has ≥N Assassins") and as the basis of the conditional item-strength
+// analysis. The backend derives each champion's classes from the same source.
+export const CATEGORIES = ["Assassin", "Fighter", "Mage", "Marksman", "Support", "Tank"] as const;
+export type Category = (typeof CATEGORIES)[number];
+export const CATEGORY_LABEL: Record<Category, string> = {
+  Assassin: "Assassin",
+  Fighter: "Fighter",
+  Mage: "Mage",
+  Marksman: "Marksman",
+  Support: "Support",
+  Tank: "Tank",
+};
+// class icons live on the un-versioned CDN path, the same assets the champion-page
+// guides tab + rune editor use.
+export const categoryIcon = (cls: string) =>
+  `https://cdn2.loldata.cc/img/class/${cls.toLowerCase()}.png`;
 
 // championName keys exactly as Riot's match-v5 returns them.
 export const CHAMPIONS: string[] = [
@@ -99,4 +118,5 @@ export const KEYSTONES: { id: number; name: string }[] = [
 export const champIcon = (name: string) =>
   `${cdnBaseUrl()}/img/champion/${normalizeChampName(name)}.png`;
 export const itemIcon = (id: number) => `${cdnBaseUrl()}/img/item/${id}.png`;
-export const itemName = (id: number) => ITEMS.find((i) => i.id === id)?.name ?? `Item ${id}`;
+// live name (from item.json) first, then the static fallback, then a bare id
+export const itemName = (id: number) => itemDisplayName(id) ?? ITEMS.find((i) => i.id === id)?.name ?? `Item ${id}`;
