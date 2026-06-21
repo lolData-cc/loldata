@@ -87,15 +87,15 @@ export const API_BASE_URL =
     : "https://api.loldata.cc";
 
 // Explorer runs heavy aggregate reads. In production they're routed at the
-// dedicated match-data box (Hetzner Postgres) instead of the main api.loldata.cc,
-// so the big queries hit the box's horsepower. Set VITE_EXPLORER_API_URL at build
-// time to the box's public HTTPS endpoint; if unset it falls back to api.loldata.cc
-// (so the app never points at a dead host). In dev it's empty → Vite proxies
-// /api/explorer/* to the local backend, which is tunnelled to the box.
+// dedicated match-data box (Hetzner Postgres, exposed via Cloudflare Tunnel at
+// api2.loldata.cc) instead of the main api.loldata.cc, so the big queries hit the
+// box's horsepower. Override with VITE_EXPLORER_API_URL at build time to repoint.
+// In dev it's empty → Vite proxies /api/explorer/* to the local backend, which is
+// tunnelled to the box.
 export const EXPLORER_API_BASE_URL =
   import.meta.env.MODE === "development"
     ? ""
-    : (import.meta.env.VITE_EXPLORER_API_URL || API_BASE_URL);
+    : (import.meta.env.VITE_EXPLORER_API_URL || "https://api2.loldata.cc");
 export const champPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/champion`;
 export const itemPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/item`;
 export const SITE_URL =
