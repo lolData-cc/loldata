@@ -89,6 +89,14 @@ const OutputGlyph: ModuleIcon = (p) => (
   </Svg>
 );
 
+// Exclude — a hex "no entry": the module motif struck through
+const ExcludeGlyph: ModuleIcon = (p) => (
+  <Svg {...p}>
+    <polygon points="12,2.6 20.3,7.3 20.3,16.7 12,21.4 3.7,16.7 3.7,7.3" />
+    <line x1="6.9" y1="6.9" x2="17.1" y2="17.1" />
+  </Svg>
+);
+
 export const MODULE_GLYPH: Record<string, ModuleIcon> = {
   subject: SubjectGlyph,
   ally: AllyGlyph,
@@ -97,4 +105,5 @@ export const MODULE_GLYPH: Record<string, ModuleIcon> = {
   rune: RuneGlyph,
   filter: FilterGlyph,
   output: OutputGlyph,
+  exclude: ExcludeGlyph,
 };
