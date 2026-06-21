@@ -1,11 +1,7 @@
-// ChampionDialog — the ONE champion picker used across the site (summoner
-// filter, VS opponent, Explorer, …). Clean cyber dialog: the full roster in a
-// grid, live search, keyboard nav. Self-sources the roster via useChampions, so
-// callers never pass a list. Emits the chosen Champion (slug + key + name).
-//
-// Two ways to use it:
-//   • Uncontrolled — pass a `trigger`; clicking it opens the dialog.
-//   • Controlled  — pass `open` + `onOpenChange` and open it programmatically.
+// ItemDialog — the shared item picker, sibling to ChampionDialog / KeystoneDialog.
+// Sources the roster from useItems (live item.json, filtered to items currently in
+// the game), so it's never stale. Clean cyber dialog: grid of items, live search,
+// keyboard nav. Emits the chosen GameItem (id + name + cost).
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -13,42 +9,22 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cdnBaseUrl } from "@/config";
-import { useChampions, type Champion } from "@/hooks/useChampions";
+import { useItems, type GameItem } from "@/hooks/useItems";
 
-const COLS = 7; // grid columns — also drives up/down keyboard nav
+const COLS = 6; // item names run longer than champion names → fewer columns
 
-// Pin frequently-picked champions to the top. Pick counts live in localStorage;
-// once a champion reaches RECENT_THRESHOLD picks it becomes a "recent" and floats
-// above the alphabetical roster (most-picked first). Shared by every picker.
-const PICK_KEY = "champPickCounts";
-const RECENT_THRESHOLD = 3;
-function getPickCounts(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(PICK_KEY) || "{}") || {}; } catch { return {}; }
-}
-function bumpPick(slug: string) {
-  try {
-    const counts = getPickCounts();
-    counts[slug] = (counts[slug] ?? 0) + 1;
-    localStorage.setItem(PICK_KEY, JSON.stringify(counts));
-  } catch { /* localStorage unavailable — picker still works, just no recents */ }
-}
-
-export function ChampionDialog({
+export function ItemDialog({
   value = null,
   onSelect,
   onClear,
-  allowAny = false,
-  onAny,
   open,
   onOpenChange,
   trigger,
-  title = "Select champion",
+  title = "Select item",
 }: {
-  value?: string | null;
-  onSelect: (champion: Champion) => void;
-  onClear?: () => void; // when set, a "Clear" button shows in the header (e.g. filters)
-  allowAny?: boolean;   // show an "Any champion" tile (e.g. an ally/enemy slot)
-  onAny?: () => void;   // picked the "Any champion" tile
+  value?: number | null;
+  onSelect: (item: GameItem) => void;
+  onClear?: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   trigger?: React.ReactNode;
@@ -66,18 +42,14 @@ export function ChampionDialog({
     <Dialog open={isOpen} onOpenChange={setOpen}>
       {trigger && !controlled && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="w-full max-w-[600px] bg-transparent shadow-none border-none p-0 [&>button]:hidden">
-        {/* mount the body fresh each open so search/highlight reset */}
         {isOpen && (
           <PickerBody
             value={value}
             title={title}
-            allowAny={allowAny}
-            onPick={(c) => {
-              bumpPick(c.slug);
-              onSelect(c);
+            onPick={(it) => {
+              onSelect(it);
               setOpen(false);
             }}
-            onAny={allowAny && onAny ? () => { onAny(); setOpen(false); } : undefined}
             onClear={onClear ? () => { onClear(); setOpen(false); } : undefined}
             onClose={() => setOpen(false)}
           />
@@ -90,21 +62,17 @@ export function ChampionDialog({
 function PickerBody({
   value,
   title,
-  allowAny,
   onPick,
-  onAny,
   onClear,
   onClose,
 }: {
-  value: string | null;
+  value: number | null;
   title: string;
-  allowAny?: boolean;
-  onPick: (c: Champion) => void;
-  onAny?: () => void;
+  onPick: (it: GameItem) => void;
   onClear?: () => void;
   onClose: () => void;
 }) {
-  const { champions, loading } = useChampions();
+  const { items, loading } = useItems();
   const [search, setSearch] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -117,35 +85,22 @@ function PickerBody({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return champions;
-    return champions.filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
-  }, [champions, search]);
-
-  // pick counts, read once when the dialog opens. Champions at/above the
-  // threshold float to the top (most-picked first), even within search results.
-  const counts = useMemo(() => getPickCounts(), []);
-  const ordered = useMemo(() => {
-    const recents = filtered
-      .filter((c) => (counts[c.slug] ?? 0) >= RECENT_THRESHOLD)
-      .sort((a, b) => (counts[b.slug] ?? 0) - (counts[a.slug] ?? 0));
-    if (recents.length === 0) return filtered;
-    const pinned = new Set(recents.map((c) => c.slug));
-    return [...recents, ...filtered.filter((c) => !pinned.has(c.slug))];
-  }, [filtered, counts]);
+    if (!q) return items;
+    return items.filter((i) => i.name.toLowerCase().includes(q));
+  }, [items, search]);
 
   useEffect(() => setActive(0), [search]);
 
-  // keep the highlighted tile in view
   useEffect(() => {
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`);
     el?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!ordered.length) return;
+    if (!filtered.length) return;
     const move = (d: number) => {
       e.preventDefault();
-      setActive((i) => Math.max(0, Math.min(ordered.length - 1, i + d)));
+      setActive((i) => Math.max(0, Math.min(filtered.length - 1, i + d)));
     };
     if (e.key === "ArrowRight") move(1);
     else if (e.key === "ArrowLeft") move(-1);
@@ -153,8 +108,8 @@ function PickerBody({
     else if (e.key === "ArrowUp") move(-COLS);
     else if (e.key === "Enter") {
       e.preventDefault();
-      const c = ordered[active];
-      if (c) onPick(c);
+      const it = filtered[active];
+      if (it) onPick(it);
     }
   };
 
@@ -164,7 +119,7 @@ function PickerBody({
         <BorderBeam duration={8} size={130} />
 
         <div className="relative z-10 flex flex-col">
-          {/* header: title + search + close */}
+          {/* header */}
           <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -196,7 +151,7 @@ function PickerBody({
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search champion…"
+                placeholder="Search item…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white/[0.03] border border-white/[0.07] rounded-sm pl-9 pr-3 py-2 text-[13px] font-jetbrains text-flash placeholder:text-flash/25 focus:outline-none focus:border-jade/35 transition-colors"
@@ -214,7 +169,7 @@ function PickerBody({
           <div ref={gridRef} className="h-[46vh] max-h-[420px] min-h-[260px] overflow-y-auto overscroll-none p-3 cyber-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center h-full text-[11px] font-jetbrains text-flash/30 uppercase tracking-[0.2em]">
-                Loading roster…
+                Loading items…
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -223,48 +178,23 @@ function PickerBody({
                   <line x1="12" y1="12" x2="24" y2="24" stroke="#00d992" strokeWidth="1.5" strokeLinecap="round" />
                   <line x1="24" y1="12" x2="12" y2="24" stroke="#00d992" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <span className="text-[10px] font-jetbrains text-flash/25 uppercase tracking-[0.2em]">No match found</span>
+                <span className="text-[10px] font-jetbrains text-flash/25 uppercase tracking-[0.2em]">No item found</span>
               </div>
             ) : (
               <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
-                {/* "Any champion" wildcard — first tile, only when not searching */}
-                {allowAny && onAny && !search.trim() && (
-                  <button
-                    type="button"
-                    onClick={onAny}
-                    title="Any champion"
-                    className={cn(
-                      "group flex flex-col items-center gap-1.5 py-2 px-1 rounded-[5px] cursor-clicker border transition-all duration-150",
-                      value == null
-                        ? "border-jade/60 bg-jade/15"
-                        : "border-jade/20 bg-jade/[0.05] hover:bg-jade/[0.12] hover:border-jade/40"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-11 h-11 rounded-[4px] grid place-items-center border transition-colors duration-150",
-                        value == null ? "border-jade/50" : "border-jade/25 group-hover:border-jade/40"
-                      )}
-                    >
-                      <span className="text-jade text-[20px] leading-none font-chakrapetch">∀</span>
-                    </div>
-                    <span className="text-[10px] font-chakrapetch font-medium truncate max-w-[66px] text-jade">Any</span>
-                  </button>
-                )}
-                {ordered.map((champ, i) => {
-                  const selected = value === champ.slug;
+                {filtered.map((item, i) => {
+                  const selected = value === item.id;
                   const isActive = i === active;
-                  const isRecent = (counts[champ.slug] ?? 0) >= RECENT_THRESHOLD;
                   return (
                     <button
-                      key={champ.slug}
+                      key={item.id}
                       type="button"
                       data-idx={i}
                       onMouseEnter={() => setActive(i)}
-                      onClick={() => onPick(champ)}
-                      title={isRecent ? `${champ.name} · recent` : champ.name}
+                      onClick={() => onPick(item)}
+                      title={item.name}
                       className={cn(
-                        "group relative flex flex-col items-center gap-1.5 py-2 px-1 rounded-[5px] cursor-clicker border transition-all duration-150",
+                        "group flex flex-col items-center gap-1.5 py-2 px-1 rounded-[5px] cursor-clicker border transition-all duration-150",
                         selected
                           ? "border-jade/60 bg-jade/15"
                           : isActive
@@ -272,9 +202,6 @@ function PickerBody({
                             : "border-white/[0.06] bg-white/[0.02] hover:bg-jade/[0.08] hover:border-jade/30"
                       )}
                     >
-                      {/* recent badge — pinned to the top, jade dot */}
-                      {isRecent && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-jade shadow-[0_0_5px_rgba(0,217,146,0.95)]" />}
-                      {/* fixed frame + zoom-within: the portrait scales inside its border on hover → "lock in" feel */}
                       <div
                         className={cn(
                           "w-11 h-11 rounded-[4px] overflow-hidden border transition-colors duration-150",
@@ -282,8 +209,8 @@ function PickerBody({
                         )}
                       >
                         <img
-                          src={`${cdnBaseUrl()}/img/champion/${champ.slug}.png`}
-                          alt={champ.name}
+                          src={`${cdnBaseUrl()}/img/item/${item.id}.png`}
+                          alt={item.name}
                           loading="lazy"
                           className={cn(
                             "w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.16]",
@@ -294,11 +221,11 @@ function PickerBody({
                       </div>
                       <span
                         className={cn(
-                          "text-[10px] font-chakrapetch font-medium truncate max-w-[66px] transition-colors",
-                          selected ? "text-jade" : isActive ? "text-jade" : "text-flash/75 group-hover:text-jade"
+                          "text-[10px] leading-[1.15] font-chakrapetch font-bold text-center line-clamp-2 max-w-[82px] transition-colors",
+                          selected ? "text-jade" : isActive ? "text-jade" : "text-flash/90 group-hover:text-jade"
                         )}
                       >
-                        {champ.name}
+                        {item.name}
                       </span>
                     </button>
                   );
@@ -309,7 +236,7 @@ function PickerBody({
 
           {/* footer hint */}
           <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between text-[9px] font-jetbrains text-flash/25 uppercase tracking-[0.18em]">
-            <span>{filtered.length} champions</span>
+            <span>{filtered.length} items · live</span>
             <span className="hidden sm:inline">↑↓←→ navigate · enter select · esc close</span>
           </div>
         </div>
