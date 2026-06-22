@@ -52,8 +52,11 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
           style={{ background: "linear-gradient(180deg, transparent, #040A0C)" }}
         />
 
-        {/* content */}
-        <div className="relative z-10 h-full flex items-center">
+        {/* content — centred in the VISIBLE viewport, not in the 100dvh hero box.
+            The hero sits below the 64px sticky navbar, so a plain items-center
+            would drop the copy ~64px low; we pull it up by the navbar height so
+            it lands at true screen centre (where it was before). */}
+        <div className="relative z-10 min-h-[100dvh] -mt-[64px] flex items-center">
           <div className="w-full max-w-[1240px] mx-auto px-6 md:px-10">
             <div className="max-w-[600px]">
               <motion.div {...reveal(0.05)} className="flex items-center gap-2.5 mb-5">
