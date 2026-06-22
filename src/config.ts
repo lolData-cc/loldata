@@ -96,6 +96,13 @@ export const EXPLORER_API_BASE_URL =
   import.meta.env.MODE === "development"
     ? ""
     : (import.meta.env.VITE_EXPLORER_API_URL || "https://api2.loldata.cc");
+
+// The match-data box, ALWAYS (dev + prod). Unlike EXPLORER_API_BASE_URL (which is
+// "" in dev → Vite proxy → local backend → Supabase), DB-stats must reflect the
+// BOX, where the ingest actually grows the match data — so we hit api2 directly
+// even in dev. Override with VITE_EXPLORER_API_URL if the box moves.
+export const BOX_API_BASE_URL =
+  import.meta.env.VITE_EXPLORER_API_URL || "https://api2.loldata.cc";
 export const champPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/champion`;
 export const itemPath = `${CDN_ORIGIN}/${FALLBACK_VERSION}/img/item`;
 export const SITE_URL =
