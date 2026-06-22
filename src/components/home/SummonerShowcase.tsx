@@ -1,10 +1,11 @@
 "use client";
 
 // SummonerShowcase — pays off the hero's "look up any summoner" promise with
-// the REAL product UI: an actual <MatchCard> (the same component the summoner
-// and scout-lobby feeds render) fed a representative static match. Champion,
-// rune, item and trinket art all stream from the live CDN, so this is the
-// genuine card, not a mockup.
+// the REAL product UI: a short stack of actual <MatchCard>s (the same component
+// the summoner / scout feeds render) fed representative static matches. Champion,
+// rune, item and trinket art all stream from the live CDN. The stack is tilted
+// like an advertising product shot (left edge deeper than the right) and the
+// cards slide up into place one at a time on scroll.
 
 import { motion } from "framer-motion";
 import { Swords, Crosshair, Radio, Users } from "lucide-react";
@@ -19,51 +20,94 @@ import {
   up,
   EASE_BRAND,
 } from "./showcase-kit";
-import { MatchCard, type MatchCardData } from "@/components/matchcard";
+import {
+  MatchCard,
+  type MatchCardData,
+  type ScoreboardParticipant,
+} from "@/components/matchcard";
 
 function openSearch() {
   window.dispatchEvent(new Event("open-search-dialog"));
 }
 
-// A representative ranked game — real champion names + item/rune IDs so the
-// card pulls genuine art off the CDN exactly like it does in production.
-const SAMPLE_MATCH: MatchCardData = {
-  matchId: "HOMEPAGE_DEMO",
-  queueLabel: "Ranked Solo",
-  win: true,
-  isRemake: false,
-  gameDurationSeconds: 1742,
-  gameCreationMs: Date.now() - 47 * 60 * 1000,
-  championName: "Ahri",
-  championLevel: 16,
-  keystoneId: 8112, // Electrocute
-  secondaryStyleId: 8200, // Sorcery
-  kills: 11,
-  deaths: 3,
-  assists: 9,
-  cs: 241,
-  role: "MIDDLE",
-  gold: 13980,
-  items: [6655, 3020, 4645, 3089, 3157, 3135, 3363], // Luden's, Sorc boots, Shadowflame, Rabadon, Zhonya, Void, Farsight
-  lpDelta: 22,
-  highlightPuuid: "demo-me",
-  allParticipants: [
-    { puuid: "demo-me", summonerName: "you", riotTagline: "EUW", championName: "Ahri", teamId: 100, platform: "EUW1", win: true, kills: 11, deaths: 3, assists: 9 },
-    { puuid: "b2", summonerName: "Renoodle", riotTagline: "EUW", championName: "LeeSin", teamId: 100, platform: "EUW1", win: true, kills: 6, deaths: 4, assists: 12 },
-    { puuid: "b3", summonerName: "TopDiff", riotTagline: "EUW", championName: "Aatrox", teamId: 100, platform: "EUW1", win: true, kills: 8, deaths: 5, assists: 5 },
-    { puuid: "b4", summonerName: "Critwitch", riotTagline: "EUW", championName: "Jinx", teamId: 100, platform: "EUW1", win: true, kills: 13, deaths: 2, assists: 7 },
-    { puuid: "b5", summonerName: "Hookline", riotTagline: "EUW", championName: "Thresh", teamId: 100, platform: "EUW1", win: true, kills: 1, deaths: 4, assists: 21 },
-    { puuid: "r1", summonerName: "ShadowStep", riotTagline: "EUW", championName: "Zed", teamId: 200, platform: "EUW1", win: false, kills: 7, deaths: 6, assists: 4 },
-    { puuid: "r2", summonerName: "Vibecheck", riotTagline: "EUW", championName: "Vi", teamId: 200, platform: "EUW1", win: false, kills: 3, deaths: 8, assists: 8 },
-    { puuid: "r3", summonerName: "Stonewall", riotTagline: "EUW", championName: "KSante", teamId: 200, platform: "EUW1", win: false, kills: 2, deaths: 5, assists: 6 },
-    { puuid: "r4", summonerName: "Headshotz", riotTagline: "EUW", championName: "Caitlyn", teamId: 200, platform: "EUW1", win: false, kills: 9, deaths: 7, assists: 3 },
-    { puuid: "r5", summonerName: "Pixiewish", riotTagline: "EUW", championName: "Lulu", teamId: 200, platform: "EUW1", win: false, kills: 0, deaths: 6, assists: 12 },
-  ],
-};
+// A believable 10-player scoreboard for a given game: the searched player sits
+// on blue (team 100) in slot 0; allies share their result, enemies the inverse.
+function mkRoster(
+  mainChamp: string,
+  k: number,
+  d: number,
+  a: number,
+  win: boolean
+): ScoreboardParticipant[] {
+  const W = win;
+  const L = !win;
+  const p = (
+    puuid: string,
+    summonerName: string,
+    championName: string,
+    teamId: 100 | 200,
+    w: boolean,
+    kills: number,
+    deaths: number,
+    assists: number
+  ): ScoreboardParticipant => ({
+    puuid,
+    summonerName,
+    riotTagline: "EUW",
+    championName,
+    teamId,
+    platform: "EUW1",
+    win: w,
+    kills,
+    deaths,
+    assists,
+  });
+  return [
+    p("me", "you", mainChamp, 100, W, k, d, a),
+    p("a1", "Renoodle", "Graves", 100, W, 6, 4, 12),
+    p("a2", "TopDiff", "Aatrox", 100, W, 8, 5, 5),
+    p("a3", "Critwitch", "Jinx", 100, W, 11, 3, 7),
+    p("a4", "Hookline", "Thresh", 100, W, 1, 5, 18),
+    p("e1", "ShadowStep", "Zed", 200, L, 7, 6, 4),
+    p("e2", "Vibecheck", "Vi", 200, L, 3, 8, 8),
+    p("e3", "Stonewall", "KSante", 200, L, 2, 5, 6),
+    p("e4", "Headshotz", "Caitlyn", 200, L, 9, 7, 3),
+    p("e5", "Pixiewish", "Lulu", 200, L, 0, 6, 12),
+  ];
+}
+
+// Three representative ranked games — real champion + item/rune IDs so the cards
+// pull genuine art off the CDN exactly like in production.
+const MATCHES: MatchCardData[] = [
+  {
+    matchId: "DEMO1", queueLabel: "Ranked Solo", win: true, isRemake: false,
+    gameDurationSeconds: 1742, gameCreationMs: Date.now() - 47 * 60_000,
+    championName: "Ahri", championLevel: 16, keystoneId: 8112, secondaryStyleId: 8200,
+    kills: 11, deaths: 3, assists: 9, cs: 241, role: "MIDDLE", gold: 13980,
+    items: [6655, 3020, 4645, 3089, 3157, 3135, 3363], lpDelta: 22,
+    highlightPuuid: "me", allParticipants: mkRoster("Ahri", 11, 3, 9, true),
+  },
+  {
+    matchId: "DEMO2", queueLabel: "Ranked Solo", win: false, isRemake: false,
+    gameDurationSeconds: 1980, gameCreationMs: Date.now() - 122 * 60_000,
+    championName: "Yasuo", championLevel: 15, keystoneId: 8010, secondaryStyleId: 8100,
+    kills: 8, deaths: 9, assists: 6, cs: 233, role: "TOP", gold: 12100,
+    items: [6672, 3006, 3031, 3046, 3072, 3026, 3363], lpDelta: -17,
+    highlightPuuid: "me", allParticipants: mkRoster("Yasuo", 8, 9, 6, false),
+  },
+  {
+    matchId: "DEMO3", queueLabel: "Ranked Solo", win: true, isRemake: false,
+    gameDurationSeconds: 1655, gameCreationMs: Date.now() - 185 * 60_000,
+    championName: "LeeSin", championLevel: 14, keystoneId: 8010, secondaryStyleId: 8400,
+    kills: 9, deaths: 4, assists: 13, cs: 176, role: "JUNGLE", gold: 12400,
+    items: [3071, 3047, 6333, 3074, 3053, 3026, 3364], lpDelta: 25,
+    highlightPuuid: "me", allParticipants: mkRoster("LeeSin", 9, 4, 13, true),
+  },
+];
 
 export function SummonerShowcase({ id }: { id?: string }) {
   return (
-    <Showcase id={id} mock={<MatchCardMock />}>
+    <Showcase id={id} mock={<MatchCardStack />}>
       <Eyebrow>Summoner intelligence</Eyebrow>
       <Headline>
         Look up anyone.
@@ -91,54 +135,61 @@ export function SummonerShowcase({ id }: { id?: string }) {
   );
 }
 
-function MatchCardMock() {
+// Per-card 3D tilt + slide-in. `transformPerspective` gives each card its own
+// self-contained vanishing point (uniform tilt regardless of stack position);
+// the stagger container reveals them one at a time on scroll.
+const cardVariants = {
+  hidden: { opacity: 0, y: 46, rotateY: -30, rotateX: 6 },
+  show: {
+    opacity: 1, y: 0, rotateY: -16, rotateX: 3,
+    transition: { duration: 0.7, ease: EASE_BRAND },
+  },
+};
+
+function MatchCardStack() {
   return (
-    <div
-      className="relative mx-auto w-full max-w-[560px]"
-      style={{ perspective: "850px" }}
-    >
-      {/* soft jade lift behind the real card */}
+    <div className="relative mx-auto w-full max-w-[600px]">
+      {/* soft jade lift behind the deck */}
       <div
         aria-hidden
         className="absolute -inset-6 -z-10 opacity-60"
         style={{
           background:
-            "radial-gradient(ellipse 60% 60% at 50% 45%, rgba(0,217,146,0.10), transparent 75%)",
+            "radial-gradient(ellipse 60% 70% at 55% 45%, rgba(0,217,146,0.10), transparent 75%)",
         }}
       />
-      {/* Product-shot tilt: turn the genuine card a little on its Y axis so the
-          LEFT edge sits DEEPER than the right (negative rotateY). Pivot a touch
-          right of centre so the left side sinks back more. Settles into the
-          angle on view. */}
       <motion.div
-        className="relative will-change-transform"
-        style={{ transformStyle: "preserve-3d", transformOrigin: "64% 50%" }}
-        initial={{ rotateY: -30, rotateX: 6, opacity: 0 }}
-        whileInView={{ rotateY: -16, rotateX: 3, opacity: 1 }}
-        viewport={{ once: true, amount: 0.4 }}
-        transition={{ duration: 0.95, ease: EASE_BRAND }}
+        className="space-y-4"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.2 } } }}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.3 }}
       >
-        {/* depth shadow cast to the lower-left (the receding side) */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 rounded-lg"
-          style={{
-            transform: "translateZ(-60px)",
-            boxShadow: "-46px 54px 96px -34px rgba(0,0,0,0.72)",
-          }}
-        />
-        <ul className="list-none m-0 p-0 pointer-events-none select-none">
-          <MatchCard data={SAMPLE_MATCH} />
-        </ul>
-        {/* glossy sheen — light raking from the upper-left, like a render */}
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none rounded-md mix-blend-screen"
-          style={{
-            background:
-              "linear-gradient(110deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 22%, transparent 46%)",
-          }}
-        />
+        {MATCHES.map((m, i) => (
+          <motion.div
+            key={i}
+            className="relative will-change-transform"
+            style={{
+              transformPerspective: 900,
+              transformStyle: "preserve-3d",
+              transformOrigin: "64% 50%",
+            }}
+            variants={cardVariants}
+          >
+            <ul className="list-none m-0 p-0 pointer-events-none select-none">
+              <MatchCard data={m} />
+            </ul>
+            {/* glossy sheen — light raking from the upper-left, like a render */}
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none rounded-md mix-blend-screen"
+              style={{
+                background:
+                  "linear-gradient(110deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 22%, transparent 46%)",
+              }}
+            />
+          </motion.div>
+        ))}
       </motion.div>
     </div>
   );
