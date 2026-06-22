@@ -17,6 +17,7 @@ import {
   Bullets,
   GhostLink,
   up,
+  EASE_BRAND,
 } from "./showcase-kit";
 import { MatchCard, type MatchCardData } from "@/components/matchcard";
 
@@ -92,7 +93,10 @@ export function SummonerShowcase({ id }: { id?: string }) {
 
 function MatchCardMock() {
   return (
-    <div className="relative mx-auto w-full max-w-[560px]">
+    <div
+      className="relative mx-auto w-full max-w-[560px]"
+      style={{ perspective: "1700px" }}
+    >
       {/* soft jade lift behind the real card */}
       <div
         aria-hidden
@@ -102,10 +106,40 @@ function MatchCardMock() {
             "radial-gradient(ellipse 60% 60% at 50% 45%, rgba(0,217,146,0.10), transparent 75%)",
         }}
       />
-      {/* the genuine production component */}
-      <ul className="list-none m-0 p-0 pointer-events-none select-none">
-        <MatchCard data={SAMPLE_MATCH} />
-      </ul>
+      {/* Product-shot tilt: turn the genuine card a little on its Y axis so the
+          LEFT edge sits DEEPER than the right (negative rotateY). Pivot a touch
+          right of centre so the left side sinks back more. Settles into the
+          angle on view. */}
+      <motion.div
+        className="relative will-change-transform"
+        style={{ transformStyle: "preserve-3d", transformOrigin: "64% 50%" }}
+        initial={{ rotateY: -24, rotateX: 5, opacity: 0 }}
+        whileInView={{ rotateY: -13, rotateX: 2.5, opacity: 1 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration: 0.95, ease: EASE_BRAND }}
+      >
+        {/* depth shadow cast to the lower-left (the receding side) */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 rounded-lg"
+          style={{
+            transform: "translateZ(-60px)",
+            boxShadow: "-46px 54px 96px -34px rgba(0,0,0,0.72)",
+          }}
+        />
+        <ul className="list-none m-0 p-0 pointer-events-none select-none">
+          <MatchCard data={SAMPLE_MATCH} />
+        </ul>
+        {/* glossy sheen — light raking from the upper-left, like a render */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none rounded-md mix-blend-screen"
+          style={{
+            background:
+              "linear-gradient(110deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 22%, transparent 46%)",
+          }}
+        />
+      </motion.div>
     </div>
   );
 }
