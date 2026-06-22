@@ -117,13 +117,21 @@ export function DatabaseStatsPanel() {
   const maxBytes = overview?.tables[0]?.sizeBytes ?? 1;
 
   return (
-    <div className="font-chakrapetch text-flash">
-      <div className="flex items-center gap-2.5 mb-1">
-        <Database size={18} className="text-jade" />
-        <h2 className="text-[18px] font-bold tracking-tight text-flash">Database</h2>
+    <div className="font-chakrapetch text-flash p-6 md:p-8 max-w-[1000px]">
+      {/* header — reads as a real page header, not an inline row */}
+      <header className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-white/[0.08]">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="grid place-items-center w-11 h-11 rounded-[12px] border border-jade/25 bg-jade/[0.07] shrink-0">
+            <Database size={20} className="text-jade" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-bold tracking-tight text-flash leading-none">Database</h2>
+            <p className="mt-2 text-[12px] text-flash/45">Live counts straight from the match database.</p>
+          </div>
+        </div>
         <span
           className={cn(
-            "ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.12em] border",
+            "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] border",
             status === "live"
               ? "border-jade/30 bg-jade/10 text-jade"
               : status === "connecting"
@@ -135,17 +143,16 @@ export function DatabaseStatsPanel() {
           {status === "live" ? "live" : status === "connecting" ? "connecting" : "offline"}
           {status === "live" && <span className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />}
         </span>
-      </div>
-      <p className="text-[11px] text-flash/40 mb-5">Live counts straight from the match database.</p>
+      </header>
 
       {err && !overview && (
-        <div className="rounded-[10px] border border-error/25 bg-error/5 px-4 py-3 text-[12px] text-flash/60">
+        <div className="mb-5 rounded-[10px] border border-error/25 bg-error/5 px-4 py-3 text-[12px] text-flash/60">
           Couldn't reach the stats endpoint. Is the backend up?
         </div>
       )}
 
       {/* hero: live match counter */}
-      <div className="relative overflow-hidden rounded-[14px] border border-jade/20 bg-[rgba(6,12,14,0.6)] p-5 mb-3">
+      <div className="relative overflow-hidden rounded-[16px] border border-jade/20 bg-[rgba(6,12,14,0.6)] p-6 md:p-7 mb-5">
         <div className="absolute inset-0 pointer-events-none opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #00d992 0%, transparent 55%)" }} />
         <div className="relative flex items-end justify-between gap-4 flex-wrap">
           <div>
@@ -181,9 +188,11 @@ export function DatabaseStatsPanel() {
       </div>
 
       {/* tables by size */}
-      <div className="rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.45)] p-4">
-        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-flash/45 mb-3">Biggest tables</div>
-        <div className="flex flex-col gap-2">
+      <div className="rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.45)] p-5">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-flash/45 mb-4">
+          <Table2 size={12} className="text-jade/60" /> Biggest tables
+        </div>
+        <div className="flex flex-col gap-3">
           {(overview?.tables ?? []).map((t) => {
             const pct = Math.max(2, Math.round((t.sizeBytes / maxBytes) * 100));
             return (
