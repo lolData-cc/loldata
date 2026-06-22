@@ -12,9 +12,10 @@ import { ChampionDialog } from "@/components/champion-dialog";
 import { KeystoneDialog } from "@/components/keystone-dialog";
 import { getKeystoneIcon, getKeystoneName } from "@/constants/runes";
 import {
-  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName, CATEGORIES, categoryIcon,
+  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName, CATEGORY_GROUPS, CATEGORY_LABEL,
 } from "./catalog";
 import { ExplorerSelect } from "./Pickers";
+import { categoryGlyph } from "./category-glyphs";
 import { ItemDialog } from "@/components/item-dialog";
 
 type Meta = { label: string; accent: string; Icon: ModuleIcon };
@@ -82,9 +83,17 @@ const SLOT_OPTS = [
 ];
 const MODE_OPTS = [{ value: "stats", label: "Winrate + stats" }, { value: "rank", label: "Top-N ranking" }];
 const DIM_OPTS = [{ value: "ally", label: "Allies" }, { value: "enemy", label: "Enemies" }, { value: "item", label: "Items" }];
-// Champion-class team-comp filter on an ally/enemy node: "the team has ≥N of this
-// class" (e.g. enemy ≥3 Assassins). Independent of any specific champion picked.
-const CATEGORY_OPTS = [{ value: "", label: "any comp" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))];
+// Champion-category team-comp filter on an ally/enemy node: "the team has ≥N of
+// this category" (e.g. enemy ≥3 Assassins, ally ≥2 AP). Grouped into Damage /
+// Class / Range so the 10 options read as 3 short sections; each option's leading
+// glyph (class crest, or gold AD/AP/Melee/Ranged emblem) comes from categoryGlyph.
+const CATEGORY_GROUPED = [
+  { options: [{ value: "", label: "any comp" }] },
+  ...CATEGORY_GROUPS.map((g) => ({
+    label: g.label,
+    options: g.members.map((m) => ({ value: m, label: CATEGORY_LABEL[m] })),
+  })),
+];
 const CAT_MIN_OPTS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `≥ ${n}` }));
 
 const dotStyle = (accent: string): React.CSSProperties => ({
@@ -293,17 +302,14 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
         {(type === "ally" || type === "enemy") && (
           <Field label="Team comp">
             <div className="flex items-center gap-1.5">
-              {d.category && (
-                <img
-                  src={categoryIcon(d.category)}
-                  className="w-5 h-5 object-contain shrink-0"
-                  alt=""
-                  draggable={false}
-                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-                />
-              )}
               <div className="flex-1 min-w-0">
-                <ExplorerSelect value={d.category ?? ""} onChange={(v) => set({ category: v || undefined })} options={CATEGORY_OPTS} placeholder="any comp" />
+                <ExplorerSelect
+                  value={d.category ?? ""}
+                  onChange={(v) => set({ category: v || undefined })}
+                  groups={CATEGORY_GROUPED}
+                  renderIcon={categoryGlyph}
+                  placeholder="any comp"
+                />
               </div>
               {d.category && (
                 <div className="w-[68px] shrink-0">

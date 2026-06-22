@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { runPatchVariation } from "./graph";
-import { champIcon, itemIcon, itemName, categoryIcon, CATEGORY_LABEL } from "./catalog";
+import { champIcon, itemIcon, itemName, categoryIcon, categoryHasIcon, CATEGORY_LABEL } from "./catalog";
 import { BuildPathViz } from "./BuildPathViz";
 import { ItemStrengthPanel } from "./ItemStrengthPanel";
 import { SituationalGuide } from "./SituationalGuide";
@@ -450,7 +450,7 @@ function QueryRecapInline({ graph, data, rank, baseline }: { graph: ExplorerGrap
           {exItems.map((id) => <ChipMini key={`x${id}`} icon={itemIcon(id)} label={itemName(id)} tone="bad" prefix="no" />)}
           {allies.map((c, i) => <ChipMini key={`a${i}`} icon={c.champion ? champIcon(c.champion) : undefined} label={c.champion ?? "any"} tone={c.negate ? "bad" : "ally"} prefix={c.negate ? "no ally" : "ally"} />)}
           {enemies.map((c, i) => <ChipMini key={`e${i}`} icon={c.champion ? champIcon(c.champion) : undefined} label={c.champion ?? "any"} tone={c.negate ? "bad" : "enemy"} prefix={c.negate ? "no vs" : "vs"} />)}
-          {cats.map((cc, i) => <ChipMini key={`c${i}`} icon={categoryIcon(cc.cls)} label={CATEGORY_LABEL[cc.cls] ?? cc.cls} tone="cat" prefix={`${cc.side === "ally" ? "ally" : "enemy"} ≥${cc.min}`} contain />)}
+          {cats.map((cc, i) => <ChipMini key={`c${i}`} icon={categoryHasIcon(cc.cls) ? categoryIcon(cc.cls) : undefined} label={CATEGORY_LABEL[cc.cls] ?? cc.cls} tone="cat" prefix={`${cc.side === "ally" ? "ally" : "enemy"} ≥${cc.min}`} contain />)}
         </div>
       )}
     </div>

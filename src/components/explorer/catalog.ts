@@ -20,7 +20,12 @@ export const ROLE_LABEL: Record<Role, string> = {
 // champion classes (Riot Data Dragon `tags`) — usable as Explorer category filters
 // ("enemy team has ≥N Assassins") and as the basis of the conditional item-strength
 // analysis. The backend derives each champion's classes from the same source.
-export const CATEGORIES = ["Assassin", "Fighter", "Mage", "Marksman", "Support", "Tank"] as const;
+// The 6 roster classes (Riot Data Dragon `tags`) — these have CDN icons.
+export const CHAMP_CLASSES = ["Assassin", "Fighter", "Mage", "Marksman", "Support", "Tank"] as const;
+// Full set of pickable champion categories: the 6 classes + damage profile (AD/AP)
+// + attack type (Melee/Ranged). The backend champClass helper maps every champion
+// to all of these — for team-comp filters ("enemy ≥3 AD") and item-strength buckets.
+export const CATEGORIES = [...CHAMP_CLASSES, "AD", "AP", "Melee", "Ranged"] as const;
 export type Category = (typeof CATEGORIES)[number];
 export const CATEGORY_LABEL: Record<Category, string> = {
   Assassin: "Assassin",
@@ -29,9 +34,23 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   Marksman: "Marksman",
   Support: "Support",
   Tank: "Tank",
+  AD: "AD",
+  AP: "AP",
+  Melee: "Melee",
+  Ranged: "Ranged",
 };
+// Grouped for the picker dropdown: damage profile first, then the 6 roster
+// classes, then attack range — so the 10 categories read as 3 short labelled
+// sections instead of one long pile.
+export const CATEGORY_GROUPS: { label: string; members: Category[] }[] = [
+  { label: "Damage", members: ["AD", "AP"] },
+  { label: "Class", members: [...CHAMP_CLASSES] },
+  { label: "Range", members: ["Melee", "Ranged"] },
+];
+// Only the 6 roster classes have CDN icons; AD/AP/Melee/Ranged render as text badges.
+export const categoryHasIcon = (cls: string) => (CHAMP_CLASSES as readonly string[]).includes(cls);
 // class icons live on the un-versioned CDN path, the same assets the champion-page
-// guides tab + rune editor use.
+// guides tab + rune editor use. Only meaningful for the 6 classes (see categoryHasIcon).
 export const categoryIcon = (cls: string) =>
   `https://cdn2.loldata.cc/img/class/${cls.toLowerCase()}.png`;
 

@@ -14,18 +14,14 @@
 
 import * as React from "react"
 import { motion, AnimatePresence, useInView, useReducedMotion } from "framer-motion"
-import { Button } from "./ui/button"
-import { FlipText } from "@/components/ui/flip-text"
 import { ArrowRight } from "lucide-react"
 import { PricingPlans } from "./pricingplans"
 
 const EASE_BRAND = [0.22, 1, 0.36, 1] as const
 
-// Heights — Jax stays at its hero strip height; pricing needs the
-// extra room for the 400px-tall plan cards plus the big "PRICING"
-// title above them. Wrapping container animates between the two so
-// the page below settles into place when the swap happens.
-const JAX_HEIGHT_MD = 308
+// Heights — the membership band, then the taller pricing view. The wrapper
+// animates between the two so the page below resettles on swap.
+const JAX_HEIGHT_MD = 400
 const PRICING_HEIGHT = 720
 
 export const Jax = () => {
@@ -58,7 +54,7 @@ export const Jax = () => {
       // wrapper's height animates between the two panel heights so
       // the page below resettles into the new layout.
       className="relative bg-transparent w-screen left-1/2 -translate-x-1/2 overflow-hidden"
-      initial={{ opacity: 0 }}
+      initial={{ opacity: 0, height: JAX_HEIGHT_MD }}
       animate={
         inView
           ? { opacity: 1, height: showPricing ? PRICING_HEIGHT : JAX_HEIGHT_MD }
@@ -115,114 +111,104 @@ function JaxCta({
   reduceMotion: boolean | null
   onBecomeMember: () => void
 }) {
+  const reveal = (delay: number) => ({
+    initial: { opacity: 0, y: 14 },
+    animate: inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 },
+    transition: { duration: 0.6, ease: EASE_BRAND, delay },
+  })
+
   return (
-    <div className="relative w-full h-full">
-      {/* Compact centred jade glow. */}
+    <div className="relative w-full h-full overflow-hidden">
+      {/* faint jade dot-grid, concentrated under the silhouette */}
+      <div
+        aria-hidden
+        className="absolute inset-0 z-0 pointer-events-none opacity-[0.06] [background-image:radial-gradient(rgba(0,217,146,0.7)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_24%_60%,black_5%,transparent_68%)] [-webkit-mask-image:radial-gradient(ellipse_at_24%_60%,black_5%,transparent_68%)]"
+      />
+      {/* breathing jade glow behind Jax */}
       <motion.div
         aria-hidden
-        className="absolute inset-0 z-[1] pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0,217,146,0.22) 0%, transparent 100%)",
+            "radial-gradient(ellipse 42% 62% at 22% 62%, rgba(0,217,146,0.18) 0%, transparent 70%)",
         }}
-        animate={reduceMotion ? { opacity: 0.9 } : { opacity: [0.7, 1, 0.7] }}
+        animate={reduceMotion ? { opacity: 0.9 } : { opacity: [0.6, 1, 0.6] }}
         transition={
-          reduceMotion
-            ? undefined
-            : { duration: 7, ease: "easeInOut", repeat: Infinity }
+          reduceMotion ? undefined : { duration: 8, ease: "easeInOut", repeat: Infinity }
         }
       />
 
-      {/* Character silhouette. */}
+      {/* Character silhouette — anchored bottom-left, slightly over-scaled so
+          it crops dramatically. */}
       <motion.img
-        className="hidden md:block w-[38%] absolute left-[26%] -translate-x-1/2 h-full object-contain object-bottom z-30 pointer-events-none select-none"
-        alt="Jax silhouette"
+        className="hidden md:block absolute left-[19%] bottom-0 -translate-x-1/2 h-full w-[36%] object-contain object-bottom z-[1] pointer-events-none select-none"
+        alt=""
+        aria-hidden
         src="/img/areuwithus_2.png"
         draggable={false}
         initial={{ opacity: 0, x: -24, scale: 1.04 }}
-        animate={
-          inView
-            ? { opacity: 0.95, x: 0, scale: 1 }
-            : { opacity: 0, x: -24, scale: 1.04 }
-        }
-        transition={{ duration: 0.9, ease: EASE_BRAND, delay: 0.15 }}
+        animate={inView ? { opacity: 0.92, x: 0, scale: 1 } : { opacity: 0, x: -24, scale: 1.04 }}
+        transition={{ duration: 0.9, ease: EASE_BRAND, delay: 0.1 }}
         style={{
-          filter:
-            "brightness(1.15) saturate(1.1) drop-shadow(0 0 24px rgba(0,217,146,0.35))",
+          filter: "brightness(1.1) saturate(1.08) drop-shadow(0 0 28px rgba(0,217,146,0.3))",
+        }}
+      />
+      {/* legibility scrim — clears the right side where the copy lives */}
+      <div
+        aria-hidden
+        className="absolute inset-0 z-[2] pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(4,10,12,0.55) 0%, rgba(4,10,12,0.12) 30%, transparent 48%)",
         }}
       />
 
-      {/* Content block. */}
-      <div className="absolute inset-0 z-[999] flex flex-col items-center justify-center md:items-end md:justify-center md:pr-[32%] text-white space-y-3">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.55, ease: EASE_BRAND, delay: 0.25 }}
-          className="flex flex-col items-center md:items-end gap-1.5"
-        >
-          <FlipText className="text-2xl md:text-4xl">Are you with us?</FlipText>
-
-          <motion.div
-            aria-hidden
-            className="h-[1px] w-32 md:w-44 origin-right"
-            style={{
-              background:
-                "linear-gradient(90deg, transparent, rgba(0,217,146,0.6) 60%, rgba(0,217,146,0.95) 100%)",
-            }}
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={
-              inView ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }
-            }
-            transition={{ duration: 0.7, ease: EASE_BRAND, delay: 0.5 }}
-          />
-        </motion.div>
-
-        {/* Buttons. */}
-        <motion.div
-          className="flex items-center gap-3 md:gap-4"
-          initial={{ opacity: 0, y: 12 }}
-          animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.55, ease: EASE_BRAND, delay: 0.55 }}
-        >
-          {/* Primary CTA — onClick triggers the inline slide swap
-              instead of routing to /pricing. */}
-          <motion.div whileHover={reduceMotion ? undefined : "hover"}>
-            <Button
-              variant="solid"
-              className="text-xs md:text-sm group"
-              onClick={onBecomeMember}
-            >
-              <span className="flex items-center gap-2">
-                BECOME A MEMBER
-                <motion.span
-                  aria-hidden
-                  className="inline-flex"
-                  variants={{
-                    hover: {
-                      x: 4,
-                      transition: { duration: 0.22, ease: EASE_BRAND },
-                    },
-                  }}
-                >
-                  <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </motion.span>
+      {/* Content — right-aligned on desktop so it sits clear of Jax. */}
+      <div className="relative z-10 h-full">
+        <div className="mx-auto h-full max-w-[1240px] px-6 md:px-10 flex items-center justify-end">
+          <div className="flex w-full flex-col items-start text-left md:max-w-[540px] md:items-end md:text-right">
+            <motion.div {...reveal(0.1)} className="mb-4 flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-jade" style={{ boxShadow: "0 0 8px #00d992" }} />
+              <span className="font-chakrapetch text-[11px] font-bold uppercase tracking-[0.34em] text-jade/80">
+                Membership
               </span>
-            </Button>
-          </motion.div>
+            </motion.div>
 
-          <motion.div
-            whileHover={
-              reduceMotion ? undefined : { y: -1, transition: { duration: 0.2 } }
-            }
-          >
-            <Button
-              className="border-flash/10 border text-flash/40 text-xs md:text-sm hover:text-flash/80 hover:border-flash/30 transition-colors duration-200"
-              variant="purchase"
+            <motion.h2
+              {...reveal(0.18)}
+              className="font-chakrapetch font-bold text-flash leading-[0.98] tracking-tight text-[clamp(34px,5vw,58px)]"
             >
-              CONTACT US
-            </Button>
-          </motion.div>
-        </motion.div>
+              Are you{" "}
+              <span className="text-jade" style={{ textShadow: "0 0 38px rgba(0,217,146,0.4)" }}>
+                with us
+              </span>
+              ?
+            </motion.h2>
+
+            <motion.p {...reveal(0.28)} className="mt-4 max-w-[420px] text-[15px] leading-relaxed text-flash/55">
+              One membership unlocks the AI coach, unlimited scouting and every
+              analytic the Rift can give you — no limits.
+            </motion.p>
+
+            <motion.div {...reveal(0.38)} className="mt-7 flex items-center gap-5">
+              <button
+                onClick={onBecomeMember}
+                className="group inline-flex items-center gap-2 h-[50px] px-6 rounded-xl bg-jade text-liquirice font-chakrapetch text-[13px] font-bold uppercase tracking-[0.1em] cursor-clicker transition-all duration-200 hover:brightness-110 hover:shadow-[0_0_30px_-6px_rgba(0,217,146,0.6)]"
+              >
+                Become a member
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </button>
+              <a
+                href="https://discord.gg/SNjKYbdXzG"
+                target="_blank"
+                rel="noreferrer"
+                className="font-chakrapetch text-[12px] font-bold uppercase tracking-[0.12em] text-flash/55 cursor-clicker transition-colors duration-200 hover:text-flash/90"
+              >
+                Contact us
+              </a>
+            </motion.div>
+          </div>
+        </div>
       </div>
     </div>
   )

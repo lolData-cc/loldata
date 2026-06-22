@@ -18,6 +18,7 @@ import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
 import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
 import { StreamerAdminPanel } from "@/components/admin/streamer-admin-panel";
+import { DatabaseStatsPanel } from "@/components/admin/database-stats-panel";
 import { BorderBeamPreference } from "@/components/borderbeampreference";
 import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
 import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
@@ -90,7 +91,7 @@ export default function DashboardPage() {
     : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
   const displayName = nametag ?? email
 
-  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "proApplications", "streamerApplications", "planSetup"];
+  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "planSetup"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
   const handleLogout = async () => {
@@ -201,6 +202,13 @@ export default function DashboardPage() {
                   {isAdmin && (
                     <>
                       <Separator className="bg-flash/15 my-2" />
+
+                      <TabsTrigger
+                        value="database"
+                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                      >
+                        DATABASE
+                      </TabsTrigger>
 
                       <TabsTrigger
                         value="proApplications"
@@ -392,6 +400,13 @@ export default function DashboardPage() {
               <TabsContent value="billing" className="outline-none">
                 <BillingTabContent plan={plan} />
               </TabsContent>
+
+              {/* ADMIN TAB: DATABASE */}
+              {isAdmin && (
+                <TabsContent value="database" className="outline-none">
+                  <DatabaseStatsPanel />
+                </TabsContent>
+              )}
 
               {/* ADMIN TAB: PRO APPLICATIONS */}
               {isAdmin && (

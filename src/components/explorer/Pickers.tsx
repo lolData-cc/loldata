@@ -3,7 +3,7 @@
 // lists; IconCombobox (Popover + cmdk) for the long, searchable champion/item
 // lists with icons. Both portal to <body>, so they never clip inside a node.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/command";
 
 export type Opt = { value: string; label: string };
+// Optional grouping for ExplorerSelect: an unlabelled section renders flush, a
+// labelled one gets a divider + tiny uppercase header.
+export type OptGroup = { label?: string; options: Opt[] };
 
 // `explorer-surface` (see explorer.css) nukes stray focus outlines on these
 // portaled popups; jade border instead of the base theme's white one.
@@ -28,23 +31,31 @@ const triggerBase =
   "border bg-black/40 backdrop-blur-lg transition-all duration-200";
 
 export function ExplorerSelect({
-  value, onChange, options, placeholder = "—",
+  value, onChange, options, groups, placeholder = "—", renderIcon,
 }: {
   value?: string;
   onChange: (v: string) => void;
-  options: Opt[];
+  // pass EITHER a flat `options` list OR pre-grouped `groups` (mutually exclusive)
+  options?: Opt[];
+  groups?: OptGroup[];
   placeholder?: string;
+  // optional leading glyph per option (shown in the trigger + each row)
+  renderIcon?: (value: string) => ReactNode;
 }) {
-  const active = options.find((o) => o.value === value)?.label;
+  // normalise to sections: explicit groups, or one unlabelled section from options
+  const sections: OptGroup[] = groups ?? [{ options: options ?? [] }];
+  const active = sections.flatMap((s) => s.options).find((o) => o.value === value);
+  const activeIcon = renderIcon && active ? renderIcon(active.value) : null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          triggerBase, "h-8 px-2.5 justify-between gap-1.5 font-chakrapetch text-[11.5px]",
+          triggerBase, "h-8 px-2.5 gap-1.5 font-chakrapetch text-[11.5px]",
           active ? "text-flash border-jade/30 hover:border-jade/50" : "text-flash/45 border-white/10 hover:border-white/20"
         )}
       >
-        <span className="truncate">{active ?? placeholder}</span>
+        {activeIcon && <span className="shrink-0 grid place-items-center w-[18px] h-[18px]">{activeIcon}</span>}
+        <span className="flex-1 text-left truncate">{active?.label ?? placeholder}</span>
         <ChevronDown className="w-3 h-3 shrink-0 opacity-60 transition-transform duration-200 group-data-[state=open]:rotate-180" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -52,19 +63,30 @@ export function ExplorerSelect({
         sideOffset={6}
         className={cn("min-w-[var(--radix-dropdown-menu-trigger-width)] p-1", GLASS)}
       >
-        {options.map((o) => (
-          <DropdownMenuItem
-            key={o.value}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              // before:hidden kills the base menu-item's white highlight bar
-              "cursor-clicker rounded-[3px] px-2.5 py-1.5 font-chakrapetch text-[11.5px] transition-colors before:hidden",
-              "focus:bg-jade/10 focus:text-jade",
-              value === o.value ? "text-jade bg-jade/[0.08]" : "text-flash/55"
+        {sections.map((sec, si) => (
+          <div key={si}>
+            {si > 0 && <div className="mx-1 my-1 h-px bg-white/[0.07]" />}
+            {sec.label && (
+              <div className="px-2 pt-1 pb-1 font-chakrapetch text-[8.5px] font-bold uppercase tracking-[0.2em] text-flash/30 select-none">
+                {sec.label}
+              </div>
             )}
-          >
-            {o.label}
-          </DropdownMenuItem>
+            {sec.options.map((o) => (
+              <DropdownMenuItem
+                key={o.value}
+                onClick={() => onChange(o.value)}
+                className={cn(
+                  // before:hidden kills the base menu-item's white highlight bar
+                  "flex items-center gap-2 cursor-clicker rounded-[3px] px-2.5 py-1.5 font-chakrapetch text-[11.5px] transition-colors before:hidden",
+                  "focus:bg-jade/10 focus:text-jade",
+                  value === o.value ? "text-jade bg-jade/[0.08]" : "text-flash/55"
+                )}
+              >
+                {renderIcon && <span className="shrink-0 grid place-items-center w-[18px] h-[18px]">{renderIcon(o.value)}</span>}
+                <span className="flex-1 truncate">{o.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </div>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
