@@ -141,11 +141,6 @@ export function SummonerShowcase({ id }: { id?: string }) {
 // mid-reveal (the later card looked more tilted than the earlier ones).
 const TILT = "perspective(900px) rotateY(-16deg) rotateX(3deg)";
 
-const slideVariants = {
-  hidden: { opacity: 0, y: 46 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_BRAND } },
-};
-
 function MatchCardStack() {
   return (
     <div className="relative mx-auto w-full max-w-[600px]">
@@ -158,16 +153,21 @@ function MatchCardStack() {
             "radial-gradient(ellipse 60% 70% at 55% 45%, rgba(0,217,146,0.10), transparent 75%)",
         }}
       />
-      <motion.div
-        className="space-y-4"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.2 } } }}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.3 }}
-      >
+      <div className="space-y-4">
         {MATCHES.map((m, i) => (
-          <motion.div key={i} variants={slideVariants} className="will-change-transform">
-            {/* static, identical tilt for every card */}
+          // Each card observes itself and slides up independently (explicit
+          // initial/whileInView, NOT inherited variants — avoids any conflict
+          // with the section's own reveal that could otherwise leave a card
+          // stuck mid-animation). The tilt is a separate static transform on
+          // the inner div, so every card is pixel-identical in angle.
+          <motion.div
+            key={i}
+            className="will-change-transform"
+            initial={{ opacity: 0, y: 46 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.6, ease: EASE_BRAND, delay: i * 0.12 }}
+          >
             <div
               className="relative"
               style={{ transform: TILT, transformOrigin: "64% 50%" }}
@@ -187,7 +187,7 @@ function MatchCardStack() {
             </div>
           </motion.div>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }
