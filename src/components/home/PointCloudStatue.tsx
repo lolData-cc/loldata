@@ -51,6 +51,28 @@ function bakeSkinnedGeometry(skinned: THREE.SkinnedMesh): THREE.BufferGeometry {
   return baked;
 }
 
+// total triangle-surface area of a geometry — used to spread sample points by
+// AREA (uniform density), so small dense meshes (daggers) don't over-saturate.
+function surfaceArea(geo: THREE.BufferGeometry): number {
+  const pos = geo.attributes.position;
+  const idx = geo.index;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  let area = 0;
+  const tri = (i0: number, i1: number, i2: number) => {
+    a.fromBufferAttribute(pos, i0);
+    b.fromBufferAttribute(pos, i1);
+    c.fromBufferAttribute(pos, i2);
+    area += ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() * 0.5;
+  };
+  if (idx) for (let i = 0; i < idx.count; i += 3) tri(idx.getX(i), idx.getX(i + 1), idx.getX(i + 2));
+  else for (let i = 0; i < pos.count; i += 3) tri(i, i + 1, i + 2);
+  return area;
+}
+
 function buildCloud(
   scene: THREE.Object3D,
   animations: THREE.AnimationClip[],
@@ -69,33 +91,35 @@ function buildCloud(
   }
   root.updateMatrixWorld(true);
 
-  const meshes: THREE.Mesh[] = [];
+  // each entry = the geometry we'll sample (baked to the posed surface if skinned),
+  // its world matrix, and its surface area (for area-proportional budgeting)
+  type Entry = { geo: THREE.BufferGeometry; matrix: THREE.Matrix4; area: number };
+  const entries: Entry[] = [];
   root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && (m.geometry as THREE.BufferGeometry)?.attributes?.position) meshes.push(m);
+    if (!m.isMesh || !(m.geometry as THREE.BufferGeometry)?.attributes?.position) return;
+    const geo = (m as THREE.SkinnedMesh).isSkinnedMesh
+      ? bakeSkinnedGeometry(m as THREE.SkinnedMesh)
+      : (m.geometry as THREE.BufferGeometry);
+    entries.push({ geo, matrix: m.matrixWorld.clone(), area: Math.max(surfaceArea(geo), 1e-6) });
   });
-  if (!meshes.length) return { positions: new Float32Array(), colors: new Float32Array() };
+  if (!entries.length) return { positions: new Float32Array(), colors: new Float32Array() };
 
-  const weights = meshes.map((m) => (m.geometry as THREE.BufferGeometry).attributes.position.count);
-  const wsum = weights.reduce((a, b) => a + b, 0) || 1;
+  const areaSum = entries.reduce((s, e) => s + e.area, 0) || 1;
 
   const pos: number[] = [];
   const tmp = new THREE.Vector3();
-  for (let mi = 0; mi < meshes.length; mi++) {
-    const mesh = meshes[mi];
-    const budget = Math.max(1, Math.round((weights[mi] / wsum) * opts.total));
-    const geo = (mesh as THREE.SkinnedMesh).isSkinnedMesh
-      ? bakeSkinnedGeometry(mesh as THREE.SkinnedMesh)
-      : (mesh.geometry as THREE.BufferGeometry);
+  for (const e of entries) {
+    const budget = Math.max(1, Math.round((e.area / areaSum) * opts.total));
     let sampler: MeshSurfaceSampler;
     try {
-      sampler = new MeshSurfaceSampler(new THREE.Mesh(geo)).build();
+      sampler = new MeshSurfaceSampler(new THREE.Mesh(e.geo)).build();
     } catch {
       continue;
     }
     for (let i = 0; i < budget; i++) {
       sampler.sample(tmp);
-      tmp.applyMatrix4(mesh.matrixWorld);
+      tmp.applyMatrix4(e.matrix);
       pos.push(tmp.x, tmp.y, tmp.z);
     }
   }
@@ -117,8 +141,8 @@ function buildCloud(
     positions[i * 3 + 1] = (pos[i * 3 + 1] - center.y) * scale;
     positions[i * 3 + 2] = (pos[i * 3 + 2] - center.z) * scale;
     const h = (pos[i * 3 + 1] - minY) / Math.max(size.y, 0.0001);
-    const t = Math.min(1, h * 0.6 + Math.random() * 0.25);
-    const c = JADE.clone().lerp(HOT, t * t * 0.7);
+    const t = Math.min(1, h * 0.7 + Math.random() * 0.12);
+    const c = JADE.clone().lerp(HOT, t * t * 0.4);
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
@@ -171,7 +195,7 @@ function StatueCloud({
         sizeAttenuation
         vertexColors
         transparent
-        opacity={0.95}
+        opacity={0.85}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />

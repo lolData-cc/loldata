@@ -28,7 +28,7 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
         {/* 3D champion topology, right-anchored */}
         <div className="absolute inset-y-0 right-0 w-full md:w-[64%] z-0">
           <PointCloudStatue
-            src="/models/truth_dragon_yasuo.glb"
+            src="/models/mercenary_katarina.glb"
             fallbackImg="/img/Yasuo.png"
             className="h-full w-full"
           />
