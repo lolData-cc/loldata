@@ -1,19 +1,12 @@
 "use client";
 
-// CoachShowcase — the live AI coach + 24/7 chatbot. Copy on the right; a
-// glass "Daily Report" device on the left with metric rows that fill on view
-// and a short chat exchange that types itself in.
+// CoachShowcase — the live AI coach. Instead of a mockup we render the REAL
+// analysis result cards (the same OverallStatsSection + ChampionPoolSection the
+// PlayerAnalysisDialog shows after it crunches your games) fed a representative
+// static PlayerAnalysisResult. Champion art streams from the live CDN.
 
 import { motion } from "framer-motion";
-import {
-  Sparkles,
-  CalendarCheck,
-  Swords,
-  MessagesSquare,
-  TrendingUp,
-  TrendingDown,
-  Bot,
-} from "lucide-react";
+import { CalendarCheck, Swords, Sparkles, MessagesSquare } from "lucide-react";
 import {
   Showcase,
   Eyebrow,
@@ -22,19 +15,56 @@ import {
   Lead,
   Bullets,
   GhostLink,
-  GlassPanel,
-  stagger,
   up,
-  upSm,
 } from "./showcase-kit";
+import {
+  OverallStatsSection,
+  ChampionPoolSection,
+} from "@/components/PlayerAnalysisDialog";
+import type { PlayerAnalysisResult } from "@/assets/types/riot";
 
-type Metric = { label: string; value: string; delta: string; pct: number; good: boolean };
-
-const METRICS: Metric[] = [
-  { label: "CS @10", value: "82", delta: "+0.9/min", pct: 82, good: true },
-  { label: "Vision score", value: "28", delta: "+7", pct: 64, good: true },
-  { label: "Deaths to ganks", value: "3", delta: "focus", pct: 38, good: false },
-];
+// A representative analysis payload — only the fields the two cards read need
+// to be realistic; the rest satisfy the type with neutral values.
+const SAMPLE_ANALYSIS: PlayerAnalysisResult = {
+  meta: { puuid: "demo", region: "EUW", matchesAnalyzed: 40 },
+  roleDistribution: [
+    { role: "MIDDLE", games: 29, pct: 72 },
+    { role: "TOP", games: 7, pct: 18 },
+    { role: "JUNGLE", games: 4, pct: 10 },
+  ],
+  primaryRole: "MIDDLE",
+  isJungler: false,
+  championPool: [
+    { championName: "Ahri", games: 18, wins: 11, winrate: 61, avgKills: 7.4, avgDeaths: 3.9, avgAssists: 6.8, avgKda: 3.6, avgCsPerMin: 8.1 },
+    { championName: "Syndra", games: 9, wins: 5, winrate: 56, avgKills: 6.2, avgDeaths: 4.1, avgAssists: 5.0, avgKda: 2.7, avgCsPerMin: 8.4 },
+    { championName: "Orianna", games: 7, wins: 3, winrate: 43, avgKills: 4.8, avgDeaths: 4.6, avgAssists: 7.2, avgKda: 2.6, avgCsPerMin: 7.9 },
+    { championName: "Viktor", games: 4, wins: 3, winrate: 75, avgKills: 6.0, avgDeaths: 3.0, avgAssists: 6.5, avgKda: 4.2, avgCsPerMin: 8.6 },
+    { championName: "Zoe", games: 2, wins: 2, winrate: 100, avgKills: 8.0, avgDeaths: 2.5, avgAssists: 4.0, avgKda: 4.8, avgCsPerMin: 7.2 },
+  ],
+  overallStats: {
+    games: 40, wins: 24, winrate: 60,
+    avgKills: 7.2, avgDeaths: 4.1, avgAssists: 6.8, avgKda: 3.4,
+    avgCsPerMin: 8.0, avgGoldPerMin: 412, avgKillParticipation: 58,
+    avgDamageShare: 28, avgVisionPerMin: 0.9, avgSoloKills: 1.2,
+  },
+  winLossComparison: [
+    { metric: "CS @14", onWin: 118, onLoss: 99, delta: 19 },
+    { metric: "Vision", onWin: 24, onLoss: 17, delta: 7 },
+    { metric: "Deaths", onWin: 3.1, onLoss: 5.4, delta: -2.3 },
+  ],
+  wardDistribution: { topside: 0, botside: 0, neutral: 0, totalWards: 0, topsidePct: 0, botsidePct: 0 },
+  bootsDistribution: [],
+  earlyGameAnalysis: {
+    gamesWithTimeline: 0,
+    aheadAtTen: { games: 0, wins: 0, winrate: 0 },
+    behindAtTen: { games: 0, wins: 0, winrate: 0 },
+    evenAtTen: { games: 0, wins: 0, winrate: 0 },
+    avgKillDiffAtTen: 0, avgGoldDiffAtTen: 0, avgCsDiffAtTen: 0,
+    firstBloodRate: 0, firstBloodWinrate: 0,
+  },
+  weaknesses: [],
+  counterTips: [],
+};
 
 export function CoachShowcase({ id }: { id?: string }) {
   return (
@@ -44,10 +74,10 @@ export function CoachShowcase({ id }: { id?: string }) {
         A coach that <Hot>never sleeps</Hot>.
       </Headline>
       <Lead>
-        It watches every game, finds the patterns you'd miss, and hands you a
-        daily report with the exact things to fix. Stuck mid-match? Ask the{" "}
-        <span className="text-flash/80">24/7 chatbot</span> — matchups, item
-        swaps, wave states — and get a straight answer.
+        It crunches every game, surfaces the patterns you'd miss, and lays your
+        play bare — role split, champion pool, win-vs-loss deltas. Stuck
+        mid-match? Ask the <span className="text-flash/80">24/7 chatbot</span>{" "}
+        and get a straight answer.
       </Lead>
       <Bullets
         items={[
@@ -66,96 +96,18 @@ export function CoachShowcase({ id }: { id?: string }) {
 
 function CoachMock() {
   return (
-    <div className="relative mx-auto w-full max-w-[460px]">
-      <GlassPanel className="p-5 md:p-6">
-        {/* header */}
-        <motion.div variants={stagger} className="flex items-center gap-3">
-          <motion.span
-            variants={upSm}
-            className="grid place-items-center w-10 h-10 rounded-[11px] shrink-0"
-            style={{
-              background: "radial-gradient(circle at 35% 30%, rgba(0,217,146,0.4), rgba(4,10,12,0.9))",
-              border: "1px solid rgba(0,217,146,0.4)",
-              boxShadow: "0 0 18px rgba(0,217,146,0.3)",
-            }}
-          >
-            <Bot size={19} className="text-jade" />
-          </motion.span>
-          <motion.div variants={upSm} className="flex-1">
-            <div className="font-chakrapetch font-bold text-flash text-[15px] leading-none">
-              Daily Report
-            </div>
-            <div className="font-jetbrains text-[11px] text-flash/40 mt-1.5">Patch 14.x · today</div>
-          </motion.div>
-          <motion.span
-            variants={upSm}
-            className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full border border-jade/25 bg-jade/[0.06]"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
-            <span className="font-jetbrains text-[10px] uppercase tracking-wider text-jade/85">24/7</span>
-          </motion.span>
-        </motion.div>
-
-        {/* metric rows */}
-        <motion.ul variants={stagger} className="mt-5 space-y-3">
-          {METRICS.map((m) => (
-            <motion.li key={m.label} variants={upSm}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-jetbrains text-[12px] text-flash/60">{m.label}</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-chakrapetch font-bold text-flash text-[13px] tabular-nums">
-                    {m.value}
-                  </span>
-                  <span
-                    className={
-                      "inline-flex items-center gap-0.5 font-jetbrains text-[10px] uppercase tracking-wide " +
-                      (m.good ? "text-jade" : "text-citrine")
-                    }
-                  >
-                    {m.good ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                    {m.delta}
-                  </span>
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{
-                    background: m.good ? "#00d992" : "#FFB615",
-                    boxShadow: m.good
-                      ? "0 0 10px rgba(0,217,146,0.5)"
-                      : "0 0 10px rgba(255,182,21,0.45)",
-                  }}
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${m.pct}%` }}
-                  viewport={{ once: true, amount: 0.6 }}
-                  transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-                />
-              </div>
-            </motion.li>
-          ))}
-        </motion.ul>
-
-        {/* chat exchange */}
-        <motion.div variants={up} className="mt-5 pt-4 border-t border-white/8 space-y-2.5">
-          <div className="flex justify-end">
-            <span className="max-w-[78%] rounded-2xl rounded-br-sm px-3.5 py-2 bg-white/[0.05] font-geist text-[12.5px] text-flash/75">
-              Rush Zhonya vs Zed?
-            </span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="grid place-items-center w-6 h-6 rounded-full shrink-0 bg-jade/15 border border-jade/30">
-              <Bot size={12} className="text-jade" />
-            </span>
-            <span
-              className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2 font-geist text-[12.5px] text-flash/90"
-              style={{ background: "rgba(0,217,146,0.10)", border: "1px solid rgba(0,217,146,0.20)" }}
-            >
-              Yes — Zed's all-in spikes at 6. Zhonya flips the kill onto him.
-            </span>
-          </div>
-        </motion.div>
-      </GlassPanel>
+    <div className="relative mx-auto w-full max-w-[480px] space-y-3">
+      {/* soft jade lift behind the real result cards */}
+      <div
+        aria-hidden
+        className="absolute -inset-6 -z-10 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 55% at 50% 40%, rgba(0,217,146,0.10), transparent 75%)",
+        }}
+      />
+      <OverallStatsSection data={SAMPLE_ANALYSIS} />
+      <ChampionPoolSection data={SAMPLE_ANALYSIS} />
     </div>
   );
 }

@@ -227,7 +227,7 @@ function RoleSection({ data }: { data: PlayerAnalysisResult }) {
   );
 }
 
-function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
+export function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
   const top5 = data.championPool.slice(0, 5);
   return (
     <SectionCard title="Champion Pool" tag="CHAMPS" delay={0.2}>
@@ -270,7 +270,7 @@ function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
   );
 }
 
-function OverallStatsSection({ data }: { data: PlayerAnalysisResult }) {
+export function OverallStatsSection({ data }: { data: PlayerAnalysisResult }) {
   const s = data.overallStats;
   return (
     <SectionCard title="Performance Overview" tag="STATS" delay={0.3}>

@@ -66,7 +66,7 @@ export function Headline({
     <motion.h2
       variants={up}
       className={cn(
-        "font-chakrapetch font-bold text-flash leading-[1.03] tracking-tight",
+        "font-chakrapetch font-bold text-flash leading-[0.98] tracking-tight",
         "text-[clamp(30px,4.4vw,52px)]",
         className
       )}
@@ -116,7 +116,7 @@ export function Bullets({
         <motion.li
           key={label}
           variants={upSm}
-          className="group inline-flex items-center gap-2 h-9 pl-2.5 pr-3 rounded-[9px] border border-white/8 bg-white/[0.02] font-jetbrains text-[11px] uppercase tracking-wider text-flash/55 transition-colors duration-200 hover:border-jade/30 hover:text-flash/85"
+          className="group inline-flex items-center gap-2 h-9 pl-2.5 pr-3 rounded-[9px] border border-jade/15 bg-jade/[0.04] font-jetbrains text-[11px] uppercase tracking-wider text-flash/60 transition-colors duration-200 hover:border-jade/35 hover:bg-jade/[0.08] hover:text-flash/90"
         >
           <Icon size={13} className="text-jade/80 transition-transform duration-200 group-hover:scale-110" />
           {label}
