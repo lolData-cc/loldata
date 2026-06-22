@@ -135,15 +135,19 @@ export function SummonerShowcase({ id }: { id?: string }) {
   );
 }
 
-// The 3D tilt is a STATIC transform shared by every card, so all three are
-// pixel-identical — only the slide-up is animated (and staggered), never the
-// angle. Animating rotateY per-card made them read as differently tilted
-// mid-reveal (the later card looked more tilted than the earlier ones).
-const TILT = "perspective(900px) rotateY(-16deg) rotateX(3deg)";
-
 function MatchCardStack() {
   return (
-    <div className="relative mx-auto w-full max-w-[600px]">
+    // Reveal is triggered from THIS untransformed wrapper (reliable
+    // IntersectionObserver) and staggered down into the tilted deck. Unique
+    // "off"/"on" labels so it never clashes with the section's hidden/show.
+    <motion.div
+      className="relative mx-auto w-full max-w-[600px]"
+      style={{ perspective: "1000px" }}
+      initial="off"
+      whileInView="on"
+      viewport={{ once: true, amount: 0.2 }}
+      variants={{ off: {}, on: {} }}
+    >
       {/* soft jade lift behind the deck */}
       <div
         aria-hidden
@@ -153,25 +157,27 @@ function MatchCardStack() {
             "radial-gradient(ellipse 60% 70% at 55% 45%, rgba(0,217,146,0.10), transparent 75%)",
         }}
       />
-      <div className="space-y-4">
+      {/* Stack the cards FLAT (2D), then tilt the WHOLE DECK as one rigid box —
+          a SINGLE rotateY here. Every card lives on the exact same tilted plane,
+          so they cannot possibly differ in angle (one transform, on the box,
+          not on the cards). This div also staggers the cards' slide-up. */}
+      <motion.div
+        className="relative space-y-4"
+        style={{ transform: "rotateY(-15deg)", transformOrigin: "62% 50%" }}
+        variants={{ off: {}, on: { transition: { staggerChildren: 0.13 } } }}
+      >
         {MATCHES.map((m, i) => (
-          // Each card observes itself and slides up independently (explicit
-          // initial/whileInView, NOT inherited variants — avoids any conflict
-          // with the section's own reveal that could otherwise leave a card
-          // stuck mid-animation). The tilt is a separate static transform on
-          // the inner div, so every card is pixel-identical in angle.
+          // Flat cards (no per-card tilt) — each just slides itself up on
+          // reveal, one after another.
           <motion.div
             key={i}
             className="will-change-transform"
-            initial={{ opacity: 0, y: 46 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.6, ease: EASE_BRAND, delay: i * 0.12 }}
+            variants={{
+              off: { opacity: 0, y: 40 },
+              on: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_BRAND } },
+            }}
           >
-            <div
-              className="relative"
-              style={{ transform: TILT, transformOrigin: "64% 50%" }}
-            >
+            <div className="relative">
               <ul className="list-none m-0 p-0 pointer-events-none select-none">
                 <MatchCard data={m} />
               </ul>
@@ -187,7 +193,7 @@ function MatchCardStack() {
             </div>
           </motion.div>
         ))}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
