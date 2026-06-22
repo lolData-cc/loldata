@@ -15,6 +15,8 @@ type DbOverview = {
   matches: number;
   dbSizeBytes: number;
   dbSizePretty: string;
+  diskTotalBytes?: number;
+  diskUsedBytes?: number;
   tables: TableStat[];
   generatedAt: number;
 };
@@ -26,6 +28,12 @@ const wsBase = httpBase
   : `${typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws"}://${typeof window !== "undefined" ? window.location.host : ""}`;
 
 const fmt = (n: number) => n.toLocaleString("en-US");
+// GiB-based, to match Postgres' pg_size_pretty ("GB" = GiB) used for dbSizePretty.
+const fmtBytes = (n: number) => {
+  const gb = n / 1024 ** 3;
+  if (gb >= 1024) return `${(gb / 1024).toFixed(1)} TB`;
+  return gb >= 100 ? `${Math.round(gb)} GB` : `${gb.toFixed(1)} GB`;
+};
 
 // smooth count-up between successive live values
 function useCountUp(target: number, ms = 900) {
@@ -116,6 +124,14 @@ export function DatabaseStatsPanel() {
   const rate = live?.ratePerMin ?? 0;
   const maxBytes = overview?.tables[0]?.sizeBytes ?? 1;
 
+  // disk capacity gauge
+  const diskTotal = overview?.diskTotalBytes ?? 0;
+  const diskUsed = overview?.diskUsedBytes ?? 0;
+  const dbBytes = overview?.dbSizeBytes ?? 0;
+  const hasDisk = diskTotal > 0;
+  const dbPct = hasDisk ? (dbBytes / diskTotal) * 100 : 0;
+  const diskPct = hasDisk ? (diskUsed / diskTotal) * 100 : 0;
+
   return (
     <div className="font-chakrapetch text-flash p-6 md:p-8 max-w-[1000px]">
       {/* header — reads as a real page header, not an inline row */}
@@ -175,9 +191,49 @@ export function DatabaseStatsPanel() {
         </div>
       </div>
 
+      {/* capacity gauge — DB size as a fill of the box's disk */}
+      <div className="rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.45)] p-5 mb-5">
+        <div className="flex items-end justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em] text-flash/40 mb-1.5">
+              <HardDrive size={13} className="text-jade/70" /> Database size
+            </div>
+            <div className="font-bold tabular-nums leading-none text-flash">
+              <span className="text-[26px]">{overview?.dbSizePretty ?? "—"}</span>
+              {hasDisk && <span className="text-[13px] text-flash/35 font-normal"> / {fmtBytes(diskTotal)} disk</span>}
+            </div>
+          </div>
+          {hasDisk && (
+            <div className="text-right shrink-0">
+              <div className="text-[22px] font-bold tabular-nums text-jade leading-none">{dbPct.toFixed(1)}%</div>
+              <div className="text-[8.5px] font-bold uppercase tracking-[0.12em] text-flash/30">of capacity</div>
+            </div>
+          )}
+        </div>
+
+        {hasDisk ? (
+          <>
+            {/* stacked: jade = DB, faint = rest of disk used, track = free capacity */}
+            <div className="relative h-3 rounded-full bg-white/[0.05] overflow-hidden">
+              <div className="absolute inset-y-0 left-0 bg-white/[0.12] transition-all duration-700" style={{ width: `${Math.min(100, diskPct)}%` }} />
+              <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-jade/50 to-jade/80 transition-all duration-700" style={{ width: `${Math.min(100, dbPct)}%` }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[10px] text-flash/40">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-[2px] bg-jade/70" /> DB {fmtBytes(dbBytes)}
+                <span className="mx-1.5 text-flash/15">·</span>
+                <span className="w-2 h-2 rounded-[2px] bg-white/20" /> {diskPct.toFixed(0)}% disk used
+              </span>
+              <span className="text-flash/30 tabular-nums">{fmtBytes(Math.max(0, diskTotal - diskUsed))} free</span>
+            </div>
+          </>
+        ) : (
+          <div className="text-[11px] text-flash/30">disk capacity unavailable</div>
+        )}
+      </div>
+
       {/* metric cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-        <Metric icon={<HardDrive size={14} />} label="DB size" value={overview?.dbSizePretty ?? "—"} />
+      <div className="grid grid-cols-2 gap-3 mb-5">
         <Metric icon={<Table2 size={14} />} label="Tables tracked" value={overview ? String(overview.tables.length) : "—"} />
         <Metric
           icon={<Layers size={14} />}
