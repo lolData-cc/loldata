@@ -120,7 +120,7 @@ function StatueCloud({ src, density }: { src: string; density: number }) {
         <bufferAttribute attach="attributes-color" args={[built.colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.028}
+        size={0.02}
         sizeAttenuation
         vertexColors
         transparent
@@ -135,7 +135,7 @@ function StatueCloud({ src, density }: { src: string; density: number }) {
 export function PointCloudStatue({
   src,
   fallbackImg = "/img/Yasuo.png",
-  density = 46000,
+  density = 85000,
   className,
 }: {
   src: string;
@@ -166,7 +166,7 @@ export function PointCloudStatue({
     <div className={className}>
       <Canvas
         dpr={[1, 1.6]}
-        camera={{ position: [0, 0.5, 11], fov: 42 }}
+        camera={{ position: [0, 0.4, 9.4], fov: 42 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
       >

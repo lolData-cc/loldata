@@ -7,7 +7,7 @@
 
 import { motion } from "framer-motion";
 import { Search, ArrowDown } from "lucide-react";
-import { ChampionParticles } from "./ChampionParticles";
+import { PointCloudStatue } from "./PointCloudStatue";
 
 const EASE_BRAND = [0.22, 1, 0.36, 1] as const;
 
@@ -27,7 +27,11 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
       <section className="relative w-screen left-1/2 -translate-x-1/2 h-[calc(100vh-60px)] md:h-[80vh] lg:h-[88vh] min-h-[560px] overflow-hidden bg-[#040A0C]">
         {/* 3D champion topology, right-anchored */}
         <div className="absolute inset-y-0 right-0 w-full md:w-[64%] z-0">
-          <ChampionParticles src="/img/Yasuo.png" className="h-full w-full" />
+          <PointCloudStatue
+            src="/models/truth_dragon_yasuo.glb"
+            fallbackImg="/img/Yasuo.png"
+            className="h-full w-full"
+          />
         </div>
 
         {/* legibility scrim — pure #040A0C on the left, clearing toward the cloud */}
