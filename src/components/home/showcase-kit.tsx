@@ -123,7 +123,7 @@ export function Bullets({
       {items.map(({ icon: Icon, label }) => (
         <div key={label} className="group/n relative z-[1] flex flex-1 flex-col items-center gap-2">
           <span className="grid place-items-center w-7 h-7 rounded-full bg-liquirice border border-jade/40 transition-all duration-200 group-hover/n:scale-110 group-hover/n:border-jade group-hover/n:bg-jade/15">
-            <Icon size={13} className="text-jade/75 transition-colors duration-200 group-hover/n:text-jade" />
+            <Icon size={15} strokeWidth={2.5} absoluteStrokeWidth className="text-jade/90 transition-colors duration-200 group-hover/n:text-jade" />
           </span>
           <span className="font-jetbrains text-[10px] uppercase tracking-wider text-flash/55 whitespace-nowrap transition-colors duration-200 group-hover/n:text-jade">
             {label}
