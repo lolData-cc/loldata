@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom"
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAmbientLight } from "@/hooks/useAmbientLight";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
@@ -35,8 +35,9 @@ import AuthCallback from "./auth/callback";
 import RiotCallbackPage from "./pages/riotcallback";
 import OverlayPage from "./pages/overlaypage";
 import WordShiftOnScroll from "./components/features1";
-import { LearnPageFeature } from "./components/learnpagefeature";
-import { SearchPageFeature } from "./components/searchpagefeature";
+import { SummonerShowcase } from "./components/home/SummonerShowcase";
+import { CoachShowcase } from "./components/home/CoachShowcase";
+import { ReplayShowcase } from "./components/home/ReplayShowcase";
 import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
@@ -65,61 +66,39 @@ declare global {
 
 
 function HomePage() {
-  const [text, setText] = useState("")
-  const [showSubtitle, setShowSubtitle] = useState(false)
-  const fullText = "The future of Improvement"
-
   const learnRef = useRef<HTMLDivElement | null>(null);
 
   const handleDiscover = () => {
     if (learnRef.current) {
       const top = learnRef.current.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({
-        top: top - 100,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: top - 100, behavior: "smooth" });
     }
   };
-
-  useEffect(() => {
-    let cancelled = false
-    const typeWriter = async () => {
-      for (let i = 0; i < fullText.length; i++) {
-        if (cancelled) return
-        setText((prev) => prev + fullText[i])
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-      if (!cancelled) {
-        setTimeout(() => {
-          setShowSubtitle(true)
-        }, 200)
-      }
-    }
-    typeWriter()
-    return () => { cancelled = true }
-  }, [])
 
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10">
-        <div className="flex flex-col space-y-8 md:space-y-16">
+        <div className="flex flex-col">
+          {/* Hero — the facade. "Explore the data" scrolls to the first
+              showcase below (#learn). */}
           <div>
             <HeroLive onExplore={handleDiscover} />
             <div ref={learnRef} id="learn">
-              <LearnPageFeature />
+              <SummonerShowcase />
             </div>
           </div>
 
-          <SearchPageFeature />
+          {/* Product showcases, in the hero's language */}
+          <CoachShowcase />
+          <ReplayShowcase />
+
+          {/* Membership CTA → inline pricing slide-swap */}
           <Jax />
 
-          {/* <NewItemsBanner /> */}
-
-          <section className="mt-8">
+          {/* Live streamers */}
+          <section className="mt-16 md:mt-24">
             <StreamersInfiniteCarousel />
           </section>
-
-
         </div>
       </div>
     </div>
