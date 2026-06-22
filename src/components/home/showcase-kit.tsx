@@ -122,8 +122,13 @@ export function Bullets({
       />
       {items.map(({ icon: Icon, label }) => (
         <div key={label} className="group/n relative z-[1] flex flex-1 flex-col items-center gap-2">
-          <span className="grid place-items-center w-7 h-7 rounded-full bg-liquirice border border-jade/40 transition-all duration-200 group-hover/n:scale-110 group-hover/n:border-jade group-hover/n:bg-jade/15">
-            <Icon size={15} strokeWidth={2.5} absoluteStrokeWidth className="text-jade/90 transition-colors duration-200 group-hover/n:text-jade" />
+          {/* node = a jade rhombus with a soft glow — loldata's ◆ motif. The
+              icon is counter-rotated so it stays upright inside the diamond. */}
+          <span
+            className="relative grid place-items-center w-7 h-7 rotate-45 bg-liquirice border border-jade/45 transition-all duration-200 group-hover/n:scale-110 group-hover/n:border-jade"
+            style={{ boxShadow: "0 0 14px -3px rgba(0,217,146,0.45)" }}
+          >
+            <Icon size={14} strokeWidth={2} absoluteStrokeWidth className="-rotate-45 text-jade/85 transition-colors duration-200 group-hover/n:text-jade" />
           </span>
           <span className="font-jetbrains text-[10px] uppercase tracking-wider text-flash/55 whitespace-nowrap transition-colors duration-200 group-hover/n:text-jade">
             {label}
