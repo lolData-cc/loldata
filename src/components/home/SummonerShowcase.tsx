@@ -135,15 +135,15 @@ export function SummonerShowcase({ id }: { id?: string }) {
   );
 }
 
-// Per-card 3D tilt + slide-in. `transformPerspective` gives each card its own
-// self-contained vanishing point (uniform tilt regardless of stack position);
-// the stagger container reveals them one at a time on scroll.
-const cardVariants = {
-  hidden: { opacity: 0, y: 46, rotateY: -30, rotateX: 6 },
-  show: {
-    opacity: 1, y: 0, rotateY: -16, rotateX: 3,
-    transition: { duration: 0.7, ease: EASE_BRAND },
-  },
+// The 3D tilt is a STATIC transform shared by every card, so all three are
+// pixel-identical — only the slide-up is animated (and staggered), never the
+// angle. Animating rotateY per-card made them read as differently tilted
+// mid-reveal (the later card looked more tilted than the earlier ones).
+const TILT = "perspective(900px) rotateY(-16deg) rotateX(3deg)";
+
+const slideVariants = {
+  hidden: { opacity: 0, y: 46 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_BRAND } },
 };
 
 function MatchCardStack() {
@@ -166,28 +166,25 @@ function MatchCardStack() {
         viewport={{ once: true, amount: 0.3 }}
       >
         {MATCHES.map((m, i) => (
-          <motion.div
-            key={i}
-            className="relative will-change-transform"
-            style={{
-              transformPerspective: 900,
-              transformStyle: "preserve-3d",
-              transformOrigin: "64% 50%",
-            }}
-            variants={cardVariants}
-          >
-            <ul className="list-none m-0 p-0 pointer-events-none select-none">
-              <MatchCard data={m} />
-            </ul>
-            {/* glossy sheen — light raking from the upper-left, like a render */}
+          <motion.div key={i} variants={slideVariants} className="will-change-transform">
+            {/* static, identical tilt for every card */}
             <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none rounded-md mix-blend-screen"
-              style={{
-                background:
-                  "linear-gradient(110deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 22%, transparent 46%)",
-              }}
-            />
+              className="relative"
+              style={{ transform: TILT, transformOrigin: "64% 50%" }}
+            >
+              <ul className="list-none m-0 p-0 pointer-events-none select-none">
+                <MatchCard data={m} />
+              </ul>
+              {/* glossy sheen — light raking from the upper-left, like a render */}
+              <div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none rounded-md mix-blend-screen"
+                style={{
+                  background:
+                    "linear-gradient(110deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 22%, transparent 46%)",
+                }}
+              />
+            </div>
           </motion.div>
         ))}
       </motion.div>
