@@ -2,9 +2,9 @@
 // node type; `nodeTypes` maps every kind to it. Dropdowns use the shared
 // searchdialog-style pickers; type is chakrapetch throughout.
 
-import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { Handle, Position, useReactFlow, type NodeProps, type Edge } from "@xyflow/react";
-import { X, ChevronDown, Sword, Sparkles, Swords, Crosshair, type LucideIcon } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { MODULE_GLYPH, type ModuleIcon } from "./module-icons";
 import { cn } from "@/lib/utils";
 import { champDisplayName } from "@/config";
@@ -12,10 +12,10 @@ import { ChampionDialog } from "@/components/champion-dialog";
 import { KeystoneDialog } from "@/components/keystone-dialog";
 import { getKeystoneIcon, getKeystoneName } from "@/constants/runes";
 import {
-  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName,
-  CATEGORY_GROUPS, CATEGORY_LABEL, categoryIcon, categoryHasIcon,
+  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName, CATEGORY_GROUPS, CATEGORY_LABEL,
 } from "./catalog";
 import { ExplorerSelect } from "./Pickers";
+import { categoryGlyph } from "./category-glyphs";
 import { ItemDialog } from "@/components/item-dialog";
 
 type Meta = { label: string; accent: string; Icon: ModuleIcon };
@@ -85,25 +85,8 @@ const MODE_OPTS = [{ value: "stats", label: "Winrate + stats" }, { value: "rank"
 const DIM_OPTS = [{ value: "ally", label: "Allies" }, { value: "enemy", label: "Enemies" }, { value: "item", label: "Items" }];
 // Champion-category team-comp filter on an ally/enemy node: "the team has ≥N of
 // this category" (e.g. enemy ≥3 Assassins, ally ≥2 AP). Grouped into Damage /
-// Class / Range so the 10 options read as 3 short sections. The 6 roster classes
-// keep their CDN badge; AD/AP/Melee/Ranged get a lucide glyph (currentColor, so
-// it follows the row's jade/flash state).
-const EXTRA_GLYPH: Record<string, LucideIcon> = { AD: Sword, AP: Sparkles, Melee: Swords, Ranged: Crosshair };
-function categoryGlyph(value: string): ReactNode {
-  if (!value) return null;
-  if (categoryHasIcon(value))
-    return (
-      <img
-        src={categoryIcon(value)}
-        className="w-[18px] h-[18px] object-contain"
-        alt=""
-        draggable={false}
-        onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-      />
-    );
-  const G = EXTRA_GLYPH[value];
-  return G ? <G className="w-[15px] h-[15px]" /> : null;
-}
+// Class / Range so the 10 options read as 3 short sections; each option's leading
+// glyph (class crest, or gold AD/AP/Melee/Ranged emblem) comes from categoryGlyph.
 const CATEGORY_GROUPED = [
   { options: [{ value: "", label: "any comp" }] },
   ...CATEGORY_GROUPS.map((g) => ({
