@@ -86,52 +86,36 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
                 {...reveal(0.38)}
                 className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
               >
-                {/* Primary — cyber command bar: glass, corner ticks, a hover
-                    scan-sweep + jade glow, and a blinking terminal cursor. */}
+                {/* Primary — a clean, soft search field. A barely-there jade
+                    hairline that warms on hover; everything eases, nothing
+                    decorates. */}
                 <button
                   onClick={openSearch}
-                  className="group relative flex items-center gap-3 w-full sm:w-[348px] h-[52px] pl-4 pr-3 rounded-[10px] border border-jade/30 bg-[rgba(6,12,14,0.7)] backdrop-blur-md cursor-clicker overflow-hidden transition-colors duration-200 hover:border-jade/60"
-                  style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
+                  className="group flex items-center gap-3 w-full sm:w-[360px] h-[52px] px-4 rounded-2xl bg-flash/[0.04] ring-1 ring-inset ring-jade/15 cursor-clicker transition-all duration-300 ease-out hover:bg-flash/[0.06] hover:ring-jade/40"
                 >
-                  {/* corner ticks */}
-                  <span aria-hidden className="pointer-events-none absolute top-1.5 left-1.5 w-2 h-2 border-t border-l border-jade/50" />
-                  <span aria-hidden className="pointer-events-none absolute top-1.5 right-1.5 w-2 h-2 border-t border-r border-jade/50" />
-                  <span aria-hidden className="pointer-events-none absolute bottom-1.5 left-1.5 w-2 h-2 border-b border-l border-jade/50" />
-                  <span aria-hidden className="pointer-events-none absolute bottom-1.5 right-1.5 w-2 h-2 border-b border-r border-jade/50" />
-                  {/* hover scan-sweep */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-y-0 w-14 left-[-20%] -skew-x-12 bg-gradient-to-r from-transparent via-jade/20 to-transparent opacity-0 transition-all duration-700 ease-out group-hover:left-[120%] group-hover:opacity-100"
-                  />
-                  {/* hover glow */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-[10px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{ boxShadow: "0 0 26px -6px rgba(0,217,146,0.45), inset 0 0 14px -8px rgba(0,217,146,0.5)" }}
-                  />
-
-                  <Search size={17} className="relative shrink-0 text-jade" style={{ filter: "drop-shadow(0 0 6px rgba(0,217,146,0.5))" }} />
-                  <span className="relative flex-1 text-left font-jetbrains text-[13px] tracking-wide text-flash/55 transition-colors group-hover:text-flash/85">
-                    search any summoner
-                    <span aria-hidden className="ml-[3px] inline-block h-[14px] w-[7px] translate-y-[2px] bg-jade/80 animate-pulse" />
+                  <Search size={17} className="shrink-0 text-flash/40 transition-colors duration-300 group-hover:text-jade" />
+                  <span className="flex-1 text-left font-chakrapetch text-[14px] text-flash/45 transition-colors duration-300 group-hover:text-flash/70">
+                    Search any summoner
                   </span>
-                  <kbd className="relative shrink-0 grid place-items-center w-6 h-6 rounded-[5px] border border-jade/30 bg-jade/[0.08] text-[12px] font-jetbrains text-jade/85">
+                  <kbd className="shrink-0 grid place-items-center h-6 px-2 rounded-md bg-flash/[0.06] font-chakrapetch text-[11px] text-flash/40">
                     /
                   </kbd>
                 </button>
 
-                {/* Secondary — cyber ghost framed by jade targeting brackets
-                    that expand + brighten on hover (no more white outline). */}
+                {/* Secondary — a minimal text link: a jade underline grows in
+                    on hover and the arrow eases down. No box, no border. */}
                 <button
                   onClick={() => onExplore?.()}
-                  className="group relative inline-flex shrink-0 items-center justify-center gap-2 h-[52px] px-5 cursor-clicker"
+                  className="group inline-flex items-center gap-2 h-[52px] px-1 cursor-clicker"
                 >
-                  <span aria-hidden className="pointer-events-none absolute left-0 top-0 h-3 w-3 border-l-2 border-t-2 border-jade/40 transition-all duration-300 group-hover:h-4 group-hover:w-4 group-hover:border-jade" />
-                  <span aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-3 w-3 border-b-2 border-r-2 border-jade/40 transition-all duration-300 group-hover:h-4 group-hover:w-4 group-hover:border-jade" />
-                  <span className="font-jetbrains text-[12px] font-bold uppercase tracking-[0.16em] whitespace-nowrap text-jade/70 transition-colors group-hover:text-jade">
-                    explore the data
+                  <span className="relative font-chakrapetch text-[13px] font-medium tracking-wide text-flash/55 transition-colors duration-300 group-hover:text-flash/90">
+                    Explore the data
+                    <span
+                      aria-hidden
+                      className="absolute -bottom-0.5 left-0 h-px w-0 bg-jade transition-all duration-300 ease-out group-hover:w-full"
+                    />
                   </span>
-                  <ArrowDown size={14} className="text-jade/70 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-jade" />
+                  <ArrowDown size={15} className="text-flash/45 transition-all duration-300 group-hover:translate-y-0.5 group-hover:text-jade" />
                 </button>
               </motion.div>
             </div>
