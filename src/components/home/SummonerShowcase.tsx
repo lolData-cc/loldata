@@ -95,7 +95,7 @@ function MatchCardMock() {
   return (
     <div
       className="relative mx-auto w-full max-w-[560px]"
-      style={{ perspective: "1700px" }}
+      style={{ perspective: "850px" }}
     >
       {/* soft jade lift behind the real card */}
       <div
@@ -113,8 +113,8 @@ function MatchCardMock() {
       <motion.div
         className="relative will-change-transform"
         style={{ transformStyle: "preserve-3d", transformOrigin: "64% 50%" }}
-        initial={{ rotateY: -24, rotateX: 5, opacity: 0 }}
-        whileInView={{ rotateY: -13, rotateX: 2.5, opacity: 1 }}
+        initial={{ rotateY: -30, rotateX: 6, opacity: 0 }}
+        whileInView={{ rotateY: -16, rotateX: 3, opacity: 1 }}
         viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.95, ease: EASE_BRAND }}
       >
