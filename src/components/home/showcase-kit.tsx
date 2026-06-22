@@ -102,24 +102,10 @@ export function Lead({
   );
 }
 
-/** Feature labels rendered as interlocking mechanical pieces — a single
- *  no-wrap row where each piece's dovetail tab slots into the next piece's
- *  notch (replaces the old wrapping pills). */
-const TAB = 11; // dovetail tab / notch depth, px
-
-function pieceClip(i: number, n: number): string {
-  const first = i === 0;
-  const last = i === n - 1;
-  // right edge: a notch (recessed) unless it's the last piece (flat)
-  const right = last
-    ? "100% 0, 100% 100%"
-    : `100% 0, 100% 30%, calc(100% - ${TAB}px) 30%, calc(100% - ${TAB}px) 70%, 100% 70%, 100% 100%`;
-  // left edge: flat for the first piece, otherwise a protruding tab
-  if (first) return `polygon(0 0, ${right}, 0 100%)`;
-  const tabL = `${TAB}px 70%, 0 70%, 0 30%, ${TAB}px 30%`;
-  return `polygon(${TAB}px 0, ${right}, ${TAB}px 100%, ${tabL})`;
-}
-
+/** Feature labels as brutalist blocks — a single no-wrap row of heavy,
+ *  thick-bordered modules with one hard offset shadow (no blur); sharp
+ *  corners, bold mono caps, and a stark jade invert on hover. Blocks share
+ *  their 2px borders (negative margin) so they read as one raw bar. */
 export function Bullets({
   items,
   className,
@@ -127,22 +113,23 @@ export function Bullets({
   items: { icon: LucideIcon; label: string }[];
   className?: string;
 }) {
-  const n = items.length;
   return (
-    <motion.div variants={upSm} className={cn("flex w-full flex-nowrap items-stretch", className)}>
+    <motion.div
+      variants={upSm}
+      className={cn("flex w-full flex-nowrap items-stretch", className)}
+      style={{ filter: "drop-shadow(5px 5px 0 rgba(0,217,146,0.22))" }}
+    >
       {items.map(({ icon: Icon, label }, i) => (
         <div
           key={label}
-          className="relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1 h-12 bg-jade/[0.06] border border-jade/25 transition-colors duration-200 hover:bg-jade/[0.12]"
-          style={{
-            clipPath: pieceClip(i, n),
-            marginLeft: i === 0 ? 0 : -TAB,
-            paddingLeft: i === 0 ? 8 : TAB + 4,
-            paddingRight: i === n - 1 ? 8 : TAB + 4,
-          }}
+          className="group/pc relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1 h-[50px] border-2 border-jade/60 bg-jade/[0.07] transition-colors duration-150 hover:bg-jade"
+          style={{ marginLeft: i === 0 ? 0 : -2 }}
         >
-          <Icon size={13} className="shrink-0 text-jade/85" />
-          <span className="max-w-full font-jetbrains text-[9px] uppercase tracking-wider text-flash/65 whitespace-nowrap overflow-hidden text-ellipsis">
+          <Icon
+            size={14}
+            className="shrink-0 text-jade transition-colors duration-150 group-hover/pc:text-liquirice"
+          />
+          <span className="max-w-full px-1 font-jetbrains text-[10px] font-bold uppercase tracking-wider text-flash/85 whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-150 group-hover/pc:text-liquirice">
             {label}
           </span>
         </div>
