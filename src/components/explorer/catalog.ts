@@ -39,6 +39,14 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   Melee: "Melee",
   Ranged: "Ranged",
 };
+// Grouped for the picker dropdown: damage profile first, then the 6 roster
+// classes, then attack range — so the 10 categories read as 3 short labelled
+// sections instead of one long pile.
+export const CATEGORY_GROUPS: { label: string; members: Category[] }[] = [
+  { label: "Damage", members: ["AD", "AP"] },
+  { label: "Class", members: [...CHAMP_CLASSES] },
+  { label: "Range", members: ["Melee", "Ranged"] },
+];
 // Only the 6 roster classes have CDN icons; AD/AP/Melee/Ranged render as text badges.
 export const categoryHasIcon = (cls: string) => (CHAMP_CLASSES as readonly string[]).includes(cls);
 // class icons live on the un-versioned CDN path, the same assets the champion-page
