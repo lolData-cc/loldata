@@ -81,10 +81,10 @@ export function CoachShowcase({ id }: { id?: string }) {
       </Lead>
       <Bullets
         items={[
-          { icon: CalendarCheck, label: "Daily reports" },
-          { icon: Swords, label: "Matchup AI" },
-          { icon: Sparkles, label: "Itemization" },
-          { icon: MessagesSquare, label: "24/7 chat" },
+          { icon: CalendarCheck, label: "Reports" },
+          { icon: Swords, label: "Matchups" },
+          { icon: Sparkles, label: "Items" },
+          { icon: MessagesSquare, label: "Chat" },
         ]}
       />
       <motion.div variants={up} className="pt-1">

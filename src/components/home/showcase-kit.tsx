@@ -102,7 +102,24 @@ export function Lead({
   );
 }
 
-/** Feature pills under the lead — icon + short label, staggered in. */
+/** Feature labels rendered as interlocking mechanical pieces — a single
+ *  no-wrap row where each piece's dovetail tab slots into the next piece's
+ *  notch (replaces the old wrapping pills). */
+const TAB = 11; // dovetail tab / notch depth, px
+
+function pieceClip(i: number, n: number): string {
+  const first = i === 0;
+  const last = i === n - 1;
+  // right edge: a notch (recessed) unless it's the last piece (flat)
+  const right = last
+    ? "100% 0, 100% 100%"
+    : `100% 0, 100% 30%, calc(100% - ${TAB}px) 30%, calc(100% - ${TAB}px) 70%, 100% 70%, 100% 100%`;
+  // left edge: flat for the first piece, otherwise a protruding tab
+  if (first) return `polygon(0 0, ${right}, 0 100%)`;
+  const tabL = `${TAB}px 70%, 0 70%, 0 30%, ${TAB}px 30%`;
+  return `polygon(${TAB}px 0, ${right}, ${TAB}px 100%, ${tabL})`;
+}
+
 export function Bullets({
   items,
   className,
@@ -110,19 +127,27 @@ export function Bullets({
   items: { icon: LucideIcon; label: string }[];
   className?: string;
 }) {
+  const n = items.length;
   return (
-    <motion.ul variants={stagger} className={cn("flex flex-wrap gap-2.5", className)}>
-      {items.map(({ icon: Icon, label }) => (
-        <motion.li
+    <motion.div variants={upSm} className={cn("flex w-full flex-nowrap items-stretch", className)}>
+      {items.map(({ icon: Icon, label }, i) => (
+        <div
           key={label}
-          variants={upSm}
-          className="group inline-flex items-center gap-2 h-9 pl-2.5 pr-3 rounded-[9px] border border-jade/15 bg-jade/[0.04] font-jetbrains text-[11px] uppercase tracking-wider text-flash/60 transition-colors duration-200 hover:border-jade/35 hover:bg-jade/[0.08] hover:text-flash/90"
+          className="relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1 h-12 bg-jade/[0.06] border border-jade/25 transition-colors duration-200 hover:bg-jade/[0.12]"
+          style={{
+            clipPath: pieceClip(i, n),
+            marginLeft: i === 0 ? 0 : -TAB,
+            paddingLeft: i === 0 ? 8 : TAB + 4,
+            paddingRight: i === n - 1 ? 8 : TAB + 4,
+          }}
         >
-          <Icon size={13} className="text-jade/80 transition-transform duration-200 group-hover:scale-110" />
-          {label}
-        </motion.li>
+          <Icon size={13} className="shrink-0 text-jade/85" />
+          <span className="max-w-full font-jetbrains text-[9px] uppercase tracking-wider text-flash/65 whitespace-nowrap overflow-hidden text-ellipsis">
+            {label}
+          </span>
+        </div>
       ))}
-    </motion.ul>
+    </motion.div>
   );
 }
 

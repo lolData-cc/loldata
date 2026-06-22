@@ -122,10 +122,10 @@ export function SummonerShowcase({ id }: { id?: string }) {
       </Lead>
       <Bullets
         items={[
-          { icon: Swords, label: "Match history" },
-          { icon: Crosshair, label: "Champion pools" },
-          { icon: Radio, label: "Live games" },
-          { icon: Users, label: "Scout lobbies" },
+          { icon: Swords, label: "Matches" },
+          { icon: Crosshair, label: "Champions" },
+          { icon: Radio, label: "Live" },
+          { icon: Users, label: "Scout" },
         ]}
       />
       <motion.div variants={up} className="pt-1">

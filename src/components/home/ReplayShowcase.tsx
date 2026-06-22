@@ -146,10 +146,10 @@ export function ReplayShowcase({ id }: { id?: string }) {
       </Lead>
       <Bullets
         items={[
-          { icon: Clock, label: "Timeline scrubber" },
-          { icon: Gem, label: "Objectives" },
-          { icon: LineChart, label: "Gold graph" },
-          { icon: ScrollText, label: "Teamfight log" },
+          { icon: Clock, label: "Timeline" },
+          { icon: Gem, label: "Drakes" },
+          { icon: LineChart, label: "Gold" },
+          { icon: ScrollText, label: "Fights" },
         ]}
       />
       <motion.div variants={up} className="pt-1">
