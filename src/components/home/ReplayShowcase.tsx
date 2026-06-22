@@ -1,12 +1,14 @@
 "use client";
 
 // ReplayShowcase — every match opens into a scrubable timeline on an
-// interactive Rift. Copy on the left; a glass "replay" device on the right:
-// a stylised SR with pulsing champion blips, a playback scrubber with event
-// markers, and a one-line event log.
+// interactive Rift. Instead of a mockup we render the REAL <RiftMap> (the same
+// minimap the replay viewer uses) fed a representative static timeline frame:
+// genuine champion sprites, a recent dragon-kill marker and a teamfight flash.
+// Wrapped pointer-events-none so it's display-only (no scroll-hijack from the
+// map's wheel-zoom) — the live, interactive version opens from any match card.
 
 import { motion } from "framer-motion";
-import { Play, Clock, Gem, Swords, LineChart, ScrollText } from "lucide-react";
+import { Clock, Gem, LineChart, ScrollText } from "lucide-react";
 import {
   Showcase,
   Eyebrow,
@@ -15,32 +17,117 @@ import {
   Lead,
   Bullets,
   GhostLink,
-  GlassPanel,
-  stagger,
   up,
-  upSm,
 } from "./showcase-kit";
+import { RiftMap } from "@/components/matchreplay/RiftMap";
+import type {
+  MatchTimeline,
+  StaticMatch,
+  StaticParticipant,
+  ParticipantFrame,
+} from "@/components/matchreplay/types";
 
 function openSearch() {
   window.dispatchEvent(new Event("open-search-dialog"));
 }
 
-// champion blips on the mini-map (viewBox 0..100), jade = blue side, red = red side
-const BLIPS = [
-  { x: 20, y: 62, red: false },
-  { x: 22, y: 40, red: false },
-  { x: 44, y: 56, red: false },
-  { x: 56, y: 78, red: false },
-  { x: 47, y: 49, red: false },
-  { x: 80, y: 40, red: true },
-  { x: 78, y: 60, red: true },
-  { x: 58, y: 44, red: true },
-  { x: 44, y: 22, red: true },
-  { x: 53, y: 53, red: true },
+const NOW_MS = 900_000; // freeze the frame at 15:00
+
+// champion roster (matches the Summoner showcase card for continuity) +
+// a believable mid-game position in Riot's 0..15000 space.
+const ROSTER: Array<{ pid: number; champ: string; team: 100 | 200; x: number; y: number }> = [
+  { pid: 1, champ: "Ahri", team: 100, x: 8600, y: 6400 },
+  { pid: 2, champ: "LeeSin", team: 100, x: 9600, y: 5200 },
+  { pid: 3, champ: "Aatrox", team: 100, x: 3200, y: 11200 },
+  { pid: 4, champ: "Jinx", team: 100, x: 11200, y: 3600 },
+  { pid: 5, champ: "Thresh", team: 100, x: 10400, y: 4200 },
+  { pid: 6, champ: "Zed", team: 200, x: 9000, y: 6000 },
+  { pid: 7, champ: "Vi", team: 200, x: 9900, y: 5600 },
+  { pid: 8, champ: "KSante", team: 200, x: 4400, y: 11800 },
+  { pid: 9, champ: "Caitlyn", team: 200, x: 12200, y: 4100 },
+  { pid: 10, champ: "Lulu", team: 200, x: 11400, y: 4700 },
 ];
 
-// event markers along the scrubber (percent of game length)
-const MARKERS = [12, 28, 41, 60, 74];
+const EMPTY_HIDDEN: Set<number> = new Set();
+
+function buildFrames(): MatchTimeline["info"]["frames"] {
+  const participantFrames: Record<string, ParticipantFrame> = {};
+  for (const r of ROSTER) {
+    participantFrames[String(r.pid)] = {
+      participantId: r.pid,
+      position: { x: r.x, y: r.y },
+      level: 13,
+      xp: 11800,
+      currentGold: 720,
+      totalGold: 9100,
+      minionsKilled: 132,
+      jungleMinionsKilled: 6,
+      championStats: {},
+      damageStats: {},
+    };
+  }
+  return [
+    {
+      timestamp: NOW_MS,
+      participantFrames,
+      // events kept off the recent-flash window so the frame reads as a calm,
+      // static snapshot on the homepage (no perpetual pulsing) — the live
+      // viewer animates them as you scrub.
+      events: [
+        { type: "CHAMPION_KILL", timestamp: NOW_MS - 180_000, killerId: 2, victimId: 6, position: { x: 9300, y: 5600 } },
+        { type: "ELITE_MONSTER_KILL", timestamp: NOW_MS - 180_000, killerId: 2, killerTeamId: 100, monsterType: "DRAGON", monsterSubType: "FIRE_DRAGON", position: { x: 9866, y: 4414 } },
+      ],
+    },
+  ];
+}
+
+const TIMELINE: MatchTimeline = {
+  metadata: {
+    dataVersion: "2",
+    matchId: "HOMEPAGE_DEMO",
+    participants: ROSTER.map((r) => `puuid-${r.pid}`),
+  },
+  info: {
+    frameInterval: 60_000,
+    participants: ROSTER.map((r) => ({ participantId: r.pid, puuid: `puuid-${r.pid}` })),
+    frames: buildFrames(),
+  },
+};
+
+function sp(r: (typeof ROSTER)[number]): StaticParticipant {
+  return {
+    puuid: `puuid-${r.pid}`,
+    participantId: r.pid,
+    teamId: r.team,
+    championId: 0,
+    championName: r.champ,
+    summoner1Id: 4,
+    summoner2Id: 14,
+    champLevel: 13,
+    kills: 5,
+    deaths: 3,
+    assists: 7,
+    totalDamageDealtToChampions: 14000,
+    goldEarned: 9100,
+    totalMinionsKilled: 132,
+    neutralMinionsKilled: 6,
+    item0: 0, item1: 0, item2: 0, item3: 0, item4: 0, item5: 0, item6: 0,
+    win: r.team === 100,
+  };
+}
+
+const STATIC_MATCH: StaticMatch = {
+  metadata: { matchId: "HOMEPAGE_DEMO" },
+  info: {
+    gameDuration: 1742,
+    queueId: 420,
+    participants: ROSTER.map(sp),
+    teams: [
+      { teamId: 100, win: true, bans: [] },
+      { teamId: 200, win: false, bans: [] },
+    ],
+  },
+};
 
 export function ReplayShowcase({ id }: { id?: string }) {
   return (
@@ -52,10 +139,10 @@ export function ReplayShowcase({ id }: { id?: string }) {
         <Hot>Frame by frame</Hot>.
       </Headline>
       <Lead>
-        Every match opens into a full timeline — positions, objectives, gold
-        swings and teamfights — on an interactive Rift you can scrub second by
-        second. See <span className="text-flash/80">exactly</span> where games
-        were won and lost.
+        Every match opens onto the real Rift — champion positions, objectives,
+        gold swings and teamfights — that you can scrub second by second. See{" "}
+        <span className="text-flash/80">exactly</span> where games were won and
+        lost.
       </Lead>
       <Bullets
         items={[
@@ -74,128 +161,29 @@ export function ReplayShowcase({ id }: { id?: string }) {
 
 function ReplayMock() {
   return (
-    <div className="relative mx-auto w-full max-w-[460px]">
-      <GlassPanel className="p-5 md:p-6">
-        {/* top bar: live-ish label + clock */}
-        <motion.div variants={upSm} className="flex items-center justify-between mb-3">
-          <span className="inline-flex items-center gap-2 font-jetbrains text-[10px] uppercase tracking-[0.18em] text-flash/45">
-            <Swords size={12} className="text-jade" />
-            Ranked Solo · 24:48
-          </span>
-          <span className="font-jetbrains text-[11px] text-jade/80 tabular-nums">14:32</span>
-        </motion.div>
-
-        {/* mini Summoner's Rift */}
-        <motion.div variants={up} className="relative rounded-xl overflow-hidden">
-          <svg viewBox="0 0 100 100" className="w-full block" style={{ background: "rgba(2,6,7,0.6)" }}>
-            {/* map bounds */}
-            <rect x="6" y="6" width="88" height="88" rx="10" fill="none" stroke="rgba(0,217,146,0.18)" />
-            {/* lanes */}
-            <g stroke="rgba(215,216,217,0.10)" strokeWidth="3.5" fill="none" strokeLinecap="round">
-              <path d="M18 82 L18 18 L82 18" />
-              <path d="M18 82 L82 82 L82 18" />
-              <path d="M18 82 L82 18" />
-            </g>
-            {/* river band (perpendicular to mid) */}
-            <path d="M16 30 L70 84" stroke="rgba(0,150,255,0.07)" strokeWidth="9" strokeLinecap="round" />
-            {/* bases */}
-            <circle cx="18" cy="82" r="5.5" fill="rgba(0,217,146,0.20)" stroke="rgba(0,217,146,0.6)" strokeWidth="1" />
-            <circle cx="82" cy="18" r="5.5" fill="rgba(255,98,134,0.18)" stroke="rgba(255,98,134,0.6)" strokeWidth="1" />
-
-            {/* objective — Dragon (pulsing citrine) */}
-            <motion.circle
-              cx="66" cy="64" r="3"
-              fill="#FFB615"
-              initial={{ opacity: 0.4 }}
-              animate={{ opacity: [0.4, 1, 0.4], r: [3, 3.6, 3] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            />
-
-            {/* champion blips */}
-            {BLIPS.map((b, i) => {
-              const color = b.red ? "#ff6286" : "#00d992";
-              return (
-                <g key={i}>
-                  <circle cx={b.x} cy={b.y} r="4.4" fill={color} opacity="0.16" />
-                  <motion.circle
-                    cx={b.x}
-                    cy={b.y}
-                    r="2"
-                    fill={color}
-                    initial={{ opacity: 0, scale: 0 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true, amount: 0.5 }}
-                    transition={{ duration: 0.4, delay: 0.3 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                </g>
-              );
-            })}
-          </svg>
-          {/* teamfight ping near mid */}
-          <motion.span
-            aria-hidden
-            className="absolute"
-            style={{ left: "50%", top: "51%" }}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.8 }}
-          >
-            <motion.span
-              className="block w-3 h-3 -ml-1.5 -mt-1.5 rounded-full border border-citrine/70"
-              animate={{ scale: [1, 2.4], opacity: [0.8, 0] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
-            />
-          </motion.span>
-        </motion.div>
-
-        {/* playback scrubber */}
-        <motion.div variants={up} className="mt-4">
-          <div className="flex items-center gap-3">
-            <span className="grid place-items-center w-8 h-8 rounded-[9px] bg-jade/15 border border-jade/30 shrink-0">
-              <Play size={14} className="text-jade fill-jade ml-0.5" />
-            </span>
-            <div className="relative flex-1 h-2 rounded-full bg-white/[0.06]">
-              {/* event markers */}
-              {MARKERS.map((p) => (
-                <span
-                  key={p}
-                  className="absolute top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-flash/30"
-                  style={{ left: `${p}%` }}
-                />
-              ))}
-              {/* fill */}
-              <motion.div
-                className="absolute inset-y-0 left-0 rounded-full bg-jade"
-                style={{ boxShadow: "0 0 12px rgba(0,217,146,0.6)" }}
-                initial={{ width: 0 }}
-                whileInView={{ width: "60%" }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
-              />
-              {/* thumb */}
-              <motion.div
-                className="absolute top-1/2 w-3.5 h-3.5 -mt-[7px] -ml-[7px] rounded-full bg-flash border-2 border-jade"
-                initial={{ left: 0, opacity: 0 }}
-                whileInView={{ left: "60%", opacity: 1 }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* event log line */}
-        <motion.div
-          variants={upSm}
-          className="mt-3.5 flex items-center gap-2.5 rounded-[9px] px-3 py-2 bg-white/[0.025] border border-white/6"
-        >
-          <Gem size={13} className="text-citrine shrink-0" />
-          <span className="font-jetbrains text-[11px] text-flash/55">
-            <span className="text-flash/80">14:02</span> · Infernal Drake secured — blue +1.4k gold
-          </span>
-        </motion.div>
-      </GlassPanel>
+    <div className="relative mx-auto w-full max-w-[440px]">
+      <div
+        aria-hidden
+        className="absolute -inset-6 -z-10 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,217,146,0.10), transparent 75%)",
+        }}
+      />
+      {/* the genuine replay minimap — display-only (pointer-events-none) so its
+          wheel-zoom never steals the page scroll */}
+      <div
+        className="relative rounded-2xl overflow-hidden border border-jade/15 pointer-events-none select-none"
+        style={{ boxShadow: "0 40px 90px -50px rgba(0,217,146,0.30)" }}
+      >
+        <RiftMap
+          timeline={TIMELINE}
+          staticMatch={STATIC_MATCH}
+          timeMs={NOW_MS}
+          focusedPid={null}
+          hiddenPids={EMPTY_HIDDEN}
+        />
+      </div>
     </div>
   );
 }
