@@ -102,10 +102,10 @@ export function Lead({
   );
 }
 
-/** Feature labels as brutalist blocks — a single no-wrap row of heavy,
- *  thick-bordered modules with one hard offset shadow (no blur); sharp
- *  corners, bold mono caps, and a stark jade invert on hover. Blocks share
- *  their 2px borders (negative margin) so they read as one raw bar. */
+/** Feature labels as nodes tapped off a data "bus" — a single horizontal jade
+ *  line with a circular icon-node sitting on it for each feature and the label
+ *  hung below. One no-wrap row; the node lights up on hover. Reads like a
+ *  circuit/diagram, in keeping with the cyber/data vibe. */
 export function Bullets({
   items,
   className,
@@ -114,22 +114,18 @@ export function Bullets({
   className?: string;
 }) {
   return (
-    <motion.div
-      variants={upSm}
-      className={cn("flex w-full flex-nowrap items-stretch", className)}
-      style={{ filter: "drop-shadow(5px 5px 0 rgba(0,217,146,0.22))" }}
-    >
-      {items.map(({ icon: Icon, label }, i) => (
-        <div
-          key={label}
-          className="group/pc relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1 h-[50px] border-2 border-jade/60 bg-jade/[0.07] transition-colors duration-150 hover:bg-jade"
-          style={{ marginLeft: i === 0 ? 0 : -2 }}
-        >
-          <Icon
-            size={14}
-            className="shrink-0 text-jade transition-colors duration-150 group-hover/pc:text-liquirice"
-          />
-          <span className="max-w-full px-1 font-jetbrains text-[10px] font-bold uppercase tracking-wider text-flash/85 whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-150 group-hover/pc:text-liquirice">
+    <motion.div variants={upSm} className={cn("relative flex w-full pt-1", className)}>
+      {/* the bus line — runs through the node centres, fading at both ends */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[18px] h-px bg-gradient-to-r from-jade/10 via-jade/45 to-jade/10"
+      />
+      {items.map(({ icon: Icon, label }) => (
+        <div key={label} className="group/n relative z-[1] flex flex-1 flex-col items-center gap-2">
+          <span className="grid place-items-center w-7 h-7 rounded-full bg-liquirice border border-jade/40 transition-all duration-200 group-hover/n:scale-110 group-hover/n:border-jade group-hover/n:bg-jade/15">
+            <Icon size={13} className="text-jade/75 transition-colors duration-200 group-hover/n:text-jade" />
+          </span>
+          <span className="font-jetbrains text-[10px] uppercase tracking-wider text-flash/55 whitespace-nowrap transition-colors duration-200 group-hover/n:text-jade">
             {label}
           </span>
         </div>
