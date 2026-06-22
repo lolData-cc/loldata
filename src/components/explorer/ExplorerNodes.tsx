@@ -12,7 +12,7 @@ import { ChampionDialog } from "@/components/champion-dialog";
 import { KeystoneDialog } from "@/components/keystone-dialog";
 import { getKeystoneIcon, getKeystoneName } from "@/constants/runes";
 import {
-  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName, CATEGORIES, categoryIcon,
+  ROLES, ROLE_LABEL, champIcon, itemIcon, itemName, CATEGORIES, categoryIcon, categoryHasIcon,
 } from "./catalog";
 import { ExplorerSelect } from "./Pickers";
 import { ItemDialog } from "@/components/item-dialog";
@@ -293,7 +293,7 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
         {(type === "ally" || type === "enemy") && (
           <Field label="Team comp">
             <div className="flex items-center gap-1.5">
-              {d.category && (
+              {d.category && categoryHasIcon(d.category) && (
                 <img
                   src={categoryIcon(d.category)}
                   className="w-5 h-5 object-contain shrink-0"

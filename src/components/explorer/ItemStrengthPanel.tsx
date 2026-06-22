@@ -10,10 +10,11 @@ import { useEffect, useState } from "react";
 import { X, ShieldCheck, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { runItemStrength } from "./graph";
-import { itemIcon, itemName, categoryIcon, CATEGORIES } from "./catalog";
+import { itemIcon, itemName, categoryIcon, categoryHasIcon } from "./catalog";
 import type { ExplorerGraph, ItemStrengthResult, StrengthVerdict } from "./types";
 
-const isClass = (cat: string) => (CATEGORIES as readonly string[]).includes(cat);
+// Only the 6 roster classes have icons; AD/AP/Melee/Ranged fall through to a text badge.
+const isClass = categoryHasIcon;
 
 export function ItemStrengthPanel({
   graph,

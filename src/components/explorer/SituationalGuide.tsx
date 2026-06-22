@@ -12,12 +12,13 @@ import { useEffect, useState } from "react";
 import { Swords, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { runItemStrength } from "./graph";
-import { itemIcon, itemName, categoryIcon, CATEGORIES } from "./catalog";
+import { itemIcon, itemName, categoryIcon, categoryHasIcon } from "./catalog";
 import { CyberTip, InfoDot } from "./CyberTip";
 import type { ExplorerGraph, StrengthVerdict } from "./types";
 
 const MAX_ITEMS = 5; // top items to analyse (pool cap = 6, leave one free)
-const isClass = (cat: string) => (CATEGORIES as readonly string[]).includes(cat);
+// Only the 6 roster classes have icons; AD/AP/Melee/Ranged fall through to a text badge.
+const isClass = categoryHasIcon;
 
 type Pick = { item: number; delta: number; gamesIn: number };
 type Group = {
