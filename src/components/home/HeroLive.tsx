@@ -84,14 +84,14 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
 
               <motion.div
                 {...reveal(0.38)}
-                className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                className="mt-8 w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
               >
-                {/* Primary — a clean, soft search field. A barely-there jade
-                    hairline that warms on hover; everything eases, nothing
-                    decorates. */}
+                {/* Primary — a clean, soft search field; flex-1 so it stretches
+                    nice and wide. A barely-there jade hairline that warms on
+                    hover; everything eases, nothing decorates. */}
                 <button
                   onClick={openSearch}
-                  className="group flex items-center gap-3 w-full sm:w-[360px] h-[52px] px-4 rounded-2xl bg-flash/[0.04] ring-1 ring-inset ring-jade/15 cursor-clicker transition-all duration-300 ease-out hover:bg-flash/[0.06] hover:ring-jade/40"
+                  className="group flex items-center gap-3 sm:flex-1 h-[52px] px-4 rounded-2xl bg-flash/[0.04] ring-1 ring-inset ring-jade/15 cursor-clicker transition-all duration-300 ease-out hover:bg-flash/[0.06] hover:ring-jade/40"
                 >
                   <Search size={17} className="shrink-0 text-flash/40 transition-colors duration-300 group-hover:text-jade" />
                   <span className="flex-1 text-left font-chakrapetch text-[14px] text-flash/45 transition-colors duration-300 group-hover:text-flash/70">
@@ -102,18 +102,14 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
                   </kbd>
                 </button>
 
-                {/* Secondary — a minimal text link: a jade underline grows in
-                    on hover and the arrow eases down. No box, no border. */}
+                {/* Secondary — a minimal button: same soft jade hairline as the
+                    search field, just compact. */}
                 <button
                   onClick={() => onExplore?.()}
-                  className="group inline-flex items-center gap-2 h-[52px] px-1 cursor-clicker"
+                  className="group inline-flex shrink-0 items-center justify-center gap-2 sm:w-auto h-[52px] px-5 rounded-2xl ring-1 ring-inset ring-jade/15 cursor-clicker transition-all duration-300 ease-out hover:bg-jade/[0.04] hover:ring-jade/40"
                 >
-                  <span className="relative font-chakrapetch text-[13px] font-medium tracking-wide text-flash/55 transition-colors duration-300 group-hover:text-flash/90">
+                  <span className="font-chakrapetch text-[13px] font-medium tracking-wide whitespace-nowrap text-flash/60 transition-colors duration-300 group-hover:text-flash/90">
                     Explore the data
-                    <span
-                      aria-hidden
-                      className="absolute -bottom-0.5 left-0 h-px w-0 bg-jade transition-all duration-300 ease-out group-hover:w-full"
-                    />
                   </span>
                   <ArrowDown size={15} className="text-flash/45 transition-all duration-300 group-hover:translate-y-0.5 group-hover:text-jade" />
                 </button>
