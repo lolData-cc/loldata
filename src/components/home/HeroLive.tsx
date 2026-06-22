@@ -24,9 +24,14 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
 
   return (
     <div className="relative w-full">
-      <section className="relative w-screen left-1/2 -translate-x-1/2 h-[calc(100vh-60px)] md:h-[80vh] lg:h-[88vh] min-h-[560px] overflow-hidden bg-[#040A0C]">
-        {/* 3D champion topology, right-anchored */}
-        <div className="absolute inset-y-0 right-0 w-full md:w-[64%] z-0">
+      {/* Full-viewport hero. min-h-[100dvh] (not 100vh-navbar): the navbar is
+          sticky+in-flow above us, so a full 100dvh hero always reaches past the
+          fold no matter the navbar height — the next section is never visible
+          until you scroll, on any resolution. dvh tracks mobile browser chrome. */}
+      <section className="relative w-screen left-1/2 -translate-x-1/2 min-h-[100dvh] overflow-hidden bg-[#040A0C]">
+        {/* 3D champion topology — right-anchored but pulled left so it tucks
+            partly behind the copy (z-0, under the text + scrim) */}
+        <div className="absolute inset-y-0 right-0 w-full md:w-[80%] lg:w-[78%] z-0">
           <PointCloudStatue
             src="/models/mercenary_katarina.glb"
             fallbackImg="/img/Yasuo.png"
