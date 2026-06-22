@@ -1,18 +1,18 @@
 "use client";
 
-// PointCloudStatue — a real 3D model (.glb) re-materialised as a glowing point
-// cloud "statue" that slowly turns, as if the page were orbiting an enormous
-// monument. Unlike the 2D-image sampler, this samples the actual mesh SURFACE in
-// 3D, so there's no flat-image tell — every angle is real geometry. Pure GPU;
-// degrades to a flat splash without WebGL or under prefers-reduced-motion.
-//
-// The .glb is provided by the host app (champion models convert from League's
-// proprietary format via modelviewer.lol / lol2gltf and live in /public/models).
+// PointCloudStatue — a real 3D champion model (.glb) re-materialised as a glowing
+// point cloud "statue" that slowly turns, as if the page were orbiting an enormous
+// monument. We sample the actual mesh SURFACE in 3D (no flat-image tell) — and,
+// crucially, we POSE it first: the .glb ships in the rig's bind pose, so we apply
+// an animation clip (skinning is baked per-vertex) so the statue stands in its
+// combat stance, not a T-pose. Pure GPU; degrades to a flat splash without WebGL
+// or under prefers-reduced-motion.
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
 import { cn } from "@/lib/utils";
 
@@ -30,17 +30,52 @@ function supportsWebGL(): boolean {
 
 type Built = { positions: Float32Array; colors: Float32Array };
 
-// Sample the whole scene's mesh surfaces into one centred, unit-scaled cloud.
-function buildCloud(scene: THREE.Object3D, total: number): Built {
-  scene.updateWorldMatrix(true, true);
+// Bake a SkinnedMesh's CURRENT pose (after the mixer has posed the skeleton) into
+// a static geometry so the surface sampler hits the posed surface, not bind pose.
+function bakeSkinnedGeometry(skinned: THREE.SkinnedMesh): THREE.BufferGeometry {
+  skinned.skeleton.update();
+  const src = skinned.geometry;
+  const srcPos = src.attributes.position;
+  const arr = new Float32Array(srcPos.count * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < srcPos.count; i++) {
+    v.fromBufferAttribute(srcPos, i);
+    skinned.applyBoneTransform(i, v);
+    arr[i * 3] = v.x;
+    arr[i * 3 + 1] = v.y;
+    arr[i * 3 + 2] = v.z;
+  }
+  const baked = new THREE.BufferGeometry();
+  baked.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+  if (src.index) baked.setIndex(src.index.clone());
+  return baked;
+}
+
+function buildCloud(
+  scene: THREE.Object3D,
+  animations: THREE.AnimationClip[],
+  opts: { total: number; clipName?: string; clipTime: number }
+): Built {
+  // clone (skeleton-aware) so we never mutate the cached gltf, then pose it
+  const root = cloneSkinned(scene);
+  if (animations?.length) {
+    const clip =
+      (opts.clipName && animations.find((a) => a.name === opts.clipName)) || animations[0];
+    if (clip) {
+      const mixer = new THREE.AnimationMixer(root);
+      mixer.clipAction(clip).play();
+      mixer.setTime(THREE.MathUtils.clamp(opts.clipTime, 0, 1) * clip.duration);
+    }
+  }
+  root.updateMatrixWorld(true);
+
   const meshes: THREE.Mesh[] = [];
-  scene.traverse((o) => {
+  root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && m.geometry && (m.geometry as THREE.BufferGeometry).attributes?.position) meshes.push(m);
+    if (m.isMesh && (m.geometry as THREE.BufferGeometry)?.attributes?.position) meshes.push(m);
   });
   if (!meshes.length) return { positions: new Float32Array(), colors: new Float32Array() };
 
-  // budget per mesh ∝ vertex count (a cheap proxy for size/detail)
   const weights = meshes.map((m) => (m.geometry as THREE.BufferGeometry).attributes.position.count);
   const wsum = weights.reduce((a, b) => a + b, 0) || 1;
 
@@ -48,10 +83,13 @@ function buildCloud(scene: THREE.Object3D, total: number): Built {
   const tmp = new THREE.Vector3();
   for (let mi = 0; mi < meshes.length; mi++) {
     const mesh = meshes[mi];
-    const budget = Math.max(1, Math.round((weights[mi] / wsum) * total));
+    const budget = Math.max(1, Math.round((weights[mi] / wsum) * opts.total));
+    const geo = (mesh as THREE.SkinnedMesh).isSkinnedMesh
+      ? bakeSkinnedGeometry(mesh as THREE.SkinnedMesh)
+      : (mesh.geometry as THREE.BufferGeometry);
     let sampler: MeshSurfaceSampler;
     try {
-      sampler = new MeshSurfaceSampler(mesh).build();
+      sampler = new MeshSurfaceSampler(new THREE.Mesh(geo)).build();
     } catch {
       continue;
     }
@@ -69,19 +107,15 @@ function buildCloud(scene: THREE.Object3D, total: number): Built {
   for (let i = 0; i < n; i++) box.expandByPoint(v.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]));
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
-  const scale = 7 / Math.max(size.y, 0.0001); // ~7 world units tall
+  const scale = 7 / Math.max(size.y, 0.0001);
   const minY = box.min.y;
 
   const positions = new Float32Array(pos.length);
   const colors = new Float32Array(pos.length);
   for (let i = 0; i < n; i++) {
-    const x = (pos[i * 3] - center.x) * scale;
-    const y = (pos[i * 3 + 1] - center.y) * scale;
-    const z = (pos[i * 3 + 2] - center.z) * scale;
-    positions[i * 3] = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
-    // jade base; brighter toward the top + a little noise → reads as form
+    positions[i * 3] = (pos[i * 3] - center.x) * scale;
+    positions[i * 3 + 1] = (pos[i * 3 + 1] - center.y) * scale;
+    positions[i * 3 + 2] = (pos[i * 3 + 2] - center.z) * scale;
     const h = (pos[i * 3 + 1] - minY) / Math.max(size.y, 0.0001);
     const t = Math.min(1, h * 0.6 + Math.random() * 0.25);
     const c = JADE.clone().lerp(HOT, t * t * 0.7);
@@ -92,9 +126,22 @@ function buildCloud(scene: THREE.Object3D, total: number): Built {
   return { positions, colors };
 }
 
-function StatueCloud({ src, density }: { src: string; density: number }) {
-  const { scene } = useGLTF(src);
-  const built = useMemo(() => buildCloud(scene, density), [scene, density]);
+function StatueCloud({
+  src,
+  density,
+  clipName,
+  clipTime,
+}: {
+  src: string;
+  density: number;
+  clipName?: string;
+  clipTime: number;
+}) {
+  const { scene, animations } = useGLTF(src);
+  const built = useMemo(
+    () => buildCloud(scene, animations, { total: density, clipName, clipTime }),
+    [scene, animations, density, clipName, clipTime]
+  );
   const ref = useRef<THREE.Points>(null);
   const mouse = useRef(0);
 
@@ -107,8 +154,8 @@ function StatueCloud({ src, density }: { src: string; density: number }) {
   useFrame((state, dt) => {
     const p = ref.current;
     if (!p) return;
-    p.rotation.y += Math.min(dt, 0.05) * 0.22; // the statue turns
-    p.rotation.y += (mouse.current * 0.0008); // a touch of mouse drift
+    p.rotation.y += Math.min(dt, 0.05) * 0.22;
+    p.rotation.y += mouse.current * 0.0008;
     p.position.y = Math.sin(state.clock.elapsedTime * 0.4) * 0.12;
   });
 
@@ -136,11 +183,15 @@ export function PointCloudStatue({
   src,
   fallbackImg = "/img/Yasuo.png",
   density = 85000,
+  clipName,
+  clipTime = 0.35,
   className,
 }: {
   src: string;
   fallbackImg?: string;
   density?: number;
+  clipName?: string; // animation clip to pose; defaults to the first clip
+  clipTime?: number; // 0..1 fraction along the clip to freeze the pose at
   className?: string;
 }) {
   const [mode, setMode] = useState<"loading" | "gl" | "flat">("loading");
@@ -171,7 +222,7 @@ export function PointCloudStatue({
         style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>
-          <StatueCloud src={src} density={density} />
+          <StatueCloud src={src} density={density} clipName={clipName} clipTime={clipTime} />
         </Suspense>
       </Canvas>
     </div>
