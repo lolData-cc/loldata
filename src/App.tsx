@@ -40,7 +40,7 @@ import { SearchPageFeature } from "./components/searchpagefeature";
 import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
-import { HomeYasuo } from "./components/home";
+import { HeroLive } from "./components/home/HeroLive";
 import LeaderboardPage from "@/pages/leaderboardpage";
 import TierlistPage from "@/pages/tierlistpage";
 import PlaygroundPage from "./pages/playgroundpage";
@@ -104,7 +104,7 @@ function HomePage() {
       <div className="relative z-10">
         <div className="flex flex-col space-y-8 md:space-y-16">
           <div>
-            <HomeYasuo onDiscover={handleDiscover} />
+            <HeroLive onExplore={handleDiscover} />
             <div ref={learnRef} id="learn">
               <LearnPageFeature />
             </div>
