@@ -5,7 +5,8 @@ import React from "react"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, cdnBaseUrl } from "@/config"
+// Champion item stats read from the match-data box (api2) — see BOX_API_BASE_URL.
+import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl } from "@/config"
 
 type ItemData = {
   item_id: number

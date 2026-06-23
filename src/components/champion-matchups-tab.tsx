@@ -10,7 +10,8 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, cdnBaseUrl } from "@/config"
+// Matchups read from the match-data box (api2) — fresh mv_lane_matchups, not Cloud.
+import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl } from "@/config"
 import { MatchupOrbit, supportsWebGL, type MatchupNode } from "./matchup-orbit"
 
 type ChampInfo = {

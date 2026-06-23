@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils"
 import { cdnBaseUrl, cdnSplashUrl, getCdnVersion } from "@/config"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { API_BASE_URL, normalizeChampSplash } from "@/config"
+// Champion stats are read from the match-data box (api2) — see config BOX_API_BASE_URL.
+import { BOX_API_BASE_URL as API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
