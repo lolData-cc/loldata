@@ -143,10 +143,15 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
         const id = keyToId[k] || k
         list.push({ key: k, id, name: keyToName[k] || id, winrate: Number(winrate) || 0, games: Number(games) || 0, iconUrl: `${cdnB}/img/champion/${id}.png` })
       }
-      // REAL aggregated lane matchups (best + worst) first
-      for (const m of (stats?.bestMatchups ?? [])) push(m.championKey ?? m.opponent_key, m.winrate, m.games)
-      for (const m of (stats?.worstMatchups ?? [])) push(m.championKey ?? m.opponent_key, m.winrate, m.games)
-      // fall back to the curated matchup list only if the box returned nothing
+      // REAL aggregated lane matchups — prefer the most-played set so the picker shows
+      // EVERY champ you regularly face, not just the win-rate extremes (which hid common
+      // mid-win-rate matchups like Rengar). Fall back to best+worst for older snapshots,
+      // then to the curated list only if the box returned nothing.
+      for (const m of (stats?.commonMatchups ?? [])) push(m.championKey ?? m.opponent_key, m.winrate, m.games)
+      if (list.length === 0) {
+        for (const m of (stats?.bestMatchups ?? [])) push(m.championKey ?? m.opponent_key, m.winrate, m.games)
+        for (const m of (stats?.worstMatchups ?? [])) push(m.championKey ?? m.opponent_key, m.winrate, m.games)
+      }
       if (list.length === 0) for (const m of (mu?.matchups ?? [])) push(m.opponent_key, m.winrate, m.games)
 
       list.sort((a, b) => b.winrate - a.winrate)
