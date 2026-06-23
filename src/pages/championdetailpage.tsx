@@ -97,6 +97,24 @@ function badgeClass(label: Badge): string {
 
 const fmtPct = (x: number) => `${x.toFixed(2)}%`
 
+const fmtCompact = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n)
+
+function HeroStat({ label, value, tone = "flash" }: { label: string; value: string; tone?: "jade" | "red" | "flash" }) {
+  const color = tone === "jade" ? "text-jade" : tone === "red" ? "text-[#ff6286]" : "text-flash"
+  return (
+    <div className="flex flex-col">
+      <span
+        className={cn("font-chakrapetch text-[20px] sm:text-[24px] font-bold leading-none tabular-nums", color)}
+        style={tone === "jade" ? { textShadow: "0 0 24px rgba(0,217,146,0.35)" } : undefined}
+      >
+        {value}
+      </span>
+      <span className="mt-1 font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/40">{label}</span>
+    </div>
+  )
+}
+
 const validTabs = ["overview", "statistics", "items", "matchups", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
@@ -110,6 +128,7 @@ export default function ChampionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [heroStats, setHeroStats] = useState<{ winrate: number; pickrate: number; games: number; kda?: { kills: number; deaths: number; assists: number } } | null>(null)
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 300)
@@ -301,6 +320,30 @@ export default function ChampionDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champId, patch])
 
+  // Hero key stats — real champion winrate / pickrate / games (aggregate).
+  useEffect(() => {
+    if (!champ?.key) return
+    let cancelled = false
+    setHeroStats(null)
+    fetch(`${API_BASE_URL}/api/champion/stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ championId: Number(champ.key) }),
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: any) => {
+        if (cancelled || !d?.core) return
+        setHeroStats({
+          winrate: Number(d.core.winrate) || 0,
+          pickrate: Number(d.core.pickrate) || 0,
+          games: Number(d.core.gamesAnalyzed) || 0,
+          kda: d.core.avgKDA,
+        })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [champ?.key])
+
   const splashUrl = useMemo(() => {
     if (!champId) return ""
     // splash
@@ -344,24 +387,29 @@ export default function ChampionDetailPage() {
           100% { opacity: 0; transform: translateY(-6px); }
         }
       `}</style>
-      {/* Hero — full-width splash */}
-      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[360px] overflow-hidden -mt-6 mb-4">
+      {/* Hero — cinematic splash in the homepage's #040A0C language */}
+      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[420px] overflow-hidden -mt-6 mb-6 bg-[#040A0C]">
+        {/* splash, anchored right so the copy reads on solid bg at the left */}
         <img
           src={splashUrl || "/placeholder.svg"}
           alt={`${champ.name} splash`}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-y-0 right-0 h-full w-full md:w-[74%] object-cover"
           style={{ objectPosition: `center ${splashPositionMap[champId ?? ""] || "15%"}` }}
           loading="eager"
           decoding="async"
           draggable={false}
         />
-        {/* Overlays */}
-        <div className="absolute inset-0 bg-liquirice/60" />
-        <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-[2]"
-          style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px)" }} />
-        <div className="absolute inset-0 pointer-events-none z-[3] bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(4,10,12,0.85)_100%)]" />
-        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-b from-liquirice to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-[3] bg-gradient-to-t from-liquirice to-transparent" />
+        {/* horizontal scrim: solid #040A0C on the left, clearing toward the splash */}
+        <div className="absolute inset-0 z-[2] pointer-events-none"
+          style={{ background: "linear-gradient(90deg, #040A0C 30%, rgba(4,10,12,0.86) 48%, rgba(4,10,12,0.30) 72%, rgba(4,10,12,0) 100%)" }} />
+        {/* faint jade dot-grid, masked under the copy (echoes the homepage) */}
+        <div aria-hidden className="absolute inset-0 z-[2] pointer-events-none opacity-[0.06] [background-image:radial-gradient(rgba(0,217,146,0.7)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_28%_62%,black_5%,transparent_60%)] [-webkit-mask-image:radial-gradient(ellipse_at_28%_62%,black_5%,transparent_60%)]" />
+        {/* breathing jade glow behind the copy */}
+        <div aria-hidden className="absolute inset-0 z-[1] pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 40% 62% at 16% 62%, rgba(0,217,146,0.10) 0%, transparent 70%)" }} />
+        {/* top/bottom fades into the page */}
+        <div className="absolute top-0 inset-x-0 h-20 pointer-events-none z-[3] bg-gradient-to-b from-[#040A0C] to-transparent" />
+        <div className="absolute bottom-0 inset-x-0 h-28 pointer-events-none z-[3] bg-gradient-to-t from-[#040A0C] to-transparent" />
 
         {/* Content — aligned to the center container width */}
         <div className="absolute bottom-4 inset-x-0 z-10 flex justify-center">
@@ -444,10 +492,18 @@ export default function ChampionDetailPage() {
                   <img
                     src={iconUrl || "/placeholder.svg"}
                     alt={`${champ.name} icon`}
-                    className="h-16 w-16 rounded-md object-cover ring-1 ring-white/10"
+                    className="h-16 w-16 rounded-lg object-cover ring-1 ring-jade/25 shadow-[0_0_34px_-10px_rgba(0,217,146,0.55)]"
                   />
                   <div>
-                    <h1 className="text-2xl font-semibold text-white transition-all duration-500 ease-out" key={activeGuide ? "guide" : "champ"}>
+                    {!activeGuide && (champ.tags?.length ?? 0) > 0 && (
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-jade shrink-0" style={{ boxShadow: "0 0 8px #00d992" }} />
+                        <span className="font-chakrapetch text-[10px] font-bold uppercase tracking-[0.32em] text-jade/80">
+                          {champ.tags!.join(" · ")}
+                        </span>
+                      </div>
+                    )}
+                    <h1 className={cn("font-chakrapetch font-bold text-flash leading-[0.98] tracking-tight transition-all duration-500 ease-out", activeGuide ? "text-2xl" : "text-[clamp(30px,4vw,46px)]")} key={activeGuide ? "guide" : "champ"}>
                       <span style={{ display: "inline-block", animation: activeGuide ? "morphIn 0.4s ease-out" : undefined }}>
                         {activeGuide ? activeGuide.title : champ.name}
                       </span>
@@ -486,12 +542,18 @@ export default function ChampionDetailPage() {
                       )}
                     </div>
                     {!activeGuide && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {champ.tags?.map(t => (
-                          <span key={t} className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                            {t}
-                          </span>
-                        ))}
+                      <div className="mt-3 flex items-center gap-5">
+                        <HeroStat label="Win Rate" value={heroStats ? `${heroStats.winrate.toFixed(1)}%` : "—"} tone={heroStats ? (heroStats.winrate >= 51 ? "jade" : heroStats.winrate < 49 ? "red" : "flash") : "flash"} />
+                        <span className="h-7 w-px bg-flash/10" />
+                        <HeroStat label="Pick Rate" value={heroStats ? `${heroStats.pickrate.toFixed(1)}%` : "—"} />
+                        <span className="h-7 w-px bg-flash/10" />
+                        <HeroStat label="Games" value={heroStats ? fmtCompact(heroStats.games) : "—"} />
+                        {heroStats?.kda && (
+                          <>
+                            <span className="h-7 w-px bg-flash/10" />
+                            <HeroStat label="KDA" value={`${((heroStats.kda.kills + heroStats.kda.assists) / Math.max(1, heroStats.kda.deaths)).toFixed(2)}`} />
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -532,7 +594,7 @@ export default function ChampionDetailPage() {
                 value={value}
                 className="
                   relative px-3 sm:px-5 py-3 rounded-none whitespace-nowrap
-                  font-mono text-[11px] tracking-[0.15em] uppercase
+                  font-chakrapetch text-[11px] font-bold tracking-[0.2em] uppercase
                   text-flash/30 hover:text-flash/60
                   transition-colors duration-200
                   data-[state=active]:text-jade
@@ -780,10 +842,10 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
             {(["attack", "defense", "magic", "difficulty"] as const).map(stat => {
               const val = champ.info![stat]
               return (
-                <div key={stat} className="rounded-sm bg-white/[0.03] ring-1 ring-white/[0.05] p-4 text-center">
-                  <div className="text-[22px] font-mono font-bold text-jade tabular-nums">{val}</div>
-                  <div className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/35 mt-1 capitalize">{stat}</div>
-                  <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden mt-3">
+                <div key={stat} className="rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10 p-4 text-center transition-colors hover:ring-jade/25">
+                  <div className="text-[24px] font-chakrapetch font-bold text-jade tabular-nums" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>{val}</div>
+                  <div className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/40 mt-1 capitalize">{stat}</div>
+                  <div className="w-full h-1 bg-flash/[0.06] rounded-full overflow-hidden mt-3">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${val * 10}%` }}
@@ -842,9 +904,10 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-jade/50">{children}</span>
-      <div className="h-px flex-1 bg-gradient-to-r from-jade/15 to-transparent" />
+    <div className="flex items-center gap-2.5">
+      <span className="w-1.5 h-1.5 rounded-full bg-jade shrink-0" style={{ boxShadow: "0 0 8px #00d992" }} />
+      <span className="font-chakrapetch text-[11px] font-bold tracking-[0.28em] uppercase text-jade/80">{children}</span>
+      <div className="h-px flex-1 bg-gradient-to-r from-jade/20 to-transparent" />
     </div>
   )
 }
