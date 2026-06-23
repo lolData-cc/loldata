@@ -2,19 +2,21 @@
 
 // MatchupOrbit — a 3D constellation of a champion's real lane matchups.
 // The subject champion sits at the centre; every opponent it has laned against
-// orbits it as a billboarded portrait, tinted + sized by the REAL win rate
-// (jade = favourable, red = hard) and tethered to the core by a faint line.
-// Drag to spin, scroll to zoom, click a portrait to pick that matchup.
+// orbits it, tinted + sized by the REAL win rate (jade = favourable, red = hard)
+// and tethered to the core by a faint line. Drag to spin, scroll to zoom, click
+// a node to pick that matchup.
 //
-// Texture loading is fault-tolerant: portraits load with crossOrigin so they
-// can be GPU textures (the CDN sends ACAO:*), and a failed/blocked load just
-// drops to the coloured halo instead of throwing — a thrown texture error in
-// R3F would otherwise take down the whole <Canvas>. The parent ALSO wraps this
-// in an error boundary + renders a flat grid when WebGL is unavailable.
+// Champion faces are rendered as DOM <img> via drei <Html> (auto-projected onto
+// the 3D node positions) rather than WebGL textures: the CDN's champion icons
+// can't be uploaded as cross-origin GPU textures reliably (Cloudflare serves a
+// cached copy without the CORS header), so a plain DOM <img> is the robust path
+// — and it can't throw inside the render loop. The coloured halo behind each
+// face (a WebGL mesh) is the click/hover target. The parent wraps this in an
+// error boundary + renders a flat grid when WebGL is unavailable.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Billboard, Line, OrbitControls } from "@react-three/drei";
+import { Billboard, Html, Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
 export type MatchupNode = {
@@ -51,36 +53,6 @@ function fibPos(i: number, n: number, radius: number): [number, number, number] 
   return [radius * Math.cos(phi) * r, radius * y, radius * Math.sin(phi) * r];
 }
 
-// Fault-tolerant champion portrait: loads the icon as a CORS texture and renders
-// a plane; on ANY load error it renders nothing (the node's coloured halo stays).
-// Never suspends, never throws → never crashes the Canvas.
-function ChampPortrait({ url, size }: { url: string; size: number }) {
-  const [tex, setTex] = useState<THREE.Texture | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin("anonymous");
-    loader.load(
-      url,
-      (t) => {
-        if (cancelled) { t.dispose(); return; }
-        (t as any).colorSpace = THREE.SRGBColorSpace;
-        setTex(t);
-      },
-      undefined,
-      () => { /* swallow — keep the halo only */ }
-    );
-    return () => { cancelled = true; };
-  }, [url]);
-  if (!tex) return null;
-  return (
-    <mesh scale={[size, size, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial map={tex} transparent toneMapped={false} />
-    </mesh>
-  );
-}
-
 function Node({
   node,
   position,
@@ -94,8 +66,10 @@ function Node({
 }) {
   const [hover, setHover] = useState(false);
   const color = useMemo(() => wrColor(node.winrate), [node.winrate]);
-  const base = 0.4 + Math.min(0.26, (node.games / 5000) * 0.26);
-  const s = selected ? base * 1.55 : hover ? base * 1.22 : base;
+  const hex = useMemo(() => "#" + color.getHexString(), [color]);
+  const base = 0.42 + Math.min(0.26, (node.games / 5000) * 0.26);
+  const s = selected ? base * 1.5 : hover ? base * 1.2 : base;
+  const px = 40 + Math.min(22, (node.games / 5000) * 22); // face px, by popularity
 
   return (
     <group position={position}>
@@ -107,12 +81,11 @@ function Node({
         color={color}
         lineWidth={selected ? 1.8 : 0.8}
         transparent
-        opacity={selected ? 0.6 : hover ? 0.4 : 0.18}
+        opacity={selected ? 0.6 : hover ? 0.4 : 0.16}
       />
+      {/* coloured halo + click/hover target (WebGL) */}
       <Billboard>
-        {/* halo = the always-present click/hover target (survives a failed portrait) */}
         <mesh
-          position={[0, 0, -0.03]}
           onPointerOver={(e: any) => {
             e.stopPropagation();
             setHover(true);
@@ -127,28 +100,56 @@ function Node({
             onSelect(node.key);
           }}
         >
-          <circleGeometry args={[s * 0.66, 44]} />
-          <meshBasicMaterial color={color} transparent opacity={selected ? 0.6 : hover ? 0.42 : 0.26} />
+          <circleGeometry args={[s * 0.82, 44]} />
+          <meshBasicMaterial color={color} transparent opacity={selected ? 0.5 : hover ? 0.4 : 0.24} />
         </mesh>
-        <ChampPortrait url={node.iconUrl} size={s} />
       </Billboard>
+      {/* champion face (DOM, no CORS) — pointer-events off so the halo handles clicks */}
+      <Html center distanceFactor={9} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+        <img
+          src={node.iconUrl}
+          alt={node.name}
+          draggable={false}
+          style={{
+            width: `${px}px`,
+            height: `${px}px`,
+            borderRadius: "10px",
+            objectFit: "cover",
+            boxShadow: `0 0 0 2px ${hex}, 0 0 14px ${hex}77`,
+            transform: selected ? "scale(1.18)" : hover ? "scale(1.08)" : "scale(1)",
+            transition: "transform .15s ease",
+            opacity: 0.97,
+          }}
+        />
+      </Html>
     </group>
   );
 }
 
 function CenterChampion({ iconUrl }: { iconUrl: string }) {
   return (
-    <Billboard>
-      <mesh position={[0, 0, -0.04]}>
-        <ringGeometry args={[0.62, 0.72, 56]} />
-        <meshBasicMaterial color={JADE} transparent opacity={0.65} />
-      </mesh>
-      <mesh position={[0, 0, -0.05]}>
-        <circleGeometry args={[0.66, 48]} />
-        <meshBasicMaterial color={"#040A0C"} />
-      </mesh>
-      <ChampPortrait url={iconUrl} size={1.05} />
-    </Billboard>
+    <group>
+      <Billboard>
+        <mesh position={[0, 0, -0.05]}>
+          <ringGeometry args={[0.66, 0.78, 56]} />
+          <meshBasicMaterial color={JADE} transparent opacity={0.7} />
+        </mesh>
+      </Billboard>
+      <Html center distanceFactor={9} style={{ pointerEvents: "none" }}>
+        <img
+          src={iconUrl}
+          alt=""
+          draggable={false}
+          style={{
+            width: "60px",
+            height: "60px",
+            borderRadius: "13px",
+            objectFit: "cover",
+            boxShadow: "0 0 0 2px #00d992, 0 0 26px #00d99299",
+          }}
+        />
+      </Html>
+    </group>
   );
 }
 
@@ -191,7 +192,7 @@ export function MatchupOrbit({
           minDistance={5}
           maxDistance={12}
           autoRotate
-          autoRotateSpeed={0.55}
+          autoRotateSpeed={0.5}
           rotateSpeed={0.6}
         />
       </Canvas>
