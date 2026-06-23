@@ -78,7 +78,7 @@ function Grid2D({ nodes, selectedKey, onSelect }: { nodes: MatchupNode[]; select
         return (
           <button key={n.key} onClick={() => onSelect(n.key)}
             className={cn("group flex flex-col items-center gap-1.5 rounded-lg p-2 transition-colors", sel ? "bg-jade/[0.06] ring-1 ring-jade/40" : "hover:bg-flash/[0.04] ring-1 ring-inset ring-transparent")}>
-            <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className="w-12 h-12 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${c}66` }} />
+            <img src={n.iconUrl} alt={n.name} className="w-12 h-12 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${c}66` }} />
             <span className="font-jetbrains text-[9px] text-flash/55 truncate max-w-full">{n.name}</span>
             <span className="font-chakrapetch text-[12px] font-bold tabular-nums" style={{ color: c }}>{n.winrate.toFixed(1)}%</span>
           </button>
@@ -227,14 +227,14 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
               <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-jade/60 mr-1">Best</span>
               {best.map(n => (
                 <button key={n.key} onClick={() => setSelectedKey(n.key)} title={`${n.name} · ${n.winrate.toFixed(1)}%`}>
-                  <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-jade" : "ring-jade/30")} />
+                  <img src={n.iconUrl} alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-jade" : "ring-jade/30")} />
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-1.5 pointer-events-auto">
               {worst.map(n => (
                 <button key={n.key} onClick={() => setSelectedKey(n.key)} title={`${n.name} · ${n.winrate.toFixed(1)}%`}>
-                  <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-[#ff6286]" : "ring-[#ff6286]/30")} />
+                  <img src={n.iconUrl} alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-[#ff6286]" : "ring-[#ff6286]/30")} />
                 </button>
               ))}
               <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-[#ff6286]/60 ml-1">Worst</span>
@@ -270,9 +270,9 @@ function MatchupDetail({
       {/* heads */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`} crossOrigin="anonymous" alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
+          <img src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`} alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
           <span className="font-chakrapetch text-[13px] font-bold uppercase tracking-[0.1em] text-flash/40">vs</span>
-          <img src={node.iconUrl} crossOrigin="anonymous" alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
+          <img src={node.iconUrl} alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
         </div>
         <span className={cn("rounded-md px-2.5 py-1 font-chakrapetch text-[10px] font-bold uppercase tracking-[0.12em]", badgeClass(badge))}>{badge}</span>
       </div>
