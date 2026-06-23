@@ -213,22 +213,6 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* ── header ───────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <Eyebrow>Matchups</Eyebrow>
-          <p className="mt-2 text-[14px] leading-relaxed text-flash/55 max-w-[560px]">
-            {champ.name}'s real lane matchups — {nodes.length} opponents from the box.{" "}
-            <span className="text-flash/75">{webgl ? "Orbit the map and click a champion" : "Tap a champion"}</span> for its win rate, runes and build.
-          </p>
-        </div>
-        <div className="flex items-center gap-4 font-jetbrains text-[10px] uppercase tracking-[0.16em]">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-jade" />Favoured</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#7c8b92]" />Even</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#ff6286]" />Hard</span>
-        </div>
-      </div>
-
       {/* ── row 1: pick (orbit) + verdict ────────────────────────── */}
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
         {/* the tree floats in the void — no box */}
