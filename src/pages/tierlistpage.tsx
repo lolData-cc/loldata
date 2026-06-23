@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
+import { BOX_API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
 import { Skeleton } from "@/components/ui/skeleton"
 import splashPositionMap from "@/converters/splashPositionMap"
 import {
@@ -113,7 +113,9 @@ export default function TierlistPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetch(`${API_BASE_URL}/api/tierlist?role=${role}&region=${apiRegion}`)
+    // Tier list is served fresh from the box (api2), which my nightly snapshot
+    // timer keeps current; api.loldata.cc (Railway) still serves a stale snapshot.
+    fetch(`${BOX_API_BASE_URL}/api/tierlist?role=${role}&region=${apiRegion}`)
       .then(r => r.json())
       .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
       .catch(() => { if (!cancelled) setLoading(false) })
