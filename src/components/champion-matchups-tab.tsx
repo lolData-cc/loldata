@@ -1,18 +1,26 @@
 "use client"
 
-// Champion Matchups — REAL lane-matchup data (no mock differentials).
-// The champion's strongest and hardest lanes (from mv_lane_matchups, served via
-// /api/champion/stats best/worstMatchups) become a 3D constellation you orbit
-// and click to pick a matchup; a flat grid stands in when WebGL is unavailable.
-// Picking one shows the real win rate / games / difficulty + curated lane notes,
-// and links into the full VS breakdown on the Statistics tab.
+// Champion Matchups — a real "matchup planner".
+//
+// The champion's real lane matchups (the most-played opponents, from the box's
+// mv_lane_matchups via /api/champion/stats `commonMatchups`) form a 3D
+// constellation you orbit and click; a flat grid stands in when WebGL is
+// unavailable. Picking an opponent lays out, in one clean column:
+//   1. the VERDICT — real win rate / games / difficulty badge + curated lane notes
+//   2. the GAME PLAN vs that opponent — the best runes (/api/champion/runes with
+//      an opponentId) and the optimal build path (/api/explorer/buildpath with an
+//      enemy constraint). Same engines the Explorer uses, scoped to the matchup.
 
 import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
-// Matchups read from the match-data box (api2) — fresh mv_lane_matchups, not Cloud.
+// Matchups + runes read from the match-data box (api2); the build path uses the
+// Explorer engine (EXPLORER_API_BASE_URL = api2) via runBuildPath inside BuildPathViz.
 import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl } from "@/config"
 import { MatchupOrbit, supportsWebGL, type MatchupNode } from "./matchup-orbit"
+import { BuildPathViz } from "./explorer/BuildPathViz"
+import type { ExplorerGraph } from "./explorer/types"
+import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/constants/runes"
 
 type ChampInfo = {
   id: string
@@ -53,6 +61,7 @@ function badgeClass(b: Badge): string {
 }
 
 const wrText = (wr: number) => (wr >= 51 ? "text-jade" : wr < 49 ? "text-[#ff6286]" : "text-flash/75")
+const champIcon = (id: string) => `${cdnBaseUrl()}/img/champion/${id}.png`
 
 // ── section header (homepage eyebrow) ───────────────────────────────
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -68,11 +77,15 @@ const GLASS: React.CSSProperties = {
   boxShadow: "0 40px 90px -50px rgba(0,217,146,0.30), inset 0 1px 0 rgba(255,255,255,0.04)",
 }
 
+// shared panel chrome (matches the Explorer's BuildPathViz shell, so the runes +
+// build-path cards in the game-plan row read as one coherent set)
+const PANEL = "rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)]"
+
 // Flat grid — used when WebGL is unavailable AND as the orbit's error-boundary
 // fallback (a thrown WebGL texture error must never take down the whole tab).
 function Grid2D({ nodes, selectedKey, onSelect }: { nodes: MatchupNode[]; selectedKey: string | null; onSelect: (k: string) => void }) {
   return (
-    <div className="relative p-4 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[460px] overflow-y-auto">
+    <div className="relative p-4 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[440px] overflow-y-auto cyber-scrollbar">
       {nodes.map(n => {
         const sel = n.key === selectedKey
         const c = n.winrate >= 51 ? "#00d992" : n.winrate < 49 ? "#ff6286" : "#7c8b92"
@@ -105,7 +118,7 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const webgl = useMemo(() => supportsWebGL(), [])
 
-  const subjectIcon = `${cdnBaseUrl()}/img/champion/${champ.id}.png`
+  const subjectIcon = champIcon(champ.id)
 
   useEffect(() => {
     if (!champ?.key) return
@@ -168,9 +181,24 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
   const best = nodes.slice(0, 3)
   const worst = [...nodes].slice(-3).reverse()
 
+  // The matchup the build-path engine should solve: this champ, with the picked
+  // opponent on the enemy team. Roles omitted on purpose — the enemy-champion
+  // constraint already pins the lane matchup (verified ~identical cohort with/without
+  // role), and this tab doesn't carry the subject's role. Memoised so BuildPathViz
+  // only re-queries when the pick actually changes.
+  const matchupGraph = useMemo<ExplorerGraph | null>(() => {
+    if (!selected) return null
+    return {
+      subject: { champion: champ.id },
+      constraints: [{ type: "enemy", champion: selected.id }],
+      filters: { scope: "current_patch", queues: [420, 440] },
+      output: { kind: "stats" },
+    }
+  }, [champ.id, selected?.id])
+
   if (loading) {
     return (
-      <div className="grid place-items-center h-[420px] rounded-2xl border border-jade/15 bg-[rgba(6,12,14,0.55)]" style={GLASS}>
+      <div className="grid place-items-center h-[440px] rounded-2xl border border-jade/15 bg-[rgba(6,12,14,0.55)]" style={GLASS}>
         <span className="font-jetbrains text-[11px] uppercase tracking-[0.2em] text-flash/40 animate-pulse">Mapping matchups…</span>
       </div>
     )
@@ -184,17 +212,16 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* header */}
+    <div className="space-y-5">
+      {/* ── header ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Eyebrow>Matchups</Eyebrow>
           <p className="mt-2 text-[14px] leading-relaxed text-flash/55 max-w-[560px]">
-            {champ.name}'s real lane matchups — {nodes.length} opponents from the box, by win rate.{" "}
-            <span className="text-flash/75">{webgl ? "Orbit the map and click a champion" : "Tap a champion"}</span> to break down the lane.
+            {champ.name}'s real lane matchups — {nodes.length} opponents from the box.{" "}
+            <span className="text-flash/75">{webgl ? "Orbit the map and click a champion" : "Tap a champion"}</span> for its win rate, runes and build.
           </p>
         </div>
-        {/* legend */}
         <div className="flex items-center gap-4 font-jetbrains text-[10px] uppercase tracking-[0.16em]">
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-jade" />Favoured</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#7c8b92]" />Even</span>
@@ -202,11 +229,10 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4">
-        {/* picker — 3D orbit or 2D grid fallback */}
+      {/* ── row 1: pick (orbit) + verdict ────────────────────────── */}
+      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
         {/* the tree floats in the void — no box */}
-        <div className="relative min-h-[500px]">
-
+        <div className="relative min-h-[440px]">
           {webgl ? (
             <OrbitBoundary fallback={<Grid2D nodes={nodes} selectedKey={selectedKey} onSelect={setSelectedKey} />}>
               <MatchupOrbit
@@ -222,7 +248,7 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
           )}
 
           {/* quick best/worst rail along the bottom */}
-          <div className="absolute inset-x-0 bottom-0 z-[2] flex items-center justify-between gap-2 px-4 py-2.5 bg-gradient-to-t from-[#040A0C] via-[#040A0C]/85 to-transparent pointer-events-none">
+          <div className="absolute inset-x-0 bottom-0 z-[2] flex items-center justify-between gap-2 px-3 py-2.5 bg-gradient-to-t from-[#040A0C] via-[#040A0C]/85 to-transparent pointer-events-none">
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-jade/60 mr-1">Best</span>
               {best.map(n => (
@@ -242,20 +268,40 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
           </div>
         </div>
 
-        {/* detail panel for the picked matchup */}
-        <div className="rounded-2xl border border-jade/15 bg-[rgba(6,12,14,0.72)] backdrop-blur-md p-5" style={GLASS}>
+        {/* verdict for the picked matchup */}
+        <div className={cn(PANEL, "p-5 backdrop-blur-md")} style={GLASS}>
           {selected ? (
-            <MatchupDetail champ={champ} node={selected} badge={badgeFromWR(selected.winrate)} tips={tips[selected.key]} onFull={() => navigate(`/champions/${champ.id}/statistics?vs=${selected.id}`)} />
+            <MatchupVerdict champ={champ} node={selected} badge={badgeFromWR(selected.winrate)} tips={tips[selected.key]} onFull={() => navigate(`/champions/${champ.id}/statistics?vs=${selected.id}`)} />
           ) : (
             <div className="grid place-items-center h-full min-h-[300px] text-flash/40 font-jetbrains text-[12px]">Pick a matchup</div>
           )}
         </div>
       </div>
+
+      {/* ── row 2: game plan vs the picked opponent ──────────────── */}
+      {selected && matchupGraph && (
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <Eyebrow>Game plan vs {selected.name}</Eyebrow>
+            <span className="font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/35">current patch · ranked</span>
+          </div>
+          <div className="grid lg:grid-cols-[300px_1fr] gap-4 items-start">
+            <RunesCard
+              key={`${champ.id}:${selected.id}`}
+              championKey={Number(champ.key)}
+              opponentKey={Number(selected.key)}
+              opponentName={selected.name}
+            />
+            <BuildPathViz graph={matchupGraph} />
+          </div>
+        </section>
+      )}
     </div>
   )
 }
 
-function MatchupDetail({
+// ── verdict card ───────────────────────────────────────────────────
+function MatchupVerdict({
   champ, node, badge, tips, onFull,
 }: {
   champ: ChampInfo
@@ -267,10 +313,9 @@ function MatchupDetail({
   const wr = node.winrate
   return (
     <div className="flex flex-col h-full">
-      {/* heads */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`} alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
+          <img src={champIcon(champ.id)} alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
           <span className="font-chakrapetch text-[13px] font-bold uppercase tracking-[0.1em] text-flash/40">vs</span>
           <img src={node.iconUrl} alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
         </div>
@@ -283,15 +328,13 @@ function MatchupDetail({
           <span className="mb-1.5 font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/40">win rate</span>
         </div>
         <p className="mt-1 text-[13px] text-flash/55">
-          {champ.name} <span className="text-flash/75">{node.name}</span> · {node.games.toLocaleString()} games
+          {champ.name} vs <span className="text-flash/75">{node.name}</span> · {node.games.toLocaleString()} games
         </p>
-        {/* win-rate bar */}
         <div className="mt-3 h-2 rounded-full overflow-hidden bg-[#ff6286]/20">
           <div className="h-full rounded-full bg-gradient-to-r from-jade/70 to-jade" style={{ width: `${Math.max(4, Math.min(96, wr))}%` }} />
         </div>
       </div>
 
-      {/* lane notes (curated) */}
       {tips && (
         <div className="mt-5">
           <div className="font-jetbrains text-[10px] uppercase tracking-[0.16em] text-jade/55 mb-1.5">Lane notes</div>
@@ -307,6 +350,102 @@ function MatchupDetail({
       </button>
     </div>
   )
+}
+
+// ── best runes vs the picked opponent ──────────────────────────────
+type RuneRow = { perk_keystone: number; perk_primary_style: number; perk_sub_style: number; games: number; winrate: number; pick_rate: number }
+
+function RunesCard({ championKey, opponentKey, opponentName }: { championKey: number; opponentKey: number; opponentName: string }) {
+  const [top, setTop] = useState<RuneRow | null>(null)
+  const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">("loading")
+
+  useEffect(() => {
+    let cancelled = false
+    setPhase("loading"); setTop(null)
+    fetch(`${API_BASE_URL}/api/champion/runes`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ championId: championKey, opponentId: opponentKey, limit: 1 }),
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (cancelled) return
+        const r: RuneRow | undefined = d?.runes?.[0]
+        setTop(r ?? null)
+        setPhase(r ? "ready" : "empty")
+      })
+      .catch(() => { if (!cancelled) setPhase("error") })
+    return () => { cancelled = true }
+  }, [championKey, opponentKey])
+
+  return (
+    <div className={cn(PANEL, "p-4 md:p-5")}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="w-1 h-3.5 bg-jade rounded-full" />
+        <span className="text-[11px] font-chakrapetch font-bold tracking-[0.2em] uppercase text-flash/55">Best runes</span>
+      </div>
+
+      {phase === "loading" && (
+        <div className="h-[150px] grid place-items-center text-[11px] font-chakrapetch text-flash/35 animate-pulse">reading the runes…</div>
+      )}
+      {phase === "error" && (
+        <div className="h-[120px] grid place-items-center text-[11px] font-chakrapetch text-flash/35">Runes unavailable.</div>
+      )}
+      {(phase === "empty" || (phase === "ready" && !top)) && (
+        <div className="h-[120px] grid place-items-center text-center px-4 text-[11px] font-chakrapetch text-flash/35">No rune data vs {opponentName} yet.</div>
+      )}
+
+      {phase === "ready" && top && (
+        <div className="flex flex-col items-center text-center">
+          {/* keystone */}
+          {getKeystoneIcon(top.perk_keystone) ? (
+            <img src={getKeystoneIcon(top.perk_keystone)!} alt="" className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-black/40 p-1.5" style={{ boxShadow: "0 0 22px rgba(0,217,146,0.25)" }} />
+          ) : (
+            <div className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-black/40" />
+          )}
+          <div className="mt-2.5 font-chakrapetch text-[15px] font-bold text-flash/90">{getKeystoneName(top.perk_keystone) ?? "Keystone"}</div>
+
+          {/* primary / secondary trees */}
+          <div className="mt-3 flex items-center gap-2">
+            <TreePill styleId={top.perk_primary_style} />
+            <span className="text-flash/25 text-[11px]">+</span>
+            <TreePill styleId={top.perk_sub_style} />
+          </div>
+
+          {/* stats */}
+          <div className="mt-4 grid grid-cols-3 gap-1.5 w-full">
+            <Stat label="win rate" value={`${top.winrate.toFixed(1)}%`} good={top.winrate >= 50} />
+            <Stat label="pick" value={`${Math.round(top.pick_rate)}%`} />
+            <Stat label="games" value={compact(top.games)} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TreePill({ styleId }: { styleId: number }) {
+  const icon = getStyleIcon(styleId)
+  const name = getStyleName(styleId)
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.04] ring-1 ring-inset ring-white/10 pl-1 pr-2.5 py-1">
+      {icon ? <img src={icon} alt="" className="w-5 h-5" /> : <span className="w-5 h-5 rounded-full bg-white/10" />}
+      <span className="font-chakrapetch text-[11px] font-semibold text-flash/70">{name ?? "—"}</span>
+    </span>
+  )
+}
+
+function Stat({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <div className="rounded-lg bg-black/25 ring-1 ring-inset ring-white/[0.06] py-2">
+      <div className={cn("font-chakrapetch text-[15px] font-bold tabular-nums", good == null ? "text-flash/85" : good ? "text-jade" : "text-[#ff6286]")}>{value}</div>
+      <div className="font-jetbrains text-[8px] uppercase tracking-[0.16em] text-flash/35 mt-0.5">{label}</div>
+    </div>
+  )
+}
+
+function compact(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
+  return String(n)
 }
 
 export default ChampionMatchupsTab
