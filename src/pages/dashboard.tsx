@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const email = session?.user?.email ?? ""
   const [searchParams, setSearchParams] = useSearchParams();
   const [highlightSummoner, setHighlightSummoner] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false); // mobile bottom section picker
 
   useEffect(() => {
     if (searchParams.get("highlight") === "summoner-page") {
@@ -94,6 +95,22 @@ export default function DashboardPage() {
   const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "planSetup"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
+  // mobile bottom section picker — rises up to choose a dashboard section
+  const SECTIONS = [
+    { value: "profile", label: "PROFILE" },
+    { value: "documentation", label: "DOCUMENTATION" },
+    { value: "billing", label: "BILLING" },
+    { value: "preferences", label: "PREFERENCES" },
+    { value: "scout", label: "SCOUT" },
+    ...(isAdmin ? [
+      { value: "database", label: "DATABASE" },
+      { value: "proApplications", label: "PRO APPLICATIONS" },
+      { value: "streamerApplications", label: "STREAMER APPLICATIONS" },
+      { value: "planSetup", label: "PLAN SETUP" },
+    ] : []),
+  ];
+  const currentSectionLabel = SECTIONS.find((s) => s.value === activeTab)?.label ?? "PROFILE";
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
 
@@ -108,7 +125,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen grid grid-rows-[auto,1fr] overflow-hidden">
+    <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen grid grid-rows-[64px,1fr] md:grid-rows-[auto,1fr] overflow-hidden">
       {/* riga 1: navbar */}
       <div className="w-full">
         <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto">
@@ -117,12 +134,45 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* mobile section picker — a bottom bar that rises up to choose a section (phone only) */}
+      <div className="lg:hidden">
+        {pickerOpen && <div className="fixed inset-0 z-[55] bg-black/60" onClick={() => setPickerOpen(false)} />}
+        <div className="fixed inset-x-0 bottom-0 z-[56] border-t border-jade/25 bg-[rgba(5,10,12,0.97)] backdrop-blur-xl">
+          <button type="button" onClick={() => setPickerOpen((v) => !v)} className="w-full h-14 flex items-center justify-between px-5 cursor-clicker">
+            <span className="flex items-center gap-2 font-jetbrains text-[12px] tracking-[0.18em] uppercase text-jade">
+              <span className="w-1.5 h-1.5 rounded-full bg-jade" />{currentSectionLabel}
+            </span>
+            <svg className={cn("w-4 h-4 text-flash/50 transition-transform", pickerOpen && "rotate-180")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6" /></svg>
+          </button>
+          <div className={cn("overflow-hidden transition-[max-height] duration-300 ease-out", pickerOpen ? "max-h-[60vh]" : "max-h-0")}>
+            <div className="max-h-[60vh] overflow-y-auto scrollbar-hide px-2 pb-3">
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => { navigate(`/dashboard/${s.value}`, { replace: true }); setPickerOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-sm font-jetbrains text-[12px] tracking-[0.15em] uppercase border-l-2 transition-colors cursor-clicker",
+                    activeTab === s.value ? "text-jade border-jade bg-jade/10" : "text-flash/55 border-transparent hover:text-flash/80"
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+              <button type="button" onClick={handleLogout} className="w-full text-left px-3 py-2.5 mt-1 rounded-sm font-jetbrains text-[12px] tracking-[0.15em] uppercase text-flash/40 hover:text-red-400/80 cursor-clicker">
+                LOGOUT
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* riga 2: contenuto */}
       <div className="w-full min-h-0">
         <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto px-4 h-full min-h-0">
-          <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex w-full h-full min-h-0">
-            {/* 20%: sidebar */}
-            <div className="w-[20%] border-r border-flash/10 h-full overflow-y-auto scrollbar-hide flex flex-col pt-6">
+          <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex flex-col lg:flex-row w-full h-full min-h-0">
+            {/* sidebar — desktop only; on phone the bottom section picker replaces it */}
+            <div className="hidden lg:flex w-full lg:w-[20%] border-b lg:border-r border-flash/10 h-auto lg:h-full shrink-0 overflow-x-auto lg:overflow-y-auto scrollbar-hide flex-col pt-3 lg:pt-6">
               <div>
                 {/* User identity card */}
                 <div
@@ -162,38 +212,38 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <TabsList className="flex flex-col items-stretch gap-1 px-2 pt-1 bg-transparent w-[80%] h-auto">
+                <TabsList className="flex flex-row flex-wrap lg:flex-col lg:flex-nowrap items-stretch gap-1 px-2 pt-1 bg-transparent w-full lg:w-[80%] h-auto lg:overflow-visible">
                   <TabsTrigger
                     value="profile"
-                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PROFILE
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="documentation"
-                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     DOCUMENTATION
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="billing"
-                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     BILLING
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="preferences"
-                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PREFERENCES
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="scout"
-                    className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     SCOUT
                   </TabsTrigger>
@@ -201,44 +251,44 @@ export default function DashboardPage() {
                   {/* ✅ ADMIN ONLY tabs - tra tabs e logout */}
                   {isAdmin && (
                     <>
-                      <Separator className="bg-flash/15 my-2" />
+                      <Separator className="hidden lg:block bg-flash/15 my-2" />
 
                       <TabsTrigger
                         value="database"
-                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                        className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         DATABASE
                       </TabsTrigger>
 
                       <TabsTrigger
                         value="proApplications"
-                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                        className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         PRO APPLICATIONS
                       </TabsTrigger>
 
                       <TabsTrigger
                         value="streamerApplications"
-                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                        className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         STREAMER APPLICATIONS
                       </TabsTrigger>
 
                       <TabsTrigger
                         value="planSetup"
-                        className="w-full justify-start px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                        className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         PLAN SETUP
                       </TabsTrigger>
                     </>
                   )}
 
-                  <Separator className="bg-flash/15 mb-3" />
+                  <Separator className="hidden lg:block bg-flash/15 mb-3" />
 
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full px-3 py-1.5 rounded-none font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/40 hover:text-red-400/80 hover:bg-red-400/5 cursor-clicker text-left transition-colors"
+                    className="w-auto lg:w-full shrink-0 px-3 py-1.5 rounded-none font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/40 hover:text-red-400/80 hover:bg-red-400/5 cursor-clicker text-left transition-colors"
                   >
                     LOGOUT
                   </button>
@@ -247,10 +297,10 @@ export default function DashboardPage() {
             </div>
 
             {/* 70%: content scrollabile */}
-            <div className="w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide">
+            <div className="w-full lg:w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-20 lg:pb-0">
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
-                <div className="flex flex-col gap-5 p-4 px-6">
+                <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
                   <div>
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: AVATAR ::</p>
                     <PremiumAvatarUploader />
@@ -276,7 +326,7 @@ export default function DashboardPage() {
 
               {/* PREFERENCES TAB */}
               <TabsContent value="preferences" className="outline-none">
-                <div className="flex flex-col gap-6 p-4 px-6">
+                <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
                   {/* GENERAL */}
                   <div className="space-y-3">
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: GENERAL ::</p>
@@ -377,7 +427,7 @@ export default function DashboardPage() {
 
               {/* SCOUT TAB */}
               <TabsContent value="scout" className="outline-none">
-                <div className="flex flex-col gap-6 p-4 px-6">
+                <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
                   <div>
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-1">
                       :: YOUR SCOUT LOBBIES ::
@@ -411,7 +461,7 @@ export default function DashboardPage() {
               {/* ADMIN TAB: PRO APPLICATIONS */}
               {isAdmin && (
                 <TabsContent value="proApplications" className="outline-none">
-                  <div className="flex flex-col gap-6 p-4 px-6">
+                  <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
                     <ProApplicationsAdminPanel />
                   </div>
                 </TabsContent>
@@ -420,7 +470,7 @@ export default function DashboardPage() {
               {/* ADMIN TAB: STREAMER MANAGEMENT */}
               {isAdmin && (
                 <TabsContent value="streamerApplications" className="outline-none">
-                  <div className="flex flex-col gap-6 p-4 px-6">
+                  <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
                     <StreamerAdminPanel />
                   </div>
                 </TabsContent>
@@ -518,7 +568,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
         ];
 
   return (
-    <div className="flex flex-col gap-6 p-4 px-6">
+    <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
       <div className="space-y-2">
         <h3 className="text-flash/60">BILLING</h3>
         <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-flash/35">
@@ -805,7 +855,7 @@ function PlanSetupContent({ currentPlan }: { currentPlan: string | null }) {
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-4 px-6">
+    <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
       <div className="space-y-2">
         <h3 className="text-citrine/85">⚙ PLAN SETUP</h3>
         <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-citrine/45">
@@ -860,7 +910,7 @@ function PlanSetupContent({ currentPlan }: { currentPlan: string | null }) {
         <div className="text-[10px] font-mono tracking-[0.25em] uppercase text-citrine/55 mb-3">
           ▸ Switch tier
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {planButtons.map((b) => {
             const isCurrent = (currentPlan ?? "free") === b.key;
             const isPending = pending === b.key;

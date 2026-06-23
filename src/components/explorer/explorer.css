@@ -29,6 +29,12 @@
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* mobile results sheet — rises up from the bottom edge */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 /* our custom nodes draw their own glass card — kill the base theme's default
    node chrome. The "output" type name collides with ReactFlow's built-in
    output node, whose base CSS paints a white box behind our card. */

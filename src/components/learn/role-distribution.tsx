@@ -34,8 +34,8 @@ export function RoleDistribution({ data, delay = 0 }: { data: RoleData[]; delay?
       className="relative bg-black/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden"
     >
       <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-flash/30 mb-1 block">ROLES PLAYED</span>
-      <div className="flex items-center gap-3">
-        <div className="w-20 h-20 shrink-0">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

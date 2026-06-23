@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabaseClient"
+import { consumeStashedRedirect } from "@/lib/authRedirect"
 
 export default function AuthCallback() {
   const navigate = useNavigate()
@@ -18,7 +19,8 @@ export default function AuthCallback() {
   useEffect(() => {
     let cancelled = false
     const fail = (msg: string) => { if (!cancelled) { console.error("[AuthCallback]", msg); setError(msg) } }
-    const ok = () => { if (!cancelled) navigate("/dashboard", { replace: true }) }
+    // Honour the stashed return-route (smart redirect); falls back to /dashboard.
+    const ok = () => { if (!cancelled) navigate(consumeStashedRedirect(), { replace: true }) }
 
     async function run() {
       const url = new URL(window.location.href)

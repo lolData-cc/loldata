@@ -94,7 +94,7 @@ export function AccountDeletion() {
 
       {/* ── Confirmation Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-        <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-[440px] [&>button]:hidden">
+        <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-[92vw] sm:max-w-[440px] [&>button]:hidden">
           <DialogTitle className="sr-only">Confirm Account Deletion</DialogTitle>
 
           <div

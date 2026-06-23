@@ -14,7 +14,7 @@ export function StrengthsWeaknesses({ strengths, weaknesses, delay = 0 }: Props)
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="grid grid-cols-2 gap-3"
+      className="grid grid-cols-1 sm:grid-cols-2 gap-3"
     >
       {/* Strengths */}
       <div className="relative bg-black/30 border border-jade/10 rounded-sm p-3 overflow-hidden">

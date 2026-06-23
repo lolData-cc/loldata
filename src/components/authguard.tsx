@@ -16,7 +16,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (riotCode) {
         sessionStorage.setItem("riot_rso_code", riotCode)
       }
-      navigate("/login")
+      // remember where the user was headed, so login can return them there
+      // (a "pure" /login with no redirect still lands on the dashboard)
+      const dest = window.location.pathname + window.location.search
+      navigate(dest && dest !== "/login" ? `/login?redirect=${encodeURIComponent(dest)}` : "/login")
     }
   }, [loading, session, navigate])
 

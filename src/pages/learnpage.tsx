@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
 import { Navbar } from "@/components/navbar"
@@ -91,7 +91,9 @@ type TabId = typeof TABS[number]["id"]
 export default function LearnPage() {
     const { nametag, puuid, region } = useAuth()
     const navigate = useNavigate()
-    const [activeTab, setActiveTab] = useState<TabId>("overview")
+    const [searchParams, setSearchParams] = useSearchParams()
+    const activeTab = (searchParams.get("t") || "overview") as TabId
+    const setActiveTab = (id: string) => setSearchParams((p) => { p.set("t", id); return p }, { replace: true })
     const [gamesList, setGamesList] = useState<any[]>([])
     const [loadingGames, setLoadingGames] = useState(true)
 
@@ -122,15 +124,16 @@ export default function LearnPage() {
         <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen flex flex-col overflow-hidden">
             {/* Navbar */}
             <div className="w-full flex justify-center">
-                <div className="w-[65%]"><Navbar /></div>
+                <div className="w-full lg:w-[65%]"><Navbar /></div>
             </div>
             <Separator className="bg-flash/[0.08] w-full shrink-0" />
 
-            {/* Main layout — 65% centered; EXPLORER breaks out to full width */}
-            <div className="flex-1 min-h-0 scrollbar-hide relative overflow-y-auto">
-                <div className="w-[65%] mx-auto py-6 relative z-10">
+            {/* Main layout — 65% centered; EXPLORER breaks out to full width.
+                pt-16 on mobile clears the fixed (h-16) navbar; md+ navbar is static. */}
+            <div className="flex-1 min-h-0 scrollbar-hide relative overflow-y-auto pt-16 md:pt-0">
+                <div className="w-full px-3 lg:w-[65%] lg:px-0 mx-auto py-4 lg:py-6 relative z-10">
                     {/* ── Sidebar — floats; stays interactive even over the full-bleed canvas ── */}
-                    <div className="absolute left-0 top-6 w-[160px] pointer-events-auto">
+                    <div className="hidden lg:block absolute left-0 top-6 w-[160px] pointer-events-auto">
                         <div className="relative">
                             {/* Header */}
                             <div className="mb-4">
@@ -175,8 +178,8 @@ export default function LearnPage() {
                         </div>
                     </div>
 
-                    {/* ── Content — offset to avoid sidebar overlap ── */}
-                    <div className="ml-[180px] max-w-[calc(100%-180px)]">
+                    {/* ── Content — offset to avoid sidebar overlap (desktop only) ── */}
+                    <div className="ml-0 max-w-full lg:ml-[180px] lg:max-w-[calc(100%-180px)]">
                         <AnimatePresence mode="wait">
                             {/* OVERVIEW */}
                             {activeTab === "overview" && (

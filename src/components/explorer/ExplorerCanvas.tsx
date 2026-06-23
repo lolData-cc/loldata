@@ -74,6 +74,10 @@ function Canvas({ onBack }: { onBack?: () => void }) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => getSnapshots());
   const [snapsOpen, setSnapsOpen] = useState(false); // saved-snapshots list
   const idRef = useRef(10);
+  // touch long-press → opens the same context menu as desktop right-click
+  // (so you can add a submodule by holding on empty canvas on a phone)
+  const lpTimer = useRef<number | null>(null);
+  const lpStart = useRef<{ x: number; y: number } | null>(null);
   const rf = useReactFlow();
 
   // The Exclude block (a real canvas node, no handles) attaches by being DROPPED
@@ -210,6 +214,32 @@ function Canvas({ onBack }: { onBack?: () => void }) {
           target: negatable ? { id: node!.id, type: node!.type as string, exclude: (node!.data as any)?.exclude === true } : undefined,
         });
       }}
+      onTouchStart={(e) => {
+        if ((e.target as HTMLElement).closest("input, textarea, [contenteditable='true'], button, a")) return;
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const sx = t.clientX, sy = t.clientY;
+        lpStart.current = { x: sx, y: sy };
+        if (lpTimer.current) clearTimeout(lpTimer.current);
+        lpTimer.current = window.setTimeout(() => {
+          const el = document.elementFromPoint(sx, sy) as HTMLElement | null;
+          const nodeId = el?.closest(".react-flow__node")?.getAttribute("data-id") ?? undefined;
+          const node = nodeId ? nodes.find((n) => n.id === nodeId) : undefined;
+          const negatable = node && ["item", "rune", "ally", "enemy"].includes(node.type as string);
+          setCtx({ x: sx, y: sy, target: negatable ? { id: node!.id, type: node!.type as string, exclude: (node!.data as any)?.exclude === true } : undefined });
+          if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(8);
+          lpTimer.current = null;
+        }, 450);
+      }}
+      onTouchMove={(e) => {
+        if (lpTimer.current && lpStart.current) {
+          const t = e.touches[0];
+          if (Math.hypot(t.clientX - lpStart.current.x, t.clientY - lpStart.current.y) > 12) {
+            clearTimeout(lpTimer.current); lpTimer.current = null;
+          }
+        }
+      }}
+      onTouchEnd={() => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; } }}
     >
       <ExcludeDragContext.Provider value={draggingExclude}>
       <ConnectingContext.Provider value={connecting}>
@@ -245,9 +275,9 @@ function Canvas({ onBack }: { onBack?: () => void }) {
       {/* floating UI — controls aligned to the content-column edges, in tune:
           a single diamond rail center-left (back + zoom), run top-right. */}
       <div className="absolute inset-0 pointer-events-none z-[2]">
-        <div className="relative h-full w-[65%] mx-auto">
-          {/* run — primary action, bottom right */}
-          <div className="absolute bottom-4 right-0 pointer-events-auto">
+        <div className="relative h-full w-full lg:w-[65%] mx-auto px-3 lg:px-0">
+          {/* run — primary action, bottom right (desktop) */}
+          <div className="hidden lg:block absolute bottom-4 right-0 pointer-events-auto">
             <button
               onClick={run}
               disabled={running}
@@ -259,9 +289,25 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             </button>
           </div>
 
-          {/* back — primary, prominent diamond, center-left */}
+          {/* run — phone-only rhomboid, centred at the bottom */}
+          <div className="lg:hidden absolute bottom-5 left-1/2 -translate-x-1/2 pointer-events-auto">
+            <button
+              onClick={run}
+              disabled={running}
+              aria-label="Run query"
+              className="grid place-items-center w-[68px] h-[68px] rotate-45 rounded-[16px] border border-jade/50 bg-jade/15 active:bg-jade/30 transition-all cursor-clicker disabled:opacity-50"
+              style={{ boxShadow: "0 0 26px rgba(0,217,146,0.32)" }}
+            >
+              <span className="-rotate-45 flex flex-col items-center gap-0.5 text-jade">
+                {running ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} className="ml-0.5" />}
+                <span className="text-[8px] font-chakrapetch font-bold tracking-[0.12em] uppercase">{running ? "…" : "Run"}</span>
+              </span>
+            </button>
+          </div>
+
+          {/* back — diamond, center-left (desktop only; on phone you use the navbar) */}
           {onBack && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 pointer-events-auto">
+            <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 pointer-events-auto">
               <DiamondButton icon="back" onClick={onBack} aria-label="Back to Learn" />
             </div>
           )}
@@ -310,7 +356,10 @@ function Canvas({ onBack }: { onBack?: () => void }) {
               <p className="text-[12px] font-chakrapetch text-flash/60 mt-1.5">
                 Start with a <span className="text-jade font-semibold">Subject</span>, wire in constraints → an <span className="text-jade font-semibold">Output</span>
               </p>
-              <p className="text-[10px] font-chakrapetch text-flash/45 mt-2 tracking-wide">Click ＋ or right-click the canvas to add modules</p>
+              <p className="text-[10px] font-chakrapetch text-flash/45 mt-2 tracking-wide">
+                <span className="lg:hidden">Tap ＋ or long-press the canvas to add modules</span>
+                <span className="hidden lg:inline">Click ＋ or right-click the canvas to add modules</span>
+              </p>
             </div>
             <div className="flex flex-wrap justify-center gap-2 max-w-[440px]">
               {PALETTE.map((p) => (
@@ -337,7 +386,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}
           />
           <div
-            className="explorer-surface outline-none fixed z-[9] w-[248px] p-2 rounded-[8px] border border-jade/25 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.7)] animate-in fade-in-0 zoom-in-95 duration-100"
+            className="explorer-surface outline-none fixed z-[9] w-[230px] sm:w-[248px] p-2 rounded-[8px] border border-jade/25 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.7)] animate-in fade-in-0 zoom-in-95 duration-100"
             style={{ left: Math.min(ctx.x, window.innerWidth - 260), top: Math.min(ctx.y, window.innerHeight - 330) }}
           >
             {/* ADD MODULE — the usual modules, dropped where you clicked */}
@@ -404,7 +453,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
       {snapsOpen && (
         <>
           <div className="absolute inset-0 z-[7] pointer-events-auto" onClick={() => setSnapsOpen(false)} />
-          <div className="absolute bottom-[58px] left-4 z-[8] w-[300px] max-h-[52vh] flex flex-col rounded-[10px] border border-jade/20 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.7)] overflow-hidden pointer-events-auto animate-[snapPanelIn_0.18s_cubic-bezier(0.16,1,0.3,1)]">
+          <div className="absolute bottom-[58px] left-4 z-[8] w-[calc(100vw-2rem)] sm:w-[300px] max-h-[52vh] flex flex-col rounded-[10px] border border-jade/20 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.7)] overflow-hidden pointer-events-auto animate-[snapPanelIn_0.18s_cubic-bezier(0.16,1,0.3,1)]">
             <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.07]">
               <div className="flex items-center gap-2">
                 <Layers size={13} className="text-jade" />
@@ -457,7 +506,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
   })();
 
   return (
-    <div className="absolute top-0 right-0 h-full w-[320px] border-l border-jade/15 bg-[rgba(5,10,12,0.94)] backdrop-blur-xl flex flex-col animate-[slideIn_0.25s_ease] z-[5]">
+    <div className="absolute inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-0 h-[58%] lg:h-full w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-jade/15 bg-[rgba(5,10,12,0.94)] backdrop-blur-xl flex flex-col animate-[slideUp_0.3s_ease-out] lg:animate-[slideIn_0.25s_ease] z-[5]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
         <div className="flex flex-col">
           <span className="text-[10px] font-chakrapetch font-semibold tracking-[0.22em] uppercase text-jade/65">Result</span>

@@ -56,7 +56,7 @@ export function ItemStrengthPanel({
   return (
     <div className="absolute inset-0 z-[30] grid place-items-center p-4" style={{ animation: "deepDiveExpand 0.28s cubic-bezier(0.16,1,0.3,1)" }}>
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[560px] max-h-[86vh] overflow-y-auto cyber-scrollbar rounded-[14px] border border-jade/20 bg-[rgba(6,12,14,0.97)] p-5 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+      <div className="relative w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[560px] max-h-[86vh] overflow-y-auto cyber-scrollbar rounded-[14px] border border-jade/20 bg-[rgba(6,12,14,0.97)] p-5 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
         {/* header */}
         <div className="flex items-start gap-3 pb-4 mb-4 border-b border-white/[0.07]">
           <img

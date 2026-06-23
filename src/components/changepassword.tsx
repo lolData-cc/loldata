@@ -78,7 +78,7 @@ export function ChangePassword() {
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="w-full max-w-sm bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
+        <DialogContent className="w-full max-w-[92vw] sm:max-w-sm bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
           <div className="w-full relative">
             <div className="font-jetbrains bg-liquirice/90 select-none border-flash/10 border px-7 py-5 rounded-md">
               <BorderBeam duration={8} size={100} />

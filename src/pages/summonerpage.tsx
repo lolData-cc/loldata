@@ -1386,7 +1386,7 @@ export default function SummonerPage() {
       )}
       <div className="relative flex min-h-screen -mt-4 z-10">
         <div
-          className="w-2/5 min-w-[35%] flex flex-col gap-0 items-center transition-opacity duration-700 ease-in-out"
+          className="hidden lg:flex w-2/5 min-w-[35%] flex flex-col gap-0 items-center transition-opacity duration-700 ease-in-out"
           style={{ opacity: matchesCentered ? 0 : 1 }}
         >
 
@@ -2157,13 +2157,92 @@ export default function SummonerPage() {
         </div>
 
         <div
-          className="w-full transition-transform duration-700 ease-in-out"
+          className="w-full min-w-0 transition-transform duration-700 ease-in-out"
           style={{
             transform: matchesCentered ? "translateX(-20%)" : "translateX(0)",
           }}
         >
 
-          <div className="flex flex-row-reverse justify-between items-start mt-[22px] mb-6 w-full min-w-full max-w-full">
+          {/* ── mobile-only minimal profile + rank card (replaces the oversized desktop blocks below, which are hidden on phones) ── */}
+          <div className="lg:hidden relative overflow-hidden mt-20 rounded-md border border-jade/15 bg-[rgba(6,12,14,0.6)] p-3">
+            {/* semi-transparent main-champion splash, faded out toward the left */}
+            {topChampionsSeason.length > 0 && (
+              <img
+                src={cdnSplashUrl(topChampionsSeason[0].champion)}
+                alt=""
+                className="pointer-events-none absolute inset-y-0 right-0 h-full w-[60%] object-cover object-right opacity-20"
+                style={{
+                  WebkitMaskImage: "linear-gradient(to left, black 0%, transparent 85%)",
+                  maskImage: "linear-gradient(to left, black 0%, transparent 85%)",
+                }}
+                draggable={false}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+            <div className="relative z-10">
+            {/* header: icon + name/tag + level·region */}
+            <div className="flex items-center gap-3">
+              <img
+                src={
+                  summonerInfo?.avatar_url
+                  ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
+                }
+                alt=""
+                className={cn(
+                  "w-14 h-14 rounded object-cover shrink-0 border-2",
+                  summonerInfo?.live ? "border-red-500" : "border-transparent"
+                )}
+                draggable={false}
+                onError={(e) => {
+                  e.currentTarget.src = `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`;
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate">
+                  <span className="font-chakrapetch font-bold text-lg text-flash">{summonerInfo?.name}</span>
+                  {summonerInfo?.tag && (
+                    <span className="text-flash/40 font-chakrapetch text-sm ml-0.5">#{summonerInfo.tag}</span>
+                  )}
+                </div>
+                <div className="text-[11px] font-jetbrains text-flash/40 mt-0.5">
+                  Level {summonerInfo?.level} · {region?.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-flash/10 my-2.5" />
+
+            {/* rank rows: Solo/Duo + Flex */}
+            {([
+              { label: "Solo", rank: summonerInfo?.rank, lp: summonerInfo?.lp },
+              { label: "Flex", rank: summonerInfo?.flexRank, lp: summonerInfo?.flexLp },
+            ] as { label: string; rank?: string; lp?: number }[]).map((q) => {
+              const isUnranked = !q.rank || q.rank.toLowerCase() === "unranked";
+              return (
+                <div key={q.label} className="flex items-center gap-2 py-0.5">
+                  <img
+                    src={isUnranked ? "/img/unranked.png" : getRankImage(q.rank)}
+                    alt=""
+                    className="w-8 h-8 shrink-0"
+                    draggable={false}
+                    onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                  />
+                  {isUnranked ? (
+                    <span className="font-chakrapetch text-sm text-flash/50">Unranked</span>
+                  ) : (
+                    <span className="font-chakrapetch text-sm text-flash">
+                      {q.rank}
+                      <span className="text-flash/50 text-xs"> · {q.lp ?? 0} LP</span>
+                    </span>
+                  )}
+                  <span className="ml-auto text-[10px] uppercase tracking-wider text-flash/30">{q.label}</span>
+                </div>
+              );
+            })}
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse lg:flex-row-reverse lg:flex-nowrap justify-center lg:justify-between items-center lg:items-start mt-2 lg:mt-[22px] mb-2 lg:mb-6 w-full min-w-full max-w-full">
             {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
             {(() => {
               const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
@@ -2171,7 +2250,7 @@ export default function SummonerPage() {
               const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
               const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
               return (
-                <div className="flex items-center justify-center gap-0 h-full">
+                <div className="hidden lg:flex flex-wrap lg:flex-nowrap items-center justify-center gap-0 h-full">
                   <div className="flex flex-col items-center gap-1 min-w-[160px]">
                     <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
                     {/* Rank icon — crossfade + scale/blur morph on solo↔flex toggle.
@@ -2285,7 +2364,7 @@ export default function SummonerPage() {
             })()}
             <div
               className={cn(
-                "relative overflow-hidden rounded-md max-w-[440px]",
+                "hidden lg:block relative overflow-hidden rounded-md max-w-[440px]",
                 "bg-black/25 backdrop-blur-lg saturate-150",
                 "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
               )}
@@ -2434,9 +2513,24 @@ export default function SummonerPage() {
 
           </div>
 
+          {/* mobile-only season overall W/L/WR (the sidebar version is hidden on phones) */}
+          {(() => {
+            const wins = summonerInfo?.wins ?? 0;
+            const losses = summonerInfo?.losses ?? 0;
+            const totalGames = wins + losses;
+            const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+            return (
+              <div className="lg:hidden flex items-center gap-4 mt-1 lg:mt-4 px-1">
+                <div><span className="text-jade text-2xl font-chakrapetch font-bold tabular-nums">{wins}</span><span className="ml-1 text-[10px] uppercase tracking-wider text-flash/40">Wins</span></div>
+                <div><span className="text-[#b11315] text-2xl font-chakrapetch font-bold tabular-nums">{losses}</span><span className="ml-1 text-[10px] uppercase tracking-wider text-flash/40">Losses</span></div>
+                <div className="ml-auto"><span className={cn("text-2xl font-chakrapetch font-bold tabular-nums", getWinrateClass(winrate, totalGames))}>{winrate}%</span><span className="ml-1 text-[10px] uppercase tracking-wider text-flash/40">WR</span></div>
+              </div>
+            );
+          })()}
+
           <div className="w-full mt-4">
             {/* ── Unified filter row ── */}
-            <div className="flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
               {/* Queue — dropdown (many options) */}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -2605,99 +2699,75 @@ export default function SummonerPage() {
               const avgVis = (stats.vision / n).toFixed(1)
               const kp = stats.teamKills > 0 ? Math.round(((stats.kills + stats.assists) / stats.teamKills) * 100) : 0
 
-              // SVG donut params
-              const r = 20, cx = 24, cy = 24
-              const circ = 2 * Math.PI * r
-              const winArc = (wr / 100) * circ
+              // KDA quality colour (reused for the KDA tile) + win-rate colour
               const kdaNum = stats.deaths === 0 ? 99 : (stats.kills + stats.assists) / stats.deaths
-              const kdaColor = kdaNum >= 4 ? "text-jade" : kdaNum >= 3 ? "text-amber-400" : kdaNum >= 2 ? "text-flash/70" : "text-rose-400"
+              const kdaColor = kdaNum >= 4 ? "text-jade" : kdaNum >= 3 ? "text-amber-400" : kdaNum >= 2 ? "text-flash/75" : "text-rose-400"
+              const wrColor = getWinrateClass(wr, stats.wins + stats.losses)
 
-              // Collect visible stat sections with separators
-              const sections: React.ReactNode[] = []
-              if (visibleStats.kda) {
-                sections.push(
-                  <div key="kda" className="flex flex-col">
-                    <div className="flex items-baseline gap-1">
-                      <span className={cn("text-[14px] font-bold tabular-nums tracking-tight leading-none", kdaColor)}>{kda}</span>
-                      <span className="text-[9px] text-flash/25 tracking-[0.1em] uppercase leading-none">KDA</span>
-                    </div>
-                    <span className="text-[9px] text-flash/40 tabular-nums leading-none mt-1">
-                      {avgK}<span className="text-flash/15"> / </span><span className="text-red-400/50">{avgD}</span><span className="text-flash/15"> / </span>{avgA}
-                    </span>
-                  </div>
-                )
-              }
-              if (visibleStats.kp) {
-                sections.push(
-                  <div key="kp" className="flex flex-col">
-                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{kp}%</span>
-                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">KP</span>
-                  </div>
-                )
-              }
-              if (visibleStats.csm) {
-                sections.push(
-                  <div key="csm" className="flex flex-col">
-                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{csMin}</span>
-                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">CS/M</span>
-                  </div>
-                )
-              }
-              if (visibleStats.dmg) {
-                sections.push(
-                  <div key="dmg" className="flex flex-col">
-                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgDmg}</span>
-                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">DMG</span>
-                  </div>
-                )
-              }
-              if (visibleStats.vis) {
-                sections.push(
-                  <div key="vis" className="flex flex-col">
-                    <span className="text-[13px] font-semibold text-flash/60 tabular-nums leading-none">{avgVis}</span>
-                    <span className="text-[7px] text-flash/20 tracking-[0.15em] uppercase leading-none mt-1">VIS</span>
-                  </div>
-                )
-              }
+              // Collect the enabled stat tiles
+              const tiles: { label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string }[] = []
+              if (visibleStats.kda) tiles.push({
+                label: "KDA",
+                value: kda,
+                color: kdaColor,
+                sub: (
+                  <>{avgK}<span className="text-flash/20"> / </span><span className="text-rose-400/55">{avgD}</span><span className="text-flash/20"> / </span>{avgA}</>
+                ),
+              })
+              if (visibleStats.kp) tiles.push({ label: "KP", value: `${kp}%` })
+              if (visibleStats.csm) tiles.push({ label: "CS/M", value: csMin })
+              if (visibleStats.dmg) tiles.push({ label: "DMG", value: avgDmg })
+              if (visibleStats.vis) tiles.push({ label: "VIS", value: avgVis })
 
               return (
-                <div className="mt-3 flex items-center gap-4">
-                  {/* Win rate ring */}
-                  <div className="relative shrink-0">
-                    <svg width="52" height="52" viewBox="0 0 48 48">
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="3.5" />
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(185,30,30,0.45)" strokeWidth="3.5"
-                        strokeDasharray={circ} strokeDashoffset={0}
-                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round" />
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00d992" strokeWidth="3.5"
-                        strokeDasharray={`${winArc} ${circ - winArc}`} strokeDashoffset={0}
-                        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="round"
-                        style={{ filter: "drop-shadow(0 0 5px rgba(0,217,146,0.5))" }} />
-                      <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="central"
-                        className="font-mono text-[11px] font-bold"
-                        fill={wr >= 55 ? "#00d992" : wr < 45 ? "#f87171" : "rgba(255,255,255,0.5)"}>
-                        {wr}%
-                      </text>
-                      <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="central"
-                        className="font-mono text-[7px]" fill="rgba(255,255,255,0.25)">
-                        {stats.wins}W {stats.losses}L
-                      </text>
-                    </svg>
+                <div className="mt-3 hidden lg:block rounded-md border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_26px_rgba(0,0,0,0.35)]">
+                  {/* header strip */}
+                  <div className="flex items-center gap-2 px-4 pt-2.5">
+                    <span className="h-[5px] w-[5px] rounded-full bg-jade shadow-[0_0_6px_rgba(0,217,146,0.8)]" />
+                    <span className="text-[9px] font-chakrapetch uppercase tracking-[0.24em] text-flash/40 leading-none">
+                      Last {stats.count} Games
+                    </span>
+                    <span className="flex-1 h-px bg-gradient-to-r from-flash/10 via-flash/[0.04] to-transparent" />
                   </div>
 
-                  {/* Stats row — flat, evenly distributed with separators */}
-                  <div className="flex-1 flex items-center justify-between font-mono">
-                    {sections.map((section, i) => (
-                      <React.Fragment key={i}>
-                        {i > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
-                        {section}
-                      </React.Fragment>
-                    ))}
+                  {/* body */}
+                  <div className="flex items-center gap-5 px-4 py-3">
+                    {/* win-rate cluster */}
+                    <div className="flex flex-col gap-1.5 shrink-0 w-[150px] pr-5 border-r border-flash/[0.06]">
+                      <div className="flex items-baseline gap-2">
+                        <span className={cn("text-[26px] font-chakrapetch font-bold tabular-nums leading-none", wrColor)}>{wr}%</span>
+                        <span className="text-[8px] uppercase tracking-[0.18em] text-flash/30 font-chakrapetch">Win Rate</span>
+                      </div>
+                      {/* W/L ratio bar */}
+                      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-black/40">
+                        <div className="h-full bg-jade shadow-[0_0_8px_rgba(0,217,146,0.45)]" style={{ width: `${wr}%` }} />
+                        <div className="h-full bg-[#b11315]/55" style={{ width: `${100 - wr}%` }} />
+                      </div>
+                      <div className="flex items-center justify-between leading-none">
+                        <span className="text-jade text-[11px] font-chakrapetch font-bold tabular-nums">{stats.wins}<span className="text-flash/30 ml-0.5">W</span></span>
+                        <span className="text-[#e0686a] text-[11px] font-chakrapetch font-bold tabular-nums">{stats.losses}<span className="text-flash/30 ml-0.5">L</span></span>
+                      </div>
+                    </div>
 
-                    {sections.length > 0 && <span className="w-px h-5 bg-flash/[0.06]" />}
-
-                    {/* Games count — always shown */}
-                    <span className="text-[9px] text-flash/20 tracking-[0.15em] uppercase">LAST {stats.count} GAMES</span>
+                    {/* stat tiles */}
+                    {tiles.length > 0 && (
+                      <div className="flex-1 flex items-center justify-between">
+                        {tiles.map((t, i) => (
+                          <React.Fragment key={t.label}>
+                            {i > 0 && <span className="w-px h-8 bg-flash/[0.06]" />}
+                            <div className="flex flex-1 flex-col items-center justify-center gap-1 px-1">
+                              <span className={cn("text-[17px] font-chakrapetch font-bold tabular-nums leading-none", t.color ?? "text-flash/85")}>
+                                {t.value}
+                              </span>
+                              {t.sub && (
+                                <span className="text-[8px] text-flash/35 tabular-nums font-chakrapetch leading-none">{t.sub}</span>
+                              )}
+                              <span className="text-[8px] uppercase tracking-[0.18em] text-flash/30 font-chakrapetch leading-none">{t.label}</span>
+                            </div>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -2765,8 +2835,8 @@ export default function SummonerPage() {
                           {wins > 0 && <span className="text-jade">{wins}W</span>}
                           {losses > 0 && <span className="text-[#b11315]">{losses}L</span>}
                           {wins > 0 && losses > 0 && <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>}
-                          <Separator orientation="vertical" className="h-4 bg-[#48504E]" />
-                          <span className="text-flash/70 uppercase">{playedLabel}</span>
+                          <Separator orientation="vertical" className="hidden lg:block h-4 bg-[#48504E]" />
+                          <span className="hidden lg:inline text-flash/70 uppercase">{playedLabel}</span>
                         </div>
                       </div>
                       )}
@@ -2924,7 +2994,7 @@ export default function SummonerPage() {
 
                                           {isSelfMvpOrAce && coloredMatchBg && (
                                             <span className={cn(
-                                              "text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
+                                              "hidden lg:inline text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
                                               summonerInfo?.puuid === mvpWin
                                                 ? (blueWinTint ? "text-[#8ec5ff] border-[#8ec5ff]/25 bg-[#8ec5ff]/10" : "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10")
                                                 : "text-[#ff6b6b] border-[#ff6b6b]/25 bg-[#ff6b6b]/10"
@@ -2953,7 +3023,7 @@ export default function SummonerPage() {
                                       <div className="relative flex justify-between">
                                         <div className="relative z-40 flex justify-between w-full">
                                           <div className="mt-3">
-                                            <div className="flex space-x-1.5 relative">
+                                            <div className="flex space-x-1 lg:space-x-1.5 relative">
                                               <div className="relative w-12 h-12">
                                                 <img
                                                   src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`}
@@ -2964,6 +3034,19 @@ export default function SummonerPage() {
                                                   <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
                                                     {participant.champLevel}
                                                   </div>
+                                                )}
+                                                {isSelfMvpOrAce && (
+                                                  <span
+                                                    className={cn(
+                                                      "lg:hidden absolute -top-1 -left-1 z-20 px-1 rounded-[3px] text-[8px] leading-none",
+                                                      summonerInfo?.puuid === mvpWin
+                                                        ? "bg-pine text-jade"
+                                                        : "bg-[#3A2C45] text-[#C693F1]"
+                                                    )}
+                                                    style={{ lineHeight: '1', fontWeight: 700 }}
+                                                  >
+                                                    {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
+                                                  </span>
                                                 )}
                                               </div>
 
@@ -2982,7 +3065,7 @@ export default function SummonerPage() {
                                                     />
                                                   </div>
                                                   {participant.perks?.styles && participant.perks.styles.length >= 2 && (
-                                                    <div className="grid grid-rows-2 gap-0.5">
+                                                    <div className="grid grid-rows-2 gap-0 lg:gap-0.5">
                                                       {(() => {
                                                         const keystoneId = participant.perks!.styles[0]?.selections?.[0]?.perk;
                                                         const keystoneSrc = keystoneId ? getKeystoneIcon(keystoneId) : null;
@@ -3035,7 +3118,7 @@ export default function SummonerPage() {
                                               )}
                                               {participant && (
                                                 <div className="flex ml-1">
-                                                  <div className="grid grid-cols-3 grid-rows-2 gap-0.5">
+                                                  <div className="grid grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-0 lg:gap-0.5">
                                                     {itemKeys.map((key, index) => {
                                                       const itemId = participant[key];
                                                       return (
@@ -3061,7 +3144,7 @@ export default function SummonerPage() {
                                                   </div>
 
                                                   {typeof participant.item6 === "number" && participant.item6 > 0 && (
-                                                    <div className="flex items-center justify-center ml-1">
+                                                    <div className="hidden lg:flex items-center justify-center ml-1">
                                                       <Link
                                                         to={`/items/${participant.item6}`}
                                                         className="cursor-clicker group relative w-6 h-6 block"
@@ -3106,7 +3189,7 @@ export default function SummonerPage() {
                                                 })()}
                                                 {/* KDA caption — stacked big value + tiny label,
                                                     mirrors the scout matchcard look. */}
-                                                <div className="flex flex-col leading-tight ml-3 tabular-nums">
+                                                <div className="hidden lg:flex flex-col leading-tight ml-3 tabular-nums">
                                                   <span className="font-chakrapetch font-bold tabular-nums text-flash/75 text-[13px]">
                                                     {typeof kda === "number" ? kda.toFixed(2) : kda}
                                                   </span>
@@ -3159,7 +3242,7 @@ export default function SummonerPage() {
                                                     <TooltipProvider delayDuration={150}>
                                                       <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                          <div className="flex flex-col leading-tight ml-4 tabular-nums cursor-default">
+                                                          <div className="hidden lg:flex flex-col leading-tight ml-4 tabular-nums cursor-default">
                                                             <span
                                                               className={cn(
                                                                 "font-chakrapetch font-bold text-[13px]",
@@ -3208,7 +3291,7 @@ export default function SummonerPage() {
                                                     <TooltipProvider delayDuration={150}>
                                                       <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                          <div className="flex flex-col leading-tight ml-4 tabular-nums cursor-default">
+                                                          <div className="hidden lg:flex flex-col leading-tight ml-4 tabular-nums cursor-default">
                                                             <span className={cn("font-chakrapetch font-bold text-[13px]", kpValueClass)}>
                                                               {kp}%
                                                             </span>
@@ -3231,8 +3314,8 @@ export default function SummonerPage() {
                                               </div>
                                             </div>
                                           </div>
-                                          <div className="w-[44%] grid grid-cols-2 gap-4 mt-2 text-[11px]">
-                                            <div>
+                                          <div className="w-[46%] lg:w-[44%] grid grid-cols-2 gap-1.5 lg:gap-4 mt-2 text-[8px] lg:text-[11px]">
+                                            <div className="min-w-0">
                                               <ul className="space-y-0.5">
                                                 {team1.map((p) => {
                                                   const isCurrentUser = p.puuid === summonerInfo?.puuid;
@@ -3246,7 +3329,7 @@ export default function SummonerPage() {
                                                   const isStreamerPlayer = nameKey && !isProPlayer && streamerUsernames.has(nameKey);
 
                                                   return (
-                                                    <li key={p.puuid} className="flex items-center gap-1">
+                                                    <li key={p.puuid} className="flex items-center gap-1 min-w-0">
                                                       <div className="relative w-4 h-4 shrink-0">
                                                         <img
                                                           src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
@@ -3305,7 +3388,7 @@ export default function SummonerPage() {
                                               </ul>
 
                                             </div>
-                                            <div>
+                                            <div className="min-w-0">
                                               <ul className="space-y-0.5">
                                                 {team2.map((p) => {
                                                   const isCurrentUser = p.puuid === summonerInfo?.puuid;

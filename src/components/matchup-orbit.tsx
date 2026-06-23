@@ -73,13 +73,13 @@ function SelectedTether({ pos, color }: { pos: [number, number, number]; color: 
   const target = useMemo(() => new THREE.Vector3(pos[0], pos[1], pos[2]), [pos]);
   const v = useMemo(() => new THREE.Vector3(), []);
   const pulses = useRef<(THREE.Mesh | null)[]>([]);
-  const N = 3;
+  const N = 2;
   useFrame((state) => {
     const e = state.clock.elapsedTime;
     for (let i = 0; i < N; i++) {
       const m = pulses.current[i];
       if (!m) continue;
-      const t = (e * 0.75 + i / N) % 1;          // staggered 0→1, centre → node
+      const t = (e * 0.16 + i / N) % 1;          // staggered 0→1, centre → node (slow, calm drift)
       v.copy(target).multiplyScalar(t);
       m.position.copy(v);
       const fade = Math.sin(t * Math.PI);         // dark at both ends, bright mid-flight
@@ -170,7 +170,9 @@ export function MatchupOrbit({
     <div className={cn("relative", className)}>
       <style>{`@keyframes mo-halo-pulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.9)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}}.mo-halo{animation:mo-halo-pulse 1.5s ease-in-out infinite}`}</style>
       <Canvas
-        camera={{ position: [0, 0.2, 7.8], fov: 42 }}
+        // start zoomed out — distance scales with the sphere so every roster size
+        // frames the same (smaller) way (zoom is disabled, so this is the fixed view)
+        camera={{ position: [0, 0.2, radius * 2.9], fov: 42 }}
         dpr={[1, 1.8]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
@@ -186,11 +188,10 @@ export function MatchupOrbit({
           selectedKey={selectedKey}
           hoverKey={hoverKey}
         />
+        {/* zoom disabled — the scroll-wheel zoom hijacked page scroll and broke the layout */}
         <OrbitControls
           enablePan={false}
-          enableZoom
-          minDistance={5}
-          maxDistance={13}
+          enableZoom={false}
           autoRotate
           autoRotateSpeed={0.5}
           rotateSpeed={0.6}

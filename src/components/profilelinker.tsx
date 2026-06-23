@@ -533,7 +533,7 @@ export function ProfilerLinker() {
 
       <div className="relative z-[2] px-4 py-3 pl-5">
         {/* Content */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
             {isLinked && linkedSummonerDetails && linkedIconUrl ? (
               <img src={linkedIconUrl} alt="" className="w-full h-full object-cover" />
@@ -541,7 +541,7 @@ export function ProfilerLinker() {
               <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             {initialLoading ? (
               <div className="space-y-1.5">
                 <div className="h-3.5 w-32 rounded-[2px] bg-flash/5 animate-pulse" />
@@ -568,7 +568,7 @@ export function ProfilerLinker() {
         <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
         {/* Buttons below divider */}
-        <div className="flex justify-between items-center pt-2">
+        <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
           <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
             {isLinked ? "◈ LINKED" : "◈ NOT LINKED"}
           </span>
@@ -601,7 +601,7 @@ export function ProfilerLinker() {
         open={dialogOpen}
         onOpenChange={(open) => !open && handleDialogClose()}
       >
-        <DialogContent className="w-full max-w-md bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
+        <DialogContent className="w-full max-w-[92vw] sm:max-w-md bg-transparent shadow-none top-60 [&>button]:hidden flex flex-col items-center">
           <div className="w-full relative">
             <div className="font-jetbrains bg-liquirice/90 select-none border-flash/10 border px-7 py-5 rounded-md">
               <BorderBeam duration={8} size={100} />
@@ -617,8 +617,8 @@ export function ProfilerLinker() {
                     </DialogDescription>
                   </DialogHeader>
 
-                  <div className="flex gap-4 mt-4 items-center">
-                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-flash/20 bg-black/40">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 items-start sm:items-center">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-flash/20 bg-black/40 shrink-0">
                       {currentIconUrl ? (
                         <img
                           src={currentIconUrl}
@@ -632,7 +632,7 @@ export function ProfilerLinker() {
                       )}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <div className="text-flash font-semibold text-sm uppercase">
                         {currentSummoner.name}
                         <span className="text-flash/60 text-xs">

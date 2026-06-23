@@ -14,7 +14,7 @@
 
 import * as React from "react"
 import { Eye } from "lucide-react"
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, useInView } from "framer-motion"
 
@@ -75,6 +75,20 @@ export default function StreamersInfiniteCarousel({
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
+  // Measure the rail (the page column) so tiles size to the page — not the
+  // full viewport — keeping the marquee in line with the rest of the homepage.
+  const stripRef = useRef<HTMLDivElement>(null)
+  const [stripW, setStripW] = useState(0)
+  useLayoutEffect(() => {
+    const el = stripRef.current
+    if (!el) return
+    const measure = () => setStripW(el.getBoundingClientRect().width)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [loading])
+
   const fetchLive = useCallback(async () => {
     try {
       setLoading(true)
@@ -112,20 +126,19 @@ export default function StreamersInfiniteCarousel({
   // 👉 Se non sto caricando e non ho items, non renderizzo nulla (niente titolo, niente strip)
   if (!loading && items.length === 0) return null
 
-  // strip per loop continuo
-  const tileWpx =
-    vw >= 1024
-      ? Math.round(vw * TILE_W_FRAC_DESKTOP)
-      : vw >= 640
-      ? Math.round(vw * TILE_W_FRAC_TABLET)
-      : Math.round(vw * TILE_W_FRAC_MOBILE)
+  // strip per loop continuo — tiles are a fraction of the RAIL (page column)
+  // width, so the same count shows across the now-narrower in-page strip.
+  const frac =
+    vw >= 1024 ? TILE_W_FRAC_DESKTOP : vw >= 640 ? TILE_W_FRAC_TABLET : TILE_W_FRAC_MOBILE
+  const railW = stripW > 0 ? stripW : vw
+  const tileWpx = Math.round(railW * frac)
 
   const tileHpx = vw >= 640 ? TILE_H_DESKTOP : TILE_H_MOBILE
 
   const base = items.length > 0 ? items : []
   let strip: LiveStreamer[] = []
   if (base.length > 0) {
-    const targetWidth = vw + tileWpx
+    const targetWidth = railW + tileWpx
     const baseWidth = base.length * tileWpx
     const times = Math.max(1, Math.ceil(targetWidth / baseWidth))
     strip = Array.from({ length: times }, () => base).flat()
@@ -135,18 +148,14 @@ export default function StreamersInfiniteCarousel({
   return (
     <motion.section
       ref={sectionRef}
-      className="relative w-screen"
-      style={{
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-      }}
+      className="relative w-full"
       initial={{ opacity: 0, y: 20 }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
       transition={{ duration: 0.7, ease: EASE_BRAND }}
     >
       {/* Optional heading — fades in with its own jade accent line. */}
       {withHeading && (
-        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 mx-auto">
+        <div className="w-full">
           <motion.div
             className="flex items-end gap-3 mb-2 sm:mb-3"
             initial={{ opacity: 0, x: -12 }}
@@ -230,11 +239,11 @@ export default function StreamersInfiniteCarousel({
           demarcate the section against the page; adding a hairline
           border made a hard white line that read as a "card edge"
           against the matching liquirice page background. */}
-      <div className="scroll-paused relative select-none overflow-hidden bg-liquirice">
+      <div ref={stripRef} className="scroll-paused relative select-none overflow-hidden bg-liquirice">
         {/* Fade sinistro */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-12 sm:w-32 bg-gradient-to-r from-liquirice via-liquirice/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-24 bg-gradient-to-r from-liquirice via-liquirice/80 to-transparent z-10" />
         {/* Fade destro */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 sm:w-32 bg-gradient-to-l from-liquirice via-liquirice/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-24 bg-gradient-to-l from-liquirice via-liquirice/80 to-transparent z-10" />
         {/* Contenuto scorrevole */}
         <div className="scroll-track">
           {loading && <SkeletonRow height={tileHpx} width={tileWpx} />}

@@ -22,10 +22,12 @@ export function BuildPathViz({
   graph,
   onSelectItem,
   selectedItem,
+  bare,
 }: {
   graph: ExplorerGraph;
   onSelectItem?: (id: number) => void;
   selectedItem?: number | null;
+  bare?: boolean; // drop the card chrome (border/bg/title) so the items float
 }) {
   const [res, setRes] = useState<BuildPathResult | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">("loading");
@@ -49,7 +51,7 @@ export function BuildPathViz({
 
   if (phase === "loading")
     return (
-      <Shell>
+      <Shell bare={bare}>
         <div className="h-[150px] grid place-items-center text-[11px] font-chakrapetch text-flash/35">
           tracing the build path…
         </div>
@@ -57,7 +59,7 @@ export function BuildPathViz({
     );
   if (phase === "error")
     return (
-      <Shell>
+      <Shell bare={bare}>
         <div className="h-[110px] grid place-items-center text-[11px] font-chakrapetch text-flash/35">
           Build path unavailable for this query.
         </div>
@@ -65,7 +67,7 @@ export function BuildPathViz({
     );
   if (phase === "empty" || !res)
     return (
-      <Shell>
+      <Shell bare={bare}>
         <div className="h-[110px] grid place-items-center text-center text-[11px] font-chakrapetch text-flash/35 px-6">
           No item-order data for this cohort yet — build paths need timeline-covered games.
         </div>
@@ -73,7 +75,7 @@ export function BuildPathViz({
     );
 
   return (
-    <Shell coverage={res.coverage} covered={res.coveredGames}>
+    <Shell bare={bare} coverage={res.coverage} covered={res.coveredGames}>
       <div className="overflow-x-auto cyber-scrollbar pb-2 -mx-1 px-1">
         <div className="flex items-start gap-7 min-w-min pt-1">
           {res.slots.map((slot, i) => {
@@ -211,18 +213,23 @@ function Shell({
   children,
   coverage,
   covered,
+  bare,
 }: {
   children: React.ReactNode;
   coverage?: number;
   covered?: number;
+  bare?: boolean;
 }) {
   return (
-    <div className="deep-section rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5" style={{ animationDelay: "150ms" }}>
+    <div className={cn("deep-section", !bare && "rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5")} style={{ animationDelay: "150ms" }}>
+      {(!bare || coverage != null) && (
       <div className="flex items-center justify-between gap-3 mb-3.5">
+        {bare ? <span /> : (
         <div className="flex items-center gap-2">
           <span className="w-1 h-3.5 bg-jade rounded-full" />
           <span className="text-[11px] font-chakrapetch font-bold tracking-[0.2em] uppercase text-flash/55">Core build path</span>
         </div>
+        )}
         {coverage != null && (
           <CyberTip side="bottom" tip={<>Build order is only known for games that have <b className="text-flash">match-timeline</b> data — <b className="text-jade">{coverage}%</b> of this cohort. The path is computed from those <b className="text-flash">{compact(covered ?? 0)}</b> games.</>}>
             <span className="flex items-center gap-1.5 text-[10px] font-chakrapetch text-flash/55 tabular-nums cursor-help whitespace-nowrap">
@@ -232,6 +239,7 @@ function Shell({
           </CyberTip>
         )}
       </div>
+      )}
       {/* legend — what the two numbers under each item mean */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3.5 text-[9px] font-chakrapetch text-flash/40">
         <span><b className="text-jade">52%</b> winrate at this slot</span>
