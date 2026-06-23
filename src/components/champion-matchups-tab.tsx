@@ -198,14 +198,8 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
 
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4">
         {/* picker — 3D orbit or 2D grid fallback */}
-        <div className="relative rounded-2xl border border-jade/15 bg-[rgba(6,12,14,0.55)] overflow-hidden min-h-[460px]" style={GLASS}>
-          {/* faint dot-grid */}
-          <div aria-hidden className="absolute inset-0 pointer-events-none opacity-[0.05] [background-image:radial-gradient(rgba(0,217,146,0.7)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_72%)]" />
-          {/* corner ticks */}
-          <span className="pointer-events-none absolute w-3 h-3 border-jade/40 top-2 left-2 border-t border-l" />
-          <span className="pointer-events-none absolute w-3 h-3 border-jade/40 top-2 right-2 border-t border-r" />
-          <span className="pointer-events-none absolute w-3 h-3 border-jade/40 bottom-2 left-2 border-b border-l" />
-          <span className="pointer-events-none absolute w-3 h-3 border-jade/40 bottom-2 right-2 border-b border-r" />
+        {/* the tree floats in the void — no box */}
+        <div className="relative min-h-[500px]">
 
           {webgl ? (
             <OrbitBoundary fallback={<Grid2D nodes={nodes} selectedKey={selectedKey} onSelect={setSelectedKey} />}>
