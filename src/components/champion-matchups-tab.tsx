@@ -213,8 +213,8 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* ── row 1: pick (orbit) + verdict ────────────────────────── */}
-      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
+      {/* ── row 1: pick (orbit) + matchup readout ────────────────── */}
+      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-4 items-start">
         {/* the tree floats in the void — no box */}
         <div className="relative min-h-[440px]">
           {webgl ? (
@@ -252,39 +252,84 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
           </div>
         </div>
 
-        {/* verdict for the picked matchup */}
-        <div className={cn(PANEL, "p-5 backdrop-blur-md")} style={GLASS}>
+        {/* matchup readout: search + compact verdict + best runes */}
+        <div className="flex flex-col gap-3">
+          <MatchupSearch nodes={nodes} onPick={setSelectedKey} />
           {selected ? (
-            <MatchupVerdict champ={champ} node={selected} badge={badgeFromWR(selected.winrate)} tips={tips[selected.key]} onFull={() => navigate(`/champions/${champ.id}/statistics?vs=${selected.id}`)} />
+            <>
+              <div className={cn(PANEL, "p-4 backdrop-blur-md")} style={GLASS}>
+                <MatchupVerdict champ={champ} node={selected} badge={badgeFromWR(selected.winrate)} tips={tips[selected.key]} onFull={() => navigate(`/champions/${champ.id}/statistics?vs=${selected.id}`)} />
+              </div>
+              <RunesCard
+                key={`${champ.id}:${selected.id}`}
+                championKey={Number(champ.key)}
+                opponentKey={Number(selected.key)}
+                opponentName={selected.name}
+              />
+            </>
           ) : (
-            <div className="grid place-items-center h-full min-h-[300px] text-flash/40 font-jetbrains text-[12px]">Pick a matchup</div>
+            <div className={cn(PANEL, "p-5 grid place-items-center min-h-[200px] text-flash/40 font-jetbrains text-[12px]")}>Pick a matchup</div>
           )}
         </div>
       </div>
 
-      {/* ── row 2: game plan vs the picked opponent ──────────────── */}
+      {/* ── row 2: recommended build vs the picked opponent ──────── */}
       {selected && matchupGraph && (
-        <section className="space-y-3.5">
+        <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <Eyebrow>Game plan vs {selected.name}</Eyebrow>
+            <Eyebrow>Recommended build vs {selected.name}</Eyebrow>
             <span className="font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/35">current patch · ranked</span>
           </div>
-          <div className="grid lg:grid-cols-[300px_1fr] gap-4 items-start">
-            <RunesCard
-              key={`${champ.id}:${selected.id}`}
-              championKey={Number(champ.key)}
-              opponentKey={Number(selected.key)}
-              opponentName={selected.name}
-            />
-            <BuildPathViz graph={matchupGraph} />
-          </div>
+          <BuildPathViz graph={matchupGraph} />
         </section>
       )}
     </div>
   )
 }
 
-// ── verdict card ───────────────────────────────────────────────────
+// ── search: jump straight to any of this champion's matchups ───────
+function MatchupSearch({ nodes, onPick }: { nodes: MatchupNode[]; onPick: (k: string) => void }) {
+  const [q, setQ] = useState("")
+  const [open, setOpen] = useState(false)
+  const results = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    const pool = t ? nodes.filter(n => n.name.toLowerCase().includes(t)) : nodes
+    return pool.slice(0, 24)
+  }, [q, nodes])
+
+  return (
+    <div className="relative">
+      <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-flash/35" fill="none" stroke="currentColor" strokeWidth={2}>
+        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" strokeLinecap="round" />
+      </svg>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        placeholder="Search a matchup…"
+        className="w-full h-11 rounded-xl bg-black/30 ring-1 ring-inset ring-white/10 focus:ring-jade/40 pl-9 pr-3 font-jetbrains text-[12px] text-flash/85 placeholder:text-flash/30 outline-none transition-shadow"
+      />
+      {open && results.length > 0 && (
+        <div className="absolute z-30 mt-1.5 w-full rounded-xl border border-jade/15 bg-[rgba(6,12,14,0.97)] backdrop-blur-md p-1 max-h-[280px] overflow-y-auto cyber-scrollbar" style={{ boxShadow: "0 30px 60px -25px rgba(0,0,0,0.8)" }}>
+          {results.map(n => {
+            const c = n.winrate >= 51 ? "text-jade" : n.winrate < 49 ? "text-[#ff6286]" : "text-flash/60"
+            return (
+              <button key={n.key} onMouseDown={() => { onPick(n.key); setQ(""); setOpen(false) }}
+                className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-jade/[0.08] transition-colors cursor-clicker">
+                <img src={n.iconUrl} alt="" className="w-7 h-7 rounded-md object-cover shrink-0" />
+                <span className="flex-1 font-chakrapetch text-[13px] font-semibold text-flash/80 truncate">{n.name}</span>
+                <span className={cn("font-chakrapetch text-[12px] font-bold tabular-nums shrink-0", c)}>{n.winrate.toFixed(1)}%</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── compact verdict ────────────────────────────────────────────────
 function MatchupVerdict({
   champ, node, badge, tips, onFull,
 }: {
@@ -296,39 +341,32 @@ function MatchupVerdict({
 }) {
   const wr = node.winrate
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src={champIcon(champ.id)} alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
-          <span className="font-chakrapetch text-[13px] font-bold uppercase tracking-[0.1em] text-flash/40">vs</span>
-          <img src={node.iconUrl} alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
+    <div className="space-y-3.5">
+      {/* heads + name + winrate, all on one line */}
+      <div className="flex items-center gap-2.5">
+        <img src={champIcon(champ.id)} alt={champ.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-jade/25 shrink-0" />
+        <span className="font-chakrapetch text-[10px] font-bold uppercase tracking-[0.1em] text-flash/35 shrink-0">vs</span>
+        <img src={node.iconUrl} alt={node.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-[#ff6286]/25 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="font-chakrapetch text-[15px] font-bold leading-tight text-flash/90 truncate">{node.name}</div>
+          <div className="font-jetbrains text-[10px] text-flash/40 tabular-nums">{node.games.toLocaleString()} games</div>
         </div>
-        <span className={cn("rounded-md px-2.5 py-1 font-chakrapetch text-[10px] font-bold uppercase tracking-[0.12em]", badgeClass(badge))}>{badge}</span>
-      </div>
-
-      <div className="mt-5">
-        <div className="flex items-end gap-2">
-          <span className={cn("font-chakrapetch text-[44px] font-bold leading-none tabular-nums", wrText(wr))} style={wr >= 51 ? { textShadow: "0 0 28px rgba(0,217,146,0.35)" } : undefined}>{wr.toFixed(1)}%</span>
-          <span className="mb-1.5 font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/40">win rate</span>
-        </div>
-        <p className="mt-1 text-[13px] text-flash/55">
-          {champ.name} vs <span className="text-flash/75">{node.name}</span> · {node.games.toLocaleString()} games
-        </p>
-        <div className="mt-3 h-2 rounded-full overflow-hidden bg-[#ff6286]/20">
-          <div className="h-full rounded-full bg-gradient-to-r from-jade/70 to-jade" style={{ width: `${Math.max(4, Math.min(96, wr))}%` }} />
+        <div className="text-right shrink-0">
+          <div className={cn("font-chakrapetch text-[26px] font-bold leading-none tabular-nums", wrText(wr))} style={wr >= 51 ? { textShadow: "0 0 22px rgba(0,217,146,0.3)" } : undefined}>{wr.toFixed(1)}%</div>
+          <span className={cn("inline-block mt-1 rounded px-1.5 py-0.5 font-chakrapetch text-[9px] font-bold uppercase tracking-[0.1em]", badgeClass(badge))}>{badge}</span>
         </div>
       </div>
 
-      {tips && (
-        <div className="mt-5">
-          <div className="font-jetbrains text-[10px] uppercase tracking-[0.16em] text-jade/55 mb-1.5">Lane notes</div>
-          <p className="text-[13px] leading-relaxed text-flash/60">{tips}</p>
-        </div>
-      )}
+      {/* win-rate bar */}
+      <div className="h-1.5 rounded-full overflow-hidden bg-[#ff6286]/20">
+        <div className="h-full rounded-full bg-gradient-to-r from-jade/70 to-jade" style={{ width: `${Math.max(4, Math.min(96, wr))}%` }} />
+      </div>
 
-      <div className="flex-1" />
+      {/* lane notes (curated) */}
+      {tips && <p className="text-[12px] leading-relaxed text-flash/55 line-clamp-3">{tips}</p>}
+
       <button onClick={onFull}
-        className="group mt-5 inline-flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-jade/[0.06] ring-1 ring-inset ring-jade/25 font-chakrapetch text-[12px] font-bold uppercase tracking-[0.12em] text-jade cursor-clicker transition-colors hover:bg-jade/[0.12] hover:ring-jade/45">
+        className="group inline-flex items-center gap-1.5 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.12em] text-jade/80 hover:text-jade cursor-clicker transition-colors">
         Full VS breakdown
         <span className="transition-transform group-hover:translate-x-0.5">→</span>
       </button>
