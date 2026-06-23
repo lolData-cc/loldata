@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/config";
+// Champion stats come from the match-data box (api2), where the ingest grows the
+// data — NOT api.loldata.cc/local-backend, which read the frozen Cloud snapshot.
+import { BOX_API_BASE_URL as API_BASE_URL } from "@/config";
 
 export type OtpPlayer = {
   rank: number;

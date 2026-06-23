@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, cdnBaseUrl } from "@/config"
+// Champion stats read from the match-data box (api2) — fresh box data, not Cloud.
+import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl } from "@/config"
 import { getKeystoneIcon, getKeystoneName, getStyleIcon, getStyleName } from "@/constants/runes"
 import { getLegacyRankIcons } from "@/lib/uiPrefs"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts"
