@@ -67,6 +67,34 @@ const GLASS: React.CSSProperties = {
   boxShadow: "0 40px 90px -50px rgba(0,217,146,0.30), inset 0 1px 0 rgba(255,255,255,0.04)",
 }
 
+// Flat grid — used when WebGL is unavailable AND as the orbit's error-boundary
+// fallback (a thrown WebGL texture error must never take down the whole tab).
+function Grid2D({ nodes, selectedKey, onSelect }: { nodes: MatchupNode[]; selectedKey: string | null; onSelect: (k: string) => void }) {
+  return (
+    <div className="relative p-4 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[460px] overflow-y-auto">
+      {nodes.map(n => {
+        const sel = n.key === selectedKey
+        const c = n.winrate >= 51 ? "#00d992" : n.winrate < 49 ? "#ff6286" : "#7c8b92"
+        return (
+          <button key={n.key} onClick={() => onSelect(n.key)}
+            className={cn("group flex flex-col items-center gap-1.5 rounded-lg p-2 transition-colors", sel ? "bg-jade/[0.06] ring-1 ring-jade/40" : "hover:bg-flash/[0.04] ring-1 ring-inset ring-transparent")}>
+            <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className="w-12 h-12 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${c}66` }} />
+            <span className="font-jetbrains text-[9px] text-flash/55 truncate max-w-full">{n.name}</span>
+            <span className="font-chakrapetch text-[12px] font-bold tabular-nums" style={{ color: c }}>{n.winrate.toFixed(1)}%</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+class OrbitBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(err: any) { console.warn("[matchup-orbit] fell back to 2D:", err?.message ?? err) }
+  render() { return this.state.failed ? this.props.fallback : this.props.children }
+}
+
 export function ChampionMatchupsTab({ champ, keyToId }: Props) {
   const navigate = useNavigate()
   const [nodes, setNodes] = useState<MatchupNode[]>([])
@@ -180,30 +208,17 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
           <span className="pointer-events-none absolute w-3 h-3 border-jade/40 bottom-2 right-2 border-b border-r" />
 
           {webgl ? (
-            <MatchupOrbit
-              subjectIconUrl={subjectIcon}
-              nodes={nodes}
-              selectedKey={selectedKey}
-              onSelect={setSelectedKey}
-              className="absolute inset-0"
-            />
+            <OrbitBoundary fallback={<Grid2D nodes={nodes} selectedKey={selectedKey} onSelect={setSelectedKey} />}>
+              <MatchupOrbit
+                subjectIconUrl={subjectIcon}
+                nodes={nodes}
+                selectedKey={selectedKey}
+                onSelect={setSelectedKey}
+                className="absolute inset-0"
+              />
+            </OrbitBoundary>
           ) : (
-            <div className="relative p-4 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[460px] overflow-y-auto">
-              {nodes.map(n => {
-                const sel = n.key === selectedKey
-                const c = n.winrate >= 51 ? "#00d992" : n.winrate < 49 ? "#ff6286" : "#7c8b92"
-                return (
-                  <button key={n.key} onClick={() => setSelectedKey(n.key)}
-                    className={cn("group flex flex-col items-center gap-1.5 rounded-lg p-2 transition-colors", sel ? "bg-jade/[0.06] ring-1 ring-jade/40" : "hover:bg-flash/[0.04] ring-1 ring-inset ring-transparent")}>
-                    <span className="relative">
-                      <img src={n.iconUrl} alt={n.name} className="w-12 h-12 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${c}66` }} />
-                    </span>
-                    <span className="font-jetbrains text-[9px] text-flash/55 truncate max-w-full">{n.name}</span>
-                    <span className="font-chakrapetch text-[12px] font-bold tabular-nums" style={{ color: c }}>{n.winrate.toFixed(1)}%</span>
-                  </button>
-                )
-              })}
-            </div>
+            <Grid2D nodes={nodes} selectedKey={selectedKey} onSelect={setSelectedKey} />
           )}
 
           {/* quick best/worst rail along the bottom */}
@@ -212,14 +227,14 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
               <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-jade/60 mr-1">Best</span>
               {best.map(n => (
                 <button key={n.key} onClick={() => setSelectedKey(n.key)} title={`${n.name} · ${n.winrate.toFixed(1)}%`}>
-                  <img src={n.iconUrl} alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-jade" : "ring-jade/30")} />
+                  <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-jade" : "ring-jade/30")} />
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-1.5 pointer-events-auto">
               {worst.map(n => (
                 <button key={n.key} onClick={() => setSelectedKey(n.key)} title={`${n.name} · ${n.winrate.toFixed(1)}%`}>
-                  <img src={n.iconUrl} alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-[#ff6286]" : "ring-[#ff6286]/30")} />
+                  <img src={n.iconUrl} crossOrigin="anonymous" alt={n.name} className={cn("w-7 h-7 rounded-md object-cover ring-1 transition-all hover:scale-110", n.key === selectedKey ? "ring-[#ff6286]" : "ring-[#ff6286]/30")} />
                 </button>
               ))}
               <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-[#ff6286]/60 ml-1">Worst</span>
@@ -255,9 +270,9 @@ function MatchupDetail({
       {/* heads */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`} alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
+          <img src={`${cdnBaseUrl()}/img/champion/${champ.id}.png`} crossOrigin="anonymous" alt={champ.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-jade/25" />
           <span className="font-chakrapetch text-[13px] font-bold uppercase tracking-[0.1em] text-flash/40">vs</span>
-          <img src={node.iconUrl} alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
+          <img src={node.iconUrl} crossOrigin="anonymous" alt={node.name} className="w-11 h-11 rounded-lg object-cover ring-1 ring-[#ff6286]/25" />
         </div>
         <span className={cn("rounded-md px-2.5 py-1 font-chakrapetch text-[10px] font-bold uppercase tracking-[0.12em]", badgeClass(badge))}>{badge}</span>
       </div>
