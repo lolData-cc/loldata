@@ -122,7 +122,7 @@ export function MatchupOrbit({
   onSelect: (key: string) => void;
   className?: string;
 }) {
-  const radius = nodes.length > 22 ? 3.2 : nodes.length > 12 ? 2.8 : 2.3;
+  const radius = nodes.length > 38 ? 4.2 : nodes.length > 28 ? 3.7 : nodes.length > 22 ? 3.2 : nodes.length > 12 ? 2.8 : 2.3;
   const facesRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const centerRef = useRef<HTMLDivElement | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
