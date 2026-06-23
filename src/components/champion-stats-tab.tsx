@@ -105,8 +105,17 @@ const num = (v: any, fallback = 0) => {
 
 const pct = (v: any, digits = 2) => `${num(v, 0).toFixed(digits)}%`
 
+// Winrate → homepage token color. >=51 jade, 49–51 neutral, <49 error red.
+const wrClass = (wr: number) =>
+  wr >= 51 ? "text-jade" : wr >= 49 ? "text-flash/75" : "text-[#ff6286]"
+
+// Glass shadow shared by the homepage cards.
+const GLASS: React.CSSProperties = {
+  boxShadow: "0 40px 90px -50px rgba(0,217,146,0.30), inset 0 1px 0 rgba(255,255,255,0.04)",
+}
+
 // ─────────────────────────────────────────────────────────────
-// TECH CARD
+// TECH CARD (glass container)
 // ─────────────────────────────────────────────────────────────
 
 function TechCard({
@@ -116,7 +125,17 @@ function TechCard({
   children: React.ReactNode
   className?: string
 }) {
-  return <div className={cn("bg-liquirice border border-[#1A1A1A]", className)}>{children}</div>
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-jade/15 bg-[rgba(6,12,14,0.72)] backdrop-blur-md",
+        className
+      )}
+      style={GLASS}
+    >
+      {children}
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -222,15 +241,15 @@ function OpponentPentagonDialog({
             isActive
               ? "border-jade/50 bg-jade/10"
               : opp
-                ? "border-[#00D992]/30 bg-[#00D992]/[0.04]"
-                : "border-white/[0.06] bg-white/[0.02] hover:border-[#00D992]/30 hover:bg-white/[0.03]"
+                ? "border-jade/30 bg-jade/[0.04]"
+                : "border-white/[0.06] bg-white/[0.02] hover:border-jade/30 hover:bg-white/[0.03]"
           )}
         >
           <div className="flex items-center gap-2 mb-2">
-            <r.Icon className={cn("w-4 h-4", opp ? "text-[#00D992]" : "text-[#E8EEF2]/30")} />
+            <r.Icon className={cn("w-4 h-4", opp ? "text-jade" : "text-flash/30")} />
             <span className={cn(
               "text-[9px] font-jetbrains uppercase tracking-[0.15em]",
-              opp ? "text-[#00D992]" : "text-[#E8EEF2]/25"
+              opp ? "text-jade" : "text-flash/25"
             )}>
               {r.label}
             </span>
@@ -249,7 +268,7 @@ function OpponentPentagonDialog({
                 </span>
                 <span
                   onClick={(e) => { e.stopPropagation(); onClearOpponent(r.key) }}
-                  className="text-[#E8EEF2]/20 hover:text-[#E8EEF2] text-xs cursor-clicker transition-colors"
+                  className="text-flash/20 hover:text-flash text-xs cursor-clicker transition-colors"
                 >
                   ✕
                 </span>
@@ -257,7 +276,7 @@ function OpponentPentagonDialog({
             ) : (
               <span className={cn(
                 "text-[10px] font-jetbrains uppercase tracking-[0.15em]",
-                isActive ? "text-jade" : "text-[#E8EEF2]/20"
+                isActive ? "text-jade" : "text-flash/20"
               )}>
                 + Add
               </span>
@@ -271,12 +290,12 @@ function OpponentPentagonDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className={cn(
-        "h-10 px-3 rounded-md border cursor-clicker",
-        "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors",
-        "text-[10px] font-mono uppercase tracking-wider flex items-center gap-2",
+        "h-10 px-3 rounded-full border cursor-clicker",
+        "bg-jade/[0.02] hover:border-jade/40 transition-colors",
+        "text-[10px] font-chakrapetch font-bold uppercase tracking-[0.2em] flex items-center gap-2",
         opponents.length > 0
-          ? "border-[#00D992]/50 text-[#00D992]"
-          : "border-[#00D992]/15 text-[#E8EEF2]/50 hover:text-[#E8EEF2]/80"
+          ? "border-jade/50 text-jade"
+          : "border-jade/15 text-flash/50 hover:text-flash/80"
       )}>
         <span>VS</span>
         {opponents.length > 0 && (
@@ -367,15 +386,15 @@ function OpponentPentagonDialog({
                     isActive
                       ? "border-jade/50 shadow-[0_0_12px_rgba(0,217,146,0.15)] cursor-clicker"
                       : opp
-                        ? "border-[#00D992]/30 shadow-[0_0_8px_rgba(0,217,146,0.06)] cursor-clicker"
+                        ? "border-jade/30 shadow-[0_0_8px_rgba(0,217,146,0.06)] cursor-clicker"
                         : "border-white/15 shadow-[0_0_8px_rgba(255,255,255,0.03)] hover:border-white/25 cursor-clicker"
                   )}
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <r.Icon className={cn("w-6 h-6", opp ? "text-[#00D992]" : "text-[#E8EEF2]/25")} />
+                    <r.Icon className={cn("w-6 h-6", opp ? "text-jade" : "text-flash/25")} />
                     <span className={cn(
                       "text-[12px] font-jetbrains uppercase tracking-[0.18em]",
-                      opp ? "text-[#00D992]" : "text-[#E8EEF2]/20"
+                      opp ? "text-jade" : "text-flash/20"
                     )}>
                       {r.label}
                     </span>
@@ -395,7 +414,7 @@ function OpponentPentagonDialog({
                           </span>
                           <span
                             onClick={(e) => { e.stopPropagation(); onClearOpponent(r.key) }}
-                            className="text-[#E8EEF2]/20 hover:text-[#E8EEF2] text-sm cursor-clicker transition-colors"
+                            className="text-flash/20 hover:text-flash text-sm cursor-clicker transition-colors"
                           >
                             ✕
                           </span>
@@ -414,7 +433,7 @@ function OpponentPentagonDialog({
                               </span>
                               <span
                                 onClick={(e) => { e.stopPropagation(); onClearItem(r.key) }}
-                                className="text-[#E8EEF2]/15 hover:text-[#E8EEF2] text-[10px] cursor-clicker transition-colors"
+                                className="text-flash/15 hover:text-flash text-[10px] cursor-clicker transition-colors"
                               >
                                 ✕
                               </span>
@@ -461,7 +480,7 @@ function OpponentPentagonDialog({
                     ) : (
                       <span className={cn(
                         "text-[12px] font-jetbrains uppercase tracking-[0.15em]",
-                        isActive ? "text-jade" : "text-[#E8EEF2]/15"
+                        isActive ? "text-jade" : "text-flash/15"
                       )}>
                         + Add
                       </span>
@@ -612,23 +631,23 @@ function PatchFilterButton({ value, onChange, patches }: { value: string | null;
           type="button"
           className={cn(
             "h-10 px-3 rounded-full border transition-colors cursor-clicker",
-            "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
-            "text-[10px] font-mono uppercase tracking-wider",
-            value ? "text-[#00D992] border-[#00D992]/50" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+            "bg-jade/[0.02] hover:border-jade/40",
+            "text-[10px] font-chakrapetch font-bold uppercase tracking-[0.2em]",
+            value ? "text-jade border-jade/50" : "border-jade/15 text-flash/50"
           )}
         >
           {value ?? "Latest"}
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-liquirice border border-[#1A1A1A] p-4 max-w-[260px] rounded-xl">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-[#E8EEF2]/40 mb-3">Patch</p>
+      <DialogContent className="bg-[rgba(6,12,14,0.9)] backdrop-blur-xl border border-jade/15 p-4 max-w-[260px] rounded-2xl">
+        <p className="text-[10px] font-chakrapetch font-bold uppercase tracking-[0.28em] text-jade/80 mb-3">Patch</p>
         <div className="max-h-[240px] overflow-y-auto scrollbar-hide space-y-1">
           <button
             type="button"
             onClick={() => { onChange(null); setOpen(false) }}
             className={cn(
-              "w-full text-left px-3 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker",
-              value === null ? "text-[#00D992] bg-[#00D992]/10" : "text-[#E8EEF2]/50 hover:bg-white/5"
+              "w-full text-left px-3 py-2 rounded-md text-[11px] font-jetbrains tracking-wider transition-colors cursor-clicker",
+              value === null ? "text-jade bg-jade/10" : "text-flash/50 hover:bg-flash/5"
             )}
           >
             Latest
@@ -639,8 +658,8 @@ function PatchFilterButton({ value, onChange, patches }: { value: string | null;
               type="button"
               onClick={() => { onChange(p); setOpen(false) }}
               className={cn(
-                "w-full text-left px-3 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker",
-                value === p ? "text-[#00D992] bg-[#00D992]/10" : "text-[#E8EEF2]/50 hover:bg-white/5"
+                "w-full text-left px-3 py-2 rounded-md text-[11px] font-jetbrains tracking-wider transition-colors cursor-clicker",
+                value === p ? "text-jade bg-jade/10" : "text-flash/50 hover:bg-flash/5"
               )}
             >
               {p}
@@ -662,23 +681,23 @@ function RegionFilterButton({ value, onChange }: { value: string | null; onChang
           type="button"
           className={cn(
             "h-10 rounded-full border transition-colors cursor-clicker flex items-center justify-center",
-            "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
-            "text-[10px] font-mono uppercase tracking-wider",
-            value ? "text-[#00D992] border-[#00D992]/50 px-3" : "border-[#00D992]/15 text-[#E8EEF2]/50 w-10"
+            "bg-jade/[0.02] hover:border-jade/40",
+            "text-[10px] font-chakrapetch font-bold uppercase tracking-[0.2em]",
+            value ? "text-jade border-jade/50 px-3" : "border-jade/15 text-flash/50 w-10"
           )}
         >
           {regionLabel ?? <Globe className="h-4 w-4" />}
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-liquirice border border-[#1A1A1A] p-4 max-w-[280px] rounded-xl">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-[#E8EEF2]/40 mb-3">Region</p>
+      <DialogContent className="bg-[rgba(6,12,14,0.9)] backdrop-blur-xl border border-jade/15 p-4 max-w-[280px] rounded-2xl">
+        <p className="text-[10px] font-chakrapetch font-bold uppercase tracking-[0.28em] text-jade/80 mb-3">Region</p>
         <div className="grid grid-cols-4 gap-2">
           <button
             type="button"
             onClick={() => { onChange(null); setOpen(false) }}
             className={cn(
               "px-2 py-2 rounded-md transition-colors cursor-clicker flex items-center justify-center",
-              value === null ? "text-[#00D992] bg-[#00D992]/10 ring-1 ring-[#00D992]/30" : "text-[#E8EEF2]/50 hover:bg-white/5"
+              value === null ? "text-jade bg-jade/10 ring-1 ring-jade/30" : "text-flash/50 hover:bg-flash/5"
             )}
           >
             <Globe className="h-4 w-4" />
@@ -689,8 +708,8 @@ function RegionFilterButton({ value, onChange }: { value: string | null; onChang
               type="button"
               onClick={() => { onChange(r.key); setOpen(false) }}
               className={cn(
-                "px-2 py-2 rounded-md text-[11px] font-mono tracking-wider transition-colors cursor-clicker text-center",
-                value === r.key ? "text-[#00D992] bg-[#00D992]/10 ring-1 ring-[#00D992]/30" : "text-[#E8EEF2]/50 hover:bg-white/5"
+                "px-2 py-2 rounded-md text-[11px] font-jetbrains tracking-wider transition-colors cursor-clicker text-center",
+                value === r.key ? "text-jade bg-jade/10 ring-1 ring-jade/30" : "text-flash/50 hover:bg-flash/5"
               )}
             >
               {r.label}
@@ -741,7 +760,7 @@ function FilterBar({
 }) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999]">
-      <div className="bg-liquirice/90 backdrop-blur-xl border border-[#1A1A1A] rounded-full px-4 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,217,146,0.06)]">
+      <div className="bg-[rgba(6,12,14,0.9)] backdrop-blur-xl border border-jade/15 rounded-full px-4 py-2 shadow-[0_40px_90px_-50px_rgba(0,217,146,0.30),inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex items-center gap-2">
           {/* Patch filter */}
           <PatchFilterButton value={selectedPatch} onChange={onPatchChange} patches={availablePatches} />
@@ -750,7 +769,7 @@ function FilterBar({
           <RegionFilterButton value={selectedRegion} onChange={onRegionChange} />
 
           {/* Separator */}
-          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+          <div className="h-6 w-px bg-jade/10 mx-1" />
 
           {/* Role filter */}
           <button
@@ -758,9 +777,9 @@ function FilterBar({
             onClick={() => onRoleChange(null)}
             className={cn(
               "h-10 px-3 rounded-full border transition-colors cursor-clicker",
-              "bg-[#00D992]/[0.02] hover:border-[#00D992]/40",
-              "text-[10px] font-mono uppercase tracking-wider",
-              role === null ? "text-[#00D992] border-[#00D992]/50" : "border-[#00D992]/15 text-[#E8EEF2]/50"
+              "bg-jade/[0.02] hover:border-jade/40",
+              "text-[10px] font-chakrapetch font-bold uppercase tracking-[0.2em]",
+              role === null ? "text-jade border-jade/50" : "border-jade/15 text-flash/50"
             )}
             title="All roles"
             aria-pressed={role === null}
@@ -777,8 +796,8 @@ function FilterBar({
                 key={r.key}
                 className={cn(
                   "relative h-10 w-10 rounded-full overflow-hidden",
-                  active ? "border border-[#00D992]/70" : "border border-[#00D992]/15",
-                  "bg-[#00D992]/[0.02] hover:border-[#00D992]/40 transition-colors"
+                  active ? "border border-jade/70" : "border border-jade/15",
+                  "bg-jade/[0.02] hover:border-jade/40 transition-colors"
                 )}
                 title={r.label}
               >
@@ -793,20 +812,20 @@ function FilterBar({
                     "bg-transparent cursor-clicker"
                   )}
                 >
-                  <r.Icon className={cn("h-6 w-6", active ? "text-[#00D992]" : "text-[#E8EEF2]/55")} />
+                  <r.Icon className={cn("h-6 w-6", active ? "text-jade" : "text-flash/55")} />
                 </button>
               </div>
             )
           })}
 
           {/* Separator */}
-          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+          <div className="h-6 w-px bg-jade/10 mx-1" />
 
           {/* Rank filter */}
           <RankFilterButton value={tier} onChange={onTierChange} />
 
           {/* Separator */}
-          <div className="h-6 w-px bg-[#00D992]/10 mx-1" />
+          <div className="h-6 w-px bg-jade/10 mx-1" />
 
           {/* Opponent pentagon dialog */}
           <OpponentPentagonDialog
@@ -834,7 +853,6 @@ function MatchupRow({
   winrate,
   games,
   image,
-  variant = "default",
 }: {
   champion: string
   winrate: number
@@ -843,25 +861,22 @@ function MatchupRow({
   variant?: "default" | "low"
 }) {
   return (
-    <div className="flex items-center gap-3 py-2 px-3 bg-[#00D992]/[0.02] border-l-2 border-[#00D992]/20 hover:border-[#00D992]/50 transition-colors">
+    <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10 hover:ring-jade/25 transition-all">
       <img
         src={image || "/placeholder.svg"}
         alt={champion}
-        className="w-8 h-8 border border-[#00D992]/30 grayscale-[20%]"
+        className="w-8 h-8 rounded-md ring-1 ring-inset ring-jade/20"
         onError={(e) => {
           e.currentTarget.style.display = "none"
         }}
       />
       <div className="flex-1 min-w-0">
-        <div className="text-[#E8EEF2] text-sm font-mono tracking-wide truncate">{champion}</div>
-        <div className="text-[#E8EEF2]/25 text-[10px] font-mono">{num(games).toLocaleString()} GAMES</div>
+        <div className="text-flash/80 text-sm font-chakrapetch tracking-wide truncate">{champion}</div>
+        <div className="text-flash/30 text-[10px] font-jetbrains uppercase tracking-wider">
+          {num(games).toLocaleString()} games
+        </div>
       </div>
-      <div
-        className={cn(
-          "text-sm font-mono font-bold tabular-nums",
-          variant === "low" ? "text-[#00875A]" : "text-[#00D992]"
-        )}
-      >
+      <div className={cn("text-sm font-chakrapetch font-bold tabular-nums", wrClass(winrate))}>
         {pct(winrate, 1)}
       </div>
     </div>
@@ -874,12 +889,22 @@ function MatchupRow({
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div className="mb-4 border-b border-[#00D992]/10 pb-2">
-      <div className="flex items-center gap-2">
-        <div className="w-1 h-4 bg-[#00D992]" />
-        <h3 className="text-[#E8EEF2] text-xs font-mono uppercase tracking-[0.25em]">{title}</h3>
+    <div className="mb-4">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-jade shrink-0"
+          style={{ boxShadow: "0 0 8px #00d992" }}
+        />
+        <span className="font-chakrapetch text-[11px] font-bold tracking-[0.28em] uppercase text-jade/80">
+          {title}
+        </span>
+        <div className="h-px flex-1 bg-gradient-to-r from-jade/20 to-transparent" />
       </div>
-      {subtitle && <p className="text-[#E8EEF2]/25 text-[10px] font-mono mt-1 ml-3">{subtitle}</p>}
+      {subtitle && (
+        <p className="text-flash/40 text-[10px] font-jetbrains mt-1.5 ml-4 tracking-wide">
+          {subtitle}
+        </p>
+      )}
     </div>
   )
 }
@@ -890,25 +915,26 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 
 function SkeletonSectionHeader({ withSubtitle = false }: { withSubtitle?: boolean }) {
   return (
-    <div className="mb-4 border-b border-[#00D992]/10 pb-2">
-      <div className="flex items-center gap-2">
-        <div className="w-1 h-4 bg-[#00D992]/20 animate-pulse" />
-        <div className="h-3 w-24 rounded bg-[#E8EEF2]/8 animate-pulse" />
+    <div className="mb-4">
+      <div className="flex items-center gap-2.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-jade/30 animate-pulse" />
+        <div className="h-3 w-24 rounded bg-flash/[0.08] animate-pulse" />
+        <div className="h-px flex-1 bg-gradient-to-r from-jade/10 to-transparent" />
       </div>
-      {withSubtitle && <div className="h-2.5 w-32 rounded bg-[#E8EEF2]/5 animate-pulse mt-1 ml-3" />}
+      {withSubtitle && <div className="h-2.5 w-32 rounded bg-flash/[0.05] animate-pulse mt-1.5 ml-4" />}
     </div>
   )
 }
 
 function SkeletonMatchupRow() {
   return (
-    <div className="flex items-center gap-3 py-2 px-3 bg-[#00D992]/[0.02] border-l-2 border-[#00D992]/10">
-      <div className="w-8 h-8 border border-[#00D992]/15 bg-[#E8EEF2]/5 animate-pulse" />
+    <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10">
+      <div className="w-8 h-8 rounded-md ring-1 ring-inset ring-jade/15 bg-flash/[0.05] animate-pulse" />
       <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="h-3.5 w-20 rounded bg-[#E8EEF2]/8 animate-pulse" />
-        <div className="h-2.5 w-14 rounded bg-[#E8EEF2]/5 animate-pulse" />
+        <div className="h-3.5 w-20 rounded bg-flash/[0.08] animate-pulse" />
+        <div className="h-2.5 w-14 rounded bg-flash/[0.05] animate-pulse" />
       </div>
-      <div className="h-4 w-12 rounded bg-[#00D992]/10 animate-pulse" />
+      <div className="h-4 w-12 rounded bg-jade/10 animate-pulse" />
     </div>
   )
 }
@@ -1350,16 +1376,16 @@ export function ChampionStats({
           <TechCard className="p-5">
             <SkeletonSectionHeader />
             <div className="text-center space-y-3">
-              <div className="mx-auto h-8 w-28 rounded bg-[#00D992]/10 animate-pulse" />
+              <div className="mx-auto h-8 w-28 rounded bg-jade/10 animate-pulse" />
               <div className="flex items-center justify-center gap-6">
                 <div className="text-center space-y-1">
-                  <div className="mx-auto h-2.5 w-10 rounded bg-[#E8EEF2]/5 animate-pulse" />
-                  <div className="mx-auto h-4 w-14 rounded bg-[#E8EEF2]/8 animate-pulse" />
+                  <div className="mx-auto h-2.5 w-10 rounded bg-flash/5 animate-pulse" />
+                  <div className="mx-auto h-4 w-14 rounded bg-flash/8 animate-pulse" />
                 </div>
-                <div className="h-8 w-px bg-[#00D992]/10" />
+                <div className="h-8 w-px bg-jade/10" />
                 <div className="text-center space-y-1">
-                  <div className="mx-auto h-2.5 w-12 rounded bg-[#E8EEF2]/5 animate-pulse" />
-                  <div className="mx-auto h-4 w-14 rounded bg-[#E8EEF2]/8 animate-pulse" />
+                  <div className="mx-auto h-2.5 w-12 rounded bg-flash/5 animate-pulse" />
+                  <div className="mx-auto h-4 w-14 rounded bg-flash/8 animate-pulse" />
                 </div>
               </div>
             </div>
@@ -1369,14 +1395,14 @@ export function ChampionStats({
           <TechCard className="p-5">
             <SkeletonSectionHeader />
             <div className="flex items-center justify-center gap-3">
-              <div className="h-6 w-12 rounded bg-[#00D992]/10 animate-pulse" />
-              <span className="text-[#E8EEF2]/15">/</span>
-              <div className="h-6 w-12 rounded bg-[#E8EEF2]/8 animate-pulse" />
-              <span className="text-[#E8EEF2]/15">/</span>
-              <div className="h-6 w-12 rounded bg-[#00B377]/10 animate-pulse" />
+              <div className="h-6 w-12 rounded bg-jade/10 animate-pulse" />
+              <span className="text-flash/15">/</span>
+              <div className="h-6 w-12 rounded bg-flash/8 animate-pulse" />
+              <span className="text-flash/15">/</span>
+              <div className="h-6 w-12 rounded bg-jade/10 animate-pulse" />
             </div>
             <div className="text-center mt-2">
-              <div className="mx-auto h-3 w-20 rounded bg-[#E8EEF2]/5 animate-pulse" />
+              <div className="mx-auto h-3 w-20 rounded bg-flash/5 animate-pulse" />
             </div>
           </TechCard>
 
@@ -1384,15 +1410,29 @@ export function ChampionStats({
           <TechCard className="p-5">
             <SkeletonSectionHeader />
             <div className="space-y-3">
-              {["CS/GAME", "GOLD/GAME"].map((label) => (
+              {["CS / Game", "Gold / Game"].map((label) => (
                 <div key={label} className="flex items-center justify-between">
-                  <span className="text-[#E8EEF2]/30 text-xs font-mono">{label}</span>
-                  <div className="h-4 w-16 rounded bg-[#E8EEF2]/8 animate-pulse" />
+                  <span className="text-flash/40 text-xs font-jetbrains uppercase tracking-wider">{label}</span>
+                  <div className="h-4 w-16 rounded bg-flash/8 animate-pulse" />
                 </div>
               ))}
             </div>
           </TechCard>
         </div>
+
+        {/* ITEM BUILD PATH skeleton */}
+        <TechCard className="p-5">
+          <SkeletonSectionHeader />
+          <div className="flex gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10 min-w-[75px]">
+                <div className="w-9 h-9 rounded-md bg-flash/8 animate-pulse" />
+                <div className="h-3 w-10 rounded bg-jade/10 animate-pulse" />
+                <div className="h-2 w-8 rounded bg-flash/5 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </TechCard>
 
         {/* MATCHUPS skeletons (2 cols) */}
         <div className="grid grid-cols-2 gap-3">
@@ -1413,96 +1453,6 @@ export function ChampionStats({
             </div>
           </TechCard>
         </div>
-
-        {/* SYNERGIES & COUNTERS skeletons (2 cols) */}
-        <div className="grid grid-cols-2 gap-3">
-          <TechCard className="p-5">
-            <SkeletonSectionHeader withSubtitle />
-            <div className="space-y-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <SkeletonMatchupRow key={i} />
-              ))}
-            </div>
-          </TechCard>
-          <TechCard className="p-5">
-            <SkeletonSectionHeader withSubtitle />
-            <div className="space-y-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <SkeletonMatchupRow key={i} />
-              ))}
-            </div>
-          </TechCard>
-        </div>
-
-        {/* DRAGONS skeleton */}
-        <TechCard className="p-5">
-          <SkeletonSectionHeader withSubtitle />
-          <div className="grid grid-cols-6 gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
-              >
-                <div className="mx-auto h-2 w-12 rounded bg-[#E8EEF2]/5 animate-pulse mb-2" />
-                <div className="mx-auto h-5 w-10 rounded bg-[#00D992]/10 animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </TechCard>
-
-        {/* OBJECTIVES skeleton (4 cols) */}
-        <div className="grid grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <TechCard key={i} className="p-4 text-center space-y-1">
-              <div className="mx-auto h-2 w-16 rounded bg-[#E8EEF2]/5 animate-pulse" />
-              <div className="mx-auto h-6 w-12 rounded bg-[#00D992]/10 animate-pulse" />
-              <div className="mx-auto h-2 w-14 rounded bg-[#E8EEF2]/5 animate-pulse" />
-            </TechCard>
-          ))}
-        </div>
-
-        {/* PHASE + TIER skeletons (2 cols) */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Phase Analysis skeleton */}
-          <TechCard className="p-5">
-            <SkeletonSectionHeader withSubtitle />
-            <div className="h-[120px] flex items-end gap-2 px-2">
-              {[60, 80, 45].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="h-3 w-10 rounded bg-[#E8EEF2]/5 animate-pulse" />
-                  <div
-                    className="w-full rounded bg-[#00D992]/10 animate-pulse"
-                    style={{ height: `${h}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 px-1">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="text-center space-y-1">
-                  <div className="mx-auto h-3 w-10 rounded bg-[#00D992]/8 animate-pulse" />
-                  <div className="mx-auto h-2 w-12 rounded bg-[#E8EEF2]/5 animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </TechCard>
-
-          {/* Meta Position skeleton */}
-          <TechCard className="p-5">
-            <SkeletonSectionHeader withSubtitle />
-            <div className="grid grid-cols-4 gap-2 mt-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
-                >
-                  <div className="mx-auto h-7 w-6 rounded bg-[#00B377]/10 animate-pulse mb-1" />
-                  <div className="mx-auto h-2 w-14 rounded bg-[#E8EEF2]/5 animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </TechCard>
-        </div>
       </div>
     )
   }
@@ -1511,7 +1461,7 @@ export function ChampionStats({
     return (
       <div className="w-full space-y-3 pb-20">
         {floatingBar}
-        <div className="px-6 text-red-400">Error: {error}</div>
+        <div className="px-6 font-jetbrains text-sm text-[#ff6286]">Error: {error}</div>
       </div>
     )
   }
@@ -1520,7 +1470,7 @@ export function ChampionStats({
     return (
       <div className="w-full space-y-3 pb-20">
         {floatingBar}
-        <div className="px-6 text-neutral-400">NO STATS AVAILABLE.</div>
+        <div className="px-6 font-jetbrains text-sm uppercase tracking-[0.2em] text-flash/40">No stats available.</div>
       </div>
     )
   }
@@ -1544,8 +1494,8 @@ export function ChampionStats({
       <div className="w-full space-y-3 pb-20">
         {floatingBar}
         <TechCard className="p-6">
-          <div className="text-[#E8EEF2] font-mono text-sm">NO GAMES FOR THIS FILTER.</div>
-          <div className="text-[#E8EEF2]/30 font-mono text-[10px] mt-2">
+          <div className="text-flash/80 font-chakrapetch font-bold uppercase tracking-[0.2em] text-sm">No games for this filter.</div>
+          <div className="text-flash/30 font-jetbrains text-[10px] mt-2 tracking-wide">
             Try another role, rank, or adjust opponents.
           </div>
         </TechCard>
@@ -1603,25 +1553,16 @@ export function ChampionStats({
     elderDragon: num((stats.objectiveWinrates?.elderDragon as any)?.winrate ?? stats.objectiveWinrates?.elderDragon, 0),
     firstDragon: num((stats.objectiveWinrates?.firstDragon as any)?.winrate ?? stats.objectiveWinrates?.firstDragon, 0),
   }
+  // Gate: box snapshot does NOT populate objectiveWinrates — only render when at least one value is real.
+  const hasObjectiveData =
+    stats.objectiveWinrates != null &&
+    Object.values(objectiveWinrates).some((v) => v > 0)
 
   const gamePhaseWinrates = (stats.gamePhaseWinrates ?? []).map((p) => ({
     phase: p.phase,
     time: p.time,
     winrate: num(p.winrate, 0),
   }))
-
-  // Meta Position — use tier from tier list if available, fallback based on winrate
-  const tierRankings = (() => {
-    const wr = num(stats.core?.winrate, 50)
-    // Simple heuristic: map winrate to tier letter
-    const toTier = (w: number) => w >= 53 ? "S" : w >= 51 ? "A" : w >= 49 ? "B" : w >= 47 ? "C" : "D"
-    return [
-      { tier: "Iron-Bronze", position: toTier(wr - 1) },
-      { tier: "Silver-Gold", position: toTier(wr) },
-      { tier: "Platinum", position: toTier(wr + 0.5) },
-      { tier: "Diamond+", position: toTier(wr) },
-    ]
-  })()
 
   // Map API dragon sub_type names to display names
   const dragonNameMap: Record<string, string> = {
@@ -1676,26 +1617,29 @@ export function ChampionStats({
             [role, tier, opponents.length > 0 ? `VS ${opponents.map((o) => o.name + (o.role ? ` ${o.role}` : '')).join(', ')}` : null].filter(Boolean).join(' · ') || undefined
           } />
           <div className="text-center">
-            <div className="text-[#00D992] text-3xl font-mono font-bold tabular-nums">
+            <div
+              className={cn("text-3xl font-chakrapetch font-bold tabular-nums", wrClass(coreStats.winrate))}
+              style={coreStats.winrate >= 51 ? { textShadow: "0 0 22px rgba(0,217,146,0.3)" } : undefined}
+            >
               {pct(coreStats.winrate, 2)}
             </div>
-            <div className="mt-2 flex items-center justify-center gap-6">
+            <div className="mt-3 flex items-center justify-center gap-6">
               <div className="text-center">
-                <div className="text-[#E8EEF2]/30 text-[9px] font-mono uppercase tracking-[0.2em]">
+                <div className="text-flash/40 text-[9px] font-jetbrains uppercase tracking-[0.2em]">
                   Sample
                 </div>
-                <div className="text-[#E8EEF2] text-sm font-mono font-bold tabular-nums">
+                <div className="text-flash/80 text-sm font-chakrapetch font-bold tabular-nums">
                   {coreStats.gamesAnalyzed.toLocaleString()}
                 </div>
               </div>
 
-              <div className="h-8 w-px bg-[#00D992]/10" />
+              <div className="h-8 w-px bg-jade/10" />
 
               <div className="text-center">
-                <div className="text-[#E8EEF2]/30 text-[9px] font-mono uppercase tracking-[0.2em]">
+                <div className="text-flash/40 text-[9px] font-jetbrains uppercase tracking-[0.2em]">
                   Pickrate
                 </div>
-                <div className="text-[#E8EEF2] text-sm font-mono font-bold tabular-nums">
+                <div className="text-flash/80 text-sm font-chakrapetch font-bold tabular-nums">
                   {pct(coreStats.pickrate, 2)}
                 </div>
               </div>
@@ -1705,16 +1649,16 @@ export function ChampionStats({
 
         <TechCard className="p-5">
           <SectionHeader title="Avg KDA" />
-          <div className="flex items-center justify-center gap-3 text-xl font-mono">
-            <span className="text-[#00D992] font-bold">{k.toFixed(2)}</span>
-            <span className="text-[#E8EEF2]/15">/</span>
-            <span className="text-[#E8EEF2]/50 font-bold">{d.toFixed(2)}</span>
-            <span className="text-[#E8EEF2]/15">/</span>
-            <span className="text-[#00B377] font-bold">{a.toFixed(2)}</span>
+          <div className="flex items-center justify-center gap-3 text-xl font-chakrapetch">
+            <span className="text-jade font-bold tabular-nums" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>{k.toFixed(2)}</span>
+            <span className="text-flash/20">/</span>
+            <span className="text-flash/55 font-bold tabular-nums">{d.toFixed(2)}</span>
+            <span className="text-flash/20">/</span>
+            <span className="text-jade/80 font-bold tabular-nums">{a.toFixed(2)}</span>
           </div>
           <div className="text-center mt-2">
-            <span className="text-[#E8EEF2]/30 text-[10px] font-mono tracking-wider">
-              RATIO: {((k + a) / Math.max(1, d)).toFixed(2)}
+            <span className="text-flash/40 text-[10px] font-jetbrains uppercase tracking-[0.15em]">
+              Ratio {((k + a) / Math.max(1, d)).toFixed(2)}
             </span>
           </div>
         </TechCard>
@@ -1723,14 +1667,14 @@ export function ChampionStats({
           <SectionHeader title="Economy" />
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[#E8EEF2]/30 text-xs font-mono">CS/GAME</span>
-              <span className="text-[#E8EEF2] font-mono font-bold tabular-nums">
+              <span className="text-flash/40 text-xs font-jetbrains uppercase tracking-wider">CS / Game</span>
+              <span className="text-flash/80 font-chakrapetch font-bold tabular-nums">
                 {core.avgCS == null ? "N/A" : num(core.avgCS).toFixed(1)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#E8EEF2]/30 text-xs font-mono">GOLD/GAME</span>
-              <span className="text-[#00D992] font-mono font-bold tabular-nums">
+              <span className="text-flash/40 text-xs font-jetbrains uppercase tracking-wider">Gold / Game</span>
+              <span className="text-jade font-chakrapetch font-bold tabular-nums" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>
                 {coreStats.avgGold.toLocaleString()}
               </span>
             </div>
@@ -1761,10 +1705,15 @@ export function ChampionStats({
 
         return (
           <TechCard className="p-5">
-            <div className="flex items-center justify-between mb-4 border-b border-jade/10 pb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-jade" />
-                <h3 className="text-flash text-xs font-mono uppercase tracking-[0.25em]">Item Build Path</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-jade shrink-0"
+                  style={{ boxShadow: "0 0 8px #00d992" }}
+                />
+                <span className="font-chakrapetch text-[11px] font-bold tracking-[0.28em] uppercase text-jade/80">
+                  Item Build Path
+                </span>
               </div>
               {slots.length > 0 && (
                 <div className="flex gap-1">
@@ -1774,10 +1723,10 @@ export function ChampionStats({
                       type="button"
                       onClick={() => setSelectedSlot(slotIdx)}
                       className={cn(
-                        "px-2.5 py-1 rounded-sm text-[9px] font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer",
+                        "px-2.5 py-1 rounded-md text-[9px] font-chakrapetch font-bold uppercase tracking-[0.15em] transition-all duration-200 cursor-pointer",
                         selectedSlot === slotIdx
-                          ? "bg-jade/[0.12] text-jade border border-jade/25"
-                          : "text-flash/25 border border-transparent hover:text-flash/50 hover:border-flash/[0.08]"
+                          ? "bg-jade/[0.12] text-jade ring-1 ring-inset ring-jade/25"
+                          : "text-flash/30 ring-1 ring-inset ring-transparent hover:text-flash/60 hover:ring-jade/10"
                       )}
                     >
                       {slotLabels[slotIdx] ?? `${slotIdx + 1}th`}
@@ -1787,21 +1736,18 @@ export function ChampionStats({
               )}
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {displayItems.slice(0, 10).map((item) => {
-                const wrColor = item.winrate >= 52 ? "text-jade" : item.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
-                return (
-                  <div key={item.item_id} className="flex flex-col items-center gap-1.5 p-2.5 rounded-sm bg-flash/[0.02] border border-flash/[0.04] hover:border-jade/15 min-w-[75px] shrink-0 transition-colors">
-                    <img
-                      src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
-                      alt=""
-                      className="w-9 h-9 rounded-[2px] border border-flash/[0.08]"
-                      onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-                    />
-                    <span className={cn("text-[13px] font-mono font-semibold tabular-nums", wrColor)}>{item.winrate.toFixed(1)}%</span>
-                    <span className="text-[8px] font-mono text-flash/20">{Number(item.games).toLocaleString()}</span>
-                  </div>
-                )
-              })}
+              {displayItems.slice(0, 10).map((item) => (
+                <div key={item.item_id} className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10 hover:ring-jade/25 min-w-[75px] shrink-0 transition-all">
+                  <img
+                    src={`${cdnBaseUrl()}/img/item/${item.item_id}.png`}
+                    alt=""
+                    className="w-9 h-9 rounded-md ring-1 ring-inset ring-jade/15"
+                    onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+                  />
+                  <span className={cn("text-[13px] font-chakrapetch font-bold tabular-nums", wrClass(item.winrate))}>{item.winrate.toFixed(1)}%</span>
+                  <span className="text-[8px] font-jetbrains text-flash/30 tabular-nums">{Number(item.games).toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           </TechCard>
         )
@@ -1815,7 +1761,6 @@ export function ChampionStats({
           <SectionHeader title="Runes" subtitle="Keystone + secondary tree winrates" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {runes.slice(0, 8).map((r, idx) => {
-              const wrColor = r.winrate >= 52 ? "text-jade" : r.winrate >= 50 ? "text-flash/50" : "text-red-400/70"
               const keystoneIcon = getKeystoneIcon(r.perk_keystone)
               const keystoneName = getKeystoneName(r.perk_keystone) ?? `Keystone ${r.perk_keystone}`
               const subStyleName = getStyleName(r.perk_sub_style) ?? ""
@@ -1823,19 +1768,19 @@ export function ChampionStats({
               const isTop = idx === 0
               return (
                 <div key={idx} className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-sm border transition-colors",
-                  isTop ? "bg-jade/[0.04] border-jade/15" : "bg-flash/[0.015] border-transparent"
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl ring-1 ring-inset transition-all",
+                  isTop ? "bg-jade/[0.05] ring-jade/20" : "bg-flash/[0.02] ring-jade/10 hover:ring-jade/25"
                 )}>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {keystoneIcon && <img src={keystoneIcon} alt="" className={cn("rounded-full", isTop ? "w-8 h-8" : "w-6 h-6")} onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
                     {subStyleIcon && <img src={subStyleIcon} alt="" className="w-4 h-4 rounded-full opacity-40" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className={cn("font-mono truncate", isTop ? "text-[12px] text-flash/60" : "text-[10px] text-flash/40")}>{keystoneName}</div>
-                    <div className="text-[9px] font-mono text-flash/20">{subStyleName} · {r.pick_rate.toFixed(1)}% pick · {Number(r.games).toLocaleString()} games</div>
+                    <div className={cn("font-chakrapetch tracking-wide truncate", isTop ? "text-[12px] text-flash/70" : "text-[10px] text-flash/45")}>{keystoneName}</div>
+                    <div className="text-[9px] font-jetbrains text-flash/30 tabular-nums">{subStyleName} · {r.pick_rate.toFixed(1)}% pick · {Number(r.games).toLocaleString()} games</div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className={cn("font-mono font-semibold tabular-nums", wrColor, isTop ? "text-[15px]" : "text-[13px]")}>{r.winrate.toFixed(1)}%</span>
+                    <span className={cn("font-chakrapetch font-bold tabular-nums", wrClass(r.winrate), isTop ? "text-[15px]" : "text-[13px]")}>{r.winrate.toFixed(1)}%</span>
                   </div>
                 </div>
               )
@@ -1866,129 +1811,114 @@ export function ChampionStats({
         </TechCard>
       </div>
 
-      {/* SYNERGIES & COUNTERS */}
-      <div className="stat-section grid grid-cols-2 gap-3" style={{ animationDelay: "0.28s" }}>
-        <TechCard className="p-5">
-          <SectionHeader title="Best Synergies" subtitle="Optimal duo partners" />
-          <div className="space-y-1">
-            {bestSynergies.map((m) => (
-              <MatchupRow key={m.champion} {...m} variant="default" />
-            ))}
-          </div>
-        </TechCard>
-
-        <TechCard className="p-5">
-          <SectionHeader title="Worst Counters" subtitle="Highest threat enemies" />
-          <div className="space-y-1">
-            {worstCounters.map((m) => (
-              <MatchupRow key={m.champion} {...m} variant="low" />
-            ))}
-          </div>
-        </TechCard>
-      </div>
-
-      {/* DRAGONS */}
-      <div className="stat-section" style={{ animationDelay: "0.34s" }}>
-      <TechCard className="p-5">
-        <SectionHeader title="Dragon Soul Analysis" subtitle="Winrate when securing each soul type" />
-        <div className="grid grid-cols-6 gap-2">
-          {dragonWinrates.map((d) => (
-            <div
-              key={d.name}
-              className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
-            >
-              <div className="text-[#E8EEF2]/40 text-[8px] font-mono uppercase tracking-wider mb-2">
-                {d.name}
+      {/* SYNERGIES & COUNTERS — gated: box snapshot does NOT populate these */}
+      {(bestSynergies.length > 0 || worstCounters.length > 0) && (
+        <div className="stat-section grid grid-cols-2 gap-3" style={{ animationDelay: "0.28s" }}>
+          {bestSynergies.length > 0 && (
+            <TechCard className="p-5">
+              <SectionHeader title="Best Synergies" subtitle="Optimal duo partners" />
+              <div className="space-y-1">
+                {bestSynergies.map((m) => (
+                  <MatchupRow key={m.champion} {...m} />
+                ))}
               </div>
-              <div className="text-[#00D992] text-lg font-mono font-bold tabular-nums">
-                {pct(d.winrate, 0)}
+            </TechCard>
+          )}
+
+          {worstCounters.length > 0 && (
+            <TechCard className="p-5">
+              <SectionHeader title="Worst Counters" subtitle="Highest threat enemies" />
+              <div className="space-y-1">
+                {worstCounters.map((m) => (
+                  <MatchupRow key={m.champion} {...m} />
+                ))}
               </div>
-            </div>
-          ))}
+            </TechCard>
+          )}
         </div>
-      </TechCard>
-      </div>
+      )}
 
-      {/* OBJECTIVES */}
-      <div className="stat-section grid grid-cols-5 gap-3" style={{ animationDelay: "0.40s" }}>
-        {[
-          { label: "First Dragon", value: objectiveWinrates.firstDragon },
-          { label: "Rift Herald", value: objectiveWinrates.riftHerald },
-          { label: "Voidgrubs", value: objectiveWinrates.voidgrubs },
-          { label: "Baron Nashor", value: objectiveWinrates.baron },
-          { label: "Elder Dragon", value: objectiveWinrates.elderDragon },
-        ].map((obj) => (
-          <TechCard key={obj.label} className="p-4 text-center">
-            <div className="text-[#E8EEF2]/30 text-[8px] font-mono uppercase tracking-wider">
-              {obj.label}
+      {/* DRAGONS — gated: render only when the snapshot actually returns soul data */}
+      {Array.isArray(stats.dragonSoulWinrates) && stats.dragonSoulWinrates.length > 0 && (
+        <div className="stat-section" style={{ animationDelay: "0.34s" }}>
+          <TechCard className="p-5">
+            <SectionHeader title="Dragon Soul Analysis" subtitle="Winrate when securing each soul type" />
+            <div className="grid grid-cols-6 gap-2">
+              {dragonWinrates.map((d) => (
+                <div
+                  key={d.name}
+                  className="text-center p-3 rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10"
+                >
+                  <div className="text-flash/40 text-[8px] font-jetbrains uppercase tracking-[0.15em] mb-2">
+                    {d.name}
+                  </div>
+                  <div className={cn("text-lg font-chakrapetch font-bold tabular-nums", wrClass(d.winrate))}>
+                    {pct(d.winrate, 0)}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="text-[#00D992] text-xl font-mono font-bold mt-1 tabular-nums">
-              {pct(obj.value, 0)}
-            </div>
-            <div className="text-[#E8EEF2]/15 text-[8px] font-mono tracking-wider">WR ON SECURE</div>
           </TechCard>
-        ))}
-      </div>
-
-      {/* PHASE ANALYSIS */}
-      <div className="stat-section" style={{ animationDelay: "0.46s" }}>
-      <TechCard className="p-5">
-        <SectionHeader title="Phase Analysis" subtitle="Performance by game length" />
-        <div className="h-[120px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={gamePhaseWinrates} layout="vertical">
-              <XAxis type="number" domain={[40, 70]} hide />
-              <YAxis
-                type="category"
-                dataKey="phase"
-                tick={{ fill: "#E8EEF2", fontSize: 9, fontFamily: "monospace" }}
-                tickLine={false}
-                axisLine={false}
-                width={60}
-              />
-              <Bar dataKey="winrate" radius={0} fill="#00D992" />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
-        <div className="flex justify-between mt-2 px-1">
-          {gamePhaseWinrates.map((p) => (
-            <div key={p.phase} className="text-center">
-              <div className="text-[#00D992] text-xs font-mono font-bold tabular-nums">
-                {pct(p.winrate, 0)}
+      )}
+
+      {/* OBJECTIVES — gated: box snapshot does NOT populate objectiveWinrates */}
+      {hasObjectiveData && (
+        <div className="stat-section grid grid-cols-5 gap-3" style={{ animationDelay: "0.40s" }}>
+          {[
+            { label: "First Dragon", value: objectiveWinrates.firstDragon },
+            { label: "Rift Herald", value: objectiveWinrates.riftHerald },
+            { label: "Voidgrubs", value: objectiveWinrates.voidgrubs },
+            { label: "Baron Nashor", value: objectiveWinrates.baron },
+            { label: "Elder Dragon", value: objectiveWinrates.elderDragon },
+          ].map((obj) => (
+            <TechCard key={obj.label} className="p-4 text-center">
+              <div className="text-flash/40 text-[8px] font-jetbrains uppercase tracking-[0.15em]">
+                {obj.label}
               </div>
-              <div className="text-[#E8EEF2]/20 text-[8px] font-mono">{p.time}</div>
-            </div>
+              <div className={cn("text-xl font-chakrapetch font-bold mt-1 tabular-nums", wrClass(obj.value))}>
+                {pct(obj.value, 0)}
+              </div>
+              <div className="text-flash/30 text-[8px] font-jetbrains uppercase tracking-[0.15em] mt-0.5">WR on secure</div>
+            </TechCard>
           ))}
         </div>
-      </TechCard>
-      </div>
+      )}
 
-      {/* META POSITION */}
-      <div className="stat-section" style={{ animationDelay: "0.52s" }}>
-      <TechCard className="p-5">
-        <SectionHeader title="Meta Position" subtitle="Estimated tier by rank bracket" />
-        <div className="grid grid-cols-4 gap-2 mt-4">
-          {tierRankings.map((t) => (
-            <div
-              key={t.tier}
-              className="text-center p-3 border border-[#00D992]/10 bg-[#00D992]/[0.02]"
-            >
-              <div className={cn("text-2xl font-bold font-mono mb-1",
-                t.position === "S" ? "text-amber-400" :
-                t.position === "A" ? "text-[#00B377]" :
-                t.position === "B" ? "text-flash/60" :
-                t.position === "C" ? "text-orange-400" : "text-red-400"
-              )}>
-                {t.position}
-              </div>
-              <div className="text-[#E8EEF2]/30 text-[8px] font-mono uppercase tracking-wider">
-                {t.tier}
-              </div>
+      {/* PHASE ANALYSIS — gated: box snapshot does NOT populate gamePhaseWinrates */}
+      {gamePhaseWinrates.length > 0 && (
+        <div className="stat-section" style={{ animationDelay: "0.46s" }}>
+          <TechCard className="p-5">
+            <SectionHeader title="Phase Analysis" subtitle="Performance by game length" />
+            <div className="h-[120px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={gamePhaseWinrates} layout="vertical">
+                  <XAxis type="number" domain={[40, 70]} hide />
+                  <YAxis
+                    type="category"
+                    dataKey="phase"
+                    tick={{ fill: "#d7d8d9", fontSize: 9, fontFamily: "monospace" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={60}
+                  />
+                  <Bar dataKey="winrate" radius={[0, 4, 4, 0]} fill="#00d992" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ))}
+            <div className="flex justify-between mt-2 px-1">
+              {gamePhaseWinrates.map((p) => (
+                <div key={p.phase} className="text-center">
+                  <div className={cn("text-xs font-chakrapetch font-bold tabular-nums", wrClass(p.winrate))}>
+                    {pct(p.winrate, 0)}
+                  </div>
+                  <div className="text-flash/30 text-[8px] font-jetbrains">{p.time}</div>
+                </div>
+              ))}
+            </div>
+          </TechCard>
         </div>
-      </TechCard>
-      </div>
+      )}
       </div>{/* end opacity transition wrapper */}
     </div>
   )
