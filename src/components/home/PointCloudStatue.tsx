@@ -14,7 +14,6 @@ import { useGLTF } from "@react-three/drei";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
-import { cn } from "@/lib/utils";
 
 const JADE = new THREE.Color("#00d992");
 const HOT = new THREE.Color("#e8fff7");
@@ -205,14 +204,12 @@ function StatueCloud({
 
 export function PointCloudStatue({
   src,
-  fallbackImg = "/img/Yasuo.png",
   density = 85000,
   clipName,
   clipTime = 0.35,
   className,
 }: {
   src: string;
-  fallbackImg?: string;
   density?: number;
   clipName?: string; // animation clip to pose; defaults to the first clip
   clipTime?: number; // 0..1 fraction along the clip to freeze the pose at
@@ -224,18 +221,11 @@ export function PointCloudStatue({
     setMode(supportsWebGL() && !reduce ? "gl" : "flat");
   }, []);
 
-  if (mode === "flat") {
-    return (
-      <img
-        src={fallbackImg}
-        alt=""
-        aria-hidden
-        draggable={false}
-        className={cn("h-full w-full object-cover object-top opacity-45", className)}
-      />
-    );
-  }
-  if (mode === "loading") return <div className={className} />;
+  // No WebGL (or reduced-motion, or still loading) → render nothing in the
+  // hero's right slot; the dark #040A0C section simply shows through. We do NOT
+  // fall back to a flat champion splash: maintaining a 2D twin of the 3D model
+  // is a mismatch waiting to happen (it shipped a stale Yasuo by accident).
+  if (mode !== "gl") return <div className={className} />;
 
   return (
     <div className={className}>
