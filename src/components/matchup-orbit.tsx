@@ -53,16 +53,50 @@ function fibPos(i: number, n: number, radius: number): [number, number, number] 
   return [radius * Math.cos(phi) * r, radius * y, radius * Math.sin(phi) * r];
 }
 
-function Tethers({ nodes, radius }: { nodes: MatchupNode[]; radius: number }) {
+function Tethers({ nodes, radius, selectedKey }: { nodes: MatchupNode[]; radius: number; selectedKey: string | null }) {
   return (
     <>
       {nodes.map((n, i) => {
+        if (n.key === selectedKey) return null; // the selected tether is drawn (brighter + animated) by SelectedTether
         const p = fibPos(i, nodes.length, radius);
         return (
-          <Line key={n.key} points={[[0, 0, 0], p]} color={hexFor(n.winrate)} lineWidth={0.8} transparent opacity={0.16} />
+          <Line key={n.key} points={[[0, 0, 0], p]} color={hexFor(n.winrate)} lineWidth={0.8} transparent opacity={selectedKey ? 0.09 : 0.16} />
         );
       })}
     </>
+  );
+}
+
+// The picked matchup's tether: a bright steady wire from the centre to the node,
+// with a few energy pulses streaming linearly along it (centre → opponent).
+function SelectedTether({ pos, color }: { pos: [number, number, number]; color: string }) {
+  const target = useMemo(() => new THREE.Vector3(pos[0], pos[1], pos[2]), [pos]);
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const pulses = useRef<(THREE.Mesh | null)[]>([]);
+  const N = 3;
+  useFrame((state) => {
+    const e = state.clock.elapsedTime;
+    for (let i = 0; i < N; i++) {
+      const m = pulses.current[i];
+      if (!m) continue;
+      const t = (e * 0.75 + i / N) % 1;          // staggered 0→1, centre → node
+      v.copy(target).multiplyScalar(t);
+      m.position.copy(v);
+      const fade = Math.sin(t * Math.PI);         // dark at both ends, bright mid-flight
+      m.scale.setScalar(0.045 + 0.075 * fade);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.15 + 0.85 * fade;
+    }
+  });
+  return (
+    <group>
+      <Line points={[[0, 0, 0], pos]} color={color} lineWidth={2.1} transparent opacity={0.62} />
+      {Array.from({ length: N }).map((_, i) => (
+        <mesh key={i} ref={(m) => { pulses.current[i] = m; }}>
+          <sphereGeometry args={[1, 10, 10]} />
+          <meshBasicMaterial color={color} transparent toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -126,9 +160,15 @@ export function MatchupOrbit({
   const facesRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const centerRef = useRef<HTMLDivElement | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const { selPos, selColor } = useMemo(() => {
+    const i = nodes.findIndex((n) => n.key === selectedKey);
+    if (i < 0) return { selPos: null as [number, number, number] | null, selColor: "#00d992" };
+    return { selPos: fibPos(i, nodes.length, radius), selColor: hexFor(nodes[i].winrate) };
+  }, [selectedKey, nodes, radius]);
 
   return (
     <div className={cn("relative", className)}>
+      <style>{`@keyframes mo-halo-pulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.9)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}}.mo-halo{animation:mo-halo-pulse 1.5s ease-in-out infinite}`}</style>
       <Canvas
         camera={{ position: [0, 0.2, 7.8], fov: 42 }}
         dpr={[1, 1.8]}
@@ -136,7 +176,8 @@ export function MatchupOrbit({
         style={{ background: "transparent" }}
       >
         <ambientLight intensity={1} />
-        <Tethers nodes={nodes} radius={radius} />
+        <Tethers nodes={nodes} radius={radius} selectedKey={selectedKey} />
+        {selPos && <SelectedTether pos={selPos} color={selColor} />}
         <Projector
           nodes={nodes}
           radius={radius}
@@ -178,6 +219,7 @@ export function MatchupOrbit({
         {/* opponent faces */}
         {nodes.map((n) => {
           const c = hexFor(n.winrate);
+          const sel = n.key === selectedKey;
           const sz = 38 + Math.min(20, (n.games / 5000) * 20);
           return (
             <div
@@ -193,12 +235,27 @@ export function MatchupOrbit({
               onMouseLeave={() => setHoverKey((k) => (k === n.key ? null : k))}
               onClick={() => onSelect(n.key)}
             >
+              {/* pulsing energy halo behind the picked face */}
+              {sel && (
+                <span
+                  aria-hidden
+                  className="mo-halo absolute left-1/2 top-1/2 rounded-full pointer-events-none"
+                  style={{ width: sz * 1.95, height: sz * 1.95, background: `radial-gradient(circle, ${c}88, ${c}22 45%, transparent 70%)` }}
+                />
+              )}
               <img
                 src={n.iconUrl}
                 alt={n.name}
                 draggable={false}
-                className="block rounded-lg object-cover"
-                style={{ width: sz, height: sz, boxShadow: `0 0 0 2px ${c}, 0 0 12px ${c}66` }}
+                className="relative block rounded-lg object-cover transition-[box-shadow] duration-300"
+                style={{
+                  width: sz,
+                  height: sz,
+                  boxShadow: sel
+                    ? `0 0 0 2.5px ${c}, 0 0 18px ${c}, 0 0 42px ${c}aa`
+                    : `0 0 0 2px ${c}, 0 0 12px ${c}66`,
+                  filter: sel ? "saturate(1.25) brightness(1.08)" : undefined,
+                }}
               />
             </div>
           );
