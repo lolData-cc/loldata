@@ -280,7 +280,7 @@ export function ChampionMatchupsTab({ champ, keyToId }: Props) {
             <Eyebrow>Recommended build vs {selected.name}</Eyebrow>
             <span className="font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/35">current patch · ranked</span>
           </div>
-          <BuildPathViz graph={matchupGraph} />
+          <BuildPathViz graph={matchupGraph} bare />
         </section>
       )}
     </div>
@@ -386,14 +386,28 @@ function RunesCard({ championKey, opponentKey, opponentName }: { championKey: nu
     setPhase("loading"); setTop(null)
     fetch(`${API_BASE_URL}/api/champion/runes`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ championId: championKey, opponentId: opponentKey, limit: 1 }),
+      body: JSON.stringify({ championId: championKey, opponentId: opponentKey, limit: 12 }),
     })
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
         if (cancelled) return
-        const r: RuneRow | undefined = d?.runes?.[0]
-        setTop(r ?? null)
-        setPhase(r ? "ready" : "empty")
+        const all: RuneRow[] = d?.runes ?? []
+        if (!all.length) { setTop(null); setPhase("empty"); return }
+        // Don't just show the most-PICKED page — that's the champ's default and comes
+        // out identical for every matchup. Rank by win rate, but shrink each page toward
+        // the matchup's OWN pooled win rate (not 50%) and weight by sample: a page wins
+        // by genuinely beating the matchup baseline with enough games, so a tiny high-WR
+        // fluke can't out-rank a well-sampled page in a losing lane.
+        const topGames = Math.max(...all.map(r => r.games))
+        const totalGames = all.reduce((s, r) => s + r.games, 0)
+        const baseline = all.reduce((s, r) => s + r.games * r.winrate, 0) / Math.max(1, totalGames) // pooled WR %
+        const floor = Math.max(40, Math.round(topGames * 0.08))
+        const K = 100
+        const score = (r: RuneRow) => (r.games * r.winrate + K * baseline) / (r.games + K)
+        const pool = all.filter(r => r.games >= floor)
+        const best = (pool.length ? pool : all).slice().sort((a, b) => score(b) - score(a))[0]
+        setTop(best ?? null)
+        setPhase(best ? "ready" : "empty")
       })
       .catch(() => { if (!cancelled) setPhase("error") })
     return () => { cancelled = true }

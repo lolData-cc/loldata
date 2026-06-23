@@ -126,7 +126,7 @@ export function PremiumAvatarUploader() {
 
         <div className="relative z-[2] px-4 py-3 pl-5">
           {/* Content */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -134,7 +134,7 @@ export function PremiumAvatarUploader() {
                 <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
               )}
             </div>
-            <span className="text-flash/60 text-sm">
+            <span className="text-flash/60 text-sm min-w-0 break-words">
               {isPremium
                 ? "Upload a custom image to personalize your profile."
                 : "Upgrade to Premium to customize your avatar."}
@@ -145,7 +145,7 @@ export function PremiumAvatarUploader() {
           <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
           {/* Buttons below divider */}
-          <div className="flex justify-between items-center pt-2">
+          <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
             <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
               {isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}
             </span>

@@ -73,7 +73,7 @@ export function DeepDive({ data, graph, onClose, onSave, canSave, saved }: { dat
 
       {/* scrolling content layer (transparent — the backdrop above shows through) */}
       <div className="absolute inset-0 overflow-y-auto cyber-scrollbar">
-        <div className="relative max-w-[1080px] mx-auto px-6 md:px-10 py-7">
+        <div className="relative max-w-[1080px] mx-auto px-3 sm:px-6 md:px-10 py-7">
         {/* slim action bar — save + close, sitting just above the header */}
         <div className="deep-section flex items-center justify-end gap-2 mb-2.5">
           {onSave && canSave && (

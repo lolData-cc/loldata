@@ -5,12 +5,13 @@ import { SearchDialog } from "@/components/searchdialog"
 import { UserDialog } from "@/components/userdialog"
 import { useAuth } from "@/context/authcontext"
 import { useChampionPicker } from "@/context/championpickercontext"
-import { Menu, ChartNoAxesCombined, Trophy, BookOpen, Layers, User, LogIn, X } from "lucide-react"
+import { Menu, ChartNoAxesCombined, Trophy, BookOpen, Layers, User, LogIn, X, ChevronDown } from "lucide-react"
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
 export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps) {
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [learnOpen, setLearnOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -98,7 +100,11 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
   // instead of a solid black bar that fights the content underneath.
   // Desktop keeps the original solid-ish backdrop.
   const bg = sticky
-    ? "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-[#040A0C]/80 md:backdrop-blur-sm md:saturate-100"
+    ? `bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:backdrop-blur-sm md:saturate-100 transition-colors duration-300 ${
+        // Homepage hero: at the very top keep the bar barely-tinted so Katarina's
+        // hair reads as continuing THROUGH it; once scrolled, restore the solid backdrop.
+        scrolled ? "md:bg-[#040A0C]/80" : "md:bg-[#040A0C]/25"
+      }`
     : "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-transparent md:backdrop-blur-none md:saturate-100"
 
   const border = sticky && scrolled ? "border-b border-flash/10" : ""
@@ -127,8 +133,9 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
                 data-[state=open]:duration-300 data-[state=closed]:duration-200
               "
             >
-              {/* Accessibility title */}
+              {/* Accessibility title + description (Radix requires both) */}
               <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+              <SheetDescription className="sr-only">Main site navigation and account links</SheetDescription>
 
               {/* Scanlines overlay */}
               <div
@@ -192,6 +199,69 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
                   {NAV_ITEMS.map((item) => {
                     const isActive = item.to ? location.pathname === item.to : false
                     const Icon = item.icon
+
+                    // LEARN → collapsible that reveals the Learn page tabs as sub-links
+                    if (item.label === "LEARN") {
+                      const learnActive = location.pathname.startsWith("/learn")
+                      const subLinks = [
+                        { label: "Overview", to: "/learn?t=overview" },
+                        { label: "Your Games", to: "/learn?t=games" },
+                        { label: "Explorer", to: "/learn/explorer" },
+                        { label: "Itemization", to: "/learn?t=itemization" },
+                        { label: "Loldata AI", to: "/learn?t=loldata-ai" },
+                      ]
+
+                      return (
+                        <div key={item.label}>
+                          <button
+                            type="button"
+                            onClick={() => setLearnOpen((v) => !v)}
+                            aria-expanded={learnOpen}
+                            className={`
+                              w-full flex items-center gap-3 px-3 py-2.5 rounded-sm
+                              text-[13px] tracking-[0.08em] uppercase
+                              transition-all duration-200 cursor-clicker group
+                              ${learnActive
+                                ? "bg-jade/10 text-jade border border-jade/20"
+                                : "text-flash/60 hover:text-flash/90 hover:bg-flash/5 border border-transparent"
+                              }
+                            `}
+                          >
+                            <div className={`
+                              w-6 h-6 flex items-center justify-center rounded-[3px] flex-shrink-0
+                              transition-colors duration-200
+                              ${learnActive ? "bg-jade/20" : "bg-flash/5 group-hover:bg-jade/10"}
+                            `}>
+                              <Icon className={`w-3.5 h-3.5 ${learnActive ? "text-jade" : "text-flash/40 group-hover:text-jade/70"} transition-colors`} />
+                            </div>
+                            <span>{item.label}</span>
+                            <ChevronDown
+                              className={`ml-auto w-3.5 h-3.5 transition-transform duration-200 ${learnOpen ? "rotate-180" : ""} ${learnActive ? "text-jade/70" : "text-flash/30 group-hover:text-jade/60"}`}
+                            />
+                          </button>
+
+                          {learnOpen && (
+                            <div className="mt-1 ml-9 flex flex-col gap-0.5 border-l border-flash/10 pl-2">
+                              {subLinks.map((sub) => (
+                                <Link
+                                  key={sub.to}
+                                  to={sub.to}
+                                  onClick={() => setMenuOpen(false)}
+                                  className="
+                                    px-3 py-2 rounded-sm
+                                    text-[11px] tracking-[0.08em] uppercase
+                                    text-flash/45 hover:text-jade hover:bg-flash/5
+                                    transition-all duration-200 cursor-clicker
+                                  "
+                                >
+                                  {sub.label}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }
 
                     const handleClick = () => {
                       if (item.action === "picker") {

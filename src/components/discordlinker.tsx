@@ -404,7 +404,7 @@ export function DiscordLinker() {
 
       <div className="relative z-[2] px-4 py-3 pl-5">
 
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
           {/* Discord avatar — same size/position as the Avatar card */}
           {isLinked && effectiveDiscord && (
             <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
@@ -423,7 +423,7 @@ export function DiscordLinker() {
             </div>
           )}
 
-          <div className="flex-1 min-w-0">
+          <div className="w-full sm:flex-1 min-w-0">
             {/* Title + status row */}
             <div className="flex items-center justify-between gap-3">
               <h4 className="text-flash/80 text-sm font-medium">Discord</h4>

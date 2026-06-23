@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient"
 import { Input } from "@/components/ui/input"
 import { showCyberToast } from "@/lib/toast-utils"
 import { SITE_URL, API_BASE_URL } from "@/config"
+import { redirectFromUrl, stashRedirect } from "@/lib/authRedirect"
 import {
   Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog"
@@ -86,7 +87,7 @@ export default function LoginPage() {
     if (error) {
       showCyberToast({ title: "Login failed", description: error.message, tag: "ERR", variant: "error" })
     } else {
-      navigate("/dashboard")
+      navigate(redirectFromUrl())
     }
   }
 
@@ -119,7 +120,7 @@ export default function LoginPage() {
     } else if (data.session) {
       // Auto-confirmed (email confirmation disabled in Supabase) — go straight to dashboard
       showCyberToast({ title: "Account created", description: "Welcome to loldata!", tag: "OK", variant: "status" })
-      navigate("/dashboard")
+      navigate(redirectFromUrl())
     } else {
       // Email confirmation required — open OTP dialog
       setPendingEmail(email)
@@ -151,7 +152,7 @@ export default function LoginPage() {
     } else {
       showCyberToast({ title: "Account verified", description: "Welcome to loldata!", tag: "OK", variant: "status" })
       setPendingEmail(null)
-      navigate("/dashboard")
+      navigate(redirectFromUrl())
     }
   }
 
@@ -216,6 +217,7 @@ export default function LoginPage() {
   const loginWithDiscord = useCallback(async () => {
     if (discordLoading) return
     setDiscordLoading(true)
+    stashRedirect() // remember the desired route across the OAuth round-trip
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { scopes: "identify email", redirectTo: `${SITE_URL}/auth/callback` },
@@ -735,7 +737,7 @@ export default function LoginPage() {
       {/* ── OTP Verification Dialog ── */}
       <Dialog open={otpDialogOpen} onOpenChange={(open) => { if (!open) setPendingEmail(null) }}>
         <DialogContent
-          className="p-0 border-0 bg-transparent shadow-none max-w-[420px]"
+          className="p-0 border-0 bg-transparent shadow-none w-full max-w-[min(420px,92vw)]"
         >
           <DialogTitle className="sr-only">Verify Email</DialogTitle>
           <div
@@ -768,7 +770,7 @@ export default function LoginPage() {
             <Corner pos="bottom-right" color={ac} />
 
             {/* Content */}
-            <div className="relative z-[5] px-8 py-8">
+            <div className="relative z-[5] px-5 py-7 sm:px-8 sm:py-8">
               {/* Tag */}
               <div
                 className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase mb-5"
@@ -813,7 +815,7 @@ export default function LoginPage() {
               </p>
 
               {/* OTP Inputs */}
-              <div className="flex justify-center gap-3 mb-7" onPaste={handleOtpPaste}>
+              <div className="flex justify-center gap-2 sm:gap-3 mb-7" onPaste={handleOtpPaste}>
                 {otp.map((digit, i) => (
                   <input
                     key={i}
@@ -825,7 +827,7 @@ export default function LoginPage() {
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
                     autoFocus={i === 0}
-                    className="w-11 h-13 text-center text-xl font-mechano outline-none transition-all duration-200"
+                    className="w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-mechano outline-none transition-all duration-200"
                     style={{
                       background: digit ? dimGlow : "rgba(255,255,255,0.02)",
                       border: `1px solid ${digit ? `color-mix(in srgb, ${ac} 50%, transparent)` : "color-mix(in srgb, #d7d8d9 10%, transparent)"}`,

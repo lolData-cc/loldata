@@ -13,11 +13,11 @@ export default function ExplorerPage() {
         <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen flex flex-col overflow-hidden">
             {/* Navbar */}
             <div className="w-full flex justify-center">
-                <div className="w-[65%]"><Navbar /></div>
+                <div className="w-full lg:w-[65%]"><Navbar /></div>
             </div>
 
             {/* Full-bleed canvas; its own control rail carries the back-button */}
-            <div className="relative flex-1 min-h-0 overflow-hidden">
+            <div className="relative flex-1 min-h-0 overflow-hidden pt-16 md:pt-0">
                 <ExplorerCanvas onBack={() => navigate("/learn")} />
             </div>
         </div>

@@ -92,11 +92,17 @@ function HomePage() {
           <CoachShowcase />
           <ReplayShowcase />
 
-          {/* Membership CTA → inline pricing slide-swap */}
-          <Jax />
+          {/* Membership CTA → inline pricing slide-swap.
+              Jax is a fixed-height full-bleed panel with no vertical padding,
+              so wrap it in the showcases' own py-20/28 rhythm — otherwise the
+              gap above/below it is only half of the inter-showcase spacing. */}
+          <div className="py-20 md:py-28">
+            <Jax />
+          </div>
 
-          {/* Live streamers */}
-          <section className="mt-16 md:mt-24">
+          {/* Live streamers — same top rhythm as a showcase (pairs with Jax's
+              pb to give the full inter-section gap). */}
+          <section className="pt-20 md:pt-28">
             <StreamersInfiniteCarousel />
           </section>
         </div>

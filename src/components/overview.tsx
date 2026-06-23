@@ -127,7 +127,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
 
       {/* ═══ HERO STRIP ═══ */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-end justify-between pb-6 mb-2 border-b border-flash/[0.05]">
+        className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 sm:gap-0 pb-6 mb-2 border-b border-flash/[0.05]">
 
         {/* WR */}
         <BigStat value={`${t.winrate}%`} label="SESSION WINRATE" sub={`${t.wins}W ${t.losses}L  //  ${t.totalGames} games`} color={wrColor} glow={wrGlow} />
@@ -145,7 +145,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
 
       {/* ═══ PERFORMANCE ═══ */}
       <SectionLabel delay={0.1}>PERFORMANCE</SectionLabel>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CyberCard delay={0.12}>
           <StatRow label="CS / min" value={t.avgCSPM} sub={b ? `avg ${b.avgCSPM}` : undefined} />
           <StatRow label="Gold / min" value={t.avgGoldPerMin ?? 0} sub={b ? `avg ${b.avgGoldPerMin}` : undefined} />
@@ -162,7 +162,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
 
       {/* ═══ COMBAT ═══ */}
       <SectionLabel delay={0.18}>COMBAT</SectionLabel>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CyberCard delay={0.2}>
           <StatRow label="Avg damage dealt" value={Number(t.avgDmgPerGame).toLocaleString()} />
           <StatRow label="Avg damage taken" value={Number(t.avgDmgTakenPerGame).toLocaleString()} />
@@ -183,7 +183,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
       {/* ═══ IMPACT ═══ */}
       <SectionLabel delay={0.24}>IMPACT SCORE</SectionLabel>
       <CyberCard accent={t.impact >= 65 ? "jade" : t.impact >= 50 ? "amber" : "red"} delay={0.26}>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
           <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
             <svg width="80" height="80" viewBox="0 0 80 80" className="absolute inset-0">
               <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="3" />
@@ -232,7 +232,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                 )}>
                   <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.name)}.png`} alt="" className="w-8 h-8 rounded-sm border border-flash/[0.06]" onError={e => { e.currentTarget.style.display = "none" }} />
                   <span className="text-[12px] font-mono text-flash/65 w-28 truncate">{c.name}</span>
-                  <div className="flex-1 flex items-center gap-4 justify-end">
+                  <div className="flex-1 flex items-center gap-2 sm:gap-4 justify-end">
                     <span className={cn("text-[12px] font-mono tabular-nums font-semibold", c.winrate >= 50 ? "text-jade/70" : "text-red-400/70")}>{c.winrate}%</span>
                     <span className="text-[10px] font-mono text-flash/25 w-8 text-right">{c.games}g</span>
                     <span className="text-[10px] font-mono text-flash/35 w-14 text-right">{c.avgKDA} KDA</span>
@@ -249,7 +249,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
       {(t.worstMatchups?.length > 0 || t.bestMatchups?.length > 0) && (
         <>
           <SectionLabel delay={0.36}>MATCHUPS</SectionLabel>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {t.bestMatchups?.length > 0 && (
               <CyberCard accent="jade" delay={0.38}>
                 <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-jade/40 mb-2 block">BEST MATCHUPS</span>
@@ -284,7 +284,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
       {t.winSplitStats && t.lossSplitStats && (
         <>
           <SectionLabel delay={0.42}>WIN vs LOSS BREAKDOWN</SectionLabel>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <CyberCard accent="jade" delay={0.44}>
               <span className="text-[9px] font-mono tracking-[0.2em] text-jade/40 uppercase mb-2 block">IN WINS ({t.winSplitStats.games})</span>
               <StatRow label="KDA" value={t.winSplitStats.avgKDA} color="text-jade/70" />

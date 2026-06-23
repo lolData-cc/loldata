@@ -2,6 +2,7 @@
 import { useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabaseClient"
+import { consumeStashedRedirect } from "@/lib/authRedirect"
 
 export default function AuthCallback() {
   const navigate = useNavigate()
@@ -21,12 +22,12 @@ export default function AuthCallback() {
     // prova subito a leggere la sessione
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        navigate("/dashboard", { replace: true })
+        navigate(consumeStashedRedirect(), { replace: true })
       } else {
         // aspetta l'evento di login (se mai arriverà)
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
           if (session) {
-            navigate("/dashboard", { replace: true })
+            navigate(consumeStashedRedirect(), { replace: true })
           } else {
             // se resta nullo => torna al login
             navigate("/login", { replace: true })
