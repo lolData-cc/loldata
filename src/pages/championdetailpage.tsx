@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BOX_API_BASE_URL as API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
-import { ChampionItemsTab } from "@/components/championitemstab";
 import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab"
 import ChampionDuosTab from "@/components/champion-duos-tab"
+import ChampionBuildTab from "@/components/champion-build-tab"
 import { useSeo } from "@/hooks/useSeo";
 import { GuidesTab } from "@/components/guide/guides-tab";
 import { useAuth } from "@/context/authcontext";
@@ -646,9 +646,7 @@ export default function ChampionDetailPage() {
             )}
           </TabsContent>
           <TabsContent value="build">
-            <div className="">
-              <ChampionItemsTab champ={champ} patch={patch} />
-            </div>
+            <ChampionBuildTab champ={champ} patch={patch} />
           </TabsContent>
           <TabsContent value="duos">
             <ChampionDuosTab champ={champ} patch={patch} />
