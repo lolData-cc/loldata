@@ -14,7 +14,9 @@ import splashPositionMap from "@/converters/splashPositionMap"
 import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionItemsTab } from "@/components/championitemstab";
 import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
-import { ChampionMatchupsTab } from "@/components/champion-matchups-tab";
+import { ChampionMatchupsTab } from "@/components/champion-matchups-tab"
+import ChampionDuosTab from "@/components/champion-duos-tab"
+import { useSeo } from "@/hooks/useSeo";
 import { GuidesTab } from "@/components/guide/guides-tab";
 import { useAuth } from "@/context/authcontext";
 import { DiamondButton } from "@/components/ui/diamond-button";
@@ -116,7 +118,7 @@ function HeroStat({ label, value, tone = "flash" }: { label: string; value: stri
   )
 }
 
-const validTabs = ["overview", "statistics", "items", "matchups", "guides", "pros"] as const
+const validTabs = ["overview", "build", "duos", "counters", "statistics", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
   const { champId, tab, guideId } = useParams<{ champId: string; tab?: string; guideId?: string }>()
@@ -251,20 +253,26 @@ export default function ChampionDetailPage() {
     setPatch(getCdnVersion())
   }, [])
 
-  //set title
-  useEffect(() => {
-    const defaultTitle = "lolData";
-
-    if (champ?.name) {
-      document.title = `${champ.name} - lolData`;
-    } else {
-      document.title = defaultTitle;
-    }
-
-    return () => {
-      document.title = defaultTitle;
-    };
-  }, [champ?.name]);
+  // per-tab SEO — unique title / meta / canonical per /champions/:id/:tab URL
+  const seoName = champ?.name ?? champId ?? "Champion"
+  const isSup = champ?.tags?.includes("Support")
+  const isAdc = champ?.tags?.includes("Marksman")
+  const duoLabel = isSup ? "ADC Duos" : isAdc ? "Supports" : "Duos"
+  const seoMeta =
+    activeTab === "duos"
+      ? { t: `Best ${duoLabel} for ${seoName} — Patch ${patch} | lolData`, d: `The best ${isSup ? "ADC carries" : isAdc ? "supports" : "duo partners"} to pair with ${seoName} in Patch ${patch}, ranked by confidence-weighted win rate from millions of ranked games.` }
+      : activeTab === "build"
+      ? { t: `${seoName} Build — Best Items & Runes — Patch ${patch} | lolData`, d: `The best build, items and runes for ${seoName} in Patch ${patch}, from millions of ranked games.` }
+      : activeTab === "counters"
+      ? { t: `${seoName} Counters & Best Matchups — Patch ${patch} | lolData`, d: `${seoName} counters and best / worst lane matchups in Patch ${patch}.` }
+      : activeTab === "statistics"
+      ? { t: `${seoName} Stats — Win Rate & Pick Rate — Patch ${patch} | lolData`, d: `${seoName} win rate, pick rate and performance stats — Patch ${patch}.` }
+      : { t: `${seoName} Build, Runes, Duos & Counters — Patch ${patch} | lolData`, d: `${seoName} guide: best build, runes, items, duos and counters from ranked games — Patch ${patch}.` }
+  useSeo({
+    title: seoMeta.t,
+    description: seoMeta.d,
+    canonical: activeTab === "overview" ? `/champions/${champId}` : `/champions/${champId}/${activeTab}`,
+  })
 
   // fetch champion data (case-insensitive URL support)
   useEffect(() => {
@@ -585,8 +593,10 @@ export default function ChampionDetailPage() {
           <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06] min-w-0 w-max sm:w-full">
             {[
               { value: "overview", label: "Overview" },
+              { value: "build", label: "Build" },
+              { value: "duos", label: "Duos" },
+              { value: "counters", label: "Counters" },
               { value: "statistics", label: "Statistics" },
-              { value: "matchups", label: "Matchups" },
               { value: "guides", label: "Guides" },
               { value: "pros", label: "OTPs" },
             ].map(({ value, label }) => (
@@ -628,17 +638,20 @@ export default function ChampionDetailPage() {
               <ChampionStats champ={champ} patch={patch} keyToId={keyToId} onVsChange={setVsOpponent} initialVs={vsParam} />
             )}
           </TabsContent>
-<TabsContent value="matchups">
+<TabsContent value="counters">
             {Object.keys(keyToId).length === 0 ? (
               <div className="text-neutral-400">LOADING CHAMPIONS…</div>
             ) : (
               <ChampionMatchupsTab champ={champ} patch={patch} keyToId={keyToId} />
             )}
           </TabsContent>
-          <TabsContent value="items">
+          <TabsContent value="build">
             <div className="">
               <ChampionItemsTab champ={champ} patch={patch} />
             </div>
+          </TabsContent>
+          <TabsContent value="duos">
+            <ChampionDuosTab champ={champ} patch={patch} />
           </TabsContent>
           <TabsContent value="guides">
             {champ && <GuidesTab championId={champ.id} initialGuideId={guideId} editRef={guideEditRef} onGuideView={(g) => setActiveGuide(g ? { title: g.title, author: g.author_name ?? "Anonymous", authorId: g.author_id, guideId: g.id, views: g.views ?? 0, upvotes: g.upvotes ?? 0, discord: g.author_discord, twitter: g.author_twitter, reddit: g.author_reddit } : null)} />}
