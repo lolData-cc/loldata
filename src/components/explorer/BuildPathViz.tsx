@@ -74,19 +74,28 @@ export function BuildPathViz({
       </Shell>
     );
 
+  // Dedup: each slot's "main" = its most-picked item NOT already used earlier.
+  // You can't build the same item twice, so an item can't headline two slots.
+  const usedMain = new Set<number>();
+  const mains = res.slots.map((slot) => {
+    const m = slot.find((it) => !usedMain.has(it.item)) ?? null;
+    if (m) usedMain.add(m.item);
+    return m;
+  });
+
   return (
     <Shell bare={bare} coverage={res.coverage} covered={res.coveredGames}>
       <div className="overflow-x-auto cyber-scrollbar pb-2 -mx-1 px-1">
         <div className="flex items-start gap-7 min-w-min pt-1">
           {res.slots.map((slot, i) => {
-            const main = slot[0];
-            const alts = slot.slice(1, 4); // top 3 situational alternatives — keep it scannable
-            const last = i === res.slots.length - 1;
+            const main = mains[i];
             if (!main) return null;
+            const alts = slot.filter((a) => a.item !== main.item).slice(0, 3); // top alternatives (excl. the main)
+            const last = i === res.slots.length - 1;
             return (
               <div key={i} className="relative shrink-0 w-[116px]">
                 {/* connector to the next slot's main item (centered on the icon row) */}
-                {!last && res.slots[i + 1]?.[0] && (
+                {!last && mains[i + 1] && (
                   <div className="pointer-events-none absolute right-[-28px] top-[34px] w-[28px] flex items-center">
                     <span
                       className="block h-[2px] flex-1 rounded-full"

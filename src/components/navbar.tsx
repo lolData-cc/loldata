@@ -89,7 +89,10 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
   }, [sticky])
 
   const base =
-    "flex items-center w-full h-16 z-50 px-3 sm:px-4 md:px-4 md:py-2 justify-between"
+    // transform-gpu + isolate keep the fixed, backdrop-blurred bar on its OWN stable
+    // compositing layer — without it Chrome re-samples an empty backdrop over the WebGL
+    // hero on scroll and flashes white.
+    "flex items-center w-full h-16 z-50 px-3 sm:px-4 md:px-4 md:py-2 justify-between transform-gpu isolate [backface-visibility:hidden]"
 
   const position = sticky
     ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
@@ -100,9 +103,11 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
   // instead of a solid black bar that fights the content underneath.
   // Desktop keeps the original solid-ish backdrop.
   const bg = sticky
-    ? `bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:backdrop-blur-sm md:saturate-100 transition-colors duration-300 ${
+    ? `bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:backdrop-blur-sm md:saturate-100 ${
         // Homepage hero: at the very top keep the bar barely-tinted so Katarina's
         // hair reads as continuing THROUGH it; once scrolled, restore the solid backdrop.
+        // NB: no transition-colors here — animating the bg per-frame made Chrome
+        // re-rasterise the backdrop-filter and flash white. Snap instead.
         scrolled ? "md:bg-[#040A0C]/80" : "md:bg-[#040A0C]/25"
       }`
     : "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-transparent md:backdrop-blur-none md:saturate-100"

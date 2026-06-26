@@ -18,6 +18,7 @@ import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
 import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
 import { StreamerAdminPanel } from "@/components/admin/streamer-admin-panel";
+import { AccountLinkOverride } from "@/components/admin/account-link-override";
 import { DatabaseStatsPanel } from "@/components/admin/database-stats-panel";
 import { BorderBeamPreference } from "@/components/borderbeampreference";
 import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
@@ -92,7 +93,7 @@ export default function DashboardPage() {
     : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
   const displayName = nametag ?? email
 
-  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "planSetup"];
+  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "accountLink", "planSetup"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
   // mobile bottom section picker — rises up to choose a dashboard section
@@ -106,6 +107,7 @@ export default function DashboardPage() {
       { value: "database", label: "DATABASE" },
       { value: "proApplications", label: "PRO APPLICATIONS" },
       { value: "streamerApplications", label: "STREAMER APPLICATIONS" },
+      { value: "accountLink", label: "ACCOUNT LINK" },
       { value: "planSetup", label: "PLAN SETUP" },
     ] : []),
   ];
@@ -272,6 +274,13 @@ export default function DashboardPage() {
                         className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                       >
                         STREAMER APPLICATIONS
+                      </TabsTrigger>
+
+                      <TabsTrigger
+                        value="accountLink"
+                        className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
+                      >
+                        ACCOUNT LINK
                       </TabsTrigger>
 
                       <TabsTrigger
@@ -473,6 +482,13 @@ export default function DashboardPage() {
                   <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
                     <StreamerAdminPanel />
                   </div>
+                </TabsContent>
+              )}
+
+              {/* ADMIN TAB: ACCOUNT LINK (force-link a profile, no RSO) */}
+              {isAdmin && (
+                <TabsContent value="accountLink" className="outline-none">
+                  <AccountLinkOverride />
                 </TabsContent>
               )}
 

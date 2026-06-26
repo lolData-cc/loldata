@@ -1133,7 +1133,7 @@ export function ChampionStats({
 
   const champIdFromKey = (k: number) => keyToId[String(k)] || String(k)
   const champIconFromKey = (k: number) =>
-    `https://cdn2.loldata.cc/16.1.1/img/champion/${champIdFromKey(k)}.png`
+    `${cdnBaseUrl()}/img/champion/${champIdFromKey(k)}.png`
 
   const championList = useMemo(() =>
     Object.entries(keyToId).map(([, id]) => ({ id, name: id })), [keyToId])
@@ -1242,6 +1242,7 @@ export function ChampionStats({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         championId: Number(champ.key),
+        champion: champ.id,
         patch: selectedPatch,
         region: selectedRegion,
         queueId: 420,

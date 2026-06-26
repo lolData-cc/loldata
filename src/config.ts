@@ -75,27 +75,31 @@ const SUMMONER_SPELL_MAP: Record<number, string> = {
 // Prefer cdnBaseUrl() for dynamic version.
 export const CDN_BASE_URL = `${CDN_ORIGIN}/${FALLBACK_VERSION}`;
 
-// In development we leave the base URL empty so fetches hit the same
-// origin as the page (`/api/...`), and Vite's proxy forwards them to
-// the local backend on :3001. The win: the phone can hit
-// http://<PC-LAN-IP>:5173 and everything Just Works — no separate
-// backend exposure on the LAN, no CORS noise. In production the
-// frontend talks to the real api.loldata.cc.
+// The main API. This used to be api.loldata.cc (the old Railway backend), but
+// that has been retired — the box (api2.loldata.cc) now runs the FULL backend
+// (summoner/season/livegame/scout/ai/… not just the Explorer aggregates), so we
+// point everything there in dev AND prod. CORS on the box is open (ACAO *), so
+// :5173 and phones on the LAN reach it directly.
+//
+// To develop against a LOCAL backend instead (Vite proxy → :3001), set
+// `VITE_API_URL=""` in a .env.local — the empty string is honoured (`??`), so
+// fetches go same-origin and the proxy forwards them.
 export const API_BASE_URL =
-  import.meta.env.MODE === "development"
-    ? ""
-    : "https://api.loldata.cc";
+  import.meta.env.VITE_API_URL ?? "https://api2.loldata.cc";
 
-// Explorer runs heavy aggregate reads. In production they're routed at the
-// dedicated match-data box (Hetzner Postgres, exposed via Cloudflare Tunnel at
+// Explorer runs heavy aggregate reads. They're routed at the dedicated
+// match-data box (Hetzner Postgres, exposed via Cloudflare Tunnel at
 // api2.loldata.cc) instead of the main api.loldata.cc, so the big queries hit the
 // box's horsepower. Override with VITE_EXPLORER_API_URL at build time to repoint.
-// In dev it's empty → Vite proxies /api/explorer/* to the local backend, which is
-// tunnelled to the box.
+//
+// We hit the box in DEV too (not the local-backend proxy). The local backend
+// reads the Supabase snapshot, which is FROZEN — it stopped ingesting around the
+// start of the live patch, so the newest patch has near-zero games there (e.g.
+// AurelionSol patch 16.13 = 1 game → bogus 100% winrate) while the box has the
+// real ~600+. Pointing the Explorer at the box makes dev match prod. CORS on the
+// box is open (ACAO *), so :5173 (and phones on the LAN) reach it directly.
 export const EXPLORER_API_BASE_URL =
-  import.meta.env.MODE === "development"
-    ? ""
-    : (import.meta.env.VITE_EXPLORER_API_URL || "https://api2.loldata.cc");
+  import.meta.env.VITE_EXPLORER_API_URL || "https://api2.loldata.cc";
 
 // The match-data box, ALWAYS (dev + prod). Unlike EXPLORER_API_BASE_URL (which is
 // "" in dev → Vite proxy → local backend → Supabase), DB-stats must reflect the

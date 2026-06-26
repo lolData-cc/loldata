@@ -32,7 +32,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   enemy: { champion: "", role: "" },
   item: { itemId: undefined },
   rune: { keystone: undefined },
-  filter: { scope: "current_patch", tiers: ["CHALLENGER", "GRANDMASTER", "MASTER"], queues: [420, 440], platforms: [] },
+  filter: { scope: "current_patch", tiers: [], queues: [420, 440], platforms: [] },
   output: { mode: "rank", dimension: "ally", role: "UTILITY", limit: 5, minGames: 5 },
   exclude: {},
 };
@@ -312,16 +312,17 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             </div>
           )}
 
-          {/* zoom + clear — secondary controls, bottom-left */}
+          {/* zoom + clear — secondary controls, bottom-left.
+              Desktop only: on phone you pinch-to-zoom and the eraser just clutters. */}
           <div className="absolute bottom-4 left-0 pointer-events-auto flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+            <div className="hidden lg:flex items-center gap-1 rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
               <button onClick={() => rf.zoomIn({ duration: 200 })} aria-label="Zoom in" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Plus size={14} /></button>
               <button onClick={() => rf.zoomOut({ duration: 200 })} aria-label="Zoom out" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Minus size={14} /></button>
               <span className="w-px h-4 bg-white/10 mx-0.5" />
               <button onClick={() => rf.fitView({ duration: 300, padding: 0.2 })} aria-label="Fit view" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Maximize size={12} /></button>
             </div>
-            {/* clear screen — separate square box, same chrome */}
-            <div className="rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+            {/* clear screen — separate square box, same chrome (desktop only) */}
+            <div className="hidden lg:block rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
               <button onClick={clearCanvas} aria-label="Clear canvas" title="Clear canvas" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-error hover:bg-error/10 transition-colors cursor-clicker"><Eraser size={13} /></button>
             </div>
             {/* saved snapshots — appears once at least one snapshot exists */}

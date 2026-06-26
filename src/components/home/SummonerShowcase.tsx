@@ -162,8 +162,7 @@ function MatchCardStack() {
           so they cannot possibly differ in angle (one transform, on the box,
           not on the cards). This div also staggers the cards' slide-up. */}
       <motion.div
-        className="relative space-y-4"
-        style={{ transform: "rotateY(-15deg)", transformOrigin: "62% 50%" }}
+        className="relative space-y-4 md:[transform:rotateY(-15deg)] md:[transform-origin:62%_50%]"
         variants={{ off: {}, on: { transition: { staggerChildren: 0.13 } } }}
       >
         {MATCHES.map((m, i) => (

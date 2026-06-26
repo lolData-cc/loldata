@@ -55,6 +55,7 @@ import ScoutLobbyPage from "@/pages/scoutlobbypage";
 import ScoutClaimPage from "@/pages/scoutclaimpage";
 import BillingSuccessPage from "@/pages/billingsuccess";
 import BillingCancelPage from "@/pages/billingcancel";
+import ContactPage from "@/pages/contactpage";
 //
 
 declare global {
@@ -131,9 +132,13 @@ export function RootLayout({
   children: React.ReactNode;
 }>) {
   const { pathname } = useLocation()
-  const navbarSticky = pathname === "/"
+  const navbarSticky = pathname === "/" || pathname === "/billing/success"
   const noTopMargin = pathname === "/" || pathname === "/streamers"
   const contentMargin = noTopMargin ? "mt-0" : "mt-4"
+  // Phones feel cramped on the homepage's in-column content — give it more
+  // horizontal breathing room there. Full-bleed hero/separator sections use
+  // w-screen breakouts so they're unaffected. Other pages keep px-4.
+  const horizPad = pathname === "/" ? "px-6 sm:px-8" : "px-4"
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll to top on route change
@@ -161,7 +166,7 @@ export function RootLayout({
         className="relative font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
       >
         <AmbientLightOverlay />
-        <div className="xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full px-4 flex flex-col items-center relative z-[1]">
+        <div className={`xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full ${horizPad} flex flex-col items-center relative z-[1]`}>
           <Navbar sticky={navbarSticky} />
           <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />
@@ -219,6 +224,7 @@ function App() {
               <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
               <Route path="/billing/success" element={<RootLayout> <BillingSuccessPage /> </RootLayout>}/>
               <Route path="/billing/cancel" element={<RootLayout> <BillingCancelPage /> </RootLayout>}/>
+              <Route path="/contact" element={<RootLayout> <ContactPage /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />

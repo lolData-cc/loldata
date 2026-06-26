@@ -21,7 +21,7 @@
 
 import * as React from "react"
 import { Link, useSearchParams } from "react-router-dom"
-import { motion, useInView, useReducedMotion } from "framer-motion"
+import { motion, AnimatePresence, useInView, useReducedMotion } from "framer-motion"
 import {
   Sparkles,
   Brain,
@@ -34,6 +34,7 @@ import {
   Zap,
   Infinity as InfinityIcon,
   ArrowRight,
+  ArrowUp,
   ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/context/authcontext"
@@ -238,6 +239,62 @@ function tierLabelFor(planLabel: string): string {
   return "Tier 02"
 }
 
+// Floating back-to-top. RootLayout scrolls an overflow-y-scroll container
+// (not the window), so we walk up from an anchor to find that scrollable
+// ancestor and drive it. Appears once the user is a screenful down.
+function BackToTop() {
+  const [visible, setVisible] = React.useState(false)
+  const scrollerRef = React.useRef<HTMLElement | null>(null)
+  const anchorRef = React.useRef<HTMLSpanElement | null>(null)
+
+  React.useEffect(() => {
+    let el = anchorRef.current?.parentElement ?? null
+    while (el) {
+      const oy = getComputedStyle(el).overflowY
+      if (oy === "auto" || oy === "scroll") break
+      el = el.parentElement
+    }
+    const scroller = el
+    scrollerRef.current = scroller
+    const onScroll = () => setVisible((scroller ? scroller.scrollTop : window.scrollY) > 500)
+    if (scroller) scroller.addEventListener("scroll", onScroll, { passive: true })
+    else window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => {
+      if (scroller) scroller.removeEventListener("scroll", onScroll)
+      else window.removeEventListener("scroll", onScroll)
+    }
+  }, [])
+
+  const toTop = () => {
+    const s = scrollerRef.current
+    if (s) s.scrollTo({ top: 0, behavior: "smooth" })
+    else window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  return (
+    <>
+      <span ref={anchorRef} aria-hidden className="hidden" />
+      <AnimatePresence>
+        {visible && (
+          <motion.button
+            type="button"
+            onClick={toTop}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.25, ease: EASE_BRAND }}
+            aria-label="Back to top"
+            className="fixed bottom-6 right-6 z-50 grid place-items-center w-11 h-11 rounded-full border border-jade/30 bg-[rgba(6,12,14,0.82)] backdrop-blur-md text-jade hover:bg-jade/15 hover:border-jade/55 transition-colors cursor-clicker shadow-[0_0_20px_rgba(0,217,146,0.12)]"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
 // ─── Page ───────────────────────────────────────────────────────────
 export default function BillingSuccessPage() {
   const reduceMotion = useReducedMotion()
@@ -280,6 +337,7 @@ export default function BillingSuccessPage() {
           calm parallax feel as the user moves down. No animation
           beyond the initial fade. */}
       <AmbientLayer />
+      <BackToTop />
 
       {/* Content — naturally sits in the App.tsx 65% column.
           Everything here uses the same liquirice page bg as its

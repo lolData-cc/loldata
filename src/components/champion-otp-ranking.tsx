@@ -6,7 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getRankImage } from "@/utils/rankIcons";
 import { cdnBaseUrl, PERK_CDN } from "@/config";
 
-const REGIONS = ["ALL", "EUW", "NA", "KR"] as const;
+// The box crawls the EU ladder (EUW + EUNE). Keep in sync with REGION_TO_PLATFORM
+// in the backend getChampionOtpRanking handler.
+const REGIONS = ["ALL", "EUW", "EUNE"] as const;
 
 const TIER_COLORS: Record<string, string> = {
   CHALLENGER: "text-amber-300",

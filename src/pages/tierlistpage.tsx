@@ -2,7 +2,10 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
+// tier list must read the BOX (api2) — the current-patch snapshot lives there,
+// same source as the champion-page hero tier. The old API_BASE_URL (api.loldata.cc /
+// Railway) still serves a separate all-time tier list, which disagreed with the hero.
+import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
 import { Skeleton } from "@/components/ui/skeleton"
 import splashPositionMap from "@/converters/splashPositionMap"
 import {

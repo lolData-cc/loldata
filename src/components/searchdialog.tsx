@@ -98,6 +98,20 @@ const RECENT_MAX = 50
 
 const REGIONS = ["EUW", "NA", "KR"] as const
 
+// Pick a sensible default region from the visitor's IANA timezone (no network,
+// no permission prompt). Americas → NA, Asia/Oceania → KR (closest of the three
+// supported servers), everything else (Europe/Africa/…) → EUW.
+function detectDefaultRegion(): (typeof REGIONS)[number] {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+    if (tz.startsWith("America/")) return "NA"
+    if (tz.startsWith("Asia/") || tz.startsWith("Australia/") || tz.startsWith("Pacific/")) return "KR"
+  } catch {
+    /* Intl unavailable — fall through to EUW */
+  }
+  return "EUW"
+}
+
 // House easing — same out-back-ish curve we use elsewhere
 const EASE_OUT = [0.22, 1, 0.36, 1] as const
 
@@ -105,7 +119,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const navigate = useNavigate()
 
   const [input, setInput] = useState("")
-  const [region, setRegion] = useState<(typeof REGIONS)[number]>("EUW")
+  const [region, setRegion] = useState<(typeof REGIONS)[number]>(detectDefaultRegion)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(false)
   const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([])

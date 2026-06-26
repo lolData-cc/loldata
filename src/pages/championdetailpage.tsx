@@ -118,6 +118,35 @@ function HeroStat({ label, value, tone = "flash" }: { label: string; value: stri
   )
 }
 
+// Meta-tier colours (current-patch tier list)
+function tierColor(tier?: string | null): string {
+  switch ((tier ?? "").toUpperCase()) {
+    case "S": return "#FFB615" // citrine
+    case "A": return "#00d992" // jade
+    case "B": return "#36c5f0" // cyan
+    case "C": return "#d7d8d9" // flash
+    case "D": return "#ff6286" // red
+    default: return "#d7d8d9"
+  }
+}
+const ROLE_SHORT: Record<string, string> = { TOP: "TOP", JUNGLE: "JGL", MIDDLE: "MID", BOTTOM: "ADC", UTILITY: "SUP" }
+function HeroTier({ tier, role }: { tier?: string | null; role?: string | null }) {
+  const c = tierColor(tier)
+  return (
+    <div className="flex flex-col" title={role ? `Current meta tier in ${role}` : "Current meta tier"}>
+      <span
+        className="font-chakrapetch text-[20px] sm:text-[24px] font-bold leading-none"
+        style={{ color: c, textShadow: tier ? `0 0 24px ${c}59` : undefined }}
+      >
+        {tier ? `${tier}` : "—"}
+      </span>
+      <span className="mt-1 font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/40">
+        {role && ROLE_SHORT[role] ? `Tier · ${ROLE_SHORT[role]}` : "Tier"}
+      </span>
+    </div>
+  )
+}
+
 const validTabs = ["overview", "build", "duos", "counters", "statistics", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
@@ -131,7 +160,7 @@ export default function ChampionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
-  const [heroStats, setHeroStats] = useState<{ winrate: number; pickrate: number; games: number; kda?: { kills: number; deaths: number; assists: number } } | null>(null)
+  const [heroStats, setHeroStats] = useState<{ winrate: number; pickrate: number; games: number; kda?: { kills: number; deaths: number; assists: number }; tier?: string | null; tierRole?: string | null; tierRank?: number | null } | null>(null)
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 300)
@@ -195,7 +224,7 @@ export default function ChampionDetailPage() {
   // helpers immagini ora accettano key e risolvono id
   const opponentIdFromKey = (k: number) => keyToIdSafe(k)
   const opponentIcon = (k: number) =>
-    `https://cdn2.loldata.cc/16.1.1/img/champion/${opponentIdFromKey(k)}.png`
+    `${cdnBaseUrl()}/img/champion/${opponentIdFromKey(k)}.png`
 
   //retrieve matchup
   useEffect(() => {
@@ -282,7 +311,7 @@ export default function ChampionDetailPage() {
     setError(null)
 
     // Try direct fetch first (fast path for correct casing)
-    fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion/${champId}.json`)
+    fetch(`${cdnBaseUrl()}/data/en_US/champion/${champId}.json`)
       .then(r => {
         if (!r.ok) throw new Error("not_found")
         return r.json()
@@ -298,7 +327,7 @@ export default function ChampionDetailPage() {
         if (cancelled) return
         // Case mismatch — fetch full list to find correct ID
         try {
-          const listRes = await fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion.json`)
+          const listRes = await fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
           if (!listRes.ok) throw new Error("Failed to load champion list")
           const listData = await listRes.json()
           const champKeys = Object.keys(listData?.data ?? {})
@@ -310,7 +339,7 @@ export default function ChampionDetailPage() {
           }
           if (match) {
             // Fetch with correct ID
-            const res = await fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion/${match}.json`)
+            const res = await fetch(`${cdnBaseUrl()}/data/en_US/champion/${match}.json`)
             if (!res.ok) throw new Error("Failed to load champion")
             const data = await res.json()
             if (cancelled) return
@@ -343,10 +372,16 @@ export default function ChampionDetailPage() {
       .then((d: any) => {
         if (cancelled || !d?.core) return
         setHeroStats({
-          winrate: Number(d.core.winrate) || 0,
-          pickrate: Number(d.core.pickrate) || 0,
-          games: Number(d.core.gamesAnalyzed) || 0,
-          kda: d.core.avgKDA,
+          // live aggregate across ALL roles (winrate/games/KDA = all the champion's
+          // box games; pickrate = current patch). Falls back to the per-role
+          // snapshot sample if the backend hasn't been updated yet.
+          winrate: Number(d.totalWinrate ?? d.core.winrate) || 0,
+          pickrate: Number(d.totalPickrate ?? d.core.pickrate) || 0,
+          games: Number(d.totalGames ?? d.core.gamesAnalyzed) || 0,
+          kda: d.totalKda ?? d.core.avgKDA,
+          tier: d.metaTier ?? null,
+          tierRole: d.metaTierRole ?? null,
+          tierRank: d.metaTierRank ?? null,
         })
       })
       .catch(() => {})
@@ -361,7 +396,7 @@ export default function ChampionDetailPage() {
 
   const iconUrl = useMemo(() => {
     if (!champ) return ""
-    return `https://cdn2.loldata.cc/16.1.1/img/champion/${champ.image.full}`
+    return `${cdnBaseUrl()}/img/champion/${champ.image.full}`
   }, [champ])
 
   if (!champId) {
@@ -504,14 +539,6 @@ export default function ChampionDetailPage() {
                     className="h-16 w-16 rounded-lg object-cover ring-1 ring-jade/25 shadow-[0_0_34px_-10px_rgba(0,217,146,0.55)]"
                   />
                   <div>
-                    {!activeGuide && (champ.tags?.length ?? 0) > 0 && (
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-jade shrink-0" style={{ boxShadow: "0 0 8px #00d992" }} />
-                        <span className="font-chakrapetch text-[10px] font-bold uppercase tracking-[0.32em] text-jade/80">
-                          {champ.tags!.join(" · ")}
-                        </span>
-                      </div>
-                    )}
                     <h1 className={cn("font-chakrapetch font-bold text-flash leading-[0.98] tracking-tight transition-all duration-500 ease-out", activeGuide ? "text-2xl" : "text-[clamp(30px,4vw,46px)]")} key={activeGuide ? "guide" : "champ"}>
                       <span style={{ display: "inline-block", animation: activeGuide ? "morphIn 0.4s ease-out" : undefined }}>
                         {activeGuide ? activeGuide.title : champ.name}
@@ -522,6 +549,14 @@ export default function ChampionDetailPage() {
                         className={activeGuide ? "text-jade/60" : "text-white/70"}>
                         {activeGuide ? `by ${activeGuide.author}` : champ.title}
                       </span>
+                      {!activeGuide && (champ.tags?.length ?? 0) > 0 && (
+                        <span className="flex items-center gap-2">
+                          <span className="text-jade/40">·</span>
+                          <span className="font-chakrapetch text-[11px] font-bold uppercase tracking-[0.28em] text-jade/75">
+                            {champ.tags!.join(" · ")}
+                          </span>
+                        </span>
+                      )}
                       {activeGuide && (activeGuide.discord || activeGuide.twitter || activeGuide.reddit) && (
                         <span className="flex items-center gap-2.5 ml-2" style={{ animation: "morphIn 0.4s ease-out 0.15s both" }}>
                           {activeGuide.discord && (
@@ -563,6 +598,8 @@ export default function ChampionDetailPage() {
                             <HeroStat label="KDA" value={`${((heroStats.kda.kills + heroStats.kda.assists) / Math.max(1, heroStats.kda.deaths)).toFixed(2)}`} />
                           </>
                         )}
+                        <span className="h-7 w-px bg-flash/10" />
+                        <HeroTier tier={heroStats?.tier} role={heroStats?.tierRole} />
                       </div>
                     )}
                   </div>
@@ -594,11 +631,11 @@ export default function ChampionDetailPage() {
             {[
               { value: "overview", label: "Overview" },
               { value: "build", label: "Build" },
-              { value: "duos", label: "Duos" },
-              { value: "counters", label: "Counters" },
               { value: "statistics", label: "Statistics" },
-              { value: "guides", label: "Guides" },
+              { value: "duos", label: "Duos" },
+              { value: "counters", label: "Matchups" },
               { value: "pros", label: "OTPs" },
+              { value: "guides", label: "Guides" },
             ].map(({ value, label }) => (
               <TabsTrigger
                 key={value}

@@ -137,8 +137,7 @@ export default function TotalMasteryPage() {
 
     // fetch champion map (id -> name)
     useEffect(() => {
-        //TO FIX
-        fetch(`https://cdn2.loldata.cc/16.1.1/data/en_US/champion.json`)
+        fetch(`https://cdn2.loldata.cc/${getCdnVersion()}/data/en_US/champion.json`)
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to load champion.json");
                 return res.json();
@@ -503,7 +502,7 @@ export default function TotalMasteryPage() {
 
                                                 <div className="flex items-center gap-3 mt-3">
                                                     <img
-                                                        src={`https://cdn2.loldata.cc/16.1.1/img/champion/${c.championName}.png`}
+                                                        src={`https://cdn2.loldata.cc/${getCdnVersion()}/img/champion/${c.championName}.png`}
                                                         onError={(e) => {
                                                             (e.currentTarget as HTMLImageElement).style.display = "none";
                                                         }}

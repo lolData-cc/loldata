@@ -49,7 +49,9 @@ type ProfileRow = {
 };
 
 const GET_SUMMONER_URL = `${API_BASE_URL}/api/summoner`;
-const PROFILE_ICON_BASE = "https://cdn2.loldata.cc/16.1.1/img/profileicon";
+// Function (not a const) so it reads the resolved CDN version at call time —
+// a module-level const would freeze at the fallback version before cdnVersionReady resolves.
+const profileIconBase = () => `${cdnBaseUrl()}/img/profileicon`;
 
 export function ProfilerLinker() {
   const { refreshProfile } = useAuth();
@@ -507,15 +509,15 @@ export function ProfilerLinker() {
 
   const currentIconUrl =
     currentSummoner &&
-    `${PROFILE_ICON_BASE}/${currentSummoner.profileIconId}.png`;
+    `${profileIconBase()}/${currentSummoner.profileIconId}.png`;
 
-  const minionIconUrl = `${PROFILE_ICON_BASE}/3.png`;
+  const minionIconUrl = `${profileIconBase()}/3.png`;
 
   // icon per il profilo già linkato (header)
   const linkedIconUrl =
     linkedSummonerDetails &&
     (linkedSummonerDetails.avatar_url ??
-      `${PROFILE_ICON_BASE}/${linkedSummonerDetails.profileIconId}.png`);
+      `${profileIconBase()}/${linkedSummonerDetails.profileIconId}.png`);
 
   return (
     <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">

@@ -1,440 +1,417 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Link } from "react-router-dom"
+import { ArrowUp, ArrowUpRight, Square } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { cdnBaseUrl } from "@/config"
+import { BOX_API_BASE_URL } from "@/config"
+import { RichGameText } from "@/components/richgametext"
+
+type ChatAction = { label: string; href: string; kind?: string }
 
 type ChatMessage = {
   id: string
   role: "user" | "assistant" | "error"
   content: string
   createdAt: number
+  actions?: ChatAction[]
+  instant?: boolean // loaded from history → render immediately, no typewriter
 }
+
+export type AiUserContext = { puuid?: string | null; region?: string | null; nametag?: string | null }
 
 type Props = {
   contextHint?: string
   placeholder?: string
   className?: string
   apiUrl?: string
+  /** Linked-account identity, so the AI can answer "how am I doing?" about the user. */
+  userContext?: AiUserContext
+  /** Supabase access token — enables per-account, persisted chat history. */
+  authToken?: string
 }
 
-const DEFAULT_API_URL =
-  import.meta.env.MODE === "development"
-    ? "http://localhost:3002/chat/ask"
-    : "https://ai.loldata.cc/chat/ask"
+// The AI agent is deployed on the box backend (api2) — used directly in both dev
+// and prod, so no local backend is needed to test the chat.
+const DEFAULT_API_URL = `${BOX_API_BASE_URL}/api/ai/chat`
 
-/* ── Cyber typing animation — character by character with cursor ── */
-function useTypewriter(text: string, speed = 12) {
-  const [displayed, setDisplayed] = useState("")
-  const [done, setDone] = useState(false)
+const EASE = [0.22, 1, 0.36, 1] as const
 
+const SUGGESTIONS = [
+  "Best item for Quinn vs assassins?",
+  "How am I performing lately?",
+  "Best support for Aphelios?",
+  "Is Darius good into Garen?",
+]
+
+/* ── smooth character reveal for assistant answers ── */
+function useReveal(text: string, skip = false) {
+  const [n, setN] = useState(skip ? text.length : 0)
   useEffect(() => {
+    if (skip) {
+      setN(text.length)
+      return
+    }
+    setN(0)
     if (!text) return
-    setDisplayed("")
-    setDone(false)
     let i = 0
-    const iv = setInterval(() => {
+    const id = setInterval(() => {
       i++
-      setDisplayed(text.slice(0, i))
-      if (i >= text.length) {
-        clearInterval(iv)
-        setDone(true)
-      }
-    }, speed)
-    return () => clearInterval(iv)
-  }, [text, speed])
-
-  return { displayed, done }
+      setN(i)
+      if (i >= text.length) clearInterval(id)
+    }, 9)
+    return () => clearInterval(id)
+  }, [text, skip])
+  return { shown: text.slice(0, n), done: n >= text.length }
 }
 
-/* ── Thinking animation — scanning line effect ── */
-function ThinkingIndicator() {
+const enter = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, ease: EASE },
+}
+
+function ActionButton({ a }: { a: ChatAction }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="relative w-7 h-7 shrink-0 mt-0.5">
-        <div className="absolute inset-0 rotate-45 border border-jade/40 bg-jade/[0.06]" />
-        <div className="absolute inset-[3px] rotate-45 border border-jade/20 animate-[spin_3s_linear_infinite]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-jade text-[9px] font-mono font-bold">AI</span>
-        </div>
-      </div>
-      <div className="flex-1 max-w-[85%]">
-        <div className="relative rounded-sm border border-jade/10 bg-jade/[0.02] overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/30" />
-          {/* Scanning line */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div
-              className="absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-jade/40 to-transparent"
-              style={{ animation: "scanDown 1.5s ease-in-out infinite" }}
-            />
-          </div>
-          <div className="relative z-10 px-4 py-3 pl-5">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-[3px]">
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div
-                    key={i}
-                    className="w-[3px] h-3 bg-jade/30 rounded-[1px]"
-                    style={{
-                      animation: `pulse 1s ease-in-out infinite`,
-                      animationDelay: `${i * 120}ms`,
-                    }}
-                  />
-                ))}
-              </div>
-              <span className="text-[10px] font-mono text-jade/40 tracking-[0.2em] uppercase">
-                Analyzing
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Link
+      to={a.href}
+      className="group/cta inline-flex items-center gap-1.5 rounded-full border border-jade/25 bg-jade/[0.06] px-3.5 py-1.5 font-chakrapetch text-[12px] font-light tracking-wide text-jade/90 transition-all duration-200 hover:border-jade/50 hover:bg-jade/[0.12] hover:text-jade cursor-clicker"
+    >
+      {a.label}
+      <ArrowUpRight size={13} className="transition-transform duration-200 group-hover/cta:translate-x-0.5 group-hover/cta:-translate-y-0.5" />
+    </Link>
   )
 }
 
-/* ── Single assistant message with typewriter ── */
-function AssistantBubble({ text }: { text: string }) {
-  const { displayed, done } = useTypewriter(text, 8)
-
+function AssistantMsg({ text, actions, instant }: { text: string; actions?: ChatAction[]; instant?: boolean }) {
+  const { shown, done } = useReveal(text, !!instant)
   return (
-    <div className="flex items-start gap-3">
-      <div className="relative w-7 h-7 shrink-0 mt-0.5">
-        <div className="absolute inset-0 rotate-45 border border-jade/30 bg-jade/[0.06]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-jade text-[9px] font-mono font-bold">AI</span>
-        </div>
+    <motion.div {...enter} className="pr-6">
+      <div className="flex gap-3">
+        <span
+          className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-jade"
+          style={{ boxShadow: "0 0 8px #00d992" }}
+        />
+        <p className="flex-1 font-chakrapetch text-[15px] font-light leading-[1.75] text-flash/95 whitespace-pre-wrap">
+          {done ? <RichGameText text={text} /> : shown}
+          {!done && (
+            <span className="ml-0.5 inline-block h-[15px] w-px translate-y-[2px] bg-jade/70 animate-[aiBlink_1s_step-end_infinite]" />
+          )}
+        </p>
       </div>
-      <div className="flex-1 max-w-[85%]">
-        <div className="relative rounded-sm border border-flash/[0.06] bg-flash/[0.015] overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/25" />
-          {/* Subtle scanlines */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-30"
-            style={{
-              background:
-                "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.02) 3px, rgba(0,217,146,0.02) 4px)",
-            }}
+      {done && actions && actions.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          className="ml-[18px] mt-3 flex flex-wrap gap-2"
+        >
+          {actions.map((a) => (
+            <ActionButton key={a.href} a={a} />
+          ))}
+        </motion.div>
+      )}
+    </motion.div>
+  )
+}
+
+function UserMsg({ text }: { text: string }) {
+  return (
+    <motion.div {...enter} className="flex justify-end">
+      <p className="max-w-[80%] whitespace-pre-wrap rounded-[18px] rounded-br-md bg-flash/[0.06] px-4 py-2.5 font-chakrapetch text-[14.5px] font-light leading-relaxed text-flash/80">
+        <RichGameText text={text} />
+      </p>
+    </motion.div>
+  )
+}
+
+function ErrorMsg({ text }: { text: string }) {
+  return (
+    <motion.div {...enter} className="flex gap-3 pr-6">
+      <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#ff6286]" />
+      <p className="font-chakrapetch text-[14px] font-light leading-relaxed text-[#ff6286]/80 whitespace-pre-wrap">{text}</p>
+    </motion.div>
+  )
+}
+
+function Thinking() {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
+      <span className="h-1.5 w-1.5 rounded-full bg-jade" style={{ boxShadow: "0 0 8px #00d992" }} />
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <motion.span
+            key={i}
+            className="h-1.5 w-1.5 rounded-full bg-jade/50"
+            animate={{ opacity: [0.2, 1, 0.2], y: [0, -3, 0] }}
+            transition={{ duration: 1, repeat: Infinity, delay: i * 0.16, ease: "easeInOut" }}
           />
-          <div className="relative z-10 px-4 py-3 pl-5">
-            <div className="text-[13px] text-flash/70 leading-relaxed font-mono whitespace-pre-wrap">
-              {displayed}
-              {!done && (
-                <span className="inline-block w-[2px] h-[14px] bg-jade/60 ml-[1px] align-middle animate-[blink_0.8s_step-end_infinite]" />
-              )}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
-/* ── User message bubble ── */
-function UserBubble({ text }: { text: string }) {
-  return (
-    <div className="flex items-start gap-3 justify-end">
-      <div className="max-w-[80%]">
-        <div className="relative rounded-sm border border-flash/[0.08] bg-flash/[0.03] overflow-hidden">
-          <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-flash/15" />
-          <div className="relative z-10 px-4 py-2.5 pr-5">
-            <div className="text-[13px] text-flash/60 font-mono whitespace-pre-wrap">{text}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ── Error message ── */
-function ErrorBubble({ text }: { text: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="relative w-7 h-7 shrink-0 mt-0.5">
-        <div className="absolute inset-0 rotate-45 border border-red-400/30 bg-red-400/[0.06]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-red-400 text-[9px] font-mono font-bold">!</span>
-        </div>
-      </div>
-      <div className="max-w-[85%]">
-        <div className="relative rounded-sm border border-red-400/10 bg-red-400/[0.03] overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-red-400/25" />
-          <div className="relative z-10 px-4 py-2.5 pl-5">
-            <div className="text-[13px] text-red-300/60 font-mono whitespace-pre-wrap">{text}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ── Main component ── */
 export default function LoldataAIChat({
   contextHint,
   placeholder,
   className,
   apiUrl = DEFAULT_API_URL,
+  userContext,
+  authToken,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
   const [abortCtrl, setAbortCtrl] = useState<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const stickRef = useRef(true)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const ph = useMemo(() => placeholder || "Ask lolData AI anything…", [placeholder])
+  const historyUrl = useMemo(() => apiUrl.replace(/\/chat$/, "/history"), [apiUrl])
 
-  const effectivePlaceholder = useMemo(
-    () => placeholder || "Ask lolData AI anything...",
-    [placeholder]
-  )
-
+  // Stick to the bottom. Track whether the user is near the bottom; snap down
+  // whenever the content grows (new message, typewriter reveal, icons loading) —
+  // but never yank them back down if they've scrolled up to read.
   useEffect(() => {
     const el = scrollRef.current
-    if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-  }, [messages, loading])
+    const content = contentRef.current
+    if (!el || !content) return
+    const onScroll = () => {
+      stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90
+    }
+    el.addEventListener("scroll", onScroll, { passive: true })
+    const snap = () => {
+      if (stickRef.current) el.scrollTop = el.scrollHeight
+    }
+    const ro = new ResizeObserver(snap)
+    ro.observe(content)
+    snap() // land at the bottom on open
+    return () => {
+      el.removeEventListener("scroll", onScroll)
+      ro.disconnect()
+    }
+  }, [])
 
-  function pushMessage(msg: Omit<ChatMessage, "id" | "createdAt">) {
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), createdAt: Date.now(), ...msg },
-    ])
+  // auto-grow the input as you type
+  useEffect(() => {
+    const ta = taRef.current
+    if (!ta) return
+    ta.style.height = "0px"
+    ta.style.height = Math.min(ta.scrollHeight, 168) + "px"
+  }, [input])
+
+  // Load this account's persisted conversation once (survives refresh / new device).
+  useEffect(() => {
+    if (!authToken) {
+      setHydrated(true)
+      return
+    }
+    let alive = true
+    fetch(historyUrl, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive) return
+        const rows = Array.isArray(d?.messages) ? d.messages : []
+        if (rows.length) {
+          setMessages(
+            rows.map((m: any) => ({
+              id: crypto.randomUUID(),
+              createdAt: Date.now(),
+              role: m?.role === "assistant" ? "assistant" : "user",
+              content: String(m?.content ?? ""),
+              actions: Array.isArray(m?.actions) ? m.actions : undefined,
+              instant: true,
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+      .finally(() => alive && setHydrated(true))
+    return () => {
+      alive = false
+    }
+  }, [authToken, historyUrl])
+
+  function push(m: Omit<ChatMessage, "id" | "createdAt">) {
+    setMessages((p) => [...p, { id: crypto.randomUUID(), createdAt: Date.now(), ...m }])
   }
 
-  async function sendPrompt(prompt: string) {
+  async function send(prompt: string) {
     const controller = new AbortController()
     setAbortCtrl(controller)
     setLoading(true)
-
     try {
       const finalPrompt = contextHint ? `${contextHint}\n\n${prompt}` : prompt
+      // history is this closure's state — BEFORE the new user turn was pushed — so
+      // appending the new prompt rebuilds the full thread.
+      const history = messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: m.content }))
+      history.push({ role: "user", content: finalPrompt })
+
       const res = await fetch(apiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: finalPrompt }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ messages: history, userContext }),
         signal: controller.signal,
       })
 
-      const contentType = res.headers.get("content-type") || ""
       let raw: any = null
-      let answerText = ""
-
-      if (contentType.includes("application/json")) {
+      let answer = ""
+      try {
         raw = await res.json()
-        answerText =
-          raw?.answer ??
-          raw?.message ??
-          raw?.output ??
-          (typeof raw === "string" ? raw : JSON.stringify(raw, null, 2))
-      } else {
-        const txt = await res.text()
-        try {
-          raw = JSON.parse(txt)
-          answerText =
-            raw?.answer ??
-            raw?.message ??
-            raw?.output ??
-            (typeof raw === "string" ? raw : JSON.stringify(raw, null, 2))
-        } catch {
-          raw = null
-          answerText = txt
-        }
+        answer = raw?.answer ?? raw?.message ?? raw?.output ?? (typeof raw === "string" ? raw : JSON.stringify(raw))
+      } catch {
+        answer = await res.text().catch(() => "")
       }
 
       if (!res.ok) {
-        pushMessage({ role: "error", content: `HTTP ${res.status}\n${answerText}` })
+        push({ role: "error", content: answer || `Error ${res.status}` })
         return
       }
-
-      pushMessage({ role: "assistant", content: answerText })
+      push({ role: "assistant", content: answer, actions: Array.isArray(raw?.actions) ? raw.actions : undefined })
     } catch (err: any) {
-      if (err?.name !== "AbortError") {
-        pushMessage({
-          role: "error",
-          content: err?.message || "Connection failed",
-        })
-      }
+      if (err?.name !== "AbortError") push({ role: "error", content: err?.message || "Connection failed" })
     } finally {
       setLoading(false)
       setAbortCtrl(null)
     }
   }
 
-  async function handleSend() {
-    const trimmed = input.trim()
-    if (!trimmed || loading) return
-    pushMessage({ role: "user", content: trimmed })
+  function submit() {
+    const t = input.trim()
+    if (!t || loading) return
+    push({ role: "user", content: t })
     setInput("")
-    await sendPrompt(trimmed)
+    send(t)
   }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function pick(q: string) {
+    if (loading) return
+    push({ role: "user", content: q })
+    send(q)
+  }
+  function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      submit()
     }
   }
 
-  function handleSuggestion(q: string) {
-    if (loading) return
-    setInput("")
-    pushMessage({ role: "user", content: q })
-    sendPrompt(q)
-  }
+  const empty = messages.length === 0
 
   return (
-    <div className={cn("flex h-full w-full flex-col", className)}>
-      {/* Inline keyframes */}
-      <style>{`
-        @keyframes scanDown {
-          0%, 100% { top: 0; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-      `}</style>
+    <div className={cn("flex flex-col", className)}>
+      <style>{`@keyframes aiBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
 
-      {/* Chat messages */}
-      <div ref={scrollRef} className="mt-4 flex-1 overflow-y-auto pr-2 scrollbar-hide">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-6">
-            {/* Logo mark */}
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rotate-45 border border-jade/15 bg-jade/[0.02]" />
-              <div className="absolute inset-2 rotate-45 border border-jade/8" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-jade/40 text-lg font-mono font-bold tracking-tight">
-                  AI
-                </span>
-              </div>
-            </div>
-            <div className="text-center space-y-1.5">
-              <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-jade/30">
-                lolData Intelligence
-              </p>
-              <p className="text-[11px] font-mono text-flash/20 max-w-sm leading-relaxed">
-                Diamond+ match data, champion analytics, build paths, matchup analysis
-              </p>
-            </div>
-            {/* Suggestion chips */}
-            <div className="flex flex-wrap justify-center gap-2 max-w-md">
-              {[
-                "What do I build on Volibear?",
-                "Lillia jungle winrate?",
-                "Yasuo vs Yone mid?",
-              ].map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => handleSuggestion(q)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-sm text-[10px] font-mono tracking-wide cursor-pointer",
-                    "border border-jade/10 bg-transparent text-flash/30",
-                    "hover:border-jade/25 hover:text-jade/50 hover:bg-jade/[0.03]",
-                    "transition-all duration-300"
-                  )}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <UserBubble key={m.id} text={m.content} />
-            ) : m.role === "error" ? (
-              <ErrorBubble key={m.id} text={m.content} />
+      {/* messages — floating, no container */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide">
+        <div ref={contentRef} className="mx-auto w-full max-w-2xl">
+          <AnimatePresence mode="wait">
+            {!hydrated ? (
+              <div key="hydrating" className="min-h-[42vh]" />
+            ) : empty ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.55, ease: EASE }}
+                className="flex min-h-[42vh] flex-col items-center justify-center gap-7 text-center"
+              >
+                <div className="space-y-2.5">
+                  <h3 className="font-chakrapetch text-[26px] font-bold tracking-tight text-flash/90">Ask anything.</h3>
+                  <p className="font-chakrapetch text-[13px] font-light text-flash/35">Real answers, live from ranked data.</p>
+                </div>
+                <div className="flex flex-col items-center gap-3">
+                  {SUGGESTIONS.map((q, i) => (
+                    <motion.button
+                      key={q}
+                      type="button"
+                      onClick={() => pick(q)}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.12 + i * 0.07, ease: EASE }}
+                      className="font-chakrapetch text-[13.5px] font-light text-flash/45 transition-colors duration-200 hover:text-jade cursor-clicker"
+                    >
+                      {q}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
             ) : (
-              <AssistantBubble key={m.id} text={m.content} />
-            )
-          )}
-
-          {loading && <ThinkingIndicator />}
+              <div key="thread" className="flex flex-col gap-7 py-6">
+                {messages.map((m) =>
+                  m.role === "user" ? (
+                    <UserMsg key={m.id} text={m.content} />
+                  ) : m.role === "error" ? (
+                    <ErrorMsg key={m.id} text={m.content} />
+                  ) : (
+                    <AssistantMsg key={m.id} text={m.content} actions={m.actions} instant={m.instant} />
+                  )
+                )}
+                {loading && <Thinking />}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* ── Input bar ── */}
-      <div className="mt-4 flex items-center gap-3">
+      {/* floating input */}
+      <div className="mx-auto w-full max-w-2xl shrink-0 pt-3">
         <div
           className={cn(
-            "relative flex-1 flex items-center rounded-sm h-10",
-            "bg-flash/[0.02]",
-            "border border-flash/[0.06]",
-            "transition-all duration-300",
-            "focus-within:border-jade/20 focus-within:bg-jade/[0.02]"
+            "flex items-end gap-2 rounded-[20px] border px-3 py-2 transition-all duration-300",
+            "border-flash/10 bg-[rgba(255,255,255,0.025)]",
+            "focus-within:border-jade/35 focus-within:bg-[rgba(0,217,146,0.025)]",
+            "focus-within:shadow-[0_0_34px_-12px_rgba(0,217,146,0.55)]"
           )}
         >
           <textarea
-            ref={inputRef}
+            ref={taRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={effectivePlaceholder}
+            onKeyDown={onKey}
             rows={1}
-            className={cn(
-              "flex-1 resize-none bg-transparent border-0 outline-none",
-              "text-[12px] font-mono text-flash/50 placeholder:text-flash/15",
-              "h-[22px] py-0 px-3",
-              "caret-jade/60"
-            )}
+            placeholder={ph}
+            className="max-h-[168px] flex-1 resize-none border-0 bg-transparent py-1.5 font-chakrapetch text-[14.5px] font-light leading-relaxed text-flash/90 outline-none scrollbar-hide placeholder:text-flash/25 caret-jade"
           />
-        </div>
-
-        {/* Send / Stop button */}
-        {!loading ? (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!input.trim()}
-            className={cn(
-              "relative w-10 h-10 shrink-0 cursor-pointer transition-all duration-300",
-              input.trim()
-                ? "opacity-100"
-                : "opacity-15 pointer-events-none"
-            )}
-          >
-            <div
+          {loading ? (
+            <button
+              type="button"
+              onClick={() => abortCtrl?.abort()}
+              aria-label="Stop"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[14px] bg-flash/10 text-flash/60 transition-all duration-200 hover:bg-flash/[0.16] cursor-clicker"
+            >
+              <Square size={12} className="fill-current" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!input.trim()}
+              aria-label="Send"
               className={cn(
-                "absolute inset-0 rotate-45 rounded-[3px] border transition-all duration-300",
-                "bg-jade/[0.04] border-jade/25",
-                "hover:border-jade/50 hover:bg-jade/[0.08]",
-                "hover:shadow-[0_0_12px_rgba(0,217,146,0.2)]"
+                "grid h-9 w-9 shrink-0 place-items-center rounded-[14px] transition-all duration-300 cursor-clicker",
+                input.trim()
+                  ? "bg-jade text-[#04110c] hover:scale-[1.06] shadow-[0_0_22px_-5px_rgba(0,217,146,0.7)]"
+                  : "bg-flash/[0.07] text-flash/25"
               )}
-            />
-            <span className="absolute inset-0 flex items-center justify-center text-jade/50 hover:text-jade/80 transition-colors duration-300">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 2L11 13" />
-                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-              </svg>
-            </span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => abortCtrl?.abort()}
-            className="relative w-10 h-10 shrink-0 cursor-pointer"
-          >
-            <div className="absolute inset-0 rotate-45 rounded-[3px] border border-red-400/25 bg-red-400/[0.04] animate-pulse" />
-            <span className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 bg-red-400/40 rounded-[1px]" />
-            </span>
-          </button>
-        )}
+            >
+              <ArrowUp size={18} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-center font-chakrapetch text-[10px] font-light text-flash/15">
+          lolData AI can make mistakes — verify important calls.
+        </p>
       </div>
     </div>
   )

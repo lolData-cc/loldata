@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import {
     Table, TableHeader, TableRow, TableHead, TableBody, TableCell
 } from "@/components/ui/table"
-import { ChevronsUp, ChevronsDown } from "lucide-react"
+import { ChevronsUp, ChevronsDown, LayoutDashboard, History, Workflow, Sword, Sparkles } from "lucide-react"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import LoldataAIChat from "@/components/loldataaichat"
@@ -17,10 +17,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { API_BASE_URL } from "@/config"
 
 dayjs.extend(relativeTime)
-
-const aiUrl = import.meta.env.MODE === "development"
-  ? "http://localhost:3002/chat/ask"
-  : "https://ai.loldata.cc/chat/ask"
 
 // ── Rank utilities ──
 const tierOrder = [
@@ -79,17 +75,17 @@ function getLpDelta(prev: any, curr: any): number {
 
 // ── Tab definitions ──
 const TABS = [
-    { id: "overview", label: "OVERVIEW", desc: "Daily report" },
-    { id: "games", label: "YOUR GAMES", desc: "Tracked history" },
-    { id: "explorer", label: "EXPLORER", desc: "Node query builder" },
-    { id: "itemization", label: "ITEMIZATION", desc: "Build intelligence" },
-    { id: "loldata-ai", label: "LOLDATA AI", desc: "Ask anything" },
+    { id: "overview", label: "OVERVIEW", desc: "Daily report", icon: LayoutDashboard },
+    { id: "games", label: "YOUR GAMES", desc: "Tracked history", icon: History },
+    { id: "explorer", label: "EXPLORER", desc: "Node query builder", icon: Workflow },
+    { id: "itemization", label: "ITEMIZATION", desc: "Build intelligence", icon: Sword },
+    { id: "loldata-ai", label: "LOLDATA AI", desc: "Ask anything", icon: Sparkles },
 ] as const
 
 type TabId = typeof TABS[number]["id"]
 
 export default function LearnPage() {
-    const { nametag, puuid, region } = useAuth()
+    const { nametag, puuid, region, session } = useAuth()
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const activeTab = (searchParams.get("t") || "overview") as TabId
@@ -133,53 +129,73 @@ export default function LearnPage() {
             <div className="flex-1 min-h-0 scrollbar-hide relative overflow-y-auto pt-16 md:pt-0">
                 <div className="w-full px-3 lg:w-[65%] lg:px-0 mx-auto py-4 lg:py-6 relative z-10">
                     {/* ── Sidebar — floats; stays interactive even over the full-bleed canvas ── */}
-                    <div className="hidden lg:block absolute left-0 top-6 w-[160px] pointer-events-auto">
-                        <div className="relative">
-                            {/* Header */}
-                            <div className="mb-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 bg-jade rounded-full animate-pulse" />
-                                    <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-jade/70">AI LEARN</span>
-                                </div>
-                                {nametag && (
-                                    <span className="text-[10px] font-mono text-flash/25 mt-1.5 block truncate">{nametag}</span>
-                                )}
+                    <div className="hidden lg:block absolute left-0 top-6 w-[178px] pointer-events-auto">
+                        {/* Header */}
+                        <div className="mb-5 flex items-center gap-2.5">
+                            <span className="relative inline-grid h-4 w-4 place-items-center">
+                                <span className="absolute inset-0 rotate-45 rounded-[2px] border border-jade/45 bg-jade/[0.08]" />
+                                <span className="absolute h-1 w-1 rounded-full bg-jade animate-pulse" />
+                            </span>
+                            <div className="min-w-0">
+                                <span className="block font-chakrapetch text-[10px] font-bold uppercase tracking-[0.3em] text-jade/70 leading-none">Learn</span>
+                                {nametag && <span className="mt-1.5 block truncate font-chakrapetch text-[10px] font-light text-flash/25">{nametag}</span>}
                             </div>
+                        </div>
 
-                            <div className="h-px bg-flash/[0.06] mb-4" />
-
-                            {/* Navigation */}
-                            <nav>
-                                <div className="flex flex-col gap-0.5">
-                                    {TABS.map((tab) => (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => tab.id === "explorer" ? navigate("/learn/explorer") : setActiveTab(tab.id)}
+                        {/* Navigation */}
+                        <nav className="flex flex-col gap-1">
+                            {TABS.map((tab) => {
+                                const active = activeTab === tab.id
+                                const Icon = tab.icon
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => (tab.id === "explorer" ? navigate("/learn/explorer") : setActiveTab(tab.id))}
+                                        className={cn(
+                                            "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 cursor-clicker",
+                                            active ? "bg-jade/[0.08]" : "hover:bg-flash/[0.03]"
+                                        )}
+                                    >
+                                        <span
                                             className={cn(
-                                                "relative w-full text-left px-4 py-2.5 rounded-sm cursor-clicker transition-colors duration-200 border-l-2",
-                                                activeTab === tab.id
-                                                    ? "text-jade border-jade"
-                                                    : "text-flash/35 hover:text-flash/55 border-transparent"
+                                                "absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full transition-all duration-200",
+                                                active ? "bg-jade shadow-[0_0_8px_#00d992]" : "bg-transparent"
+                                            )}
+                                        />
+                                        <span
+                                            className={cn(
+                                                "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors duration-200",
+                                                active ? "bg-jade/15 text-jade" : "bg-flash/[0.04] text-flash/35 group-hover:text-flash/60"
                                             )}
                                         >
-                                            <span className="text-[10px] font-mono tracking-[0.18em] uppercase block leading-none">
+                                            <Icon size={14} strokeWidth={1.75} />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span
+                                                className={cn(
+                                                    "block font-chakrapetch text-[11px] font-light uppercase tracking-[0.14em] leading-none transition-colors duration-200",
+                                                    active ? "text-jade" : "text-flash/55 group-hover:text-flash/85"
+                                                )}
+                                            >
                                                 {tab.label}
                                             </span>
-                                            <span className={cn(
-                                                "text-[8px] font-mono tracking-[0.1em] mt-0.5 block transition-colors duration-200",
-                                                activeTab === tab.id ? "text-jade/40" : "text-flash/15"
-                                            )}>
+                                            <span
+                                                className={cn(
+                                                    "mt-1 block truncate font-chakrapetch text-[9px] font-light tracking-wide leading-none transition-colors duration-200",
+                                                    active ? "text-jade/45" : "text-flash/20"
+                                                )}
+                                            >
                                                 {tab.desc}
                                             </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </nav>
-                        </div>
+                                        </span>
+                                    </button>
+                                )
+                            })}
+                        </nav>
                     </div>
 
                     {/* ── Content — offset to avoid sidebar overlap (desktop only) ── */}
-                    <div className="ml-0 max-w-full lg:ml-[180px] lg:max-w-[calc(100%-180px)]">
+                    <div className="ml-0 max-w-full lg:ml-[200px] lg:max-w-[calc(100%-200px)]">
                         <AnimatePresence mode="wait">
                             {/* OVERVIEW */}
                             {activeTab === "overview" && (
@@ -309,21 +325,17 @@ export default function LearnPage() {
                             {activeTab === "loldata-ai" && (
                                 <motion.div
                                     key="loldata-ai"
-                                    initial={{ opacity: 0, x: -12 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 12 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="h-[calc(100vh-140px)]"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="h-[calc(100vh-150px)]"
                                 >
-                                    <div className="mb-4">
-                                        <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-jade/50">// LOLDATA AI</span>
-                                    </div>
-                                    <div className="h-[calc(100%-32px)]">
-                                        <LoldataAIChat
-                                            apiUrl={aiUrl}
-                                            contextHint={nametag ? `User: ${nametag}` : undefined}
-                                        />
-                                    </div>
+                                    <LoldataAIChat
+                                        className="h-full"
+                                        authToken={session?.access_token}
+                                        userContext={{ puuid: puuid ?? null, region: region ?? null, nametag: nametag ?? null }}
+                                    />
                                 </motion.div>
                             )}
                         </AnimatePresence>
