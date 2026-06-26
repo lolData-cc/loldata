@@ -80,11 +80,12 @@ export const CDN_BASE_URL = `${CDN_ORIGIN}/${FALLBACK_VERSION}`;
 // the local backend on :3001. The win: the phone can hit
 // http://<PC-LAN-IP>:5173 and everything Just Works — no separate
 // backend exposure on the LAN, no CORS noise. In production the
-// frontend talks to the real api.loldata.cc.
+// frontend talks to the box (api2). The old Railway api.loldata.cc was
+// retired — the box now runs the full backend, so prod points there.
 export const API_BASE_URL =
   import.meta.env.MODE === "development"
     ? ""
-    : "https://api.loldata.cc";
+    : "https://api2.loldata.cc";
 
 // Explorer runs heavy aggregate reads. In production they're routed at the
 // dedicated match-data box (Hetzner Postgres, exposed via Cloudflare Tunnel at
