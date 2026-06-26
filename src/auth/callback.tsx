@@ -40,7 +40,11 @@ export default function AuthCallback() {
       // detectSessionInUrl, so nothing else consumes the code for us).
       const code = qp.get("code")
       if (code) {
-        const { error: exErr } = await supabase.auth.exchangeCodeForSession(window.location.href)
+        // Pass the bare code, NOT window.location.href: auth-js sends this value
+        // verbatim as `auth_code` to /token?grant_type=pkce (it does NOT parse a
+        // URL), so handing it the full URL made the server reject every exchange
+        // with "invalid flow state, no valid flow state found".
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code)
         if (exErr) { fail(exErr.message); return }
         ok()
         return
