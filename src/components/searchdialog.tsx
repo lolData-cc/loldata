@@ -352,9 +352,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       const proKeys = new Set(
         proSuggestions.map((p) => `${p.name}#${p.tag}`.toLowerCase())
       )
-      const apiFiltered: Suggestion[] = (apiRes.results ?? []).filter(
-        (s: any) => !proKeys.has(`${s.name}#${s.tag}`.toLowerCase())
-      )
+      const apiFiltered: Suggestion[] = (apiRes.results ?? [])
+        .filter((s: any) => !proKeys.has(`${s.name}#${s.tag}`.toLowerCase()))
+        .map((s: any) => ({
+          // Premium uploaded propic — backend enriches `avatar_url` from
+          // profile_players. Render it instead of the LoL icon. We do NOT set
+          // `_isPro` (that's for esports pros: it swaps in a nickname + hides
+          // the rank). Premium users keep their normal rank/name display.
+          ...s,
+          _avatar: s.avatar_url ?? null,
+        }))
 
       setSuggestions([...proSuggestions, ...apiFiltered])
       setLoading(false)
@@ -545,18 +552,35 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   // violet outline + chip even if the API also returned them).
   const displaySuggestions = useMemo((): Suggestion[] => {
     if (recentMatches.length === 0) return suggestions
-    const recentKeys = new Set(
-      recentMatches.map(
-        (r) => `${r.name}#${r.tag}#${r.region}`.toLowerCase()
-      )
-    )
+    // Index the LIVE API results so a recent row keeps its violet "recent"
+    // badge but shows the CURRENT rank / icon / premium avatar — not whatever
+    // was cached the last time the profile was opened. Without this, a profile
+    // in the recent cache (e.g. ranked Diamond months ago, no uploaded pfp)
+    // would override the fresh API data and look stale forever.
+    const apiByKey = new Map<string, Suggestion>()
+    for (const s of suggestions) {
+      apiByKey.set(`${s.name}#${s.tag}#${(s.region || region).toUpperCase()}`.toLowerCase(), s)
+    }
+    const recentKeys = new Set<string>()
+    const mergedRecents = recentMatches.map((r) => {
+      const key = `${r.name}#${r.tag}#${r.region}`.toLowerCase()
+      recentKeys.add(key)
+      const live = apiByKey.get(key)
+      if (!live) return r
+      return {
+        ...r, // keeps _isRecent (the badge)
+        rank: live.rank ?? r.rank,
+        icon_id: live.icon_id ?? r.icon_id,
+        _avatar: live._avatar ?? r._avatar,
+      }
+    })
     const filtered = suggestions.filter(
       (s) =>
         !recentKeys.has(
           `${s.name}#${s.tag}#${(s.region || region).toUpperCase()}`.toLowerCase()
         )
     )
-    return [...recentMatches, ...filtered]
+    return [...mergedRecents, ...filtered]
   }, [recentMatches, suggestions, region])
 
   // Snap keyboard highlight back to the top whenever the visible list
@@ -1086,33 +1110,31 @@ function SuggestionRow({
 
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Avatar */}
-        {sugg._isPro ? (
-          sugg._avatar ? (
-            <img
-              src={sugg._avatar}
-              alt=""
-              className="w-9 h-9 rounded-sm object-cover border border-jade/25 shrink-0"
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-sm bg-black/40 border border-jade/15 flex items-center justify-center shrink-0">
-              <svg viewBox="0 0 64 52" className="w-5 h-4">
-                <circle
-                  cx="32"
-                  cy="16"
-                  r="9"
-                  fill="rgba(0,217,146,0.15)"
-                  stroke="rgba(0,217,146,0.25)"
-                  strokeWidth="1"
-                />
-                <path
-                  d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16"
-                  fill="rgba(0,217,146,0.1)"
-                  stroke="rgba(0,217,146,0.2)"
-                  strokeWidth="1"
-                />
-              </svg>
-            </div>
-          )
+        {sugg._avatar ? (
+          <img
+            src={sugg._avatar}
+            alt=""
+            className="w-9 h-9 rounded-sm object-cover border border-jade/25 shrink-0"
+          />
+        ) : sugg._isPro ? (
+          <div className="w-9 h-9 rounded-sm bg-black/40 border border-jade/15 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 64 52" className="w-5 h-4">
+              <circle
+                cx="32"
+                cy="16"
+                r="9"
+                fill="rgba(0,217,146,0.15)"
+                stroke="rgba(0,217,146,0.25)"
+                strokeWidth="1"
+              />
+              <path
+                d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16"
+                fill="rgba(0,217,146,0.1)"
+                stroke="rgba(0,217,146,0.2)"
+                strokeWidth="1"
+              />
+            </svg>
+          </div>
         ) : sugg.icon_id != null ? (
           <img
             // Use the live CDN version resolved at boot — the hardcoded
