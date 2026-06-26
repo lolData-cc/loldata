@@ -194,6 +194,9 @@ export function useScoutChat({
               },
               true
             );
+            // Tell the sidebar Daily Bounty box to refetch so a live claim
+            // flips it to "claimed" immediately, not at the next refresh.
+            window.dispatchEvent(new CustomEvent("scout:bounty-updated"));
           }
         } catch {
           /* non-JSON keepalive ("pong") — ignore */

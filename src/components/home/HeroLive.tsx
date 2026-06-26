@@ -34,7 +34,6 @@ export function HeroLive({ onExplore }: { onExplore?: () => void }) {
         <div className="absolute inset-y-0 right-0 w-full md:w-[80%] lg:w-[78%] z-0">
           <PointCloudStatue
             src="/models/mercenary_katarina.glb"
-            fallbackImg="/img/Yasuo.png"
             className="h-full w-full"
           />
         </div>

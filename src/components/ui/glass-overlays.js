@@ -1,0 +1,12 @@
+import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
+export function GlassOverlays() {
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "pointer-events-none absolute -top-28 left-0 w-full h-[360px] z-[1]", style: {
+                    background: "radial-gradient(120% 80% at 18% 18%, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.008) 32%, rgba(255,255,255,0.003) 52%, rgba(255,255,255,0.0) 72%)",
+                } }), _jsx("div", { className: "pointer-events-none absolute inset-0 z-[1]", style: {
+                    background: "radial-gradient(140% 120% at 50% 40%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%)",
+                } }), _jsx("div", { className: "pointer-events-none absolute inset-0 z-[1]", style: {
+                    background: "linear-gradient(to bottom, rgba(255,255,255,0.006) 0%, rgba(255,255,255,0.002) 38%, rgba(0,0,0,0.40) 100%)",
+                } }), _jsx("div", { className: "pointer-events-none absolute -bottom-10 left-0 right-0 h-36 z-[2]", style: {
+                    background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 70%)",
+                } })] }));
+}
