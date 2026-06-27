@@ -23,6 +23,11 @@ export type RecentSearchedProfile = {
   region: string
   icon_id: number | null
   rank: string | null
+  // Premium uploaded propic + paid tier — persisted so a profile shown FROM
+  // the recent cache keeps its pfp + premium/elite badge instead of falling
+  // back to the LoL icon.
+  avatar_url?: string | null
+  plan?: string | null
   lastSearchedAt: number
 }
 
@@ -53,7 +58,7 @@ export function enrichRecentProfile(
   name: string,
   tag: string,
   region: string,
-  patch: { icon_id?: number | null; rank?: string | null }
+  patch: { icon_id?: number | null; rank?: string | null; avatar_url?: string | null; plan?: string | null }
 ): void {
   if (typeof window === "undefined") return
   const cur = readRecentProfiles()
@@ -70,9 +75,16 @@ export function enrichRecentProfile(
       (r.rank == null || r.rank === "") && patch.rank != null && patch.rank !== ""
         ? patch.rank
         : r.rank
-    if (mergedIcon === r.icon_id && mergedRank === r.rank) return r
+    // avatar/plan CAN change (new pfp, upgrade/downgrade) → refresh whenever
+    // the caller provides the key, not just when the cached value is null.
+    const mergedAvatar = patch.avatar_url !== undefined ? patch.avatar_url : (r.avatar_url ?? null)
+    const mergedPlan = patch.plan !== undefined ? patch.plan : (r.plan ?? null)
+    if (
+      mergedIcon === r.icon_id && mergedRank === r.rank &&
+      mergedAvatar === (r.avatar_url ?? null) && mergedPlan === (r.plan ?? null)
+    ) return r
     changed = true
-    return { ...r, icon_id: mergedIcon, rank: mergedRank }
+    return { ...r, icon_id: mergedIcon, rank: mergedRank, avatar_url: mergedAvatar, plan: mergedPlan }
   })
 
   if (!changed) return

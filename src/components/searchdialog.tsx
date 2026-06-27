@@ -60,6 +60,7 @@ type Suggestion = {
   _isPro?: boolean
   _nickname?: string
   _avatar?: string | null
+  _plan?: string | null // "premium" | "elite" → tier badge
   _team?: string | null
   // Set when this row came from the local recently-viewed cache.
   // Drives the violet outline + RECENT badge in SuggestionRow.
@@ -87,6 +88,8 @@ type RecentProfile = {
   region: string
   icon_id: number | null
   rank: string | null
+  avatar_url?: string | null
+  plan?: string | null
   lastSearchedAt: number
 }
 
@@ -198,6 +201,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     region: string
     icon_id: number | null
     rank: string | null
+    _avatar?: string | null
+    _plan?: string | null
   }) {
     if (typeof window === "undefined") return
     const regionUpper = p.region.toUpperCase()
@@ -214,6 +219,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           region: regionUpper,
           icon_id: p.icon_id,
           rank: p.rank,
+          avatar_url: p._avatar ?? null,
+          plan: p._plan ?? null,
           lastSearchedAt: Date.now(),
         },
         ...filtered,
@@ -271,7 +278,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       if (prev.length === 0) return prev
       let changed = false
       const next = prev.map((r) => {
-        if (r.icon_id != null && r.rank != null) return r
         const match = suggestions.find(
           (s) =>
             s.name.toLowerCase() === r.name.toLowerCase() &&
@@ -283,8 +289,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           ...r,
           icon_id: r.icon_id ?? match.icon_id ?? null,
           rank: r.rank ?? match.rank ?? null,
+          // avatar + plan refresh from the live result (they change: new pfp,
+          // upgrade/downgrade) so an OLD cached row stops showing the LoL icon
+          // and gains its premium/elite badge.
+          avatar_url: match._avatar ?? r.avatar_url ?? null,
+          plan: match._plan ?? r.plan ?? null,
         }
-        if (merged.icon_id !== r.icon_id || merged.rank !== r.rank) {
+        if (
+          merged.icon_id !== r.icon_id || merged.rank !== r.rank ||
+          merged.avatar_url !== (r.avatar_url ?? null) || merged.plan !== (r.plan ?? null)
+        ) {
           changed = true
           return merged
         }
@@ -361,6 +375,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           // the rank). Premium users keep their normal rank/name display.
           ...s,
           _avatar: s.avatar_url ?? null,
+          _plan: s.plan ?? null,
         }))
 
       setSuggestions([...proSuggestions, ...apiFiltered])
@@ -434,6 +449,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       region: (sugg.region || region).toUpperCase(),
       icon_id: sugg.icon_id,
       rank: sugg.rank,
+      _avatar: sugg._avatar ?? null,
+      _plan: sugg._plan ?? null,
     })
     const slug = `${sugg.name.replace(/\s+/g, "+")}-${sugg.tag.toUpperCase()}`
     const targetRegion = (sugg.region || region).toLowerCase()
@@ -542,6 +559,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         region: r.region,
         rank: r.rank,
         icon_id: r.icon_id,
+        _avatar: r.avatar_url ?? null,
+        _plan: r.plan ?? null,
         _isRecent: true,
       }))
   }, [input, recentProfiles, region])
@@ -572,6 +591,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         rank: live.rank ?? r.rank,
         icon_id: live.icon_id ?? r.icon_id,
         _avatar: live._avatar ?? r._avatar,
+        _plan: live._plan ?? r._plan,
       }
     })
     const filtered = suggestions.filter(
@@ -1175,6 +1195,23 @@ function SuggestionRow({
                 PRO
               </span>
             )}
+            {sugg._plan === "elite" ? (
+              <span
+                className="text-[7.5px] font-black px-1 py-[1px] rounded-[2px] tracking-wider shrink-0"
+                style={{ background: "linear-gradient(135deg, #FFD75E, #FFB615)", color: "#040A0C" }}
+                title="Elite member"
+              >
+                ELITE
+              </span>
+            ) : sugg._plan === "premium" ? (
+              <span
+                className="text-[8px] font-jetbrains font-bold uppercase px-1.5 py-[1px] rounded-[2px] tracking-[0.16em] shrink-0"
+                style={{ background: "rgba(0,217,146,0.12)", border: "1px solid rgba(0,217,146,0.4)", color: "rgba(0,217,146,0.95)" }}
+                title="Premium member"
+              >
+                Premium
+              </span>
+            ) : null}
             {isRecent && (
               <span
                 className="text-[8px] font-jetbrains font-bold uppercase px-1.5 py-[1px] rounded-[2px] tracking-[0.18em] shrink-0"
