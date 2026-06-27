@@ -1195,22 +1195,15 @@ function SuggestionRow({
                 PRO
               </span>
             )}
-            {sugg._plan === "elite" ? (
-              <span
-                className="text-[7.5px] font-black px-1 py-[1px] rounded-[2px] tracking-wider shrink-0"
-                style={{ background: "linear-gradient(135deg, #FFD75E, #FFB615)", color: "#040A0C" }}
-                title="Elite member"
-              >
-                ELITE
-              </span>
-            ) : sugg._plan === "premium" ? (
-              <span
-                className="text-[8px] font-jetbrains font-bold uppercase px-1.5 py-[1px] rounded-[2px] tracking-[0.16em] shrink-0"
-                style={{ background: "rgba(0,217,146,0.12)", border: "1px solid rgba(0,217,146,0.4)", color: "rgba(0,217,146,0.95)" }}
-                title="Premium member"
-              >
-                Premium
-              </span>
+            {sugg._plan === "elite" || sugg._plan === "premium" ? (
+              <img
+                src={`https://cdn2.loldata.cc/img/badge/loldata-plans/${sugg._plan === "elite" ? "Elite" : "Premium"}.png`}
+                alt={sugg._plan === "elite" ? "Elite" : "Premium"}
+                title={sugg._plan === "elite" ? "Elite member" : "Premium member"}
+                className="h-[18px] w-auto shrink-0 object-contain"
+                draggable={false}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+              />
             ) : null}
             {isRecent && (
               <span
