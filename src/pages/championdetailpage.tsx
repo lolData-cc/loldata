@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 // Champion stats are read from the match-data box (api2) — see config BOX_API_BASE_URL.
 import { BOX_API_BASE_URL as API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
-import { ChampionStats } from "@/components/champion-stats-tab"
 import { ChampionOtpRanking } from "@/components/champion-otp-ranking";
 import { ChampionMatchupsTab } from "@/components/champion-matchups-tab"
 import ChampionDuosTab from "@/components/champion-duos-tab"
@@ -147,7 +146,7 @@ function HeroTier({ tier, role }: { tier?: string | null; role?: string | null }
   )
 }
 
-const validTabs = ["overview", "build", "duos", "counters", "statistics", "guides", "pros"] as const
+const validTabs = ["overview", "build", "duos", "counters", "guides", "pros"] as const
 
 export default function ChampionDetailPage() {
   const { champId, tab, guideId } = useParams<{ champId: string; tab?: string; guideId?: string }>()
@@ -294,8 +293,6 @@ export default function ChampionDetailPage() {
       ? { t: `${seoName} Build — Best Items & Runes — Patch ${patch} | lolData`, d: `The best build, items and runes for ${seoName} in Patch ${patch}, from millions of ranked games.` }
       : activeTab === "counters"
       ? { t: `${seoName} Counters & Best Matchups — Patch ${patch} | lolData`, d: `${seoName} counters and best / worst lane matchups in Patch ${patch}.` }
-      : activeTab === "statistics"
-      ? { t: `${seoName} Stats — Win Rate & Pick Rate — Patch ${patch} | lolData`, d: `${seoName} win rate, pick rate and performance stats — Patch ${patch}.` }
       : { t: `${seoName} Build, Runes, Duos & Counters — Patch ${patch} | lolData`, d: `${seoName} guide: best build, runes, items, duos and counters from ranked games — Patch ${patch}.` }
   useSeo({
     title: seoMeta.t,
@@ -431,8 +428,10 @@ export default function ChampionDetailPage() {
           100% { opacity: 0; transform: translateY(-6px); }
         }
       `}</style>
-      {/* Hero — cinematic splash in the homepage's #040A0C language */}
-      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[420px] overflow-hidden -mt-6 mb-6 bg-[#040A0C]">
+      {/* Hero — cinematic splash in the homepage's #040A0C language. Sits flush
+          at the top (mt-0) so it slides up under the floating, transparent
+          navbar — see RootLayout's isChampDetail treatment. */}
+      <div className="relative w-screen left-1/2 -translate-x-1/2 h-[420px] overflow-hidden mb-6 bg-[#040A0C]">
         {/* splash, anchored right so the copy reads on solid bg at the left */}
         <img
           src={splashUrl || "/placeholder.svg"}
@@ -631,7 +630,6 @@ export default function ChampionDetailPage() {
             {[
               { value: "overview", label: "Overview" },
               { value: "build", label: "Build" },
-              { value: "statistics", label: "Statistics" },
               { value: "duos", label: "Duos" },
               { value: "counters", label: "Matchups" },
               { value: "pros", label: "OTPs" },
@@ -667,13 +665,6 @@ export default function ChampionDetailPage() {
         <div className="space-y-4">
           <TabsContent value="overview">
             <ChampOverview champ={champ} />
-          </TabsContent>
-          <TabsContent value="statistics">
-            {Object.keys(keyToId).length === 0 ? (
-              <div className="text-neutral-400">LOADING CHAMPIONS…</div>
-            ) : (
-              <ChampionStats champ={champ} patch={patch} keyToId={keyToId} onVsChange={setVsOpponent} initialVs={vsParam} />
-            )}
           </TabsContent>
 <TabsContent value="counters">
             {Object.keys(keyToId).length === 0 ? (

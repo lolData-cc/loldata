@@ -19,7 +19,7 @@ import { getCdnVersion } from "@/config";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { champDisplayName, cdnBaseUrl } from "@/config";
+import { champDisplayName, cdnBaseUrl, BOX_API_BASE_URL } from "@/config";
 
 import {
   Accordion,
@@ -479,6 +479,58 @@ const ROLE_SETS: Record<Role, Set<string>> = {
   SUP: new Set(SUP_CHAMPIONS),
 };
 
+// Most-popular-by-role, sourced LIVE from the tier list (regenerated nightly /
+// per-patch) so the picker auto-updates and includes EVERY champ — no more
+// hardcoded list that missed new champs (Locke) or had wrong ids ("KaiSa" vs
+// the real "Kaisa"). Falls back to the hardcoded ROLE_SETS if the fetch fails.
+const BOX_ROLE_TO_PICKER: Record<string, Role> = { TOP: "TOP", JUNGLE: "JNG", MIDDLE: "MID", BOTTOM: "ADC", UTILITY: "SUP" };
+const BOX_ROLES = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"] as const;
+let _roleChampsCache: Record<Role, string[]> | null = null;
+function useRoleChamps(): Record<Role, string[]> | null {
+  const [rc, setRc] = React.useState<Record<Role, string[]> | null>(_roleChampsCache);
+  React.useEffect(() => {
+    if (_roleChampsCache) return;
+    let cancelled = false;
+    // The tier list serves ONE role per request (default JUNGLE), so fetch all
+    // five (region=ALL = the global pool) and merge by most-popular (games desc).
+    Promise.all(
+      BOX_ROLES.map((r) =>
+        fetch(`${BOX_API_BASE_URL}/api/tierlist?role=${r}&region=ALL`)
+          .then((res) => (res.ok ? res.json() : null))
+          .catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const acc: Record<Role, { name: string; games: number }[]> = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] };
+      let any = false;
+      for (const d of results) {
+        if (!d?.champions?.length) continue;
+        for (const c of d.champions) {
+          const role = BOX_ROLE_TO_PICKER[c.role as string];
+          if (role && c.champion_name) {
+            acc[role].push({ name: String(c.champion_name), games: Number(c.games) || 0 });
+            any = true;
+          }
+        }
+      }
+      if (!any) return; // every fetch failed → keep the hardcoded fallback
+      const out = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] } as Record<Role, string[]>;
+      for (const role of ROLES) out[role] = acc[role].sort((a, b) => b.games - a.games).map((x) => x.name);
+      // Safety net: any champ the snapshot omits entirely (brand-new, or <200
+      // games in every role) falls back to its hardcoded role so it can never
+      // become unpickable — appended after the popular ones.
+      const covered = new Set(ROLES.flatMap((r) => out[r]));
+      for (const role of ROLES) for (const id of ROLE_SETS[role]) if (!covered.has(id)) out[role].push(id);
+      _roleChampsCache = out;
+      setRc(out);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return rc;
+}
+
 // ── Shared champion grid content (used by both mobile + desktop) ──
 function ChampionPickerContent({
   items,
@@ -499,13 +551,18 @@ function ChampionPickerContent({
   }, []);
 
   const term = q.trim().toLowerCase();
+  const roleChamps = useRoleChamps();
 
   const grouped = React.useMemo(() => {
     const base: Record<Role, ChampItem[]> = {
       TOP: [], JNG: [], MID: [], ADC: [], SUP: [],
     };
     for (const role of ROLES) {
-      const set = ROLE_SETS[role];
+      const dyn = roleChamps?.[role];
+      const useDyn = !!dyn && dyn.length > 0;
+      const set = useDyn ? new Set(dyn) : ROLE_SETS[role];
+      // Popularity order from the tier list (index = rank); fall back to A→Z.
+      const orderIdx = useDyn ? new Map(dyn!.map((id, i) => [id, i] as const)) : null;
       base[role] = items
         .filter((c) => {
           const inRole = set.has(c.id);
@@ -513,10 +570,14 @@ function ChampionPickerContent({
           const matchSearch = !term || c.label.toLowerCase().includes(term) || c.id.toLowerCase().includes(term) || display.includes(term);
           return inRole && matchSearch;
         })
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) =>
+          orderIdx
+            ? (orderIdx.get(a.id) ?? 9999) - (orderIdx.get(b.id) ?? 9999)
+            : a.label.localeCompare(b.label)
+        );
     }
     return base;
-  }, [items, term]);
+  }, [items, term, roleChamps]);
 
   return (
     <>

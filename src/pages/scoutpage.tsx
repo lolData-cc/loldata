@@ -322,12 +322,12 @@ export default function ScoutPage() {
           {[
             {
               tier: "FREE",
-              count: "3",
+              count: "1",
               color: "flash",
               ring: "border-flash/15",
               text: "text-flash/80",
               perks: [
-                "Up to 3 active lobbies",
+                "1 active lobby",
                 "20 players × 3 accounts each",
                 "Full feed, leaderboard, stats",
                 "10-min auto-refresh",
@@ -335,12 +335,12 @@ export default function ScoutPage() {
             },
             {
               tier: "PRO",
-              count: "5",
+              count: "2",
               color: "jade",
               ring: "border-jade/40 shadow-[0_0_30px_rgba(0,217,146,0.1)]",
               text: "text-jade",
               perks: [
-                "Up to 5 active lobbies",
+                "Up to 2 active lobbies",
                 "Everything in Free",
                 "PRO badge on your profile",
                 "Priority support",
@@ -349,12 +349,12 @@ export default function ScoutPage() {
             },
             {
               tier: "ELITE",
-              count: "10",
+              count: "3",
               color: "amber",
               ring: "border-amber-400/40 shadow-[0_0_30px_rgba(251,191,36,0.08)]",
               text: "text-amber-300",
               perks: [
-                "Up to 10 active lobbies",
+                "Up to 3 active lobbies",
                 "Everything in PRO",
                 "ELITE badge on your profile",
                 "Early access to new features",
@@ -391,7 +391,7 @@ export default function ScoutPage() {
                       {p.count}
                     </span>
                     <span className="text-[11px] font-mono text-flash/40 uppercase tracking-wider">
-                      lobbies
+                      {p.count === "1" ? "lobby" : "lobbies"}
                     </span>
                   </div>
                   <div className="h-[1px] bg-flash/10 my-4" />

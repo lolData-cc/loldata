@@ -119,12 +119,12 @@ const PREMIUM_PERKS: Perk[] = [
   {
     tag: "05",
     icon: Users,
-    name: "Scout Lobbies ×5",
-    tagline: "Track up to five lobbies in real time",
+    name: "Scout Lobbies ×2",
+    tagline: "Track up to two lobbies in real time",
     description:
-      "Spin up Scout lobbies for your friend groups, your team, your duo, or a rival you're keeping tabs on. Each lobby aggregates live games, recent match history, win rates, LP timelines and champion habits across every account in the group. LIVE indicators show you who's in game right now. Five concurrent lobbies cover stack tracking, duo statistics and casual co-op group analysis without ever running out of slots.",
+      "Spin up Scout lobbies for your friend groups, your team, your duo, or a rival you're keeping tabs on. Each lobby aggregates live games, recent match history, win rates, LP timelines and champion habits across every account in the group. LIVE indicators show you who's in game right now. Two concurrent lobbies let you track your own stack and a rival group side by side — double the single free slot.",
     bullets: [
-      "Up to 5 lobbies open concurrently, switchable instantly",
+      "Up to 2 lobbies open concurrently, switchable instantly",
       "LIVE indicator on each member currently in a game",
       "Aggregated stats: KDA, KP, CS/min, LP delta over any window",
       "Champion habits and time-of-day patterns per group",
@@ -153,12 +153,12 @@ const ELITE_PERKS: Perk[] = [
   {
     tag: "05",
     icon: Users,
-    name: "Scout Lobbies ×10",
-    tagline: "Double the tracking capacity",
+    name: "Scout Lobbies ×3",
+    tagline: "The most tracking capacity",
     description:
-      "Premium gives you five — Elite doubles it. Run ten concurrent Scout lobbies for everyone you care about: your duo, your flex stack, your team, the team you're scouting next, the streamers you follow, the rivals you're chasing on the ladder. Ten slots is enough to never have to close one to open another.",
+      "Premium gives you two — Elite gives you three. Run three concurrent Scout lobbies for everyone you care about: your duo, your flex stack, your team, the team you're scouting next, the streamers you follow, the rivals you're chasing on the ladder. Three slots is enough to never have to close one to open another.",
     bullets: [
-      "Up to 10 lobbies open concurrently",
+      "Up to 3 lobbies open concurrently",
       "All Premium lobby features included — LIVE, LP, habits, stats",
       "Combine professional scouting with casual group tracking in parallel",
       "Higher quota also raises the auto-refresh rate on each lobby",

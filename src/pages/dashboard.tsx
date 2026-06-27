@@ -562,7 +562,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
   // dashboard's compact column width.
   const perks: { icon: typeof Check; label: string }[] = isElite
     ? [
-        { icon: Crown, label: "Scout lobbies ×10" },
+        { icon: Crown, label: "Scout lobbies ×3" },
         { icon: Sparkles, label: "AI Coach + Matchup Engine" },
         { icon: Sparkles, label: "10× daily AI tokens" },
         { icon: Check, label: "Early access to new features" },
@@ -571,7 +571,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
       ]
     : isPaid
       ? [
-          { icon: Crown, label: "Scout lobbies ×5" },
+          { icon: Crown, label: "Scout lobbies ×2" },
           { icon: Sparkles, label: "AI Coach + Matchup Engine" },
           { icon: Sparkles, label: "Itemization analysis" },
           { icon: Check, label: "Daily performance reports" },

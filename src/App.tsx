@@ -132,8 +132,12 @@ export function RootLayout({
   children: React.ReactNode;
 }>) {
   const { pathname } = useLocation()
-  const navbarSticky = pathname === "/" || pathname === "/billing/success"
-  const noTopMargin = pathname === "/" || pathname === "/streamers"
+  // Champion DETAIL pages (/champions/<id>…) get the match-page treatment: the
+  // full-bleed splash hero slides UP under a floating, transparent navbar (no
+  // reserved spacer, no top margin) instead of sitting below a solid bar.
+  const isChampDetail = pathname.startsWith("/champions/")
+  const navbarSticky = pathname === "/" || pathname === "/billing/success" || isChampDetail
+  const noTopMargin = pathname === "/" || pathname === "/streamers" || isChampDetail
   const contentMargin = noTopMargin ? "mt-0" : "mt-4"
   // Phones feel cramped on the homepage's in-column content — give it more
   // horizontal breathing room there. Full-bleed hero/separator sections use
@@ -167,7 +171,7 @@ export function RootLayout({
       >
         <AmbientLightOverlay />
         <div className={`xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full ${horizPad} flex flex-col items-center relative z-[1]`}>
-          <Navbar sticky={navbarSticky} />
+          <Navbar sticky={navbarSticky} addOffsetSpacer={navbarSticky && !isChampDetail} fullBleed={isChampDetail} />
           <div className={`${contentMargin} w-full`}>{children}</div>
           <Footer className="mt-32" />
         </div>

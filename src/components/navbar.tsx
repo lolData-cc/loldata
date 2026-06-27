@@ -20,6 +20,10 @@ declare const gtag: (...args: any[]) => void;
 type NavbarProps = {
   sticky?: boolean;
   addOffsetSpacer?: boolean;
+  /** Full-bleed bar (spans the whole viewport width) with content still aligned
+   *  to the 65% column via padding. Used on the champion page so the glass strip
+   *  doesn't show squared edges over the full-bleed splash hero. */
+  fullBleed?: boolean;
 }
 
 // ── Mobile menu nav items ──
@@ -30,7 +34,7 @@ const NAV_ITEMS = [
   { label: "LEARN", icon: BookOpen, to: "/learn" as const, action: null },
 ] as const
 
-export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps) {
+export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = false }: NavbarProps) {
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
@@ -80,13 +84,17 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
     setMenuOpen(false)
   }, [location.pathname])
 
+  // The floating/glass treatment (transparent-at-top → solid-on-scroll) applies
+  // to both the homepage sticky bar and the full-bleed champion bar.
+  const floating = sticky || fullBleed
+
   useEffect(() => {
-    if (!sticky) return
+    if (!floating) return
     const onScroll = () => setScrolled(window.scrollY > 0)
     window.addEventListener("scroll", onScroll)
     onScroll()
     return () => window.removeEventListener("scroll", onScroll)
-  }, [sticky])
+  }, [floating])
 
   const base =
     // transform-gpu + isolate keep the fixed, backdrop-blurred bar on its OWN stable
@@ -94,15 +102,20 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
     // hero on scroll and flashes white.
     "flex items-center w-full h-16 z-50 px-3 sm:px-4 md:px-4 md:py-2 justify-between transform-gpu isolate [backface-visibility:hidden]"
 
-  const position = sticky
-    ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
-    : "fixed top-0 left-0 md:static"
+  const position = fullBleed
+    // Full viewport width so the glass strip never shows squared edges over the
+    // splash; xl+ padding (=(100-65)/2) keeps the content aligned to the 65%
+    // column below (and (100-55)/2 at the ≥2560px breakpoint).
+    ? "fixed top-0 left-0 right-0 w-full xl:px-[17.5%] min-[2560px]:px-[22.5%]"
+    : sticky
+      ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
+      : "fixed top-0 left-0 md:static"
 
   // Mobile (< md): keep the navbar barely-there — heavy blur + low
   // opacity so it reads as a faint glass strip over the splash hero
   // instead of a solid black bar that fights the content underneath.
   // Desktop keeps the original solid-ish backdrop.
-  const bg = sticky
+  const bg = floating
     ? `bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:backdrop-blur-sm md:saturate-100 ${
         // Homepage hero: at the very top keep the bar barely-tinted so Katarina's
         // hair reads as continuing THROUGH it; once scrolled, restore the solid backdrop.
@@ -112,7 +125,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky }: NavbarProps
       }`
     : "bg-[#040A0C]/30 backdrop-blur-xl saturate-150 md:bg-transparent md:backdrop-blur-none md:saturate-100"
 
-  const border = sticky && scrolled ? "border-b border-flash/10" : ""
+  const border = floating && scrolled ? "border-b border-flash/10" : ""
 
   return (
     <>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
+import { CyberToggle } from "@/components/cybertoggle";
 
 type ProfileRow = {
   profile_id: string;
@@ -10,6 +11,7 @@ type ProfileRow = {
   discord_id: string | null;
   discord_username: string | null;
   discord_avatar_url: string | null;
+  discord_public: boolean | null;
 };
 
 type DiscordInfo = {
@@ -42,7 +44,7 @@ export function DiscordLinker() {
         const { data, error } = await supabase
           .from("profile_players")
           .select(
-            "profile_id, player_id, discord_id, discord_username, discord_avatar_url"
+            "profile_id, player_id, discord_id, discord_username, discord_avatar_url, discord_public"
           )
           .eq("profile_id", auth.user.id)
           .maybeSingle<ProfileRow>();
@@ -387,6 +389,30 @@ export function DiscordLinker() {
 
   const loadingState = initialLoading;
 
+  // ===== Discord profile visibility =====
+  // Whether the linked Discord shows as a badge on the public summoner page.
+  // Default (null) = shown, matching the pre-toggle behaviour.
+  const discordPublic = profile?.discord_public !== false;
+  const [savingVisibility, setSavingVisibility] = useState(false);
+
+  const setDiscordVisibility = useCallback(
+    async (next: boolean) => {
+      if (!profile || savingVisibility) return;
+      setSavingVisibility(true);
+      setProfile((prev) => (prev ? { ...prev, discord_public: next } : prev)); // optimistic
+      const { error } = await supabase
+        .from("profile_players")
+        .update({ discord_public: next })
+        .eq("profile_id", profile.profile_id);
+      setSavingVisibility(false);
+      if (error) {
+        setProfile((prev) => (prev ? { ...prev, discord_public: !next } : prev)); // revert
+        showCyberToast({ title: "Couldn't save", description: error.message, variant: "error", tag: "ERR" });
+      }
+    },
+    [profile, savingVisibility]
+  );
+
   // ===== UI =====
   return (
     <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
@@ -440,9 +466,18 @@ export function DiscordLinker() {
 
             {/* Description */}
             {isLinked && effectiveDiscord ? (
-              <span className="text-flash/40 text-xs mt-1 block">
-                Connected as <span className="text-flash/70">{effectiveDiscord.username ?? "Discord user"}</span>
-              </span>
+              <>
+                <span className="text-flash/40 text-xs mt-1 block">
+                  Connected as <span className="text-flash/70">{effectiveDiscord.username ?? "Discord user"}</span>
+                </span>
+                {/* Privacy: show the Discord badge on the public summoner page? */}
+                <div className="mt-2.5 flex items-center justify-between gap-3">
+                  <span className="text-flash/50 text-xs">
+                    Show Discord on your public profile
+                  </span>
+                  <CyberToggle checked={discordPublic} onChange={setDiscordVisibility} />
+                </div>
+              </>
             ) : (
               <>
                 <span className="text-flash/40 text-xs mt-1 block">

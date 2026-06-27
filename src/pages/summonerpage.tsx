@@ -17,7 +17,7 @@ import { getKdaClass } from '@/utils/kdaColor'
 import { getKdaBackgroundStyle } from '@/utils/kdaColor'
 import { formatStat } from "@/utils/formatStat"
 import { timeAgo } from '@/utils/timeAgo';
-import { cdnBaseUrl, cdnSplashUrl, getCdnVersion, normalizeChampName, summonerSpellUrl } from "@/config"
+import { cdnBaseUrl, cdnSplashUrl, doubleLpBadgeUrl, getCdnVersion, normalizeChampName, summonerSpellUrl } from "@/config"
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
@@ -617,7 +617,7 @@ export default function SummonerPage() {
       try {
         const { data, error } = await supabase
           .from("profile_players")
-          .select("discord_username, discord_avatar_url")
+          .select("discord_username, discord_avatar_url, discord_public")
           .eq("nametag", nametag)
           .not("discord_id", "is", null)
           .maybeSingle();
@@ -628,7 +628,9 @@ export default function SummonerPage() {
           return;
         }
 
-        if (data) {
+        // discord_public === false → the player opted out of showing the badge.
+        // null/true → shown (default, pre-toggle behaviour).
+        if (data && data.discord_public !== false) {
           setLinkedDiscord({
             discord_username: data.discord_username,
             discord_avatar_url: data.discord_avatar_url,
@@ -2844,7 +2846,7 @@ export default function SummonerPage() {
                       {/* LISTA MATCH DI QUEL GIORNO */}
                       <ul className="flex flex-col gap-1">
                         {rows.map((row) => {
-                          const { match, win, championName } = row;
+                          const { match, win, championName, lpDelta } = row;
 
                           const queueId = match.info.queueId;
                           const queueLabel = queueTypeMap[queueId] || "Unknown Queue";
@@ -2938,6 +2940,18 @@ export default function SummonerPage() {
                                 </>
                               )}
 
+                              {/* Aegis of Valor watermark — a loss that cost 0 LP (no-LP-loss).
+                                  Same cosmetic the scout MatchCard uses for double-LP wins. */}
+                              {!win && lpDelta === 0 && (
+                                <img
+                                  src={doubleLpBadgeUrl()}
+                                  alt=""
+                                  aria-hidden
+                                  className="pointer-events-none select-none absolute top-1/2 -translate-y-1/2 right-0 translate-x-[8%] h-[150%] w-auto z-[1] opacity-[0.18]"
+                                  style={{ filter: "saturate(0.85) brightness(1.05) drop-shadow(0 0 18px rgba(255,182,21,0.18))" }}
+                                />
+                              )}
+
                               <div
                                 className={cn(
                                   "pointer-events-none absolute -top-28 left-0 h-60 w-full z-[1]",
@@ -2992,6 +3006,20 @@ export default function SummonerPage() {
                                             {isRemake ? "REMAKE" : win ? "WIN" : "LOSS"}
                                           </span>
 
+                                          {/* Per-game LP change (tracked premium/elite accounts only).
+                                              Desktop: inline after the result. Mobile: a pill next to
+                                              the KDA box (see below) — so hide this one on phones.
+                                              0 LP is real (Aegis-of-Valor no-LP-loss) → show it neutral. */}
+                                          {typeof lpDelta === "number" && (
+                                            <span className={cn(
+                                              "hidden lg:inline text-[11px] font-semibold tabular-nums",
+                                              lpDelta > 0 ? "text-[#00D992]" : lpDelta < 0 ? "text-[#d63336]" : "text-flash/55"
+                                            )}>
+                                              {lpDelta > 0 ? "+" : ""}{lpDelta}
+                                              <span className="opacity-55 ml-0.5">LP</span>
+                                            </span>
+                                          )}
+
                                           {isSelfMvpOrAce && coloredMatchBg && (
                                             <span className={cn(
                                               "hidden lg:inline text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
@@ -3022,7 +3050,7 @@ export default function SummonerPage() {
 
                                       <div className="relative flex justify-between">
                                         <div className="relative z-40 flex justify-between w-full">
-                                          <div className="mt-3">
+                                          <div className="mt-3 flex-1 min-w-0">
                                             <div className="flex space-x-1 lg:space-x-1.5 relative">
                                               <div className="relative w-12 h-12">
                                                 <img
@@ -3167,7 +3195,7 @@ export default function SummonerPage() {
                                             </div>
                                             { }
                                             <div className="flex flex-col mt-2">
-                                              <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                                              <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 w-full">
                                                 {(() => {
                                                   const { className, style } = getKdaBackgroundStyle(kda);
                                                   const isPerfect = kda === "Perfect";
@@ -3187,6 +3215,27 @@ export default function SummonerPage() {
                                                     </div>
                                                   );
                                                 })()}
+                                                {/* MOBILE-ONLY LP pill — same box style as the KDA box,
+                                                    centered EXACTLY in the gap between it and the
+                                                    scoreboard (the flex-1 wrapper eats the space after
+                                                    the KDA box, justify-center centers the pill in it).
+                                                    Tracked (premium/elite) games; 0 LP is real (Aegis
+                                                    no-LP-loss) → shown neutral. */}
+                                                {typeof lpDelta === "number" && (
+                                                  <div className="lg:hidden flex-1 flex justify-center">
+                                                    <div className={cn(
+                                                      "flex items-center justify-center h-7 px-2.5 text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
+                                                      lpDelta > 0
+                                                        ? "text-[#00D992] border-[#00D992]/30 bg-[#00D992]/[0.08]"
+                                                        : lpDelta < 0
+                                                          ? "text-[#d63336] border-[#d63336]/30 bg-[#d63336]/[0.08]"
+                                                          : "text-flash/55 border-flash/20 bg-flash/[0.05]"
+                                                    )}>
+                                                      {lpDelta > 0 ? "+" : ""}{lpDelta}
+                                                      <span className="text-[9px] opacity-60 ml-1 font-jetbrains tracking-[0.1em]">LP</span>
+                                                    </div>
+                                                  </div>
+                                                )}
                                                 {/* KDA caption — stacked big value + tiny label,
                                                     mirrors the scout matchcard look. */}
                                                 <div className="hidden lg:flex flex-col leading-tight ml-3 tabular-nums">

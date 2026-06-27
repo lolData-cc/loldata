@@ -90,6 +90,9 @@ export type MatchWithWin = {
   win: boolean,
   championName: string
   junglePlaystyle?: MatchJunglePlaystyleResult | null;
+  /** Signed LP change for this ranked game, from rank snapshots. Only present
+   *  for tracked (premium/elite) accounts; null/undefined otherwise. */
+  lpDelta?: number | null;
 }
 
 
