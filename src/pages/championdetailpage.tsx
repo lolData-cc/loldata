@@ -735,17 +735,60 @@ export default function ChampionDetailPage() {
 // ── Champion Overview Component ──
 
 const ABILITY_KEYS = ["P", "Q", "W", "E", "R"] as const
-const STAT_LABELS: Record<string, string> = {
-  hp: "Health", hpperlevel: "HP / Lvl", mp: "Mana", mpperlevel: "MP / Lvl",
-  armor: "Armor", armorperlevel: "Armor / Lvl", spellblock: "Magic Resist", spellblockperlevel: "MR / Lvl",
-  attackdamage: "Attack Damage", attackdamageperlevel: "AD / Lvl",
-  attackspeed: "Attack Speed", attackspeedperlevel: "AS / Lvl",
-  movespeed: "Move Speed", attackrange: "Attack Range",
-  hpregen: "HP Regen", hpregenperlevel: "HP Regen / Lvl",
-  mpregen: "MP Regen", mpregenperlevel: "MP Regen / Lvl",
-  crit: "Crit", critperlevel: "Crit / Lvl",
+
+// base stat → per-level pairing for the compact stat grid
+const STAT_PAIRS: { key: string; per?: string; label: string }[] = [
+  { key: "hp", per: "hpperlevel", label: "Health" },
+  { key: "mp", per: "mpperlevel", label: "Mana" },
+  { key: "armor", per: "armorperlevel", label: "Armor" },
+  { key: "spellblock", per: "spellblockperlevel", label: "Magic Resist" },
+  { key: "attackdamage", per: "attackdamageperlevel", label: "Attack Dmg" },
+  { key: "attackspeed", per: "attackspeedperlevel", label: "Attack Speed" },
+  { key: "hpregen", per: "hpregenperlevel", label: "HP Regen" },
+  { key: "mpregen", per: "mpregenperlevel", label: "MP Regen" },
+  { key: "movespeed", label: "Move Speed" },
+  { key: "attackrange", label: "Range" },
+]
+
+// glass panel — the site's main-box surface (no white outline, inset hairline)
+function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-md bg-black/25 backdrop-blur-lg saturate-150",
+        "shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
 }
-const STAT_ORDER = ["hp", "hpperlevel", "mp", "mpperlevel", "armor", "armorperlevel", "spellblock", "spellblockperlevel", "attackdamage", "attackdamageperlevel", "attackspeed", "attackspeedperlevel", "movespeed", "attackrange", "hpregen", "hpregenperlevel", "mpregen", "mpregenperlevel"]
+
+function StatChip({ label, value, tone = "jade" }: { label: string; value: string; tone?: "jade" | "sky" }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-[4px] bg-black/40 px-2 py-1 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)]">
+      <span className="font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/40">{label}</span>
+      <span className={cn("font-jetbrains text-[11px] font-semibold tabular-nums", tone === "sky" ? "text-sky-300/85" : "text-jade/90")}>{value}</span>
+    </span>
+  )
+}
+
+function TipsPanel({ title, tips, tone }: { title: string; tips: string[]; tone: "ally" | "enemy" }) {
+  return (
+    <Panel className="p-5">
+      <SectionTitle tone={tone === "enemy" ? "red" : "jade"}>{title}</SectionTitle>
+      <ul className="mt-3.5 space-y-2.5">
+        {tips.map((tip, i) => (
+          <li key={i} className="flex gap-2.5 font-geist text-[13px] leading-relaxed text-flash/60">
+            <span className={cn("mt-px shrink-0 font-bold", tone === "ally" ? "text-jade" : "text-[#ff6286]")}>▸</span>
+            {tip}
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  )
+}
 
 function ChampOverview({ champ }: { champ: ChampInfo }) {
   const [selectedAbility, setSelectedAbility] = useState(0) // 0=P, 1=Q, 2=W, 3=E, 4=R
@@ -763,191 +806,131 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
   ].filter(Boolean) as { key: string; name: string; description: string; image: string; cooldown: number[] | null; cost: number[] | null }[]
 
   const active = abilities[selectedAbility] ?? abilities[0]
-
-  // Strip HTML tags from description
   const cleanDesc = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+  const dedupe = (arr: number[] | null) => (arr ? [...new Set(arr)].join(" / ") : "")
+  const iconUrl = (key: string, image: string) =>
+    key === "P" ? `${cdnBaseUrl()}/img/passive/${image}` : `${cdnBaseUrl()}/img/spell/${image}`
 
   return (
     <div className="space-y-5">
-      {/* ── Lore ── */}
-      <div>
-        <SectionTitle>Lore</SectionTitle>
-        <p className="text-[13px] text-flash/65 leading-[1.75] mt-2">
-          {champ.lore || "No lore available."}
-        </p>
-      </div>
-
-      {/* ── Abilities — all displayed as stacked cards ── */}
-      <div>
-        <SectionTitle>Abilities</SectionTitle>
-        <div className="mt-2 space-y-1.5">
-          {abilities.map((ab, idx) => (
-            <motion.div
-              key={ab.key}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.06, duration: 0.25 }}
-              className={cn(
-                "group relative flex items-start gap-3 py-2 px-3 rounded-sm cursor-custom transition-all duration-200",
-                "bg-white/[0.02] hover:bg-white/[0.05]",
-                "ring-1 ring-white/[0.04] hover:ring-jade/20",
-              )}
-              onClick={() => setSelectedAbility(idx)}
-            >
-              {/* Left accent */}
-              <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-[3px] rounded-l-sm transition-colors duration-200",
-                selectedAbility === idx ? "bg-jade" : "bg-white/[0.06] group-hover:bg-jade/30"
-              )} />
-
-              {/* Icon */}
-              <div className="relative shrink-0 ml-2">
-                <img
-                  src={ab.key === "P"
-                    ? `${cdnBaseUrl()}/img/passive/${ab.image}`
-                    : `${cdnBaseUrl()}/img/spell/${ab.image}`
-                  }
-                  alt={ab.name}
-                  className={cn(
-                    "w-9 h-9 rounded-sm object-cover transition-all duration-200",
-                    selectedAbility === idx
-                      ? "ring-2 ring-jade/40 shadow-[0_0_12px_rgba(0,217,146,0.15)]"
-                      : "ring-1 ring-white/10 group-hover:ring-white/20"
-                  )}
-                />
-                <span className={cn(
-                  "absolute -top-1.5 -left-1.5 text-[9px] font-mono font-black px-1.5 py-0.5 rounded-[2px] leading-none",
-                  selectedAbility === idx
-                    ? "bg-jade text-black"
-                    : "bg-flash/15 text-flash/50"
-                )}>
-                  {ab.key}
-                </span>
+      {/* ── Row 1: Abilities (50%) + Base Stats (50%) ── */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {abilities.length > 0 && (
+          <Panel className="p-5">
+            <SectionTitle>Abilities</SectionTitle>
+            <div className="mt-4 flex gap-4">
+              {/* vertical icon rail */}
+              <div className="flex shrink-0 flex-col gap-2">
+                {abilities.map((ab, idx) => {
+                  const on = idx === selectedAbility
+                  return (
+                    <button key={ab.key} type="button" onClick={() => setSelectedAbility(idx)} className="group relative cursor-clicker" aria-label={ab.name}>
+                      <img
+                        src={iconUrl(ab.key, ab.image)}
+                        alt=""
+                        className={cn(
+                          "h-11 w-11 rounded-md object-cover transition-all",
+                          on ? "ring-2 ring-jade shadow-[0_0_16px_rgba(0,217,146,0.4)]" : "opacity-60 ring-1 ring-white/10 group-hover:opacity-100 group-hover:ring-jade/40",
+                        )}
+                      />
+                      <span className={cn("absolute -bottom-1 -right-1 rounded-[2px] px-1 text-[8px] font-black leading-[1.5]", on ? "bg-jade text-black" : "bg-black/80 text-flash/55")}>{ab.key}</span>
+                    </button>
+                  )
+                })}
               </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <h4 className={cn(
-                  "text-[13px] font-mono font-semibold transition-colors duration-200",
-                  selectedAbility === idx ? "text-jade" : "text-flash/80 group-hover:text-flash"
-                )}>
-                  {ab.name}
-                </h4>
-
-                {/* Cooldown + Cost badges */}
-                {(ab.cooldown || ab.cost) && (
-                  <div className="flex items-center gap-3 mt-1">
-                    {ab.cooldown && ab.cooldown.some(v => v > 0) && (
-                      <span className="text-[11px] font-mono text-flash/35">
-                        CD: <span className="text-flash/60">{[...new Set(ab.cooldown)].join(" / ")}s</span>
-                      </span>
-                    )}
-                    {ab.cost && ab.cost.some(v => v > 0) && (
-                      <span className="text-[11px] font-mono text-flash/35">
-                        Cost: <span className="text-sky-400/60">{[...new Set(ab.cost)].join(" / ")}</span>
-                      </span>
-                    )}
+              {/* featured detail fills the rest */}
+              <motion.div key={active.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: "easeOut" }} className="min-w-0 flex-1 border-l border-white/[0.06] pl-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="rounded-[3px] bg-jade px-1.5 py-0.5 font-jetbrains text-[10px] font-black text-black">{active.key}</span>
+                  <h4 className="font-chakrapetch text-[15px] font-bold uppercase tracking-[0.02em] text-flash">{active.name}</h4>
+                </div>
+                {(dedupe(active.cooldown) || dedupe(active.cost)) && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {active.cooldown && active.cooldown.some((v) => v > 0) && <StatChip label="Cooldown" value={`${dedupe(active.cooldown)}s`} />}
+                    {active.cost && active.cost.some((v) => v > 0) && <StatChip label="Cost" value={dedupe(active.cost)} tone="sky" />}
                   </div>
                 )}
+                <p className="mt-3 font-geist text-[12.5px] leading-[1.7] text-flash/70">{cleanDesc(active.description)}</p>
+              </motion.div>
+            </div>
+          </Panel>
+        )}
 
-                <p className="text-[12px] text-flash/50 leading-[1.6] mt-1.5">
-                  {cleanDesc(ab.description)}
-                </p>
+        {champ.stats && (
+          <Panel className="flex flex-col p-5">
+            <SectionTitle>Base Stats</SectionTitle>
+            <div className="mt-4 grid flex-1 content-between grid-cols-1 gap-x-7 sm:grid-cols-2">
+              {STAT_PAIRS.filter((p) => champ.stats![p.key] !== undefined).map((p) => (
+                <div key={p.key} className="flex items-baseline justify-between gap-2 border-b border-white/[0.05] py-[7px]">
+                  <span className="font-jetbrains text-[11px] uppercase tracking-[0.08em] text-flash/40">{p.label}</span>
+                  <span className="font-jetbrains tabular-nums">
+                    <span className="text-[13px] font-semibold text-flash/85">{champ.stats![p.key]}</span>
+                    {p.per && champ.stats![p.per] ? <span className="ml-1 text-[10px] text-jade/55">+{champ.stats![p.per]}</span> : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {champ.partype && (
+              <div className="mt-3.5 flex items-center gap-2 font-jetbrains text-[10px] uppercase tracking-[0.16em] text-flash/30">
+                Resource <span className="text-flash/55">{champ.partype}</span>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            )}
+          </Panel>
+        )}
       </div>
 
-      {/* ── Base Stats ── */}
-      {champ.stats && (
-        <div>
-          <SectionTitle>Base Stats</SectionTitle>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-0">
-            {STAT_ORDER.filter(k => champ.stats![k] !== undefined && !k.includes("perlevel")).map(k => (
-              <div key={k} className="flex justify-between items-center py-1.5 border-b border-white/[0.04]">
-                <span className="text-[12px] font-mono text-flash/35">{STAT_LABELS[k] ?? k}</span>
-                <span className="text-[13px] font-mono text-flash/75 font-semibold tabular-nums">{champ.stats![k]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Playstyle bars ── */}
-      {champ.info && (
-        <div>
-          <SectionTitle>Playstyle</SectionTitle>
-          <div className="grid grid-cols-4 gap-2 mt-2">
-            {(["attack", "defense", "magic", "difficulty"] as const).map(stat => {
-              const val = champ.info![stat]
-              return (
-                <div key={stat} className="rounded-xl bg-flash/[0.02] ring-1 ring-inset ring-jade/10 p-4 text-center transition-colors hover:ring-jade/25">
-                  <div className="text-[24px] font-chakrapetch font-bold text-jade tabular-nums" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>{val}</div>
-                  <div className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/40 mt-1 capitalize">{stat}</div>
-                  <div className="w-full h-1 bg-flash/[0.06] rounded-full overflow-hidden mt-3">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${val * 10}%` }}
-                      transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-                      className="h-full rounded-full bg-gradient-to-r from-jade to-jade/40"
-                    />
+      {/* ── Row 2: Playstyle (50%) + Lore (50%) ── */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {champ.info && (
+          <Panel className="flex flex-col p-5">
+            <SectionTitle>Playstyle</SectionTitle>
+            <div className="mt-4 grid flex-1 auto-rows-fr grid-cols-2 gap-2.5">
+              {(["attack", "defense", "magic", "difficulty"] as const).map((stat) => {
+                const val = champ.info![stat]
+                return (
+                  <div key={stat} className="flex flex-col items-center justify-center rounded-md bg-black/30 p-3.5 text-center shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.12)] transition-shadow hover:shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.32)]">
+                    <div className="font-chakrapetch text-[24px] font-bold tabular-nums text-jade" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>{val}</div>
+                    <div className="mt-0.5 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/40">{stat}</div>
+                    <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${val * 10}%` }} transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }} className="h-full rounded-full bg-gradient-to-r from-jade to-jade/40" />
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                )
+              })}
+            </div>
+          </Panel>
+        )}
+
+        {champ.lore && (
+          <Panel className="p-5">
+            <SectionTitle>Lore</SectionTitle>
+            <div className="relative mt-3 pl-6">
+              <span className="absolute -top-3 left-0 font-chakrapetch text-[44px] leading-none text-jade/20 select-none">{"“"}</span>
+              <p className="font-geist text-[13px] leading-[1.8] text-flash/65">{champ.lore}</p>
+            </div>
+          </Panel>
+        )}
+      </div>
 
       {/* ── Tips ── */}
       {((champ.allytips?.length ?? 0) > 0 || (champ.enemytips?.length ?? 0) > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {champ.allytips && champ.allytips.length > 0 && (
-            <div>
-              <SectionTitle>Playing as {champ.name}</SectionTitle>
-              <ul className="mt-3 space-y-2">
-                {champ.allytips.map((tip, i) => (
-                  <li key={i} className="text-[13px] text-flash/55 leading-relaxed flex gap-2">
-                    <span className="text-jade shrink-0 mt-0.5">{">"}</span>
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {champ.enemytips && champ.enemytips.length > 0 && (
-            <div>
-              <SectionTitle>Playing against {champ.name}</SectionTitle>
-              <ul className="mt-3 space-y-2">
-                {champ.enemytips.map((tip, i) => (
-                  <li key={i} className="text-[13px] text-red-400/60 leading-relaxed flex gap-2">
-                    <span className="text-red-400/70 shrink-0 mt-0.5">{">"}</span>
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Resource ── */}
-      {champ.partype && (
-        <div className="text-[11px] font-mono text-flash/30 tracking-[0.15em] uppercase">
-          Resource: <span className="text-flash/40">{champ.partype}</span>
+        <div className="grid gap-5 md:grid-cols-2">
+          {champ.allytips && champ.allytips.length > 0 && <TipsPanel title={`Playing as ${champ.name}`} tips={champ.allytips} tone="ally" />}
+          {champ.enemytips && champ.enemytips.length > 0 && <TipsPanel title={`Playing against ${champ.name}`} tips={champ.enemytips} tone="enemy" />}
         </div>
       )}
     </div>
   )
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children, tone = "jade" }: { children: React.ReactNode; tone?: "jade" | "red" }) {
+  const red = tone === "red"
+  const dot = red ? "#ff6286" : "#00d992"
   return (
     <div className="flex items-center gap-2.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-jade shrink-0" style={{ boxShadow: "0 0 8px #00d992" }} />
-      <span className="font-chakrapetch text-[11px] font-bold tracking-[0.28em] uppercase text-jade/80">{children}</span>
-      <div className="h-px flex-1 bg-gradient-to-r from-jade/20 to-transparent" />
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot, boxShadow: `0 0 8px ${dot}` }} />
+      <span className={cn("font-chakrapetch text-[11px] font-bold tracking-[0.28em] uppercase", red ? "text-[#ff6286]/85" : "text-jade/80")}>{children}</span>
+      <div className={cn("h-px flex-1 bg-gradient-to-r to-transparent", red ? "from-[#ff6286]/20" : "from-jade/20")} />
     </div>
   )
 }

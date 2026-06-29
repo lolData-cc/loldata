@@ -15,6 +15,7 @@
 import * as React from "react"
 import { motion, AnimatePresence, useInView, useReducedMotion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
+import { Link } from "react-router-dom"
 import { PricingPlans } from "./pricingplans"
 
 const EASE_BRAND = [0.22, 1, 0.36, 1] as const
@@ -198,14 +199,12 @@ function JaxCta({
                 Become a member
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </button>
-              <a
-                href="https://discord.gg/SNjKYbdXzG"
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                to="/contact"
                 className="font-chakrapetch text-[12px] font-bold uppercase tracking-[0.12em] text-flash/55 cursor-clicker transition-colors duration-200 hover:text-flash/90"
               >
                 Contact us
-              </a>
+              </Link>
             </motion.div>
           </div>
         </div>

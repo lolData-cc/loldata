@@ -29,6 +29,7 @@ import ItemPage from "./pages/itempage";
 import ChampionPage from "./pages/championpage";
 import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
+import PatchNotesPage from "./pages/patchnotespage";
 import StreamersInfiniteCarousel from "./components/streeamerscarousel";
 import { PricingPlans } from "./components/pricingplans";
 import AuthCallback from "./auth/callback";
@@ -173,7 +174,10 @@ export function RootLayout({
         <div className={`xl:w-[65%] min-[2560px]:w-[55%] xl:px-0 w-full ${horizPad} flex flex-col items-center relative z-[1]`}>
           <Navbar sticky={navbarSticky} addOffsetSpacer={navbarSticky && !isChampDetail} fullBleed={isChampDetail} />
           <div className={`${contentMargin} w-full`}>{children}</div>
-          <Footer className="mt-32" />
+          {/* key on pathname: RootLayout persists across navigations, so the
+              footer would otherwise reveal only once for the whole session.
+              Remounting it per route re-arms its scroll-in entrance animation. */}
+          <Footer key={pathname} className="mt-32" />
         </div>
       </div>
     </>
@@ -195,6 +199,7 @@ function App() {
             <HardwareAccelerationWarning />
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
+              <Route path="/patch-notes" element={<RootLayout><PatchNotesPage /></RootLayout>} />
               <Route path="/summoners/:region/:slug/season" element={<RootLayout><SeasonPage /></RootLayout>} />
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
               <Route path="/dashboard/:tab?" element={<AuthGuard ><DashboardPage /></AuthGuard >} />

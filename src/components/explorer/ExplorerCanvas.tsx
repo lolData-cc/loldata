@@ -11,7 +11,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./explorer.css";
-import { Play, Loader2, X, Plus, Minus, Maximize, Eraser, Maximize2, BookmarkPlus, Check, Layers, Trash2, ChevronRight } from "lucide-react";
+import { Play, Loader2, X, Plus, Minus, Maximize, Eraser, Maximize2, BookmarkPlus, Check, Layers, Trash2, ChevronRight, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { showCyberToast } from "@/lib/toast-utils";
 import { DiamondButton } from "@/components/ui/diamond-button";
@@ -25,6 +25,7 @@ import { MiniBuildPath } from "./MiniBuildPath";
 import { CyberTip } from "./CyberTip";
 import { isSnapshottable, isSaved, getSnapshots, saveSnapshot, deleteSnapshot, graphToCanvas, type Snapshot } from "./snapshots";
 import type { ExplorerGraph, QueryResult, PatchVariationRow } from "./types";
+import { ExplorerTutorial } from "@/components/explorer-tutorial";
 
 const DEFAULTS: Record<string, Record<string, unknown>> = {
   subject: { champion: "", role: "" },
@@ -73,6 +74,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
   const [expanded, setExpanded] = useState(false); // deep-dive overlay
   const [snapshots, setSnapshots] = useState<Snapshot[]>(() => getSnapshots());
   const [snapsOpen, setSnapsOpen] = useState(false); // saved-snapshots list
+  const [tutorialOpen, setTutorialOpen] = useState(false); // "what's that?" explorer tutorial
   const idRef = useRef(10);
   // touch long-press → opens the same context menu as desktop right-click
   // (so you can add a submodule by holding on empty canvas on a phone)
@@ -325,6 +327,11 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             <div className="hidden lg:block rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
               <button onClick={clearCanvas} aria-label="Clear canvas" title="Clear canvas" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-error hover:bg-error/10 transition-colors cursor-clicker"><Eraser size={13} /></button>
             </div>
+            {/* what's that? — same box chrome as clear, but jade hover since it's
+                informational; opens the Explorer tutorial (desktop only). */}
+            <div className="hidden lg:block rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+              <button onClick={() => setTutorialOpen(true)} aria-label="What's this?" title="What's this?" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><HelpCircle size={14} /></button>
+            </div>
             {/* saved snapshots — appears once at least one snapshot exists */}
             {snapshots.length > 0 && (
               <div className="rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
@@ -484,6 +491,15 @@ function Canvas({ onBack }: { onBack?: () => void }) {
           </div>
         </>
       )}
+
+      {/* "What's that?" — the Explorer tutorial, opened from the help control.
+          We're already on /learn/explorer, so DIVE INTO IT just closes it. */}
+      <ExplorerTutorial
+        open={tutorialOpen}
+        champion="Ahri"
+        onClose={() => setTutorialOpen(false)}
+        onDive={() => setTutorialOpen(false)}
+      />
     </div>
   );
 }

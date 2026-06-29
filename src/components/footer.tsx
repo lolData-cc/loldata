@@ -1,26 +1,49 @@
-// import { useEffect, useState } from "react"
+import { useRef } from "react"
 import { Link } from "react-router-dom"
-// import { SearchDialog } from "@/components/searchdialog"
-// import { UserDialog } from "@/components/userdialog"
+import { motion, useInView, useReducedMotion } from "framer-motion"
 import { Separator } from "@/components/ui/separator"
 
 type FooterProps = {
     className?: string;
 };
 
+const EASE = [0.22, 1, 0.36, 1] as const
+
 export function Footer({ className = "" }: FooterProps) {
+    // The footer renders on every page via RootLayout. We hold it hidden until it
+    // scrolls into view, then play a procedural cascade: the rule draws in, then
+    // the tagline, then each column a beat after the last, then the credits.
+    const ref = useRef<HTMLDivElement>(null)
+    const inView = useInView(ref, { once: true, amount: 0.2 })
+    const reduce = useReducedMotion()
+    const show = reduce || inView
+
+    // each block fades up `delay`s after the cascade begins
+    const reveal = (delay: number, y = 14) => ({
+        initial: reduce ? false : { opacity: 0, y },
+        animate: show ? { opacity: 1, y: 0 } : { opacity: 0, y },
+        transition: { duration: 0.55, delay: reduce ? 0 : delay, ease: EASE },
+    })
+    // the separator draws out from the left rather than just fading
+    const drawLine = {
+        initial: reduce ? false : { opacity: 0, scaleX: 0 },
+        animate: show ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0 },
+        transition: { duration: 0.7, ease: EASE },
+    }
 
     return (
-        <div className={`font-jetbrains z-50 w-full ${className}`}>
+        <div ref={ref} className={`font-jetbrains z-50 w-full ${className}`}>
             <div className="flex flex-col">
                 <div className="flex-shrink-0">
-                    <Separator className="w-full bg-flash/10" />
+                    <motion.div className="origin-left" {...drawLine}>
+                        <Separator className="w-full bg-flash/10" />
+                    </motion.div>
                     <div className="flex flex-col md:flex-row justify-between p-4 md:p-6 mt-2 text-flash/50 gap-6 md:gap-0">
-                        <div className="text-xl md:text-2xl md:w-64">
+                        <motion.div className="text-xl md:text-2xl md:w-64" {...reveal(0.1)}>
                             The future of Improvement
-                        </div>
+                        </motion.div>
                         <div className="grid grid-cols-3 gap-6 md:flex md:justify-between md:gap-24">
-                            <div className="flex flex-col text-sm gap-2">
+                            <motion.div className="flex flex-col text-sm gap-2" {...reveal(0.18)}>
                                 <span className="text-flash/20 ">
                                     PARTNERS
                                 </span>
@@ -30,8 +53,8 @@ export function Footer({ className = "" }: FooterProps) {
                                     <span> Pros </span>
                                 </ul>
 
-                            </div>
-                            <div className="flex flex-col text-sm gap-2">
+                            </motion.div>
+                            <motion.div className="flex flex-col text-sm gap-2" {...reveal(0.24)}>
                                 <span className="text-flash/20 ">
                                     RESOURCES
                                 </span>
@@ -41,8 +64,8 @@ export function Footer({ className = "" }: FooterProps) {
                                     <Link to="/contact" className="hover:text-flash/80"> Contact </Link>
                                 </ul>
 
-                            </div>
-                            <div className="flex flex-col text-sm gap-2">
+                            </motion.div>
+                            <motion.div className="flex flex-col text-sm gap-2" {...reveal(0.3)}>
                                 <span className="text-flash/20 ">
                                     PRODUCT
                                 </span>
@@ -53,17 +76,17 @@ export function Footer({ className = "" }: FooterProps) {
                                     <Link to="/privacy" className="cursor-clicker hover:text-flash/80">Privacy</Link>
                                 </ul>
 
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
-                <div className="mt-auto w-full flex flex-col justify-center items-center mb-6 gap-4">
+                <motion.div className="mt-auto w-full flex flex-col justify-center items-center mb-6 gap-4" {...reveal(0.4)}>
                     <ul className="flex items-center justify-center gap-6">
-                        <Link to="https://discord.gg/SNjKYbdXzG" className="flex-shrink-0">
+                        <a href="https://discord.com/invite/loldata" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#6E7173" viewBox="0 0 16 16" className="cursor-clicker text-jade">
                                 <path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612" />
                             </svg>
-                        </Link>
+                        </a>
                         <svg
                             role="img"
                             viewBox="0 0 24 24"
@@ -77,7 +100,7 @@ export function Footer({ className = "" }: FooterProps) {
                     <span className="text-xs w-[90%] md:w-[70%] text-flash/50 text-center">
                         © 2025 loldata.cc is not affiliated with or endorsed by Riot Games. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. All game content is © Riot Games, Inc.
                     </span>
-                </div>
+                </motion.div>
 
             </div>
 

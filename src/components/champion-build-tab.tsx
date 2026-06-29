@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/authcontext"
-import { BOX_API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampSplash, summonerSpellUrl, PERK_CDN } from "@/config"
+import { BOX_API_BASE_URL, cdnBaseUrl, summonerSpellUrl, PERK_CDN } from "@/config"
 import { getKeystoneIcon, getStyleIcon, getKeystoneName } from "@/constants/runes"
 import { useRuneTrees } from "@/constants/runeData"
 import type { RuneInfo, RuneTree } from "@/constants/rune-tree-data"
 import { RoleTopIcon, RoleJungleIcon, RoleMidIcon, RoleAdcIcon, RoleSupportIcon } from "@/components/ui/roleicons"
 import { ChampionDialog } from "@/components/champion-dialog"
 import type { Champion } from "@/hooks/useChampions"
-import { Swords, ChevronDown, Lock, ArrowRight } from "lucide-react"
+import { Swords, ChevronDown, Lock, ArrowRight, HelpCircle } from "lucide-react"
+import { ExplorerTutorial } from "@/components/explorer-tutorial"
 import { motion, AnimatePresence } from "framer-motion"
 import { CyberTip } from "@/components/explorer/CyberTip"
+import { PatchTag } from "@/components/patch-tag"
 import { cn } from "@/lib/utils"
 
 const FILTER_REGIONS: { key: string; label: string }[] = [
@@ -82,6 +84,9 @@ const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th"]
 const ORD_WORD = ["", "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH"]
 
 // Stat shards (not in runesReforged) — standard 3 rows, served from StatMods.
+// NB: Riot's icon FILES are misnamed — "HealthScalingIcon" is the PLAIN heart (flat
+// +Health), "HealthPlusIcon" is the heart-with-up-arrow (scales with level). So by
+// ARTWORK: flat Health (5011) → HealthScaling file, Health Scaling (5001) → HealthPlus file.
 const SHARD_ROWS: { id: number; icon: string; name: string }[][] = [
   [
     { id: 5008, icon: "StatModsAdaptiveForceIcon.png", name: "Adaptive Force" },
@@ -91,12 +96,12 @@ const SHARD_ROWS: { id: number; icon: string; name: string }[][] = [
   [
     { id: 5008, icon: "StatModsAdaptiveForceIcon.png", name: "Adaptive Force" },
     { id: 5010, icon: "StatModsMovementSpeedIcon.png", name: "Move Speed" },
-    { id: 5001, icon: "StatModsHealthScalingIcon.png", name: "Health Scaling" },
+    { id: 5001, icon: "StatModsHealthPlusIcon.png", name: "Health Scaling" },
   ],
   [
-    { id: 5011, icon: "StatModsHealthPlusIcon.png", name: "Health" },
+    { id: 5011, icon: "StatModsHealthScalingIcon.png", name: "Health" },
     { id: 5013, icon: "StatModsTenacityIcon.png", name: "Tenacity" },
-    { id: 5001, icon: "StatModsHealthScalingIcon.png", name: "Health Scaling" },
+    { id: 5001, icon: "StatModsHealthPlusIcon.png", name: "Health Scaling" },
   ],
 ]
 
@@ -113,15 +118,18 @@ function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: st
 function ItemIcon({ id, size = 44, names }: { id: number; size?: number; names: Record<number, string> }) {
   return (
     <CyberTip tip={names[id] ?? String(id)}>
-      <img
-        src={`${cdnBaseUrl()}/img/item/${id}.png`}
-        alt={names[id] ?? String(id)}
-        width={size}
-        height={size}
-        loading="lazy"
-        className="rounded-md ring-1 ring-flash/10 bg-black/30"
-        onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
-      />
+      <span className="relative inline-block">
+        <img
+          src={`${cdnBaseUrl()}/img/item/${id}.png`}
+          alt={names[id] ?? String(id)}
+          width={size}
+          height={size}
+          loading="lazy"
+          className="rounded-md ring-1 ring-flash/10 bg-black/30"
+          onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
+        />
+        <PatchTag kind="item" id={id} />
+      </span>
     </CyberTip>
   )
 }
@@ -539,32 +547,7 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
   const trees = useRuneTrees()
   const { session } = useAuth()
   const navigate = useNavigate()
-
-  // Random skin splash for the Explorer "ad" banner. The CDN's per-champ skin
-  // list is a bogus 0..80 stub, so we can't trust it — instead we PROBE: try
-  // shuffled skin numbers via a hidden Image (a miss is just a tiny 404) and
-  // swap the banner to the first one that actually loads. The base splash shows
-  // meanwhile, so there's no flicker through the misses and only one real image
-  // is ever downloaded.
-  const [bannerSplash, setBannerSplash] = useState("")
-  useEffect(() => {
-    if (!champ?.id) return
-    const norm = normalizeChampSplash(champ.id)
-    setBannerSplash(cdnSplashUrl(norm, 0))
-    let cancelled = false
-    const cands = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20].sort(() => Math.random() - 0.5)
-    let idx = 0
-    const tryNext = () => {
-      if (cancelled || idx >= cands.length) return // exhausted → keep base splash
-      const n = cands[idx++]
-      const probe = new Image()
-      probe.onload = () => { if (!cancelled) setBannerSplash(cdnSplashUrl(norm, n)) }
-      probe.onerror = tryNext
-      probe.src = cdnSplashUrl(norm, n)
-    }
-    tryNext()
-    return () => { cancelled = true }
-  }, [champ?.id])
+  const [showTutorial, setShowTutorial] = useState(false)
 
   useEffect(() => {
     fetch(`${cdnBaseUrl()}/data/en_US/item.json`)
@@ -882,17 +865,17 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
 
       {/* ── Explorer "ad" — full-bleed banner, between the build & the deep stats ── */}
       <div className="relative w-screen left-1/2 -translate-x-1/2 mt-8 h-[150px] sm:h-[170px] overflow-hidden">
-        {/* random skin splash */}
-        {bannerSplash && (
-          <img
-            src={bannerSplash}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover object-[center_25%] select-none pointer-events-none"
-            onError={(e) => { if (champ?.id) e.currentTarget.src = cdnSplashUrl(normalizeChampSplash(champ.id), 0) }}
-          />
-        )}
+        {/* fixed Katarina splash — banner art locked for every champion's Explorer ad.
+            only a hair past cover (keeps her body in frame, not a face crop), panned right to bring her near-centre, focus high */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 select-none pointer-events-none bg-no-repeat"
+          style={{
+            backgroundImage: "url('https://cdn2.loldata.cc/img/champion/splash/Katarina_1.jpg')",
+            backgroundSize: "120% auto",
+            backgroundPosition: "100% 14%",
+          }}
+        />
         {/* horizontal scrim: solid brand on the left so the copy stays readable */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#040A0C] via-[#040A0C]/85 to-[#040A0C]/15" />
         {/* soft top + bottom shadow fades — melt the band into the page (no hard border) */}
@@ -919,26 +902,42 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
               </p>
             </div>
 
-            {/* the button (kept) — now over the splash, so a touch more presence */}
-            <button
-              type="button"
-              onClick={() => navigate(session ? "/learn/explorer" : "/login?redirect=/learn/explorer")}
-              className={cn(
-                "group inline-flex items-center gap-2 shrink-0 rounded-md px-4 py-2 font-chakrapetch font-bold text-[11px] uppercase tracking-[0.16em] transition-colors cursor-pointer backdrop-blur-sm",
-                session
-                  ? "bg-jade/20 text-jade border border-jade/40 hover:bg-jade/30 shadow-[0_0_24px_rgba(0,217,146,0.25)]"
-                  : "bg-black/40 text-flash/80 border border-flash/25 hover:text-flash hover:border-flash/40"
-              )}
-            >
-              {session ? (
-                <>Open Explorer <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>
-              ) : (
-                <><Lock className="h-3.5 w-3.5" /> Login to access</>
-              )}
-            </button>
+            {/* buttons — "what's that?" tutorial (left) + the explorer redirect; items-stretch makes both the same height */}
+            <div className="flex shrink-0 items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => setShowTutorial(true)}
+                className="group inline-flex items-center justify-center gap-1.5 min-w-[176px] rounded-md bg-black/40 px-4 py-2 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.16em] text-flash/70 backdrop-blur-sm shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] transition-[color,box-shadow] hover:text-flash hover:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.22)] cursor-pointer"
+              >
+                <HelpCircle className="h-3.5 w-3.5" /> What's that?
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(session ? "/learn/explorer" : "/login?redirect=/learn/explorer")}
+                className={cn(
+                  "group inline-flex items-center justify-center gap-2 min-w-[176px] shrink-0 rounded-md px-4 py-2 font-chakrapetch font-bold text-[11px] uppercase tracking-[0.16em] transition-colors cursor-pointer backdrop-blur-sm",
+                  session
+                    ? "bg-jade/20 text-jade border border-jade/40 hover:bg-jade/30 shadow-[0_0_24px_rgba(0,217,146,0.25)]"
+                    : "bg-black/40 text-flash/80 border border-flash/25 hover:text-flash hover:border-flash/40"
+                )}
+              >
+                {session ? (
+                  <>Open Explorer <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>
+                ) : (
+                  <><Lock className="h-3.5 w-3.5" /> Login to access</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      <ExplorerTutorial
+        open={showTutorial}
+        champion={name}
+        onClose={() => setShowTutorial(false)}
+        onDive={() => navigate(session ? "/learn/explorer" : "/login?redirect=/learn/explorer")}
+      />
 
       {/* ── Deep stats: Performance · Laning · Win Rate by Length ── */}
       {statsData?.stats && statsData.stats.games > 0 && (

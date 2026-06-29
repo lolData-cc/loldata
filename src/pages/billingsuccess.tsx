@@ -38,6 +38,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/context/authcontext"
+import { BOX_API_BASE_URL } from "@/config"
 import { LoldataCard3D } from "@/components/ui/loldata-card-3d"
 
 const EASE_BRAND = [0.22, 1, 0.36, 1] as const
@@ -300,7 +301,9 @@ export default function BillingSuccessPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams] = useSearchParams()
   const sessionId = searchParams.get("session_id")
-  const { plan, refreshProfile } = useAuth()
+  const { plan, refreshProfile, session } = useAuth()
+  // AI credit balance to print on the card (granted by the webhook at purchase).
+  const [cardCredits, setCardCredits] = React.useState<number | null>(null)
 
   // Poll the profile until the webhook flips the plan to the paid
   // tier. Until then we render Premium perks as the optimistic
@@ -325,6 +328,25 @@ export default function BillingSuccessPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Pull the AI credit balance for the card face. Re-fetches when the plan flips
+  // (the webhook grants the allotment), so the card shows the fresh number.
+  React.useEffect(() => {
+    const token = session?.access_token
+    if (!token) return
+    let alive = true
+    fetch(`${BOX_API_BASE_URL}/api/ai/credits`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && typeof d.credits === "number") setCardCredits(d.credits)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [session, plan])
+
   const isElite = plan === "elite"
   const planLabel = isElite ? "Premium" : "Premium" // intentional — Elite shows "Premium" as the visible plan word for branding parity, the unlock count tells the user it's the big tier
   const planFullLabel = isElite ? "Elite" : "Premium"
@@ -346,6 +368,7 @@ export default function BillingSuccessPage() {
         <HeroSection
           planLabel={planFullLabel}
           reduceMotion={!!reduceMotion}
+          credits={cardCredits}
         />
 
         <PerksTimeline perks={perks} reduceMotion={!!reduceMotion} />
@@ -402,9 +425,11 @@ function AmbientLayer() {
 function HeroSection({
   planLabel,
   reduceMotion,
+  credits,
 }: {
   planLabel: string
   reduceMotion: boolean
+  credits?: number | null
 }) {
   const [started, setStarted] = React.useState(reduceMotion)
   React.useEffect(() => {
@@ -529,7 +554,7 @@ function HeroSection({
           />
         </div>
 
-        <LoldataCard3D height="100%" />
+        <LoldataCard3D height="100%" credits={credits} />
       </motion.div>
 
       {/* ── BELOW the card. */}

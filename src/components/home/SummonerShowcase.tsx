@@ -7,8 +7,12 @@
 // like an advertising product shot (left edge deeper than the right) and the
 // cards slide up into place one at a time on scroll.
 
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Swords, Crosshair, Radio, Users } from "lucide-react";
+import { ScoutTutorial } from "@/components/scout-tutorial";
 import {
   Showcase,
   Eyebrow,
@@ -106,6 +110,8 @@ const MATCHES: MatchCardData[] = [
 ];
 
 export function SummonerShowcase({ id }: { id?: string }) {
+  const navigate = useNavigate();
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   return (
     <Showcase id={id} mock={<MatchCardStack />}>
       <Eyebrow>Summoner intelligence</Eyebrow>
@@ -117,8 +123,14 @@ export function SummonerShowcase({ id }: { id?: string }) {
       <Lead>
         Search any Riot ID for the whole picture — every game broken down to
         runes, items, KDA and the full scoreboard. Then spin up a{" "}
-        <span className="text-flash/80">Scout lobby</span> to track a whole squad,
-        live, every match.
+        <button
+          type="button"
+          onClick={() => setTutorialOpen(true)}
+          className="scout-cta inline cursor-clicker bg-transparent p-0 align-baseline font-semibold text-jade underline decoration-jade/40 underline-offset-[3px] transition-colors hover:decoration-jade"
+        >
+          Scout lobby
+        </button>{" "}
+        to track a whole squad, live, every match.
       </Lead>
       <Bullets
         items={[
@@ -131,6 +143,18 @@ export function SummonerShowcase({ id }: { id?: string }) {
       <motion.div variants={up} className="pt-1">
         <GhostLink onClick={openSearch}>Search a summoner</GhostLink>
       </motion.div>
+
+      {createPortal(
+        <>
+          <style>{`@keyframes scoutCtaGlow{0%,100%{text-shadow:0 0 6px rgba(0,217,146,0.35)}50%{text-shadow:0 0 16px rgba(0,217,146,0.9),0 0 4px rgba(0,217,146,0.7)}}.scout-cta{animation:scoutCtaGlow 1.8s ease-in-out infinite}`}</style>
+          <ScoutTutorial
+            open={tutorialOpen}
+            onClose={() => setTutorialOpen(false)}
+            onDive={() => navigate("/scout/new")}
+          />
+        </>,
+        document.body,
+      )}
     </Showcase>
   );
 }

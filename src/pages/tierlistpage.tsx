@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 // same source as the champion-page hero tier. The old API_BASE_URL (api.loldata.cc /
 // Railway) still serves a separate all-time tier list, which disagreed with the hero.
 import { BOX_API_BASE_URL as API_BASE_URL, cdnBaseUrl, cdnSplashUrl, normalizeChampName, normalizeChampSplash, champDisplayName } from "@/config"
+import { PatchTag } from "@/components/patch-tag"
 import { Skeleton } from "@/components/ui/skeleton"
 import splashPositionMap from "@/converters/splashPositionMap"
 import {
@@ -378,6 +379,7 @@ function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: 
           )}
           loading="lazy"
         />
+        <PatchTag kind="champion" id={name} corner="tl" size={14} />
         {/* Rank badge */}
         <span className={cn(
           "absolute -top-1 -right-1 text-[6px] font-mono font-black leading-none px-[3px] py-[1px] rounded-[2px]",

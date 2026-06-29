@@ -156,7 +156,7 @@ export default function PrivacyPolicyPage() {
           <p>
             If you have questions about this Privacy Policy or wish to exercise your data rights,
             you can reach us through our{" "}
-            <a href="https://discord.gg/SNjKYbdXzG" target="_blank" rel="noopener noreferrer" className="text-jade/60 hover:text-jade transition-colors underline underline-offset-2">
+            <a href="https://discord.com/invite/loldata" target="_blank" rel="noopener noreferrer" className="text-jade/60 hover:text-jade transition-colors underline underline-offset-2">
               Discord server
             </a>.
           </p>

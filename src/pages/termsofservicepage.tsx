@@ -152,7 +152,7 @@ export default function TermsOfServicePage() {
         <LegalSection n={12} title="Contact Us">
           <p>
             If you have questions about these Terms of Service, please reach out through our{" "}
-            <a href="https://discord.gg/SNjKYbdXzG" target="_blank" rel="noopener noreferrer" className="text-jade/60 hover:text-jade transition-colors underline underline-offset-2">
+            <a href="https://discord.com/invite/loldata" target="_blank" rel="noopener noreferrer" className="text-jade/60 hover:text-jade transition-colors underline underline-offset-2">
               Discord server
             </a>.
           </p>

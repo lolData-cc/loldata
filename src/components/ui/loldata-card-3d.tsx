@@ -24,6 +24,7 @@ import {
   Environment,
   ContactShadows,
   Bounds,
+  Text,
 } from "@react-three/drei"
 import * as THREE from "three"
 
@@ -44,12 +45,14 @@ function CardScene({
   bobSpeed,
   baseTiltX,
   baseTiltZ,
+  credits,
 }: {
   spinSpeed: number
   bobAmplitude: number
   bobSpeed: number
   baseTiltX: number
   baseTiltZ: number
+  credits?: number | null
 }) {
   const spinRef = React.useRef<THREE.Group>(null)
   const { scene } = useGLTF(MODEL_PATH)
@@ -58,11 +61,14 @@ function CardScene({
   // cached useGLTF result) and translate it so its world-space
   // bounding-box centre sits at (0,0,0) of its own object space.
   // After this, attaching it inside any parent group means its
-  // visual centre coincides with that group's pivot.
-  const cloned = React.useMemo(() => {
+  // visual centre coincides with that group's pivot. We also work out
+  // where the front FACE is (thinnest axis = card thickness) so the
+  // credit number can be printed just proud of it.
+  const built = React.useMemo(() => {
     const c = scene.clone(true)
     const box = new THREE.Box3().setFromObject(c)
     const centre = box.getCenter(new THREE.Vector3())
+    const size = box.getSize(new THREE.Vector3())
     c.position.sub(centre)
 
     // Crisp the metal — Meshy ships a sensible PBR baseline but the
@@ -80,7 +86,30 @@ function CardScene({
         m.needsUpdate = true
       }
     })
-    return c
+
+    // The thinnest dimension is the card thickness; its two big faces
+    // are perpendicular to that axis. Park the text just off the +face.
+    const dims: [number, number, number] = [size.x, size.y, size.z]
+    const thin = dims.indexOf(Math.min(dims[0], dims[1], dims[2]))
+    const half = dims[thin] / 2
+    const eps = dims[thin] * 0.08 + 0.002
+    const bigs = dims.filter((_, i) => i !== thin)
+    const fontSize = Math.min(bigs[0], bigs[1]) * 0.26
+    let textPos: [number, number, number] = [0, 0, half + eps]
+    let textRot: [number, number, number] = [0, 0, 0]
+    let backRot: [number, number, number] = [0, Math.PI, 0]
+    if (thin === 0) {
+      textPos = [half + eps, 0, 0]
+      textRot = [0, Math.PI / 2, 0]
+      backRot = [0, -Math.PI / 2, 0]
+    } else if (thin === 1) {
+      textPos = [0, half + eps, 0]
+      textRot = [-Math.PI / 2, 0, 0]
+      backRot = [Math.PI / 2, 0, 0]
+    }
+    // mirror to the opposite face so the balance is readable from both sides
+    const backPos: [number, number, number] = [-textPos[0], -textPos[1], -textPos[2]]
+    return { object: c, textPos, textRot, backPos, backRot, fontSize }
   }, [scene])
 
   useFrame((state, delta) => {
@@ -95,7 +124,41 @@ function CardScene({
     // spinRef rotates in place around the now-centred model.
     <group rotation={[baseTiltX, 0, baseTiltZ]}>
       <group ref={spinRef}>
-        <primitive object={cloned} />
+        <primitive object={built.object} />
+        {/* Credit balance printed on BOTH card faces — spins with the card so
+            it's readable from either side. */}
+        {credits != null &&
+          [
+            { p: built.textPos, r: built.textRot },
+            { p: built.backPos, r: built.backRot },
+          ].map((f, i) => (
+            <group key={i} position={f.p} rotation={f.r}>
+              <Text
+                position={[0, built.fontSize * 0.2, 0]}
+                fontSize={built.fontSize}
+                color="#00d992"
+                anchorX="center"
+                anchorY="middle"
+                outlineWidth={built.fontSize * 0.035}
+                outlineColor="#03110c"
+                material-toneMapped={false}
+              >
+                {String(credits)}
+              </Text>
+              <Text
+                position={[0, -built.fontSize * 0.42, 0]}
+                fontSize={built.fontSize * 0.24}
+                color="#00d992"
+                fillOpacity={0.7}
+                anchorX="center"
+                anchorY="middle"
+                letterSpacing={0.18}
+                material-toneMapped={false}
+              >
+                AI CREDITS
+              </Text>
+            </group>
+          ))}
       </group>
     </group>
   )
@@ -117,6 +180,8 @@ export interface LoldataCard3DProps {
   baseTiltZ?: number
   /** Bounds margin — bigger = more padding around the card. */
   margin?: number
+  /** AI credit balance to print on the card face. Omit to show nothing. */
+  credits?: number | null
 }
 
 export function LoldataCard3D({
@@ -128,6 +193,7 @@ export function LoldataCard3D({
   baseTiltX = -0.2,
   baseTiltZ = -0.05,
   margin = 1.25,
+  credits,
 }: LoldataCard3DProps) {
   return (
     <div
@@ -179,6 +245,7 @@ export function LoldataCard3D({
               bobSpeed={bobSpeed}
               baseTiltX={baseTiltX}
               baseTiltZ={baseTiltZ}
+              credits={credits}
             />
           </Bounds>
           <Environment preset="city" />

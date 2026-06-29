@@ -36,7 +36,7 @@ import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreferenc
 import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ChangePassword } from "@/components/changepassword";
 import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
-import { cdnBaseUrl, API_BASE_URL } from "@/config";
+import { cdnBaseUrl, API_BASE_URL, BOX_API_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { Loader2, CreditCard, ExternalLink, Check, Crown, Sparkles } from "lucide-react";
@@ -583,6 +583,46 @@ function BillingTabContent({ plan }: { plan: string | null }) {
           { icon: Check, label: "Complete loldata stats access" },
         ];
 
+  // AI credit balance + plan economics, folded into the membership card below.
+  const allot = isElite ? 750 : isPaid ? 150 : 3;
+  const priceLabel = isElite ? "€14.99 / month" : isPaid ? "€3.49 / month" : null;
+  const [credits, setCredits] = useState<number | null>(null);
+  const [creditReset, setCreditReset] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const r = await fetch(`${BOX_API_BASE_URL}/api/ai/credits`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (!alive) return;
+        if (typeof d.credits === "number") setCredits(d.credits);
+        if (d.resetAt) setCreditReset(d.resetAt);
+      } catch {
+        /* endpoint not live yet — show "—" */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const creditPct =
+    credits == null ? 6 : Math.max(6, Math.min(100, (credits / allot) * 100));
+  const creditUntil = (() => {
+    if (!creditReset) return null;
+    const ms = new Date(creditReset).getTime() - Date.now();
+    if (ms <= 0) return "soon";
+    const h = Math.floor(ms / 3_600_000);
+    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
+  })();
+
   return (
     <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
       <div className="space-y-2">
@@ -592,117 +632,152 @@ function BillingTabContent({ plan }: { plan: string | null }) {
         </p>
       </div>
 
-      {/* Current plan — luxury glass card with BorderBeam + jade halo. */}
+      {/* Membership — plan · AI credits · perks · actions, one cohesive frame. */}
       <motion.div
-        className="relative overflow-hidden rounded-md bg-black/45 backdrop-blur-lg saturate-150 p-6"
+        className="relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-lg saturate-150"
         style={{
           boxShadow: isPaid
-            ? "0 18px 50px rgba(0,0,0,0.6), 0 0 32px rgba(0,217,146,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
-            : "0 18px 50px rgba(0,0,0,0.55), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.04)",
+            ? "0 22px 60px rgba(0,0,0,0.6), 0 0 36px rgba(0,217,146,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
+            : "0 22px 60px rgba(0,0,0,0.55), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        {isPaid ? <BorderBeam duration={10} size={200} /> : null}
+        {isPaid ? <BorderBeam duration={10} size={220} /> : null}
 
-        {/* Jade radial glow seeping in from top-left. */}
-        {isPaid ? (
-          <div
-            aria-hidden
-            className="absolute -top-16 -left-16 w-56 h-56 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(0,217,146,0.35) 0%, transparent 70%)",
-            }}
-          />
-        ) : null}
+        {/* Top row — PLAN | AI CREDITS */}
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Plan */}
+          <div className="relative p-6 border-b md:border-b-0 md:border-r border-white/[0.07]">
+            {isPaid ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-20 -left-20 h-56 w-56"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(0,217,146,0.28) 0%, transparent 70%)",
+                }}
+              />
+            ) : null}
+            <div className="relative z-10">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-flash/45">
+                  Current plan
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em]",
+                    isPaid
+                      ? "border-jade/40 bg-jade/15 text-jade"
+                      : "border-flash/15 bg-flash/[0.05] text-flash/50"
+                  )}
+                  style={isPaid ? { boxShadow: "0 0 16px rgba(0,217,146,0.22)" } : undefined}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      isPaid ? "bg-jade animate-pulse" : "bg-flash/40"
+                    )}
+                  />
+                  {isPaid ? "Active" : "Free"}
+                </span>
+              </div>
+              <div
+                className={cn(
+                  "mt-3 font-jetbrains text-4xl font-bold tabular-nums tracking-[0.04em]",
+                  isPaid ? "text-jade" : "text-flash/85"
+                )}
+                style={
+                  isPaid
+                    ? {
+                        textShadow:
+                          "0 0 22px rgba(0,217,146,0.5), 0 0 48px rgba(0,217,146,0.2)",
+                      }
+                    : undefined
+                }
+              >
+                {displayPlan}
+              </div>
+              <div className="mt-2 font-jetbrains text-[12px] text-flash/55">
+                {priceLabel ? (
+                  <>
+                    <span className="text-flash/80">{priceLabel}</span>
+                    <span className="text-flash/40"> · billed via Stripe</span>
+                  </>
+                ) : (
+                  "No active subscription"
+                )}
+              </div>
+            </div>
+          </div>
 
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] font-mono tracking-[0.25em] uppercase text-flash/45 mb-2">
-              Current plan
+          {/* AI credits */}
+          <div className="relative p-6 bg-jade/[0.03]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-flash/45">
+                <Sparkles className="h-3 w-3 text-jade" /> AI credits
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-flash/35">
+                1 / question
+              </span>
             </div>
-            <div
-              className={cn(
-                "font-jetbrains font-bold text-3xl md:text-4xl tabular-nums tracking-[0.04em]",
-                isPaid ? "text-jade" : "text-flash/85"
-              )}
-              style={
-                isPaid
-                  ? {
-                      textShadow:
-                        "0 0 22px rgba(0,217,146,0.55), 0 0 48px rgba(0,217,146,0.22)",
-                    }
-                  : undefined
-              }
-            >
-              {displayPlan}
+            <div className="mt-3 flex items-baseline gap-1.5">
+              <span
+                className="font-jetbrains text-4xl font-bold tabular-nums tracking-[0.04em] text-jade"
+                style={{ textShadow: "0 0 22px rgba(0,217,146,0.45)" }}
+              >
+                {credits ?? "—"}
+              </span>
+              <span className="font-jetbrains text-lg tabular-nums text-flash/35">
+                / {allot}
+              </span>
             </div>
-            <p className="mt-3 text-[12px] text-flash/55 leading-relaxed max-w-md">
-              {isPaid
-                ? "Subscription active. Manage payment method, view invoices and cancel anytime from the secure Stripe portal."
-                : "You're on the free plan. Upgrade to unlock the AI coach, unlimited analysis, and higher scout lobby quotas."}
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-flash/[0.07]">
+              <motion.div
+                className="h-full rounded-full bg-jade"
+                style={{ boxShadow: "0 0 10px rgba(0,217,146,0.5)" }}
+                initial={{ width: 0 }}
+                animate={{ width: `${creditPct}%` }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
+            <p className="mt-2.5 font-jetbrains text-[11px] text-flash/45">
+              {isPaid ? `Refills to ${allot} monthly` : "Refills to 3 daily"}
+              {creditUntil ? ` · resets in ${creditUntil}` : ""}
             </p>
           </div>
-
-          {/* Status pill — jade for paid, neutral for free. */}
-          <motion.span
-            className={cn(
-              "shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-sm font-mono text-[10px] tracking-[0.22em] uppercase border",
-              isPaid
-                ? "bg-jade/15 border-jade/45 text-jade"
-                : "bg-flash/[0.05] border-flash/15 text-flash/50"
-            )}
-            style={
-              isPaid
-                ? { boxShadow: "0 0 18px rgba(0,217,146,0.25)" }
-                : undefined
-            }
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-          >
-            <span
-              className={cn(
-                "inline-block w-1.5 h-1.5 rounded-full",
-                isPaid ? "bg-jade animate-pulse" : "bg-flash/40"
-              )}
-            />
-            {isPaid ? "ACTIVE" : "FREE TIER"}
-          </motion.span>
         </div>
 
-        {/* Plan perks list — checkmarks of what's unlocked. Staggered
-            for the eye to read the list as items lighting up. */}
-        <div className="relative z-10 mt-6 pt-5 border-t border-flash/[0.08]">
-          <div className="text-[10px] font-mono tracking-[0.25em] uppercase text-flash/40 mb-3">
-            {isPaid ? "▸ Unlocked perks" : "▸ Free tier perks"}
+        {/* Perks */}
+        <div className="border-t border-white/[0.07] px-6 py-5">
+          <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-flash/40">
+            {isPaid ? "Included with your plan" : "Free tier includes"}
           </div>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
             {perks.map((p, i) => {
               const Icon = p.icon;
               return (
                 <motion.li
                   key={i}
-                  className="flex items-center gap-2.5 text-[12px] text-flash/75 font-jetbrains"
+                  className="flex items-center gap-2.5 font-jetbrains text-[12px] text-flash/75"
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{
                     duration: 0.35,
-                    delay: 0.25 + i * 0.05,
+                    delay: 0.2 + i * 0.04,
                     ease: [0.22, 1, 0.36, 1],
                   }}
                 >
                   <span
                     className={cn(
-                      "inline-flex items-center justify-center w-5 h-5 rounded-sm border",
+                      "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border",
                       isPaid
-                        ? "bg-jade/15 border-jade/45 text-jade"
-                        : "bg-flash/[0.05] border-flash/15 text-flash/55"
+                        ? "border-jade/40 bg-jade/15 text-jade"
+                        : "border-flash/15 bg-flash/[0.05] text-flash/55"
                     )}
                   >
-                    <Icon className="w-3 h-3" strokeWidth={2.5} />
+                    <Icon className="h-3 w-3" strokeWidth={2.5} />
                   </span>
                   <span className="truncate">{p.label}</span>
                 </motion.li>
@@ -710,56 +785,43 @@ function BillingTabContent({ plan }: { plan: string | null }) {
             })}
           </ul>
         </div>
+
+        {/* Action bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] bg-black/20 px-6 py-4">
+          {isPaid ? (
+            <motion.button
+              type="button"
+              onClick={openPortal}
+              disabled={loadingPortal}
+              whileHover={loadingPortal ? undefined : { y: -1 }}
+              transition={{ duration: 0.18 }}
+              className="group inline-flex items-center justify-center gap-2.5 rounded-sm bg-jade px-6 py-2.5 font-jetbrains text-[12px] uppercase tracking-[0.22em] text-liquirice shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)] transition-all duration-200 hover:bg-jade/95 disabled:cursor-not-allowed disabled:opacity-60 cursor-clicker"
+            >
+              {loadingPortal ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4" />
+              )}
+              {loadingPortal ? "OPENING…" : "MANAGE SUBSCRIPTION"}
+              {!loadingPortal && (
+                <ExternalLink className="h-3 w-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
+              )}
+            </motion.button>
+          ) : (
+            <Link
+              to="/pricing"
+              className="group inline-flex items-center justify-center gap-2.5 rounded-sm bg-jade px-6 py-2.5 font-jetbrains text-[12px] uppercase tracking-[0.22em] text-liquirice shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)] transition-all duration-200 hover:bg-jade/95 cursor-clicker"
+            >
+              <CreditCard className="h-4 w-4" />
+              VIEW PLANS
+              <ExternalLink className="h-3 w-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+          )}
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-flash/30">
+            Secured by Stripe · no card details stored
+          </p>
+        </div>
       </motion.div>
-
-      {/* Actions. */}
-      <div className="flex flex-wrap gap-3">
-        {isPaid ? (
-          <motion.button
-            type="button"
-            onClick={openPortal}
-            disabled={loadingPortal}
-            whileHover={loadingPortal ? undefined : { y: -1 }}
-            transition={{ duration: 0.18 }}
-            className="
-              group relative inline-flex items-center justify-center gap-2.5
-              px-6 py-2.5 rounded-sm font-jetbrains text-[12px] tracking-[0.22em] uppercase
-              text-liquirice bg-jade hover:bg-jade/95 disabled:opacity-60 disabled:cursor-not-allowed
-              shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)]
-              transition-all duration-200 cursor-clicker
-            "
-          >
-            {loadingPortal ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <CreditCard className="w-4 h-4" />
-            )}
-            {loadingPortal ? "OPENING…" : "MANAGE SUBSCRIPTION"}
-            {!loadingPortal && (
-              <ExternalLink className="w-3 h-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
-            )}
-          </motion.button>
-        ) : (
-          <Link
-            to="/pricing"
-            className="
-              group inline-flex items-center justify-center gap-2.5
-              px-6 py-2.5 rounded-sm font-jetbrains text-[12px] tracking-[0.22em] uppercase
-              text-liquirice bg-jade hover:bg-jade/95
-              shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)]
-              transition-all duration-200 cursor-clicker
-            "
-          >
-            <CreditCard className="w-4 h-4" />
-            VIEW PLANS
-            <ExternalLink className="w-3 h-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
-        )}
-      </div>
-
-      <p className="text-[10px] font-mono tracking-[0.18em] uppercase text-flash/30 leading-relaxed">
-        Payments handled by Stripe. We never store card details on our servers.
-      </p>
     </div>
   );
 }

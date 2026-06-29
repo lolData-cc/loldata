@@ -123,7 +123,7 @@ export function PricingPlans() {
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
-                    <span> 3 DAILY AI TOKENS </span>
+                    <span> 3 DAILY AI CREDITS </span>
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
@@ -200,15 +200,15 @@ export function PricingPlans() {
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
+                    <span> 150 AI CREDITS / MONTH </span>
+                  </div>
+                  <div className="flex text-xs text-flash/50 items-center gap-3">
+                    <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
                     <span> MATCHUP ANALYSIS </span>
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
                     <span> PERSONAL ITEMIZATION ANALYSIS </span>
-                  </div>
-                  <div className="flex text-xs text-flash/50 items-center gap-3">
-                    <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
-                    <span> DAILY PERFORMANCE REPORTS </span>
                   </div>
                 </div>
               </div>
@@ -276,7 +276,7 @@ export function PricingPlans() {
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />
-                    <span> COMING SOON </span>
+                    <span> 750 AI CREDITS / MONTH </span>
                   </div>
                   <div className="flex text-xs text-flash/50 items-center gap-3">
                     <Check className="w-4 h-4 bg-jade/20 text-jade p-1 rounded-full" />

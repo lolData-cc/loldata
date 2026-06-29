@@ -2429,7 +2429,12 @@ export default function SummonerPage() {
                   <div
                     className="cursor-clicker"
                     title="Click to copy"
-                    onClick={() => { if (summonerInfo) navigator.clipboard.writeText(`${summonerInfo.name}#${summonerInfo.tag}`); }}
+                    onClick={() => {
+                      if (!summonerInfo) return;
+                      const riotId = `${summonerInfo.name}#${summonerInfo.tag}`;
+                      navigator.clipboard.writeText(riotId);
+                      showCyberToast({ title: "Summoner name copied", description: riotId });
+                    }}
                   >
                     {!summonerInfo ? (
                       <Skeleton className="h-8 w-[200px] bg-white/10" />
