@@ -357,7 +357,7 @@ function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: 
       transition={{ delay: Math.min(idx * 0.02, 0.5), duration: 0.2 }}
       onClick={() => navigate(`/champions/${name}`)}
       className={cn(
-        "group relative flex flex-col items-center w-[68px] py-1.5 px-1 rounded-[3px] cursor-pointer",
+        "group relative flex flex-col items-center w-[92px] py-2.5 px-1.5 rounded-[4px] cursor-pointer",
         "bg-white/[0.03] transition-all duration-200",
         "hover:bg-white/[0.08]",
         isElite
@@ -368,43 +368,36 @@ function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: 
       )}
     >
       {/* Icon */}
-      <div className="relative mb-1">
+      <div className="relative mb-1.5">
         <img
           src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(name)}.png`}
           alt={name}
           className={cn(
-            "w-10 h-10 rounded-[2px] object-cover transition-transform duration-200 group-hover:scale-110",
+            "w-14 h-14 rounded-[3px] object-cover transition-transform duration-200 group-hover:scale-110",
             champ.tier === "S" && "ring-1 ring-amber-400/30",
             champ.tier === "A" && "ring-1 ring-jade/20",
           )}
           loading="lazy"
         />
-        <PatchTag kind="champion" id={name} corner="tl" size={14} />
-        {/* Rank badge */}
-        <span className={cn(
-          "absolute -top-1 -right-1 text-[6px] font-mono font-black leading-none px-[3px] py-[1px] rounded-[2px]",
-          champ.tier === "S" ? "bg-amber-400 text-black" : champ.tier === "A" ? "bg-jade text-black" : "bg-flash/15 text-flash/40"
-        )}>
-          {champ.tier_rank}
-        </span>
+        <PatchTag kind="champion" id={name} corner="tl" size={16} />
       </div>
 
       {/* Name */}
       <span className={cn(
-        "text-[8px] font-mono leading-tight truncate w-full text-center",
-        isElite ? "text-flash/70" : "text-flash/35"
+        "text-[10px] font-chakrapetch leading-tight truncate w-full text-center",
+        isElite ? "text-flash/80" : "text-flash/45"
       )}>
         {champDisplayName(name)}
       </span>
 
       {/* WR */}
-      <span className={cn("text-[10px] font-mono font-bold tabular-nums leading-none mt-0.5", wrColor)}>
+      <span className={cn("text-[13px] font-mono font-bold tabular-nums leading-none mt-1", wrColor)}>
         {champ.winrate.toFixed(1)}%
       </span>
 
-      {/* PR */}
-      <span className="text-[7px] font-mono text-flash/15 tabular-nums leading-none mt-0.5">
-        {champ.pickrate.toFixed(1)}% PR
+      {/* PR — readable secondary stat (its own cyan tint, bigger, chakrapetch) */}
+      <span className="text-[10px] font-chakrapetch font-medium tabular-nums leading-none mt-1 text-sky-300/70">
+        {champ.pickrate.toFixed(1)}% <span className="text-sky-300/45">PR</span>
       </span>
 
       {/* Hover tooltip */}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Link } from "react-router-dom"
-import { ArrowUp, ArrowUpRight, Square } from "lucide-react"
+import { ArrowUp, ArrowUpRight, Square, Paperclip, X, SquarePen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BOX_API_BASE_URL } from "@/config"
 import { RichGameText } from "@/components/richgametext"
@@ -39,6 +39,18 @@ type Props = {
   userContext?: AiUserContext
   /** Supabase access token — enables per-account, persisted chat history. */
   authToken?: string
+  /** A prompt to auto-send once on mount (after history hydrates). Used by the
+   *  Learn page "AI Coach" buttons to land the user here with the analysis
+   *  already running. */
+  initialPrompt?: string | null
+  /** Fired right after the initialPrompt is auto-sent, so the parent can clear
+   *  it and avoid re-sending on the next mount. */
+  onInitialPromptConsumed?: () => void
+  /** When the seeded analysis targets ONE specific game: its matchId (sent to the
+   *  backend so the my_game tool fetches that match) and its MatchCardData (shown
+   *  attached to the user's message as a card). */
+  initialMatchId?: string | null
+  initialMatchCard?: MatchCardData | null
 }
 
 // The AI agent is deployed on the box backend (api2) — used directly in both dev
@@ -164,12 +176,18 @@ function AssistantMsg({ text, actions, embeds, instant }: { text: string; action
   )
 }
 
-function UserMsg({ text }: { text: string }) {
+function UserMsg({ text, embeds }: { text: string; embeds?: AiEmbed[] }) {
   return (
-    <motion.div {...enter} className="flex justify-end">
+    <motion.div {...enter} className="flex flex-col items-end gap-2.5">
       <p className="max-w-[80%] whitespace-pre-wrap rounded-[18px] rounded-br-md bg-flash/[0.06] px-4 py-2.5 font-chakrapetch text-[14.5px] font-light leading-relaxed text-flash/80">
         <RichGameText text={text} />
       </p>
+      {/* Attached game card (when the user sent a game for analysis from YOUR GAMES). */}
+      {embeds?.map((e, i) => (
+        <div key={i} className="w-full">
+          <EmbedRenderer embed={e} />
+        </div>
+      ))}
     </motion.div>
   )
 }
@@ -208,6 +226,10 @@ export default function LoldataAIChat({
   apiUrl = DEFAULT_API_URL,
   userContext,
   authToken,
+  initialPrompt,
+  onInitialPromptConsumed,
+  initialMatchId,
+  initialMatchCard,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
@@ -218,6 +240,8 @@ export default function LoldataAIChat({
   const [credits, setCredits] = useState<number | null>(null)
   const [creditReset, setCreditReset] = useState<string | null>(null)
   const [creditPlan, setCreditPlan] = useState<string>("free")
+  // A game pinned to the input ("Attach to chat") so the next message asks about it.
+  const [attachedMatch, setAttachedMatch] = useState<{ matchId: string | null; card: MatchCardData } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const stickRef = useRef(true)
@@ -315,7 +339,7 @@ export default function LoldataAIChat({
     setMessages((p) => [...p, { id: crypto.randomUUID(), createdAt: Date.now(), ...m }])
   }
 
-  async function send(prompt: string) {
+  async function send(prompt: string, opts?: { matchId?: string | null }) {
     const controller = new AbortController()
     setAbortCtrl(controller)
     setLoading(true)
@@ -335,7 +359,10 @@ export default function LoldataAIChat({
           "Content-Type": "application/json",
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
-        body: JSON.stringify({ messages: history, userContext }),
+        body: JSON.stringify({
+          messages: history,
+          userContext: opts?.matchId ? { ...userContext, matchId: opts.matchId } : userContext,
+        }),
         signal: controller.signal,
       })
 
@@ -389,7 +416,12 @@ export default function LoldataAIChat({
     if (!t || loading || credits === 0) return
     push({ role: "user", content: t })
     setInput("")
-    send(t)
+    // The pinned game (if any) rides on every message so the AI always analyzes
+    // THIS game. The pin is STICKY — it stays until the user clears it (×) or
+    // attaches another game — so follow-up questions keep working and the chip
+    // above the input always shows which game is attached. (No silent reuse of an
+    // old game from history: if a game is pinned, its matchId is always sent.)
+    send(t, attachedMatch ? { matchId: attachedMatch.matchId } : undefined)
   }
   function pick(q: string) {
     if (loading || credits === 0) return
@@ -400,6 +432,46 @@ export default function LoldataAIChat({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       submit()
+    }
+  }
+
+  // Consume a seeded game/prompt from the Learn "AI Coach" buttons after history
+  // hydrates. Keyed by matchId+prompt (NOT a one-shot boolean) so attaching a
+  // DIFFERENT game later is always picked up — even if the chat doesn't remount.
+  // The pinned game is sticky (see submit): it stays attached until the user
+  // clears or replaces it, so the matchId rides on every message about it.
+  const lastSeedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!hydrated) return
+    if (!initialPrompt && !initialMatchId && !initialMatchCard) return
+    const seedKey = `${initialMatchId ?? ""}|${initialPrompt ?? ""}`
+    if (lastSeedRef.current === seedKey) return
+    lastSeedRef.current = seedKey
+    // Pin the game so it stays attached for follow-ups and the chip shows it.
+    if (initialMatchCard) setAttachedMatch({ matchId: initialMatchId ?? null, card: initialMatchCard })
+    if (initialPrompt) {
+      // Analysis button: auto-send the prompt with the game's card attached.
+      push({
+        role: "user",
+        content: initialPrompt,
+        embeds: initialMatchCard ? [{ type: "match_card" as const, data: initialMatchCard }] : undefined,
+      })
+      send(initialPrompt, { matchId: initialMatchId })
+    }
+    onInitialPromptConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, initialPrompt, initialMatchId, initialMatchCard])
+
+  // Clear the conversation: wipe the on-screen thread, unpin any attached game,
+  // and delete this account's persisted history server-side so it doesn't rehydrate.
+  function newChat() {
+    if (loading) return
+    setMessages([])
+    setAttachedMatch(null)
+    setInput("")
+    lastSeedRef.current = null
+    if (authToken) {
+      fetch(historyUrl, { method: "DELETE", headers: { Authorization: `Bearer ${authToken}` } }).catch(() => {})
     }
   }
 
@@ -448,7 +520,7 @@ export default function LoldataAIChat({
               <div key="thread" className="flex flex-col gap-7 py-6">
                 {messages.map((m) =>
                   m.role === "user" ? (
-                    <UserMsg key={m.id} text={m.content} />
+                    <UserMsg key={m.id} text={m.content} embeds={m.embeds} />
                   ) : m.role === "error" ? (
                     <ErrorMsg key={m.id} text={m.content} />
                   ) : (
@@ -467,25 +539,62 @@ export default function LoldataAIChat({
         {/* AI cost / balance — always shows the per-message cost so it's visible
             even before the credits endpoint is live; appends the live balance once
             it's reachable. */}
-        <div className="mb-2 flex items-center justify-end gap-2 pr-1 font-chakrapetch text-[11px] font-light tracking-wide">
-          <span className="text-flash/25">1 credit / question</span>
-          {credits !== null && (
-            <>
-              <span className="text-flash/15">·</span>
-              <span className={credits === 0 ? "text-[#ff6286]/80" : "text-flash/45"}>
-                <span className={credits === 0 ? "text-[#ff6286]/80" : "text-jade/70"}>◇</span> {credits} left
-              </span>
-              {credits === 0 && (
-                <Link
-                  to="/pricing"
-                  className="font-semibold text-jade/85 underline decoration-jade/30 underline-offset-2 transition-colors hover:text-jade cursor-clicker"
-                >
-                  Get more
-                </Link>
-              )}
-            </>
+        <div className="mb-2 flex items-center justify-between gap-2 px-1 font-chakrapetch text-[11px] font-light tracking-wide">
+          {/* New chat — wipes the thread + this account's saved history. */}
+          {!empty ? (
+            <button
+              type="button"
+              onClick={newChat}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-flash/35 transition-colors duration-200 hover:text-jade disabled:opacity-40 cursor-clicker"
+            >
+              <SquarePen size={12} strokeWidth={1.75} />
+              New chat
+            </button>
+          ) : (
+            <span />
           )}
+          <div className="flex items-center gap-2">
+            <span className="text-flash/25">1 credit / question</span>
+            {credits !== null && (
+              <>
+                <span className="text-flash/15">·</span>
+                <span className={credits === 0 ? "text-[#ff6286]/80" : "text-flash/45"}>
+                  <span className={credits === 0 ? "text-[#ff6286]/80" : "text-jade/70"}>◇</span> {credits} left
+                </span>
+                {credits === 0 && (
+                  <Link
+                    to="/pricing"
+                    className="font-semibold text-jade/85 underline decoration-jade/30 underline-offset-2 transition-colors hover:text-jade cursor-clicker"
+                  >
+                    Get more
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
         </div>
+        {/* Pinned game ("Attach to chat") — the next message asks about it. */}
+        {attachedMatch && (
+          <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-jade/25 bg-jade/[0.06] px-3 py-1.5 font-chakrapetch text-[12px] text-flash/70">
+            <Paperclip size={13} className="text-jade/70" />
+            <span>
+              Attached: <span className="font-semibold text-flash/90">{attachedMatch.card.championName}</span>{" "}
+              <span className={attachedMatch.card.win ? "text-jade/80" : "text-[#ff6286]/80"}>
+                {attachedMatch.card.win ? "win" : "loss"}
+              </span>{" "}
+              — ask anything about it
+            </span>
+            <button
+              type="button"
+              onClick={() => setAttachedMatch(null)}
+              className="ml-auto grid h-5 w-5 place-items-center rounded-full text-flash/40 transition-colors hover:bg-flash/10 hover:text-flash/80 cursor-clicker"
+              aria-label="Remove attached game"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
         <div
           className={cn(
             "flex items-end gap-2 rounded-[20px] border px-3 py-2 transition-all duration-300",
@@ -500,7 +609,7 @@ export default function LoldataAIChat({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
             rows={1}
-            placeholder={ph}
+            placeholder={attachedMatch ? "Ask anything about this attached game…" : ph}
             className="max-h-[168px] flex-1 resize-none border-0 bg-transparent py-1.5 font-chakrapetch text-[14.5px] font-light leading-relaxed text-flash/90 outline-none scrollbar-hide placeholder:text-flash/25 caret-jade"
           />
           {loading ? (

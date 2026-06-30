@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TalentLinkManager } from "./talent-link-manager";
 import { supabase } from "@/lib/supabaseClient";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,6 +74,7 @@ export function StreamerAdminPanel() {
   // ── Delete dialog
   const [deleteTarget, setDeleteTarget] = useState<StreamerRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [manageStreamer, setManageStreamer] = useState<StreamerRow | null>(null);
 
   /* ── Derived ─────────────────────────────────────────────────────── */
 
@@ -340,7 +342,8 @@ export function StreamerAdminPanel() {
                     </td>
                     <td className={tdCls}>{new Date(s.created_at).toLocaleDateString()}</td>
                     <td className={tdCls}>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setManageStreamer(s)} className="text-[10px] font-mono px-2 py-1 rounded-sm border border-jade/30 text-jade/80 hover:bg-jade/10 cursor-clicker">LINKS</button>
                         <button type="button" onClick={() => setDeleteTarget(s)} className={btnDanger}>DELETE</button>
                       </div>
                     </td>
@@ -353,6 +356,20 @@ export function StreamerAdminPanel() {
       </GlassCard>
 
       {/* ═══ DIALOGS ═══ */}
+
+      {/* Manage streamer links (accounts + region + socials) */}
+      <Dialog open={!!manageStreamer} onOpenChange={(open) => { if (!open) setManageStreamer(null); }}>
+        <DialogContent className="w-full max-w-2xl max-h-[88vh] overflow-y-auto no-scrollbar bg-liquirice/90 border border-flash/10">
+          <DialogHeader>
+            <DialogTitle className="text-flash text-[13px] font-mono tracking-[0.2em] uppercase">:: {manageStreamer?.twitch_login} ::</DialogTitle>
+            <DialogDescription className="sr-only">Link LoL accounts and edit socials for this streamer.</DialogDescription>
+          </DialogHeader>
+          {manageStreamer && <TalentLinkManager type="streamer" ownerId={manageStreamer.id} />}
+          <DialogFooter className="mt-3">
+            <button type="button" onClick={() => setManageStreamer(null)} className="text-[11px] font-mono px-3 py-1.5 rounded-sm border border-flash/15 text-flash/70 hover:text-flash cursor-clicker">Close</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add streamer */}
       <Dialog open={addOpen} onOpenChange={(open) => { if (!open) { setAddOpen(false); setAddForm({ lol_nametag: "", twitch_login: "", region: "EUW" }); } }}>

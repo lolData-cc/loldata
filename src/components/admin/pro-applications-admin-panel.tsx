@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { TalentLinkManager } from "./talent-link-manager";
 import { supabase } from "@/lib/supabaseClient";
 import { Label } from "@/components/ui/label";
 import Cropper from "react-easy-crop";
@@ -799,7 +800,7 @@ export function ProApplicationsAdminPanel() {
 
       {/* ═══ MANAGE PRO PLAYER DIALOG ═══ */}
       <Dialog open={!!manageTarget} onOpenChange={(open) => { if (!open) closeManage(); }}>
-        <DialogContent className="w-full max-w-lg bg-liquirice/90 border border-flash/10">
+        <DialogContent className="w-full max-w-3xl max-h-[88vh] overflow-y-auto no-scrollbar bg-liquirice/90 border border-flash/10">
           <DialogHeader>
             <DialogTitle className="text-flash text-[13px] font-mono tracking-[0.2em] uppercase">:: Manage Pro Player ::</DialogTitle>
             <DialogDescription className="text-flash/60 text-xs font-mono">{manageTarget?.username}</DialogDescription>
@@ -876,40 +877,15 @@ export function ProApplicationsAdminPanel() {
 
             <div className="h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-            {/* Accounts section */}
+            {/* Accounts + region + socials — admin-gated backend writes */}
             <div>
-              <p className="text-[10px] font-mono tracking-[0.15em] uppercase text-jade/50 mb-2">Connected Accounts</p>
-
+              <p className="text-[10px] font-mono tracking-[0.15em] uppercase text-jade/50 mb-2">Connected Accounts &amp; Links</p>
               {/* Primary account (from pro_players.username) */}
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-black/20 border border-flash/10 mb-1.5">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-black/20 border border-flash/10 mb-3">
                 <span className="text-[10px] font-mono text-jade/60 uppercase shrink-0">Primary</span>
                 <span className="text-[11px] font-mono text-flash">{manageTarget?.username}</span>
               </div>
-
-              {/* Additional accounts */}
-              {manageAccountsLoading ? (
-                <div className="text-xs text-flash/60 inline-flex items-center gap-2 py-2"><LoadingDots /> Loading...</div>
-              ) : (
-                <div className="space-y-1">
-                  {manageAccounts.map((acc) => (
-                    <div key={acc.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-sm bg-black/20 border border-flash/5">
-                      <span className="text-[11px] font-mono text-flash/70">{acc.username}</span>
-                      <button type="button" onClick={() => handleRemoveAccount(acc.id)} disabled={manageBusy} className="text-[9px] font-mono text-error/60 hover:text-error cursor-clicker disabled:opacity-50">
-                        REMOVE
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add new account */}
-              <div className="flex items-center gap-2 mt-2">
-                <input type="text" placeholder="Name#TAG" value={newAccountName} onChange={(e) => setNewAccountName(e.target.value)}
-                  className={inputCls}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddAccount(); }}
-                />
-                <button type="button" onClick={handleAddAccount} disabled={manageBusy || !newAccountName.trim()} className={btnJade}>ADD</button>
-              </div>
+              {manageTarget && <TalentLinkManager type="pro" ownerId={manageTarget.id} />}
             </div>
           </div>
 

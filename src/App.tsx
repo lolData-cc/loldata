@@ -11,6 +11,7 @@ import LearnPage from "@/pages/learnpage"
 import ExplorerPage from "@/pages/explorerpage"
 import LoginPage from "@/pages/loginpage"
 import MatchPage from "@/pages/matchpage"
+import PlayerProfilePage from "@/pages/playerprofilepage"
 import NotFoundPage from "@/pages/notfoundpage"
 import { Toaster } from "sonner"
 import AuthGuard from "@/components/authguard"
@@ -202,6 +203,7 @@ function App() {
               <Route path="/patch-notes" element={<RootLayout><PatchNotesPage /></RootLayout>} />
               <Route path="/summoners/:region/:slug/season" element={<RootLayout><SeasonPage /></RootLayout>} />
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
+              <Route path="/players/:slug" element={<RootLayout><PlayerProfilePage /></RootLayout>} />
               <Route path="/dashboard/:tab?" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
               <Route
                 path="/learn"

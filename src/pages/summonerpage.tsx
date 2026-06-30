@@ -198,6 +198,7 @@ export default function SummonerPage() {
   } | null>(null);
   const [proTeamLogo, setProTeamLogo] = useState<string | null>(null);
   const [proLinkedAccounts, setProLinkedAccounts] = useState<string[]>([]);
+  const [streamerInfo, setStreamerInfo] = useState<{ twitch_login: string; region: string | null } | null>(null);
   const { region, slug } = useParams()
   const _dashIdx = slug?.lastIndexOf("-") ?? -1
   const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
@@ -811,6 +812,14 @@ export default function SummonerPage() {
       }
     }
     fetchProInfo();
+
+    // Streamer identity (today: one linked LoL account) — for the line above the name.
+    supabase
+      .from("streamers")
+      .select("twitch_login, region")
+      .ilike("lol_nametag", nametag)
+      .maybeSingle()
+      .then(({ data }) => setStreamerInfo(data ?? null));
   }, [slug]);
 
   useEffect(() => {
@@ -1392,92 +1401,7 @@ export default function SummonerPage() {
           style={{ opacity: matchesCentered ? 0 : 1 }}
         >
 
-          {/* ═══ PRO PLAYER CARD — floating layout ═══ */}
-          {proPlayerInfo && (
-            <div className="w-[90%] mt-5 mb-2 flex items-start gap-4 px-1">
-              {/* Player image — left, prominent */}
-              {proPlayerInfo.profile_image_url ? (
-                <img
-                  src={proPlayerInfo.profile_image_url}
-                  alt=""
-                  className="shrink-0 w-[88px] h-[88px] rounded-lg object-cover shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,217,146,0.1)]"
-                />
-              ) : (
-                <div className="shrink-0 w-[88px] h-[88px] rounded-lg bg-black/50 border border-jade/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden relative">
-                  {/* Scanlines */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.03) 3px, rgba(0,217,146,0.03) 4px)" }} />
-                  {/* Corner brackets */}
-                  <div className="absolute top-0 left-0 w-3 h-3"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/20" /></div>
-                  <div className="absolute top-0 right-0 w-3 h-3"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/20" /></div>
-                  <div className="absolute bottom-0 left-0 w-3 h-3"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/20" /></div>
-                  <div className="absolute bottom-0 right-0 w-3 h-3"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/20" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/20" /></div>
-                  {/* Silhouette + diamond */}
-                  <div className="relative flex flex-col items-center gap-1">
-                    <svg viewBox="0 0 64 52" className="w-10 h-8">
-                      <circle cx="32" cy="16" r="9" fill="rgba(0,217,146,0.12)" stroke="rgba(0,217,146,0.2)" strokeWidth="1" />
-                      <path d="M16 48c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.15)" strokeWidth="1" />
-                    </svg>
-                    <span className="text-jade/25 text-[8px] font-orbitron tracking-[0.2em]">◈</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Right side — info stack */}
-              <div className="flex flex-col gap-0.5 min-w-0 pt-0.5">
-                {/* Team icon + team name — top header */}
-                {proPlayerInfo.team && (
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    {proTeamLogo && <TeamLogo src={proTeamLogo} className="w-3.5 h-3.5 object-contain" />}
-                    <span className="text-[10px] font-mono text-jade/60 tracking-[0.15em] uppercase">{proPlayerInfo.team}</span>
-                  </div>
-                )}
-
-                {/* Nickname — biggest */}
-                <div className="text-2xl font-bold font-mono text-flash leading-tight tracking-wide">
-                  {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
-                </div>
-
-                {/* Name + surname + nationality + accounts */}
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  {(proPlayerInfo.first_name || proPlayerInfo.last_name) && (
-                    <span className="text-[11px] font-mono text-flash/45">
-                      {[proPlayerInfo.first_name, proPlayerInfo.last_name].filter(Boolean).join(" ")}
-                    </span>
-                  )}
-                  {proPlayerInfo.nationality && (
-                    <>
-                      {(proPlayerInfo.first_name || proPlayerInfo.last_name) && <span className="text-flash/15">·</span>}
-                      <span className="text-[10px] font-mono text-flash/35 uppercase">{proPlayerInfo.nationality}</span>
-                    </>
-                  )}
-                  {proLinkedAccounts.length > 1 && (
-                    <>
-                      <span className="text-flash/15">·</span>
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-[9px] font-mono tracking-[0.08em] text-jade/35 hover:text-jade/60 transition-colors cursor-clicker">
-                              +{proLinkedAccounts.length - 1} acc
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="p-0 bg-transparent border-none shadow-none">
-                            <div className="bg-[#0a0f14] border border-jade/15 rounded-[4px] px-3 py-2 min-w-[140px]">
-                              <div className="text-[9px] font-mono text-jade/50 tracking-[0.15em] uppercase mb-1.5">Accounts</div>
-                              <div className="flex flex-col gap-1">
-                                {proLinkedAccounts.map((acc, i) => (
-                                  <div key={i} className="text-[11px] font-mono text-flash/70">{acc}</div>
-                                ))}
-                              </div>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* (pro/streamer identity now renders on the header line above the summoner name) */}
 
           <div
             className={cn(
@@ -2409,13 +2333,40 @@ export default function SummonerPage() {
 
                 {/* Info */}
                 <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  {/* Badges */}
-                  <div className="flex items-center gap-2">
-                    {isPro && (
-                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
-                    )}
-                    {isStreamer && (
-                      <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
+                  {/* Pro / streamer identity — shown directly above the summoner name */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {proPlayerInfo ? (
+                      <Link
+                        to={`/players/${(proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+                        className="group/talent flex items-center gap-1.5 cursor-clicker"
+                      >
+                        {proPlayerInfo.team && proTeamLogo && <TeamLogo src={proTeamLogo} className="w-4 h-4 object-contain" />}
+                        {proPlayerInfo.team && (
+                          <span className="font-chakrapetch text-[12px] font-semibold uppercase tracking-[0.1em] text-jade/80">{proPlayerInfo.team}</span>
+                        )}
+                        {proPlayerInfo.team && <span className="text-jade/35 text-[9px]">◆</span>}
+                        <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">
+                          {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
+                        </span>
+                        <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                      </Link>
+                    ) : streamerInfo ? (
+                      <Link
+                        to={`/players/${streamerInfo.twitch_login.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+                        className="group/talent flex items-center gap-1.5 cursor-clicker"
+                      >
+                        <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STRM</span>
+                        <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">{streamerInfo.twitch_login}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        {isPro && (
+                          <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                        )}
+                        {isStreamer && (
+                          <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
+                        )}
+                      </>
                     )}
                     {linkedDiscord && (
                       <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
@@ -4220,10 +4171,14 @@ export default function SummonerPage() {
         )}
       </AnimatePresence>
 
-      {/* Admin: create pro/streamer profile */}
-      <div className="fixed bottom-10 left-10 z-[999]">
-        <DiamondButton color="citrine" icon="edit" label={isAdmin ? "ADMIN" : "NO"} onClick={() => setShowAdminDialog(true)} />
-      </div>
+      {/* Admin: create pro/streamer profile — admins ONLY (the button is the entry
+          point to the pro/streamer creation dialog, so it must never render for
+          regular users). */}
+      {isAdmin && (
+        <div className="fixed bottom-10 left-10 z-[999]">
+          <DiamondButton color="citrine" icon="edit" label="ADMIN" onClick={() => setShowAdminDialog(true)} />
+        </div>
+      )}
 
       {/* ───────────  MATCH REPLAY DIALOG  ─────────── */}
       <MatchReplayDialog

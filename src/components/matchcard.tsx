@@ -326,7 +326,19 @@ const blueWinTint = false;         // TODO: hook into uiPrefs if needed
 // to scan very quickly so we always tint.
 const coloredMatchBg = true;
 
-function MatchCardImpl({ data }: { data: MatchCardData }) {
+function MatchCardImpl({
+  data,
+  selectable = false,
+  selected = false,
+  onSelect,
+}: {
+  data: MatchCardData;
+  // Selection mode (Learn AI Coach): clicking the card SELECTS it (jade border)
+  // instead of toggling the expand strip. The parent owns the selected state.
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
+}) {
   const {
     matchId,
     queueLabel,
@@ -434,10 +446,16 @@ function MatchCardImpl({ data }: { data: MatchCardData }) {
       // pokes up above the card's top edge.
       className={cn(
         "relative group/match",
-        expanded ? "match-card-expanded" : "match-card-collapsed"
+        expanded ? "match-card-expanded" : "match-card-collapsed",
+        selectable && "cursor-pointer",
+        selected && "rounded-md shadow-[0_0_24px_-4px_rgba(0,217,146,0.5)]"
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button, a")) return;
+        if (selectable) {
+          onSelect?.();
+          return;
+        }
         setExpanded((prev) => !prev);
       }}
     >
@@ -457,7 +475,8 @@ function MatchCardImpl({ data }: { data: MatchCardData }) {
               : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150"
             : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150"
           : "bg-black/18 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]"
+        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]",
+        selected && "ring-2 ring-jade/80"
       )}
     >
       {isRemake && (
@@ -1070,9 +1089,12 @@ function MatchCardImpl({ data }: { data: MatchCardData }) {
 // point a re-render is correct). Net effect: a like/comment on one match
 // re-renders only that card instead of the whole feed.
 function matchCardPropsEqual(
-  prev: { data: MatchCardData },
-  next: { data: MatchCardData }
+  prev: { data: MatchCardData; selectable?: boolean; selected?: boolean; onSelect?: () => void },
+  next: { data: MatchCardData; selectable?: boolean; selected?: boolean; onSelect?: () => void }
 ): boolean {
+  // Selection state drives the jade border — re-render when it flips. onSelect is
+  // a fresh closure each render but behaviourally stable, so we ignore it.
+  if (prev.selected !== next.selected || prev.selectable !== next.selectable) return false;
   const a = prev.data;
   const b = next.data;
   if (a === b) return true;

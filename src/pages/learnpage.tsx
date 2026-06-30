@@ -1,119 +1,111 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
+import { supabase } from "@/lib/supabaseClient"
 import { Navbar } from "@/components/navbar"
 import { cn } from "@/lib/utils"
+import { cdnBaseUrl } from "@/config"
 import { Separator } from "@/components/ui/separator"
-import {
-    Table, TableHeader, TableRow, TableHead, TableBody, TableCell
-} from "@/components/ui/table"
-import { ChevronsUp, ChevronsDown, LayoutDashboard, History, Workflow, Sword, Sparkles } from "lucide-react"
-import dayjs from "dayjs"
-import relativeTime from "dayjs/plugin/relativeTime"
+import { LayoutDashboard, History, Workflow, Sword, Sparkles, ArrowUpRight, type LucideIcon } from "lucide-react"
 import LoldataAIChat from "@/components/loldataaichat"
 import Overview from "@/components/overview"
+import { RecentMatches } from "@/components/learn/recent-matches"
+import type { MatchCardData } from "@/components/matchcard"
 import { motion, AnimatePresence } from "framer-motion"
-import { API_BASE_URL } from "@/config"
-
-dayjs.extend(relativeTime)
-
-// ── Rank utilities ──
-const tierOrder = [
-    "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM",
-    "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"
-]
-const divisionOrder = ["I", "II", "III", "IV"]
-
-function getRankTierValue(rank: string): number {
-    if (!rank) return 0
-    const parts = rank.trim().split(" ")
-    if (parts.length < 2) return 0
-    const tier = parts[0]?.toUpperCase()
-    let division = parts[1]?.toUpperCase()
-    if (!isNaN(Number(division))) {
-        const map: Record<string, string> = { "1": "I", "2": "II", "3": "III", "4": "IV" }
-        division = map[division] || "I"
-    }
-    const tierIndex = tierOrder.indexOf(tier)
-    const divisionIndex = divisionOrder.indexOf(division)
-    if (tierIndex === -1 || divisionIndex === -1) return 0
-    return tierIndex * 4 + (3 - divisionIndex)
-}
-
-function getRankChange(prev: any, curr: any): "up" | "down" | null {
-    if (!prev || !curr) return null
-    const prevVal = getRankTierValue(prev.rank)
-    const currVal = getRankTierValue(curr.rank)
-    if (currVal > prevVal) return "up"
-    if (currVal < prevVal) return "down"
-    return null
-}
-
-function getAbsoluteLp(rank: string, lp: any): number {
-    if (!rank || lp === undefined || lp === null) return 0
-    const parts = rank.trim().split(" ")
-    if (parts.length < 2) return 0
-    const tierRaw = parts[0]?.toUpperCase()
-    let divisionRaw = parts[1]?.toUpperCase()
-    if (!isNaN(Number(divisionRaw))) {
-        const map: Record<string, string> = { "1": "I", "2": "II", "3": "III", "4": "IV" }
-        divisionRaw = map[divisionRaw] || "I"
-    }
-    const numericLp = Number(lp)
-    const tierIndex = tierOrder.indexOf(tierRaw)
-    const divisionIndex = divisionOrder.indexOf(divisionRaw)
-    if (tierIndex === -1 || divisionIndex === -1 || isNaN(numericLp)) return 0
-    return tierIndex * 400 + (3 - divisionIndex) * 100 + numericLp
-}
-
-function getLpDelta(prev: any, curr: any): number {
-    if (!prev || !curr) return 0
-    if (prev.rank === curr.rank) return Number(curr.lp) - Number(prev.lp)
-    return getAbsoluteLp(curr.rank, curr.lp) - getAbsoluteLp(prev.rank, prev.lp)
-}
 
 // ── Tab definitions ──
 const TABS = [
     { id: "overview", label: "OVERVIEW", desc: "Daily report", icon: LayoutDashboard },
-    { id: "games", label: "YOUR GAMES", desc: "Tracked history", icon: History },
-    { id: "explorer", label: "EXPLORER", desc: "Node query builder", icon: Workflow },
+    { id: "games", label: "YOUR GAMES", desc: "Recent matches", icon: History },
     { id: "itemization", label: "ITEMIZATION", desc: "Build intelligence", icon: Sword },
     { id: "loldata-ai", label: "LOLDATA AI", desc: "Ask anything", icon: Sparkles },
 ] as const
 
 type TabId = typeof TABS[number]["id"]
 
+// One sidebar entry — shared by the in-page tabs and the standalone Explorer link.
+function SidebarButton({
+    icon: Icon,
+    label,
+    desc,
+    active,
+    onClick,
+}: {
+    icon: LucideIcon
+    label: string
+    desc: string
+    active: boolean
+    onClick: () => void
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 cursor-clicker",
+                active ? "bg-jade/[0.08]" : "hover:bg-flash/[0.03]"
+            )}
+        >
+            <span
+                className={cn(
+                    "absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full transition-all duration-200",
+                    active ? "bg-jade shadow-[0_0_8px_#00d992]" : "bg-transparent"
+                )}
+            />
+            <span
+                className={cn(
+                    "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors duration-200",
+                    active ? "bg-jade/15 text-jade" : "bg-flash/[0.04] text-flash/35 group-hover:text-flash/60"
+                )}
+            >
+                <Icon size={14} strokeWidth={1.75} />
+            </span>
+            <span className="min-w-0">
+                <span
+                    className={cn(
+                        "block font-chakrapetch text-[11px] font-light uppercase tracking-[0.14em] leading-none transition-colors duration-200",
+                        active ? "text-jade" : "text-flash/55 group-hover:text-flash/85"
+                    )}
+                >
+                    {label}
+                </span>
+                <span
+                    className={cn(
+                        "mt-1 block truncate font-chakrapetch text-[9.5px] font-normal tracking-wide leading-none transition-colors duration-200",
+                        active ? "text-jade/80" : "text-flash/80"
+                    )}
+                >
+                    {desc}
+                </span>
+            </span>
+        </button>
+    )
+}
+
 export default function LearnPage() {
-    const { nametag, puuid, region, session } = useAuth()
+    const { nametag, puuid, region, session, avatarUrl } = useAuth()
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const activeTab = (searchParams.get("t") || "overview") as TabId
     const setActiveTab = (id: string) => setSearchParams((p) => { p.set("t", id); return p }, { replace: true })
-    const [gamesList, setGamesList] = useState<any[]>([])
-    const [loadingGames, setLoadingGames] = useState(true)
 
+    // Profile-banner avatar: the linked account's summoner icon (or a custom upload).
+    const [iconId, setIconId] = useState<number | null>(null)
     useEffect(() => {
-        const fetchGames = async () => {
-            if (!nametag) return
-            const { data, error } = await supabase
-                .from("tracked_games")
-                .select("*")
-                .eq("nametag", nametag)
-                .order("created_at", { ascending: true })
-            if (error || !data) { setLoadingGames(false); return }
-            setGamesList(data.map((game) => ({ ...game, day: dayjs(game.created_at).format("YYYY-MM-DD") })))
-            setLoadingGames(false)
-        }
-        fetchGames()
+        if (!nametag) { setIconId(null); return }
+        const [name, tag] = nametag.split("#")
+        if (!name || !tag) return
+        supabase.from("users").select("icon_id").eq("name", name).eq("tag", tag).single()
+            .then(({ data }) => { if (data?.icon_id) setIconId(data.icon_id) })
     }, [nametag])
+    const avatarSrc = avatarUrl ? avatarUrl : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
 
-    const gamesByDay = gamesList.reduce((acc: Record<string, any[]>, game) => {
-        if (!acc[game.day]) acc[game.day] = []
-        acc[game.day].push(game)
-        return acc
-    }, {})
-    const sortedDays = Object.keys(gamesByDay).sort().reverse()
+    // AI Coach: a YOUR GAMES rail button seeds this prompt (+ the selected game)
+    // and jumps to the LOLDATA AI tab, where the chat auto-sends it once on mount.
+    const [aiSeed, setAiSeed] = useState<{ prompt: string; matchId: string | null; card: MatchCardData | null } | null>(null)
+    const launchAnalysis = (prompt: string, attach?: { matchId: string; card: MatchCardData }) => {
+        setAiSeed({ prompt, matchId: attach?.matchId ?? null, card: attach?.card ?? null })
+        setActiveTab("loldata-ai")
+    }
 
 
     return (
@@ -129,73 +121,76 @@ export default function LearnPage() {
             <div className="flex-1 min-h-0 scrollbar-hide relative overflow-y-auto pt-16 md:pt-0">
                 <div className="w-full px-3 lg:w-[65%] lg:px-0 mx-auto py-4 lg:py-6 relative z-10">
                     {/* ── Sidebar — floats; stays interactive even over the full-bleed canvas ── */}
-                    <div className="hidden lg:block absolute left-0 top-6 w-[178px] pointer-events-auto">
-                        {/* Header */}
-                        <div className="mb-5 flex items-center gap-2.5">
+                    <div className="hidden lg:block absolute left-0 top-6 w-[208px] pointer-events-auto">
+                        {/* Header eyebrow */}
+                        <div className="mb-3 flex items-center gap-2.5">
                             <span className="relative inline-grid h-4 w-4 place-items-center">
                                 <span className="absolute inset-0 rotate-45 rounded-[2px] border border-jade/45 bg-jade/[0.08]" />
                                 <span className="absolute h-1 w-1 rounded-full bg-jade animate-pulse" />
                             </span>
-                            <div className="min-w-0">
-                                <span className="block font-chakrapetch text-[10px] font-bold uppercase tracking-[0.3em] text-jade/70 leading-none">Learn</span>
-                                {nametag && <span className="mt-1.5 block truncate font-chakrapetch text-[10px] font-light text-flash/25">{nametag}</span>}
-                            </div>
+                            <span className="font-chakrapetch text-[10px] font-bold uppercase tracking-[0.3em] text-jade/70 leading-none">Learn</span>
                         </div>
 
-                        {/* Navigation */}
+                        {/* Profile banner — clickable, redirects to the summoner page (like the dashboard). */}
+                        <button
+                            type="button"
+                            disabled={!nametag || !region}
+                            onClick={() => {
+                                if (!nametag || !region) return
+                                const [n, t] = nametag.split("#")
+                                navigate(`/summoners/${region.toLowerCase()}/${n.replace(/\s+/g, "+")}-${t}`)
+                            }}
+                            className={cn(
+                                "group relative mb-5 flex w-full items-center gap-2.5 overflow-hidden rounded-[3px] border border-flash/10 bg-black/30 px-2.5 py-2 text-left transition-colors duration-200",
+                                nametag && region ? "cursor-clicker hover:border-jade/25 hover:bg-black/45" : "cursor-default"
+                            )}
+                        >
+                            <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
+                            <img src={avatarSrc} alt="" className="h-9 w-9 shrink-0 rounded-sm border border-flash/10 object-cover" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate font-chakrapetch text-[11px] font-medium tracking-wide text-flash/85">
+                                    {nametag ? nametag.split("#")[0] : "Not linked"}
+                                </span>
+                                {nametag && region ? (
+                                    <span className="mt-0.5 flex items-center gap-0.5 font-chakrapetch text-[9px] font-light uppercase tracking-[0.18em] text-jade/55 transition-colors duration-200 group-hover:text-jade/85">
+                                        View profile
+                                        <ArrowUpRight size={10} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                    </span>
+                                ) : (
+                                    <span className="mt-0.5 block font-chakrapetch text-[9px] font-light uppercase tracking-[0.18em] text-flash/30">Link an account</span>
+                                )}
+                            </span>
+                        </button>
+
+                        {/* Navigation — in-page tabs */}
                         <nav className="flex flex-col gap-1">
-                            {TABS.map((tab) => {
-                                const active = activeTab === tab.id
-                                const Icon = tab.icon
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => (tab.id === "explorer" ? navigate("/learn/explorer") : setActiveTab(tab.id))}
-                                        className={cn(
-                                            "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 cursor-clicker",
-                                            active ? "bg-jade/[0.08]" : "hover:bg-flash/[0.03]"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full transition-all duration-200",
-                                                active ? "bg-jade shadow-[0_0_8px_#00d992]" : "bg-transparent"
-                                            )}
-                                        />
-                                        <span
-                                            className={cn(
-                                                "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors duration-200",
-                                                active ? "bg-jade/15 text-jade" : "bg-flash/[0.04] text-flash/35 group-hover:text-flash/60"
-                                            )}
-                                        >
-                                            <Icon size={14} strokeWidth={1.75} />
-                                        </span>
-                                        <span className="min-w-0">
-                                            <span
-                                                className={cn(
-                                                    "block font-chakrapetch text-[11px] font-light uppercase tracking-[0.14em] leading-none transition-colors duration-200",
-                                                    active ? "text-jade" : "text-flash/55 group-hover:text-flash/85"
-                                                )}
-                                            >
-                                                {tab.label}
-                                            </span>
-                                            <span
-                                                className={cn(
-                                                    "mt-1 block truncate font-chakrapetch text-[9px] font-light tracking-wide leading-none transition-colors duration-200",
-                                                    active ? "text-jade/45" : "text-flash/20"
-                                                )}
-                                            >
-                                                {tab.desc}
-                                            </span>
-                                        </span>
-                                    </button>
-                                )
-                            })}
+                            {TABS.map((tab) => (
+                                <SidebarButton
+                                    key={tab.id}
+                                    icon={tab.icon}
+                                    label={tab.label}
+                                    desc={tab.desc}
+                                    active={activeTab === tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                />
+                            ))}
                         </nav>
+
+                        {/* Explorer — standalone tool on its own full-page route, set apart from the tabs. */}
+                        <div className="mt-4 border-t border-flash/[0.07] pt-4">
+                            <span className="mb-2 block px-2.5 font-chakrapetch text-[8.5px] font-bold uppercase tracking-[0.32em] text-flash/25">Tools</span>
+                            <SidebarButton
+                                icon={Workflow}
+                                label="EXPLORER"
+                                desc="Node query builder"
+                                active={false}
+                                onClick={() => navigate("/learn/explorer")}
+                            />
+                        </div>
                     </div>
 
                     {/* ── Content — offset to avoid sidebar overlap (desktop only) ── */}
-                    <div className="ml-0 max-w-full lg:ml-[200px] lg:max-w-[calc(100%-200px)]">
+                    <div className="ml-0 max-w-full lg:ml-[230px] lg:max-w-[calc(100%-230px)]">
                         <AnimatePresence mode="wait">
                             {/* OVERVIEW */}
                             {activeTab === "overview" && (
@@ -219,89 +214,7 @@ export default function LearnPage() {
                                     exit={{ opacity: 0, x: 12 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <div className="mb-6">
-                                        <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-jade/50">// TRACKED GAMES</span>
-                                    </div>
-
-                                    {loadingGames ? (
-                                        <p className="text-flash/30 font-mono text-sm">Loading...</p>
-                                    ) : sortedDays.length === 0 ? (
-                                        <p className="text-flash/30 font-mono text-sm">No tracked games yet</p>
-                                    ) : (
-                                        sortedDays.map((day, index) => {
-                                            const todayGames = gamesByDay[day]
-                                            if (!todayGames?.length) return null
-
-                                            const firstGame = todayGames[0]
-                                            const lastGame = todayGames[todayGames.length - 1]
-                                            const todayDate = dayjs(day)
-                                            const previousGame = [...gamesList].reverse().find(g => dayjs(g.created_at).isBefore(todayDate, "day"))
-                                            const startAbs = previousGame ? getAbsoluteLp(previousGame.rank, previousGame.lp) : getAbsoluteLp(firstGame.rank, firstGame.lp)
-                                            const endAbs = getAbsoluteLp(lastGame.rank, lastGame.lp)
-                                            const totalLp = endAbs - startAbs
-                                            const relative = dayjs(day).isSame(dayjs(), "day") ? "Today" : dayjs(day).fromNow()
-
-                                            return (
-                                                <div key={day} className="mb-8">
-                                                    <div className="flex items-baseline gap-2 mb-3">
-                                                        <span className="text-[11px] font-mono text-flash/60">{relative}</span>
-                                                        <span className={cn("text-[11px] font-mono tabular-nums", totalLp >= 0 ? "text-jade/60" : "text-red-400/60")}>
-                                                            {totalLp >= 0 ? "+" : ""}{totalLp} LP
-                                                        </span>
-                                                    </div>
-
-                                                    <Table className="w-full uppercase">
-                                                        <TableHeader>
-                                                            <TableRow className="border-flash/[0.06]">
-                                                                <TableHead className="text-[9px] tracking-[0.15em] text-flash/25 w-[18%]">CHAMPION</TableHead>
-                                                                <TableHead className="text-[9px] tracking-[0.15em] text-flash/25 w-[12%]">LANE</TableHead>
-                                                                <TableHead className="text-[9px] tracking-[0.15em] text-flash/25 w-[18%]">MATCHUP</TableHead>
-                                                                <TableHead className="text-[9px] tracking-[0.15em] text-flash/25 w-[15%]">QUEUE</TableHead>
-                                                                <TableHead className="text-[9px] tracking-[0.15em] text-flash/25 w-[12%] text-center">LP</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {[...todayGames].reverse().map((g) => {
-                                                                const i = gamesList.findIndex(x => x.id === g.id)
-                                                                const prev = gamesList[i - 1]
-                                                                const diff = prev ? getLpDelta(prev, g) : 0
-                                                                const rankChange = getRankChange(prev, g)
-                                                                const rankParts = g.rank?.split(" ") || []
-                                                                const tierInitial = rankParts[0]?.[0]?.toUpperCase() || ""
-                                                                const division = rankParts[1] || ""
-                                                                const shortRank = `${tierInitial}${division}`
-
-                                                                return (
-                                                                    <TableRow key={g.id} className="border-flash/[0.04] text-[11px] font-mono">
-                                                                        <TableCell className="text-flash/60">{g.champion_name}</TableCell>
-                                                                        <TableCell className="text-flash/40">{g.lane}</TableCell>
-                                                                        <TableCell className="text-flash/40">{g.matchup}</TableCell>
-                                                                        <TableCell className="text-flash/30">{g.queue_type}</TableCell>
-                                                                        <TableCell className="text-center">
-                                                                            <span className={cn(
-                                                                                "inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-sm text-[10px] tabular-nums",
-                                                                                diff > 0 ? "bg-jade/10 text-jade" : diff < 0 ? "bg-red-400/10 text-red-400" : "text-flash/30"
-                                                                            )}>
-                                                                                {rankChange === "up" && <><ChevronsUp className="w-3 h-3" />{shortRank}</>}
-                                                                                {rankChange === "down" && <><ChevronsDown className="w-3 h-3" />{shortRank}</>}
-                                                                                {!rankChange && `${diff >= 0 ? "+" : ""}${diff}`}
-                                                                            </span>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )
-                                                            })}
-                                                        </TableBody>
-                                                    </Table>
-
-                                                    {index !== sortedDays.length - 1 && (
-                                                        <div className="flex justify-center my-4">
-                                                            <div className="w-px h-8 bg-gradient-to-b from-flash/10 to-transparent" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        })
-                                    )}
+                                    <RecentMatches nametag={nametag} region={region} puuid={puuid} onAnalyze={launchAnalysis} />
                                 </motion.div>
                             )}
 
@@ -335,6 +248,10 @@ export default function LearnPage() {
                                         className="h-full"
                                         authToken={session?.access_token}
                                         userContext={{ puuid: puuid ?? null, region: region ?? null, nametag: nametag ?? null }}
+                                        initialPrompt={aiSeed?.prompt ?? null}
+                                        initialMatchId={aiSeed?.matchId ?? null}
+                                        initialMatchCard={aiSeed?.card ?? null}
+                                        onInitialPromptConsumed={() => setAiSeed(null)}
                                     />
                                 </motion.div>
                             )}
