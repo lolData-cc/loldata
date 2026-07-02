@@ -121,9 +121,14 @@ function AmbientLightOverlay() {
   // Skip on homepage — the hero image has its own lighting
   if (pathname === "/") return null
   const opacity = intensity / 100 * 0.08 // max 8% opacity
+  // A soft "overhead" wash whose source sits ABOVE the fold (50% -10%) so it
+  // fades in gently from the top and dissipates before the content. The old
+  // version offset the whole div to top-[400px] with the gradient brightest at
+  // that exact hard edge, which drew a visible horizontal band slicing across a
+  // match card — and re-appeared on every navigation as RootLayout remounts.
   return (
-    <div className="absolute inset-0 pointer-events-none z-0 top-[400px]" style={{
-      background: `radial-gradient(ellipse at 50% 0%, rgba(180,195,210,${opacity}) 0%, transparent 60%)`,
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[900px]" style={{
+      background: `radial-gradient(130% 90% at 50% -10%, rgba(180,195,210,${opacity}) 0%, transparent 72%)`,
     }} />
   )
 }

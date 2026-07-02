@@ -21,7 +21,6 @@ import { cdnBaseUrl, cdnSplashUrl, doubleLpBadgeUrl, getCdnVersion, normalizeCha
 import { JunglePlaystyleBadge, JungleStartingCampBadge, JungleInvadeBadge } from "@/components/jungleplaystylebadge";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import { PlayerAnalysisDialog } from "@/components/PlayerAnalysisDialog";
-import { checkUserFlags } from "@/converters/checkUserFlags";
 import {
   Tooltip,
   TooltipContent,
@@ -41,7 +40,7 @@ import { UpdateButton } from "@/components/update"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
-import { API_BASE_URL } from "@/config"
+import { API_BASE_URL, BOX_API_BASE_URL } from "@/config"
 import UltraTechBackground from "@/components/techdetails"
 import { useDisableTechBackground } from "@/hooks/useDisableTechBackground"
 import { useDisableMatchTransition } from "@/hooks/useDisableMatchTransition"
@@ -194,11 +193,11 @@ export default function SummonerPage() {
   const [proPlayerInfo, setProPlayerInfo] = useState<{
     id: string; username: string; first_name: string | null; last_name: string | null;
     nickname: string | null; team: string | null; nationality: string | null;
-    profile_image_url: string | null;
+    profile_image_url: string | null; slug: string;
   } | null>(null);
   const [proTeamLogo, setProTeamLogo] = useState<string | null>(null);
   const [proLinkedAccounts, setProLinkedAccounts] = useState<string[]>([]);
-  const [streamerInfo, setStreamerInfo] = useState<{ twitch_login: string; region: string | null } | null>(null);
+  const [streamerInfo, setStreamerInfo] = useState<{ twitch_login: string; region: string | null; slug: string } | null>(null);
   const { region, slug } = useParams()
   const _dashIdx = slug?.lastIndexOf("-") ?? -1
   const name = _dashIdx > 0 ? slug!.slice(0, _dashIdx).replace(/\+/g, " ") : slug ?? ""
@@ -753,94 +752,53 @@ export default function SummonerPage() {
     const tag = di > 0 ? slug.slice(di + 1) : "";
     if (!name || !tag) return;
 
-    checkUserFlags(name, tag).then(({ isPro, isStreamer }) => {
-      setIsPro(isPro);
-      setIsStreamer(isStreamer);
-    });
-
-    // Fetch full pro player details for this summoner
-    // Check both pro_players.username and pro_player_accounts.username
+    // One box call resolves the whole talent identity for the header line:
+    // curated Cloud pros win, then the scraped box pros (lolpros import),
+    // then streamers. Replaces the old browser→Supabase reads.
     const nametag = `${name}#${tag}`;
-
-    async function fetchProInfo() {
-      const cols = "id, username, first_name, last_name, nickname, team, nationality, profile_image_url";
-
-      // 1. Direct match on pro_players.username
-      const { data: directRows } = await supabase
-        .from("pro_players")
-        .select(cols)
-        .ilike("username", nametag)
-        .limit(1);
-
-      let proData = directRows?.[0] ?? null;
-
-      // 2. If not found, check pro_player_accounts
-      if (!proData) {
-        const { data: accRows } = await supabase
-          .from("pro_player_accounts")
-          .select("pro_player_id")
-          .ilike("username", nametag)
-          .limit(1);
-        if (accRows?.[0]) {
-          const { data: playerRows } = await supabase
-            .from("pro_players")
-            .select(cols)
-            .eq("id", accRows[0].pro_player_id)
-            .limit(1);
-          proData = playerRows?.[0] ?? null;
+    const clear = () => {
+      setProPlayerInfo(null); setProTeamLogo(null); setProLinkedAccounts([]); setStreamerInfo(null);
+    };
+    fetch(`${BOX_API_BASE_URL}/api/pros/identity?nametag=${encodeURIComponent(nametag)}`)
+      .then((r) => (r.ok ? r.json() : { type: null }))
+      .then((id) => {
+        setIsPro(id.type === "pro");
+        setIsStreamer(id.type === "streamer");
+        if (id.type === "pro") {
+          setProPlayerInfo({
+            id: id.slug,
+            username: id.accounts?.[0] ?? nametag,
+            first_name: id.realName ?? null,
+            last_name: null,
+            nickname: id.name ?? null,
+            team: id.team ?? null,
+            nationality: id.nationality ?? null,
+            profile_image_url: id.avatar ?? null,
+            slug: id.slug,
+          });
+          setProTeamLogo(id.teamLogo ?? null);
+          setProLinkedAccounts(id.accounts ?? []);
+          setStreamerInfo(null);
+        } else if (id.type === "streamer") {
+          clear();
+          setStreamerInfo({ twitch_login: id.twitchLogin ?? id.name, region: id.region ?? null, slug: id.slug });
+        } else {
+          clear();
         }
-      }
-
-      if (proData) {
-        setProPlayerInfo(proData);
-        // Fetch team logo
-        if (proData.team) {
-          const { data: teamData } = await supabase.from("teams").select("logo_url").eq("name", proData.team).maybeSingle();
-          setProTeamLogo(teamData?.logo_url ?? null);
-        } else { setProTeamLogo(null); }
-        // Fetch linked accounts (primary + additional)
-        const { data: accData } = await supabase
-          .from("pro_player_accounts")
-          .select("username")
-          .eq("pro_player_id", proData.id);
-        const allAccounts = [proData.username, ...(accData ?? []).map((a: { username: string }) => a.username)];
-        setProLinkedAccounts(allAccounts);
-      } else {
-        setProPlayerInfo(null);
-        setProTeamLogo(null);
-        setProLinkedAccounts([]);
-      }
-    }
-    fetchProInfo();
-
-    // Streamer identity (today: one linked LoL account) — for the line above the name.
-    supabase
-      .from("streamers")
-      .select("twitch_login, region")
-      .ilike("lol_nametag", nametag)
-      .maybeSingle()
-      .then(({ data }) => setStreamerInfo(data ?? null));
+      })
+      .catch(() => { setIsPro(false); setIsStreamer(false); clear(); });
   }, [slug]);
 
   useEffect(() => {
-    // Load pro usernames from both pro_players and pro_player_accounts
-    Promise.all([
-      supabase.from("pro_players").select("username"),
-      supabase.from("pro_player_accounts").select("username"),
-    ]).then(([{ data: proData }, { data: accData }]) => {
-      const names = new Set<string>();
-      for (const r of proData ?? []) if (r.username) names.add(r.username.toLowerCase());
-      for (const r of accData ?? []) if (r.username) names.add(r.username.toLowerCase());
-      setProUsernames(names);
-    });
-    supabase
-      .from("streamers")
-      .select("lol_nametag")
-      .then(({ data }) => {
-        if (data) {
-          setStreamerUsernames(new Set(data.filter((r) => r.lol_nametag).map((r) => r.lol_nametag.toLowerCase())));
-        }
-      });
+    // Scoreboard nameplates: every known pro/streamer account nametag, merged
+    // server-side on the box (lolpros import + curated Cloud tables).
+    fetch(`${BOX_API_BASE_URL}/api/pros/badge-map`)
+      .then((r) => (r.ok ? r.json() : { pros: [], streamers: [] }))
+      .then(({ pros, streamers }: { pros: string[]; streamers: string[] }) => {
+        setProUsernames(new Set(pros));
+        setStreamerUsernames(new Set(streamers));
+      })
+      .catch(() => { /* badges are decorative — fail silent */ });
   }, []);
 
   useEffect(() => {
@@ -2337,7 +2295,7 @@ export default function SummonerPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {proPlayerInfo ? (
                       <Link
-                        to={`/players/${(proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+                        to={`/players/${proPlayerInfo.slug}`}
                         className="group/talent flex items-center gap-1.5 cursor-clicker"
                       >
                         {proPlayerInfo.team && proTeamLogo && <TeamLogo src={proTeamLogo} className="w-4 h-4 object-contain" />}
@@ -2352,7 +2310,7 @@ export default function SummonerPage() {
                       </Link>
                     ) : streamerInfo ? (
                       <Link
-                        to={`/players/${streamerInfo.twitch_login.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+                        to={`/players/${streamerInfo.slug}`}
                         className="group/talent flex items-center gap-1.5 cursor-clicker"
                       >
                         <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STRM</span>

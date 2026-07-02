@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Search, Star, ChevronDown } from "lucide-react"
 import { getRankImage } from "@/utils/rankIcons"
-import { API_BASE_URL, cdnBaseUrl } from "@/config"
-import { supabase } from "@/lib/supabaseClient"
+import { API_BASE_URL, BOX_API_BASE_URL, cdnBaseUrl } from "@/config"
 import { BorderBeam } from "./ui/border-beam"
 import { SavedProfiles } from "./savedprofiles"
 import { showCyberToast } from "@/lib/toast-utils"
@@ -340,29 +339,31 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             if (err.name !== "AbortError") console.error("Autocomplete fetch:", err)
             return { results: [] }
           }),
-        supabase
-          .from("pro_players")
-          .select("username, nickname, profile_image_url, team")
-          .or(`nickname.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%`)
-          .limit(3)
-          .then(({ data }) => data ?? []),
+        // Pro suggestions from the box (curated Cloud pros + scraped lolpros
+        // import, merged server-side) — the browser no longer reads Supabase.
+        fetch(`${BOX_API_BASE_URL}/api/pros/search?query=${encodeURIComponent(searchTerm)}`, { signal: controller.signal })
+          .then((r) => (r.ok ? r.json() : { suggestions: [] }))
+          .then((j) => j.suggestions ?? [])
+          .catch((err) => {
+            if (err.name !== "AbortError") console.error("Pro search fetch:", err)
+            return []
+          }),
       ])
       if (controller.signal.aborted) return
 
-      const proSuggestions: Suggestion[] = proRes.map((p: any) => {
-        const [name, tag] = (p.username || "").split("#")
-        return {
-          name: name || "",
-          tag: tag || "",
-          rank: null,
-          icon_id: null,
-          region: region.toUpperCase(),
-          _isPro: true,
-          _nickname: p.nickname,
-          _avatar: p.profile_image_url,
-          _team: p.team,
-        }
-      })
+      const proSuggestions: Suggestion[] = proRes.map((p: any) => ({
+        name: p.name || "",
+        tag: p.tag || "",
+        rank: null,
+        icon_id: null,
+        // the ACCOUNT's real shard from the backend (a KR/NA/BR pro must not
+        // inherit the currently selected search region)
+        region: (p.region || region).toUpperCase(),
+        _isPro: true,
+        _nickname: p.nickname,
+        _avatar: p.avatar,
+        _team: p.team,
+      }))
       const proKeys = new Set(
         proSuggestions.map((p) => `${p.name}#${p.tag}`.toLowerCase())
       )

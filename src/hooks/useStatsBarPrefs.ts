@@ -8,7 +8,9 @@ import {
 } from "@/lib/uiPrefs";
 
 export function useStatsBarPrefs() {
-  const [hidden, setHiddenState] = useState(false);
+  // Lazy init from storage so the first paint already reflects the saved /
+  // default value (stats bar is HIDDEN by default) — no shown→hidden flash.
+  const [hidden, setHiddenState] = useState(() => getHideStatsBar());
   const [visibleStats, setVisibleStatsState] = useState<Record<StatsBarStatKey, boolean>>(
     () => getStatsBarVisibleStats()
   );

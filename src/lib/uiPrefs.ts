@@ -65,8 +65,10 @@ export function setDisableMatchTransition(value: boolean) {
 
 export function getDisableMatchGrouping(): boolean {
   const w = safeWindow();
-  if (!w) return false; // default: grouping enabled
-  return w.localStorage.getItem(UI_PREFS_KEYS.disableMatchGrouping) === "1";
+  if (!w) return true; // default: grouping disabled
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.disableMatchGrouping);
+  if (val === null) return true; // first visit: day-grouping off by default
+  return val === "1";
 }
 
 export function setDisableMatchGrouping(value: boolean) {
@@ -132,8 +134,10 @@ const DEFAULT_VISIBLE_STATS: Record<StatsBarStatKey, boolean> = {
 
 export function getHideStatsBar(): boolean {
   const w = safeWindow();
-  if (!w) return false; // default: shown
-  return w.localStorage.getItem(UI_PREFS_KEYS.hideStatsBar) === "1";
+  if (!w) return true; // default: hidden
+  const val = w.localStorage.getItem(UI_PREFS_KEYS.hideStatsBar);
+  if (val === null) return true; // first visit: stats summary bar hidden by default
+  return val === "1";
 }
 
 export function setHideStatsBar(value: boolean) {

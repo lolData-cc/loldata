@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { LoadingDots } from "./ui/loading-dots";
 import { useAuth } from "@/context/authcontext";
+import { SettingsCard } from "@/components/ui/settings-card";
 
 type LolRegion = "EUW" | "NA" | "KR";
 
@@ -519,85 +520,82 @@ export function ProfilerLinker() {
     (linkedSummonerDetails.avatar_url ??
       `${profileIconBase()}/${linkedSummonerDetails.profileIconId}.png`);
 
+  const riotIcon = (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+      <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z" />
+    </svg>
+  );
+
   return (
-    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
-      {/* Left accent bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-      {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
-      {/* HUD bracket corners */}
-      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-      {/* Bottom gradient line */}
-      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
-
-      <div className="relative z-[2] px-4 py-3 pl-5">
-        {/* Content */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-          <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
-            {isLinked && linkedSummonerDetails && linkedIconUrl ? (
-              <img src={linkedIconUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
-            )}
+    <>
+      <SettingsCard title="League profile" hint={isLinked ? "◈ LINKED" : "◈ NOT LINKED"}>
+        {initialLoading ? (
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 shrink-0 animate-pulse rounded-[2px] bg-flash/5" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="h-3.5 w-32 animate-pulse rounded-[2px] bg-flash/5" />
+              <div className="h-3 w-48 animate-pulse rounded-[2px] bg-flash/5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            {initialLoading ? (
-              <div className="space-y-1.5">
-                <div className="h-3.5 w-32 rounded-[2px] bg-flash/5 animate-pulse" />
-                <div className="h-3 w-48 rounded-[2px] bg-flash/5 animate-pulse" />
+        ) : isLinked && linkedSummoner && linkedSummonerDetails ? (
+          /* ── LINKED ── */
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+              {linkedIconUrl ? <img src={linkedIconUrl} alt="" className="h-full w-full object-cover" /> : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-flash/85">
+                {linkedSummonerDetails.name}<span className="text-flash/40">#{linkedSummonerDetails.tag}</span>
               </div>
-            ) : isLinked && linkedSummoner && linkedSummonerDetails ? (
-              <>
-                <span className="text-flash/90 text-sm font-medium block">
-                  {linkedSummonerDetails.name}<span className="text-flash/40">#{linkedSummonerDetails.tag}</span>
-                </span>
-                <span className="text-[11px] text-flash/40 font-mono">
-                  {linkedSummoner.region.toUpperCase()} / {linkedSummonerDetails.rank} / {linkedSummonerDetails.lp} LP
-                </span>
-              </>
-            ) : (
-              <span className="text-flash/40 text-sm">
-                Connect your Riot account for personalized analytics.
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
-
-        {/* Buttons below divider */}
-        <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
-          <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
-            {isLinked ? "◈ LINKED" : "◈ NOT LINKED"}
-          </span>
-          <div className="flex items-center gap-2">
-            {isLinked && (
+              <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-flash/40">
+                {linkedSummoner.region.toUpperCase()} / {linkedSummonerDetails.rank} / {linkedSummonerDetails.lp} LP
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={handleUnlink}
-                className="px-2 py-1 rounded-[2px] cursor-clicker border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 transition-colors"
+                className="rounded-[2px] border border-flash/15 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-flash/50 transition-colors hover:bg-flash/5 cursor-clicker disabled:opacity-40 disabled:pointer-events-none"
               >
                 UNLINK
               </button>
-            )}
-            <button
-              type="button"
-              onClick={handleRiotSignIn}
-              disabled={rsoLoading}
-              className="px-3 py-1.5 rounded-[2px] cursor-clicker border border-[#c8292e]/40 bg-[#c8292e]/10 hover:bg-[#c8292e]/20 text-[#e8484d] hover:text-[#ff5f63] text-[11px] tracking-[0.1em] uppercase transition-colors disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1.5"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
-                <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z"/>
-              </svg>
-              {rsoLoading ? "CONNECTING..." : isLinked ? "RE-LINK" : "LINK"}
-            </button>
+              <button
+                type="button"
+                onClick={handleRiotSignIn}
+                disabled={rsoLoading}
+                className="inline-flex items-center gap-1.5 rounded-[2px] border border-jade/35 bg-jade/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-jade transition-colors hover:bg-jade/20 hover:border-jade/50 cursor-clicker disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {riotIcon}
+                {rsoLoading ? "Connecting…" : "Re-link"}
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        ) : (
+          /* ── NOT LINKED — inviting CTA ── */
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+              <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="h-full w-full object-cover opacity-25" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-flash/85">Link your account</div>
+              <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-flash/40">
+                Unlock personalized analytics, live rank tracking and your player profile.
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRiotSignIn}
+                disabled={rsoLoading}
+                className="inline-flex items-center gap-1.5 rounded-[2px] border border-jade/35 bg-jade/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-jade transition-colors hover:bg-jade/20 hover:border-jade/50 cursor-clicker disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {riotIcon}
+                {rsoLoading ? "Connecting…" : "Link account"}
+              </button>
+            </div>
+          </div>
+        )}
+      </SettingsCard>
 
       <Dialog
         open={dialogOpen}
@@ -760,6 +758,6 @@ export function ProfilerLinker() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

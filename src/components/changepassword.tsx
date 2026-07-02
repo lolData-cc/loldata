@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { SettingsCard } from "@/components/ui/settings-card";
 
 export function ChangePassword() {
   const [open, setOpen] = useState(false);
@@ -47,24 +48,14 @@ export function ChangePassword() {
   return (
     <>
       {/* Card — matches AccountDeletion layout */}
-      <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
-        <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
-        <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
-
-        <div className="relative z-[2] px-4 py-3 pl-5">
+      <SettingsCard title="Security" hint="◈ REQUIRES ACTIVE SESSION">
           <span className="text-flash/60 text-sm">
             Update your account password.
           </span>
 
           <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
 
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">◈ REQUIRES ACTIVE SESSION</span>
+          <div className="flex justify-end items-center pt-2">
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -73,8 +64,7 @@ export function ChangePassword() {
               CHANGE
             </button>
           </div>
-        </div>
-      </div>
+      </SettingsCard>
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>

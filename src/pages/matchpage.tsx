@@ -16,10 +16,9 @@ import {
 } from "@/components/ui/tabs"
 // Recharts removed — damage bars now use custom CSS
 import { KillMap } from "@/components/killmap";
-import { API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config";
+import { API_BASE_URL, BOX_API_BASE_URL, cdnBaseUrl, cdnSplashUrl, summonerSpellUrl } from "@/config";
 import { getRankImage } from "@/utils/rankIcons";
 import { DiamondButton } from "@/components/ui/diamond-button";
-import { supabase } from "@/lib/supabaseClient";
 import { getKeystoneIcon, getStyleIcon, getKeystoneName, getStyleName } from "@/constants/runes";
 import {
   Tooltip,
@@ -166,18 +165,15 @@ export default function MatchPage() {
   }
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("pro_players").select("username"),
-      supabase.from("pro_player_accounts").select("username"),
-    ]).then(([{ data: proData }, { data: accData }]) => {
-      const names = new Set<string>();
-      for (const r of proData ?? []) if (r.username) names.add(r.username.toLowerCase());
-      for (const r of accData ?? []) if (r.username) names.add(r.username.toLowerCase());
-      setProUsernames(names);
-    });
-    supabase.from("streamers").select("lol_nametag").then(({ data }) => {
-      if (data) setStreamerUsernames(new Set(data.filter((r) => r.lol_nametag).map((r) => r.lol_nametag.toLowerCase())));
-    });
+    // Scoreboard nameplates: every known pro/streamer account nametag, merged
+    // server-side on the box (lolpros import + curated Cloud tables).
+    fetch(`${BOX_API_BASE_URL}/api/pros/badge-map`)
+      .then((r) => (r.ok ? r.json() : { pros: [], streamers: [] }))
+      .then(({ pros, streamers }: { pros: string[]; streamers: string[] }) => {
+        setProUsernames(new Set(pros));
+        setStreamerUsernames(new Set(streamers));
+      })
+      .catch(() => { /* badges are decorative — fail silent */ });
   }, []);
 
   useEffect(() => {

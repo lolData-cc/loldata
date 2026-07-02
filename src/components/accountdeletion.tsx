@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SettingsCard } from "@/components/ui/settings-card";
 
 const ERR = "#ff6286";
 const ERR_GLOW = "rgba(255,98,134,0.15)";
@@ -67,20 +68,14 @@ export function AccountDeletion() {
   return (
     <>
       {/* ── Danger Zone ── */}
-      <div className="relative rounded-[2px] border border-transparent bg-cement/30 overflow-hidden">
-        {/* Left accent bar */}
-        <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-error/20" />
-
-        {/* Content */}
-        <div className="relative z-[2] px-4 py-3 pl-5">
+      <SettingsCard title="Danger zone" variant="danger" hint="◈ IRREVERSIBLE">
           <p className="text-flash/20 text-[11px]">
             Permanently remove your account and all associated data.
           </p>
 
           <div className="mt-3 h-[1px] bg-gradient-to-r from-error/15 via-flash/5 to-transparent" />
 
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-[10px] font-mono text-error/20 tracking-[0.08em]">◈ IRREVERSIBLE</span>
+          <div className="flex justify-end items-center pt-2">
             <button
               type="button"
               onClick={handleOpen}
@@ -89,8 +84,7 @@ export function AccountDeletion() {
               DELETE
             </button>
           </div>
-        </div>
-      </div>
+      </SettingsCard>
 
       {/* ── Confirmation Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>

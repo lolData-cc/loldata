@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { cdnBaseUrl } from "@/config";
 import { AvatarCropper } from "@/components/avatarcropper";
 import { useAuth } from "@/context/authcontext";
+import { SettingsCard } from "@/components/ui/settings-card";
 
 const BUCKET = "avatars";
 
@@ -111,95 +112,77 @@ export function PremiumAvatarUploader() {
 
   return (
     <>
-      <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
-        {/* Left accent bar */}
-        <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-        {/* Scanlines */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
-        {/* HUD bracket corners */}
-        <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-        <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-        {/* Bottom gradient line */}
-        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
-
-        <div className="relative z-[2] px-4 py-3 pl-5">
-          {/* Content */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-            <div className="w-16 h-16 rounded-[2px] overflow-hidden border border-jade/15 bg-black/30 shrink-0">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="w-full h-full object-cover opacity-30" />
-              )}
-            </div>
-            <span className="text-flash/60 text-sm min-w-0 break-words">
-              {isPremium
-                ? "Upload a custom image to personalize your profile."
-                : "Upgrade to Premium to customize your avatar."}
-            </span>
+      <SettingsCard title="Avatar" hint={isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}>
+        <div className="flex items-center gap-3.5">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="h-full w-full object-cover opacity-30" />
+            )}
           </div>
-
-          {/* Divider */}
-          <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
-
-          {/* Buttons below divider */}
-          <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
-            <span className="text-[10px] font-mono text-flash/30 tracking-[0.08em]">
-              {isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}
-            </span>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-flash/85">Custom avatar</div>
+            <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-flash/40">
+              {isPremium
+                ? "Upload an image to personalize your profile."
+                : "Upgrade to Premium to customize your avatar."}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={uploading || !avatarUrl}
+              className="rounded-[2px] border border-flash/15 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-flash/50 transition-colors hover:bg-flash/5 cursor-clicker disabled:opacity-40 disabled:pointer-events-none"
+            >
+              RESET
+            </button>
+            {isPremium ? (
+              <label
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-[2px] border border-jade/35 bg-jade/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-jade transition-colors hover:bg-jade/20 hover:border-jade/50 cursor-clicker disabled:opacity-50 disabled:pointer-events-none",
+                  uploading && "opacity-50 pointer-events-none"
+                )}
+              >
+                {uploading ? "UPLOADING..." : "UPLOAD"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (!f.type.startsWith("image/"))
+                      return showCyberToast({
+                        title: "Invalid file",
+                        description: "Select an image file.",
+                        tag: "ERR",
+                        variant: "error",
+                      });
+                    if (f.size > 5 * 1024 * 1024)
+                      return showCyberToast({
+                        title: "File too large",
+                        description: "Maximum file size is 5 MB.",
+                        tag: "ERR",
+                        variant: "error",
+                      });
+                    setFileToCrop(f);
+                  }}
+                />
+              </label>
+            ) : (
               <button
                 type="button"
-                onClick={handleReset}
-                disabled={uploading || !avatarUrl}
-                className="px-2 py-1 rounded-[2px] border border-flash/15 hover:bg-flash/5 text-[11px] tracking-[0.1em] uppercase text-flash/50 cursor-clicker transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                disabled
+                className="inline-flex items-center gap-1.5 rounded-[2px] border border-jade/35 bg-jade/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-jade transition-colors hover:bg-jade/20 hover:border-jade/50 cursor-clicker disabled:opacity-50 disabled:pointer-events-none"
               >
-                RESET
+                UPGRADE
               </button>
-              {isPremium ? (
-                <label
-                  className={cn(
-                    "px-2 py-1 rounded-[2px] cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase transition-colors inline-flex items-center gap-1",
-                    uploading && "opacity-60 pointer-events-none"
-                  )}
-                >
-                  {uploading ? "UPLOADING..." : "UPLOAD"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      if (!f.type.startsWith("image/"))
-                        return showCyberToast({
-                          title: "Invalid file",
-                          description: "Select an image file.",
-                          tag: "ERR",
-                          variant: "error",
-                        });
-                      if (f.size > 5 * 1024 * 1024)
-                        return showCyberToast({
-                          title: "File too large",
-                          description: "Maximum file size is 5 MB.",
-                          tag: "ERR",
-                          variant: "error",
-                        });
-                      setFileToCrop(f);
-                    }}
-                  />
-                </label>
-              ) : (
-                <span className="text-[10px] text-flash/30 font-mono tracking-[0.1em]">
-                  PREMIUM ONLY
-                </span>
-              )}
-            </div>
+            )}
           </div>
         </div>
-      </div>
+      </SettingsCard>
 
       {fileToCrop && (
         <AvatarCropper

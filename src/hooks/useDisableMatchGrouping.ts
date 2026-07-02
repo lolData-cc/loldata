@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { getDisableMatchGrouping, setDisableMatchGrouping } from "@/lib/uiPrefs";
 
 export function useDisableMatchGrouping() {
-  const [disabled, setDisabled] = useState(false);
+  // Lazy init from storage so the very first paint already reflects the
+  // saved / default value (grouping is OFF by default) — no enabled→disabled flash.
+  const [disabled, setDisabled] = useState(() => getDisableMatchGrouping());
 
   useEffect(() => {
     setDisabled(getDisableMatchGrouping());

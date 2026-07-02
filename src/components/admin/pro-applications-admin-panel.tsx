@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { TalentLinkManager } from "./talent-link-manager";
+import { BoxProsDirectory } from "./box-pros-directory";
 import { supabase } from "@/lib/supabaseClient";
 import { Label } from "@/components/ui/label";
 import Cropper from "react-easy-crop";
@@ -83,15 +84,8 @@ function regionFromTag(tag: string): "EUW" | "NA" | "KR" {
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
-      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
-      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
-      <div className="relative z-[2] px-4 py-4 pl-5">{children}</div>
+    <div className="relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
+      <div className="relative z-[1] px-4 py-4">{children}</div>
     </div>
   );
 }
@@ -679,6 +673,9 @@ export function ProApplicationsAdminPanel() {
           </div>
         )}
       </GlassCard>
+
+      {/* ═══ SECTION 2b: SCRAPED PROS (box, lolpros import — read-only) ═══ */}
+      <BoxProsDirectory />
 
       {/* ═══ SECTION 3: TEAMS ═══ */}
       <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mt-8">:: TEAMS ::</p>

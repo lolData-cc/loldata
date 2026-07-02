@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { showCyberToast } from "@/lib/toast-utils";
 import { Separator } from "@/components/ui/separator";
+import { SettingsCard } from "@/components/ui/settings-card";
 import { Navbar } from "@/components/navbar";
 import { PremiumAvatarUploader } from "@/components/profileavataruploader";
 import { Label } from "@/components/ui/label";
@@ -310,26 +311,11 @@ export default function DashboardPage() {
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
                 <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: AVATAR ::</p>
-                    <PremiumAvatarUploader />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DISCORD ::</p>
-                    <DiscordLinker />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: LEAGUE PROFILE ::</p>
-                    <ProfilerLinker />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: SECURITY ::</p>
-                    <ChangePassword />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-2">:: DANGER ZONE ::</p>
-                    <AccountDeletion />
-                  </div>
+                  <PremiumAvatarUploader />
+                  <DiscordLinker />
+                  <ProfilerLinker />
+                  <ChangePassword />
+                  <AccountDeletion />
                 </div>
               </TabsContent>
 
@@ -369,65 +355,48 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: CHAMPION PICKER ::</p>
 
-                    <div className="relative rounded-[2px] border border-jade/10 bg-cement overflow-hidden">
-                      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
-                      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px)" }} />
-                      <div className="absolute top-0 left-0 w-3 h-3 z-[3]"><div className="absolute top-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-                      <div className="absolute top-0 right-0 w-3 h-3 z-[3]"><div className="absolute top-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute top-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-                      <div className="absolute bottom-0 left-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 left-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 left-0 w-[1px] h-full bg-jade/25" /></div>
-                      <div className="absolute bottom-0 right-0 w-3 h-3 z-[3]"><div className="absolute bottom-0 right-0 w-full h-[1px] bg-jade/25" /><div className="absolute bottom-0 right-0 w-[1px] h-full bg-jade/25" /></div>
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-jade/30 via-jade/10 to-transparent z-[3]" />
+                    <SettingsCard title="Champion Picker UI">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-flash/80 text-sm">
+                          Choose between Sheet (shadcn) and Radial dock.
+                        </span>
 
-                      <div className="relative z-[2] px-4 py-3 pl-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">Champion Picker UI</h4>
-                            <span className="text-flash/80 text-sm">
-                              Choose between Sheet (shadcn) and Radial dock.
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />
-
-                        <div className="flex justify-end pt-3">
-                          <div className="relative flex rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
-                            {/* Sliding indicator */}
-                            <div
-                              className={cn(
-                                "absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-[2px]",
-                                "bg-jade/15 border border-jade/30",
-                                "transition-all duration-300 ease-out",
-                                "shadow-[0_0_8px_rgba(0,217,146,0.1)]",
-                                pickerMode === "sheet" ? "left-[3px]" : "left-[calc(50%)]"
-                              )}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setPickerMode("sheet")}
-                              className={cn(
-                                "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
-                                "transition-colors duration-300",
-                                pickerMode === "sheet" ? "text-jade" : "text-flash/40 hover:text-flash/60"
-                              )}
-                            >
-                              Sheet
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPickerMode("radial")}
-                              className={cn(
-                                "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
-                                "transition-colors duration-300",
-                                pickerMode === "radial" ? "text-jade" : "text-flash/40 hover:text-flash/60"
-                              )}
-                            >
-                              Radial
-                            </button>
-                          </div>
+                        <div className="relative flex shrink-0 rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
+                          {/* Sliding indicator */}
+                          <div
+                            className={cn(
+                              "absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] rounded-[2px]",
+                              "bg-jade/15 border border-jade/30",
+                              "transition-all duration-300 ease-out",
+                              "shadow-[0_0_8px_rgba(0,217,146,0.1)]",
+                              pickerMode === "sheet" ? "left-[3px]" : "left-[calc(50%)]"
+                            )}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setPickerMode("sheet")}
+                            className={cn(
+                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                              "transition-colors duration-300",
+                              pickerMode === "sheet" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                            )}
+                          >
+                            Sheet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPickerMode("radial")}
+                            className={cn(
+                              "relative z-10 px-4 py-1 text-[11px] font-jetbrains uppercase tracking-[0.15em] cursor-clicker rounded-[2px]",
+                              "transition-colors duration-300",
+                              pickerMode === "radial" ? "text-jade" : "text-flash/40 hover:text-flash/60"
+                            )}
+                          >
+                            Radial
+                          </button>
                         </div>
                       </div>
-                    </div>
+                    </SettingsCard>
                   </div>
 
                 </div>
