@@ -62,16 +62,16 @@ function SidebarButton({
             <span className="min-w-0">
                 <span
                     className={cn(
-                        "block font-chakrapetch text-[11px] font-light uppercase tracking-[0.14em] leading-none transition-colors duration-200",
-                        active ? "text-jade" : "text-flash/55 group-hover:text-flash/85"
+                        "block font-chakrapetch text-[12.5px] font-semibold uppercase tracking-[0.09em] leading-none transition-colors duration-200",
+                        active ? "text-jade" : "text-flash/85 group-hover:text-flash"
                     )}
                 >
                     {label}
                 </span>
                 <span
                     className={cn(
-                        "mt-1 block truncate font-chakrapetch text-[9.5px] font-normal tracking-wide leading-none transition-colors duration-200",
-                        active ? "text-jade/80" : "text-flash/80"
+                        "mt-1.5 block truncate font-chakrapetch text-[11px] font-normal tracking-[0.01em] leading-none transition-colors duration-200",
+                        active ? "text-jade/70" : "text-flash/45 group-hover:text-flash/65"
                     )}
                 >
                     {desc}
@@ -152,7 +152,7 @@ export default function LearnPage() {
                                     {nametag ? nametag.split("#")[0] : "Not linked"}
                                 </span>
                                 {nametag && region ? (
-                                    <span className="mt-0.5 flex items-center gap-0.5 font-chakrapetch text-[9px] font-light uppercase tracking-[0.18em] text-jade/55 transition-colors duration-200 group-hover:text-jade/85">
+                                    <span className="mt-0.5 flex items-center gap-0.5 font-chakrapetch text-[10px] font-normal uppercase tracking-[0.14em] text-jade/80 transition-colors duration-200 group-hover:text-jade">
                                         View profile
                                         <ArrowUpRight size={10} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                                     </span>

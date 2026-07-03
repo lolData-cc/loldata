@@ -58,6 +58,7 @@ import ScoutClaimPage from "@/pages/scoutclaimpage";
 import BillingSuccessPage from "@/pages/billingsuccess";
 import BillingCancelPage from "@/pages/billingcancel";
 import ContactPage from "@/pages/contactpage";
+import StatusPage from "@/pages/statuspage";
 //
 
 declare global {
@@ -241,6 +242,7 @@ function App() {
               <Route path="/billing/success" element={<RootLayout> <BillingSuccessPage /> </RootLayout>}/>
               <Route path="/billing/cancel" element={<RootLayout> <BillingCancelPage /> </RootLayout>}/>
               <Route path="/contact" element={<RootLayout> <ContactPage /> </RootLayout>}/>
+              <Route path="/status" element={<RootLayout> <StatusPage /> </RootLayout>}/>
               <Route path="/dle" element={<RootLayout> <PlaygroundPage /> </RootLayout>}/>
               <Route path="/mastery" element={<RootLayout> <TotalMasteryPage /> </RootLayout>}/>
               <Route path="/privacy" element={<RootLayout><PrivacyPolicyPage /></RootLayout>} />

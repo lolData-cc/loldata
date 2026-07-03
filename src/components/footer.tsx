@@ -71,7 +71,7 @@ export function Footer({ className = "" }: FooterProps) {
                                 </span>
                                 <ul className="flex flex-col gap-2 text-[13px] cursor-clicker [&>span:hover]:text-flash/80">
                                     <Link to="/pricing" className="cursor-clicker hover:text-flash/80">Pricing</Link>
-                                    <span> Status </span>
+                                    <Link to="/status" className="cursor-clicker hover:text-flash/80">Status</Link>
                                     <Link to="/terms" className="cursor-clicker hover:text-flash/80">Terms</Link>
                                     <Link to="/privacy" className="cursor-clicker hover:text-flash/80">Privacy</Link>
                                 </ul>
