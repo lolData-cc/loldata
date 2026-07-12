@@ -231,7 +231,7 @@ export function PlaybackBar({
         )}
 
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-jade shadow-[0_0_8px_rgba(0,217,146,0.8),0_0_2px_rgba(0,0,0,0.8)] pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-jade shadow-[0_0_8px_rgba(0,217,146,0.8),0_0_2px_rgba(var(--c-shadow),0.8)] pointer-events-none"
           style={{ left: `${playheadPct}%`, transform: "translate(-50%, -50%)" }}
         />
       </div>

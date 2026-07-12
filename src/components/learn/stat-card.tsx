@@ -23,7 +23,7 @@ export function StatCard({ title, value, subtitle, trend, color = "flash", delay
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="relative bg-black/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden group"
+      className="relative bg-filmdark/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden group"
     >
       {/* Scanline overlay */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 3px)" }} />

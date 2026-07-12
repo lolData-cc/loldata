@@ -4,6 +4,122 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME TOKENS  —  dark (default) + light
+   Every value is a space-separated RGB channel triplet so Tailwind's
+   `rgb(var(--x) / <alpha-value>)` opacity modifiers keep working.
+   DARK values reproduce the historic literals EXACTLY (bg #040A0C, text
+   #d7d8d9, white/black films = 255/0) so the dark theme never shifts a pixel.
+   LIGHT values are the crafted branded-paper palette.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root, html.dark {
+  --c-bg: 4 10 12;           /* liquirice #040A0C — page */
+  --c-surface: 15 18 19;     /* cement #0f1213 — raised panel */
+  --c-surface2: 22 27 29;    /* higher panel */
+  --c-fg: 215 216 217;       /* flash #d7d8d9 — primary ink */
+  --c-muted: 150 156 158;    /* secondary text */
+  --c-faint: 96 104 106;     /* tertiary text */
+  --c-jade: 0 217 146;       /* #00d992 accent */
+  --c-citrine: 255 182 21;   /* #FFB615 */
+  --c-error: 255 98 134;     /* #ff6286 */
+  --c-pine: 20 132 96;       /* #148460 */
+  --c-hairline: 255 255 255; /* the white/x edge lines */
+  --c-filmlight: 255 255 255;/* bg-white/x glass films & lifts */
+  --c-filmdark: 0 0 0;       /* bg-black/x fills & scrims */
+  --c-shadow: 0,0,0;         /* drop-shadow colour (comma form for rgba()) — black in dark */
+  /* glass card recipe (used by .glass-surface / .glass-panel) */
+  --glass-surface-bg: rgba(255,255,255,0.04);
+  --glass-surface-shadow: 0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
+  --glass-panel-bg: rgba(0,0,0,0.35);
+  --glass-panel-shadow: 0 20px 60px rgba(0,0,0,0.65), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+html.light {
+  /* Calm grey-green light theme. The page is a soft mid grey so that SOLID
+     (opaque) grey cards clearly stand off it — no translucent cards, no bright
+     white, and soft light shadows (never the dark theme's black drop shadows). */
+  --c-bg: 176 184 180;       /* #B0B8B4 — medium grey page, so grey cards pop with real presence */
+  --c-surface: 206 213 209;  /* #CED5D1 — SOLID grey card (clear panel, not pale/white) */
+  --c-surface2: 195 202 198; /* #C3CAC6 — secondary panel */
+  --c-fg: 24 32 29;          /* #18201D — slate ink */
+  --c-muted: 70 82 77;       /* #46524D */
+  --c-faint: 104 116 110;    /* #68746E */
+  --c-jade: 0 128 86;        /* #008056 — deepened jade for contrast on the grey */
+  --c-citrine: 138 95 0;     /* #8A5F00 */
+  --c-error: 188 40 74;      /* #BC284A */
+  --c-pine: 15 102 73;
+  --c-hairline: 26 38 33;    /* soft dark hairline (used at low alpha) */
+  --c-filmlight: 26 38 33;   /* white films → faint dark tint */
+  --c-shadow: 25,38,33;      /* soft green-grey shadow — never harsh black on light */
+  --c-filmdark: 150 160 155; /* black fills → a mid grey so translucent bg-black inner
+                                boxes read as clearly-grey panels on the cards */
+  /* SOLID grey cards (no alpha → never transparent), a clear soft edge, and
+     soft layered light shadows (never the dark theme's black drop shadow). */
+  --glass-surface-bg: rgb(208,215,211);
+  --glass-surface-shadow: 0 6px 18px rgba(25,38,33,0.15), 0 2px 4px rgba(25,38,33,0.10), inset 0 0 0 1px rgba(26,38,33,0.11);
+  --glass-panel-bg: rgb(206,213,209);
+  --glass-panel-shadow: 0 8px 22px rgba(25,38,33,0.16), 0 2px 5px rgba(25,38,33,0.11), inset 0 0 0 1px rgba(26,38,33,0.11);
+}
+
+/* Shared glass card recipes. Unlayered on purpose so they can beat Tailwind's
+   `utilities` layer (a later @layer otherwise wins regardless of specificity).
+   • .glass-surface owns BOTH themes via its CSS vars — used by components that
+     dropped their literal bg/shadow (e.g. SettingsCard).
+   • .glass-panel is a LIGHT-ONLY override: the glassDark pages keep their
+     historic `bg-black/xx` + shadow literals so DARK is untouched, and in light
+     this higher-priority rule swaps them for a crisp paper card. */
+.glass-surface {
+  background: var(--glass-surface-bg);
+  box-shadow: var(--glass-surface-shadow);
+}
+html.light .glass-panel {
+  background: var(--glass-panel-bg);
+  box-shadow: var(--glass-panel-shadow);
+}
+
+/* Match cards in light: SOLID grey-tinted surfaces (win = green-grey, loss =
+   red-grey, blue-win = blue-grey) so they read as clear coloured cards, never
+   transparent. Light-only — dark keeps its historic translucent colour tint. */
+html.light .match-win  { background: rgb(190,211,199); }
+html.light .match-loss { background: rgb(216,193,198); }
+html.light .match-bluewin { background: rgb(194,206,216); }
+html.light .match-win,
+html.light .match-loss,
+html.light .match-bluewin {
+  box-shadow: 0 4px 14px rgba(30,44,39,0.10), inset 0 0 0 1px rgba(28,40,35,0.08);
+}
+
+/* A subtree that ALWAYS renders in the dark palette, even under html.light.
+   It re-declares every token to its dark value, so anything inside (and any
+   glass-* / var-driven rule) resolves dark. Used to keep the summoner match
+   feed identical to the dark theme in both modes. */
+.theme-dark {
+  --c-bg: 4 10 12;
+  --c-surface: 15 18 19;
+  --c-surface2: 22 27 29;
+  --c-fg: 215 216 217;
+  --c-muted: 150 156 158;
+  --c-faint: 96 104 106;
+  --c-jade: 0 217 146;
+  --c-citrine: 255 182 21;
+  --c-error: 255 98 134;
+  --c-pine: 20 132 96;
+  --c-hairline: 255 255 255;
+  --c-filmlight: 255 255 255;
+  --c-filmdark: 0 0 0;
+  --c-shadow: 0,0,0;
+  --glass-surface-bg: rgba(255,255,255,0.04);
+  --glass-surface-shadow: 0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
+  --glass-panel-bg: rgba(0,0,0,0.35);
+  --glass-panel-shadow: 0 20px 60px rgba(0,0,0,0.65), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+/* Neutralise the light-only glass/match overrides inside a dark subtree so
+   they fall back to the dark var values above. */
+html.light .theme-dark .glass-panel { background: var(--glass-panel-bg); box-shadow: var(--glass-panel-shadow); }
+html.light .theme-dark .match-win,
+html.light .theme-dark .match-loss,
+html.light .theme-dark .match-bluewin { background: transparent; box-shadow: none; }
+
 @layer base {
   *, *::before, *::after {
     cursor: inherit;

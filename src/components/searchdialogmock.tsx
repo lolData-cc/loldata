@@ -330,12 +330,12 @@ export default function SearchDialogMock({
 
           <div className="flex gap-2">
             <div className="flex-1">
-              <div className="bg-black/20 border border-flash/10 rounded px-3 py-2 text-flash text-sm font-mono tracking-wide">
+              <div className="bg-filmdark/20 border border-flash/10 rounded px-3 py-2 text-flash text-sm font-mono tracking-wide">
                 {typed || <span className="text-flash/30">Your username + #TAG</span>}
               </div>
             </div>
             <div className="w-20">
-              <div className="w-full h-full flex items-center justify-center bg-black/20 border border-flash/10 rounded text-flash text-xs">
+              <div className="w-full h-full flex items-center justify-center bg-filmdark/20 border border-flash/10 rounded text-flash text-xs">
                 EUW
               </div>
             </div>

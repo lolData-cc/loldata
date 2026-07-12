@@ -540,7 +540,7 @@ export function ProfilerLinker() {
         ) : isLinked && linkedSummoner && linkedSummonerDetails ? (
           /* ── LINKED ── */
           <div className="flex items-center gap-3.5">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-filmdark/30">
               {linkedIconUrl ? <img src={linkedIconUrl} alt="" className="h-full w-full object-cover" /> : null}
             </div>
             <div className="min-w-0 flex-1">
@@ -573,7 +573,7 @@ export function ProfilerLinker() {
         ) : (
           /* ── NOT LINKED — inviting CTA ── */
           <div className="flex items-center gap-3.5">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-filmdark/30">
               <img src={`${cdnBaseUrl()}/img/profileicon/29.png`} alt="" className="h-full w-full object-cover opacity-25" />
             </div>
             <div className="min-w-0 flex-1">
@@ -618,7 +618,7 @@ export function ProfilerLinker() {
                   </DialogHeader>
 
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 items-start sm:items-center">
-                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-flash/20 bg-black/40 shrink-0">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-flash/20 bg-filmdark/40 shrink-0">
                       {currentIconUrl ? (
                         <img
                           src={currentIconUrl}
@@ -686,7 +686,7 @@ export function ProfilerLinker() {
                   <div className="mt-4 space-y-3 text-xs text-flash/70">
                     <p className="text-flash/90 text-sm">Step 1</p>
                     <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 flex-none rounded-lg overflow-hidden border border-jade/40 bg-black/40">
+                      <div className="w-16 h-16 flex-none rounded-lg overflow-hidden border border-jade/40 bg-filmdark/40">
                         <img
                           src={minionIconUrl}
                           alt="Minion gem"

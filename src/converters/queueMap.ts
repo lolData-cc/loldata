@@ -4,6 +4,7 @@ const queueMap: Record<number, string> = {
   440: "Ranked Flex",
   450: "ARAM",
   700: "Clash",
+  710: "Ranked 5s",
   900: "URF",
   1020: "Arena",
   1700: "Arena Ranked",

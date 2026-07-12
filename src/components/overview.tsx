@@ -3,7 +3,7 @@
 // chakrapetch numbers, mono eyebrows, jade/red/citrine states, bento layout.
 // Data: /api/learn/overview (period day|week) — aggregates + LP track +
 // timeline insights (laning diffs, death clock, objectives) + spotlight.
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useLearnOverview, type Period } from "@/hooks/useLearnOverview"
 import { StrengthsWeaknesses } from "@/components/learn/strengths-weaknesses"
 import { OverviewSkeleton } from "@/components/learn/overview-skeleton"
@@ -29,9 +29,9 @@ const roleLabel = (r: string) => ({ TOP: "Top", JUNGLE: "Jungle", MIDDLE: "Mid",
 // three cues: a lit gradient fill (faint jade sheen top-left → near-black teal),
 // a crisp jade outer ring, and a tight jade outer glow. Stays dark, reads clearly.
 const glass =
-  "relative overflow-hidden rounded-md backdrop-blur-xl saturate-150 " +
+  "relative overflow-hidden rounded-md backdrop-blur-xl saturate-150 glass-panel " +
   "bg-[linear-gradient(158deg,rgba(0,217,146,0.06)_0%,rgba(6,14,16,0.55)_34%,rgba(2,6,8,0.62)_100%)] " +
-  "shadow-[0_16px_40px_-8px_rgba(0,0,0,0.7),0_0_0_1px_rgba(0,217,146,0.30),0_0_22px_-10px_rgba(0,217,146,0.25),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "shadow-[0_16px_40px_-8px_rgba(var(--c-shadow),0.7),0_0_0_1px_rgba(0,217,146,0.30),0_0_22px_-10px_rgba(0,217,146,0.25),inset_0_1px_0_rgba(255,255,255,0.05)]"
 
 function Panel({ title, hint, children, className, delay = 0 }: {
   title?: string; hint?: React.ReactNode; children: React.ReactNode; className?: string; delay?: number
@@ -175,7 +175,7 @@ const titleCase = (t: string) => t.charAt(0) + t.slice(1).toLowerCase()
 function Emblem({ tier, dim }: { tier: string; dim?: boolean }) {
   return (
     <div className={cn("relative w-[74px] h-[74px] mx-auto flex items-center justify-center", dim && "opacity-70")}>
-      <div className="absolute w-[52px] h-[52px] bg-black/40 rounded-full border border-flash/[0.08] shadow-[inset_0_0_12px_rgba(0,0,0,0.5)]" />
+      <div className="absolute w-[52px] h-[52px] bg-filmdark/40 rounded-full border border-flash/[0.08] shadow-[inset_0_0_12px_rgba(var(--c-shadow),0.5)]" />
       <img src={getRankImage(tier)} alt="" className="w-[74px] h-[74px] relative z-10" draggable={false}
         onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/img/unranked.png" }} />
     </div>
@@ -261,13 +261,61 @@ function SessionRibbon({ games, selectableIds, selectedId, onSelect }: {
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
-  const chrono = useMemo(() => [...(games ?? [])].reverse(), [games])
+  // hide remakes (early-surrender games < 5 min) from the ribbon
+  const chrono = useMemo(() => [...(games ?? [])].reverse().filter((g) => (g.durationMin ?? 99) >= 5), [games])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const drag = useRef({ down: false, moved: false, startX: 0, startLeft: 0 })
+  // mouse wheel → horizontal scroll, and click-and-drag to pan the row
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return // touch/pen use native scroll
+      drag.current = { down: true, moved: false, startX: e.clientX, startLeft: el.scrollLeft }
+    }
+    const onMove = (e: PointerEvent) => {
+      if (!drag.current.down) return
+      const dx = e.clientX - drag.current.startX
+      if (Math.abs(dx) > 4) {
+        drag.current.moved = true
+        el.style.cursor = "grabbing"
+        el.scrollLeft = drag.current.startLeft - dx
+      }
+    }
+    const onUp = () => {
+      if (!drag.current.down) return
+      drag.current.down = false
+      el.style.cursor = ""
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    el.addEventListener("pointerdown", onDown)
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerup", onUp)
+    return () => {
+      el.removeEventListener("wheel", onWheel)
+      el.removeEventListener("pointerdown", onDown)
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+    }
+  }, [chrono.length])
   if (!chrono.length) return null
+  const kf = (n: number) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(Math.round(n ?? 0)))
   return (
-    <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar py-1">
+    <div ref={scrollRef} className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 cursor-grab select-none">
       {chrono.map((g, i) => {
         const canPick = !!g.matchId && selectableIds.has(g.matchId)
         const isSel = canPick && g.matchId === selectedId
+        const perfect = g.deaths === 0
+        const kda = perfect ? g.kills + g.assists : (g.kills + g.assists) / g.deaths
+        const tone = g.impact >= 70 ? "jade" : g.impact >= 50 ? "citrine" : "red"
+        const toneText = tone === "jade" ? "text-jade" : tone === "citrine" ? "text-[#FFB615]" : "text-red-400"
+        const toneBar = tone === "jade" ? "bg-jade" : tone === "citrine" ? "bg-[#FFB615]" : "bg-red-400/80"
         // result pill — MVP (best on winning team) / ACE (best on losing team) outrank plain WIN/LOSS
         const badge = g.mvp
           ? { txt: "MVP", cls: "bg-[#FFB615]/20 text-[#FFB615] shadow-[inset_0_0_0_1px_rgba(255,182,21,0.55),0_0_10px_-3px_rgba(255,182,21,0.7)]" }
@@ -278,27 +326,80 @@ function SessionRibbon({ games, selectableIds, selectedId, onSelect }: {
           : { txt: "LOSS", cls: "bg-red-400/15 text-red-300 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.45)]" }
         return (
           <motion.button key={i} type="button"
-            onClick={canPick ? () => onSelect(g.matchId) : undefined}
-            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.03, duration: 0.35, ease: EASE }}
-            className={cn("group relative shrink-0 w-[70px] rounded-[5px] px-2 pt-2 pb-1.5 flex flex-col items-center gap-1.5 transition-[box-shadow,background-color] duration-200",
+            onClick={canPick ? () => { if (drag.current.moved) return; onSelect(g.matchId) } : undefined}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.03, duration: 0.4, ease: EASE }}
+            className={cn(
+              "group relative shrink-0 w-[128px] rounded-[11px] overflow-hidden flex flex-col text-center transition-all duration-200",
+              "bg-gradient-to-b from-filmlight/[0.05] via-filmdark/25 to-filmdark/45 backdrop-blur-sm",
               isSel
-                ? "bg-jade/[0.14] shadow-[inset_0_0_0_1.5px_rgba(0,217,146,0.7),0_0_18px_rgba(0,217,146,0.15)]"
-                : g.win ? "bg-jade/[0.07] shadow-[inset_0_0_0_1px_rgba(0,217,146,0.20)]" : "bg-red-400/[0.06] shadow-[inset_0_0_0_1px_rgba(248,113,113,0.16)]",
-              canPick ? "cursor-clicker" : "cursor-default opacity-55",
-              canPick && !isSel && "hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.45)]")}
+                ? "shadow-[inset_0_0_0_1.5px_rgba(0,217,146,0.7),0_10px_26px_-8px_rgba(0,217,146,0.4)] -translate-y-0.5"
+                : g.win
+                ? "shadow-[inset_0_0_0_1px_rgba(0,217,146,0.18),0_5px_16px_-10px_rgba(0,0,0,0.7)]"
+                : "shadow-[inset_0_0_0_1px_rgba(248,113,113,0.16),0_5px_16px_-10px_rgba(0,0,0,0.7)]",
+              canPick ? "cursor-clicker hover:-translate-y-0.5" : "cursor-default opacity-60",
+              canPick && !isSel && (g.win
+                ? "hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.42),0_12px_26px_-10px_rgba(0,217,146,0.3)]"
+                : "hover:shadow-[inset_0_0_0_1px_rgba(248,113,113,0.36),0_12px_26px_-10px_rgba(0,0,0,0.6)]"),
+            )}
             title={`${g.mvp ? "MVP · " : g.ace ? "ACE · " : ""}${g.champion} · ${g.kills}/${g.deaths}/${g.assists} · IMPACT ${g.impact} · ${g.durationMin}m${canPick ? " · click to break down" : ""}`}
           >
-            <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(g.champion)}.png`} alt=""
-              className="w-9 h-9 rounded-[4px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]"
-              onError={(e) => { e.currentTarget.style.display = "none" }} />
-            {/* result pill — MVP/ACE accolade when top of team, else WIN/LOSS */}
-            <span className={cn("px-2 rounded-full font-mono text-[8px] font-bold tracking-[0.14em] leading-[15px]", badge.cls)}>
-              {badge.txt}
-            </span>
-            <span className="font-mono text-[10px] tabular-nums text-flash/60">{g.kills}/{g.deaths}/{g.assists}</span>
-            <div className="w-full h-[3px] rounded-full bg-black/40 overflow-hidden">
+            {/* result-tinted top accent */}
+            <div className={cn("h-[3px] w-full shrink-0", g.win
+              ? "bg-gradient-to-r from-transparent via-jade/70 to-transparent"
+              : "bg-gradient-to-r from-transparent via-red-400/60 to-transparent")} />
+
+            <div className="px-2.5 pt-2 pb-2 flex flex-col items-center gap-1.5">
+              {/* header — game index + accolade */}
+              <div className="flex items-center justify-between w-full">
+                <span className="font-mono text-[8px] tracking-[0.16em] text-flash/30">G{chrono.length - i}</span>
+                <span className={cn("px-1.5 rounded-full font-mono text-[8px] font-bold tracking-[0.12em] leading-[14px]", badge.cls)}>{badge.txt}</span>
+              </div>
+
+              {/* champion portrait with result glow ring */}
+              <div className="relative mt-0.5">
+                <div className={cn("absolute -inset-1 rounded-full blur-md opacity-40 group-hover:opacity-70 transition-opacity", g.win ? "bg-jade/40" : "bg-red-400/30")} />
+                <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(g.champion)}.png`} alt="" draggable={false}
+                  className={cn("relative w-[52px] h-[52px] rounded-full object-cover shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] ring-2", g.win ? "ring-jade/55" : "ring-red-400/45")}
+                  onError={(e) => { e.currentTarget.style.display = "none" }} />
+              </div>
+
+              {/* champ name + role */}
+              <div className="flex flex-col items-center gap-0.5 leading-none">
+                <span className="font-chakrapetch font-bold text-[11.5px] text-flash/90 truncate max-w-[108px]">{g.champion}</span>
+                {g.role && <span className="font-mono text-[7.5px] tracking-[0.2em] uppercase text-flash/30">{roleLabel(g.role)}</span>}
+              </div>
+
+              {/* IMPACT hero number */}
+              <div className="flex flex-col items-center leading-none mt-0.5">
+                <span className={cn("font-chakrapetch font-bold text-[27px] tabular-nums", toneText)}>{g.impact}</span>
+                <span className="font-mono text-[7px] tracking-[0.24em] uppercase text-flash/30 mt-0.5">Impact</span>
+              </div>
+
+              {/* KDA + ratio */}
+              <div className="flex flex-col items-center gap-0.5 leading-none mt-0.5">
+                <span className="font-chakrapetch text-[12.5px] tabular-nums text-flash/85">
+                  {g.kills}<span className="text-flash/25">/</span><span className="text-red-400/80">{g.deaths}</span><span className="text-flash/25">/</span>{g.assists}
+                </span>
+                <span className={cn("font-mono text-[8px] tabular-nums", perfect ? "text-jade" : kda >= 3 ? "text-flash/50" : "text-flash/35")}>
+                  {perfect ? "Perfect" : `${kda.toFixed(1)} KDA`}
+                </span>
+              </div>
+
+              {/* mini stats */}
+              <div className="grid grid-cols-2 w-full mt-1 pt-1.5 border-t border-flash/[0.06] divide-x divide-flash/[0.06]">
+                {[{ l: "CS/M", v: g.cspm ?? 0 }, { l: "DMG", v: kf(g.damage ?? 0) }].map((s) => (
+                  <div key={s.l} className="flex flex-col items-center gap-0.5 leading-none">
+                    <span className="font-chakrapetch font-semibold text-[11px] tabular-nums text-flash/75">{s.v}</span>
+                    <span className="font-mono text-[6.5px] tracking-[0.16em] uppercase text-flash/30">{s.l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* impact footer bar — the row reads as your form across the session */}
+            <div className="mt-auto h-[3px] w-full bg-filmdark/50 overflow-hidden">
               <motion.div initial={{ width: 0 }} animate={{ width: `${g.impact}%` }} transition={{ delay: 0.3 + i * 0.03, duration: 0.5, ease: EASE }}
-                className={cn("h-full rounded-full", g.impact >= 70 ? "bg-jade" : g.impact >= 50 ? "bg-[#FFB615]" : "bg-red-400/80")} />
+                className={cn("h-full", toneBar)} />
             </div>
           </motion.button>
         )
@@ -509,7 +610,7 @@ function DeathClock({ clock }: { clock: { bucket: string; deaths: number }[] }) 
           <div key={b.bucket} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
             <motion.div
               initial={{ height: 0 }} animate={{ height: `${Math.max(3, (b.deaths / max) * 100)}%` }} transition={{ delay: 0.25 + i * 0.05, duration: 0.5, ease: EASE }}
-              className={cn("w-full rounded-[2px]", b.deaths > 0 && b === worst ? "bg-red-400/70" : b.deaths > 0 ? "bg-red-400/30" : "bg-white/[0.05]")}
+              className={cn("w-full rounded-[2px]", b.deaths > 0 && b === worst ? "bg-red-400/70" : b.deaths > 0 ? "bg-red-400/30" : "bg-filmlight/[0.05]")}
               style={b.deaths > 0 && b === worst ? { boxShadow: "0 0 10px rgba(248,113,113,0.3)" } : undefined} />
             <span className="font-mono text-[9px] text-flash/40">{b.bucket}</span>
           </div>
@@ -530,7 +631,7 @@ function RecordChip({ label, value, champ, tone = "flash", delay }: { label: str
   const color = tone === "jade" ? "text-jade" : tone === "citrine" ? "text-[#FFB615]" : tone === "red" ? "text-red-400/85" : "text-flash/85"
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay, duration: 0.35, ease: EASE }}
-      className="rounded-[4px] bg-black/30 px-3 py-2.5 flex items-center gap-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+      className="rounded-[4px] bg-filmdark/30 px-3 py-2.5 flex items-center gap-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
       {champ && <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ)}.png`} alt="" className="w-7 h-7 rounded-[3px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]" onError={(e) => { e.currentTarget.style.display = "none" }} />}
       <div className="min-w-0">
         <div className={cn("font-chakrapetch font-bold text-[14px] leading-none tabular-nums truncate", color)}>{value}</div>
@@ -608,8 +709,8 @@ export default function Overview({ puuid, region, nametag }: Props) {
     <AnimatePresence mode="wait">
       <motion.div key={period} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="pb-14">
         {/* ═══ HERO — stats up top with the period filter glued right under them ═══ */}
-        <div className="pb-5 mb-6 border-b border-flash/[0.05]">
-          <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+        <div className="pb-4 mb-4 border-b border-flash/[0.05]">
+          <div className="flex flex-wrap items-stretch justify-between gap-x-8 gap-y-4">
             <div className="flex flex-col items-start gap-3.5">
               <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
                 <HeroNumber delay={0.02} label={period === "week" ? "Week winrate" : "Session winrate"} value={<span className={wrColor}>{t.winrate}%</span>} sub={<>{t.wins}W <span className="text-red-400/50">{t.losses}L</span> · {t.totalGames} games{t.winStreak >= 2 && <span className="text-jade/70"> · {t.winStreak} streak</span>}</>} />
@@ -626,10 +727,14 @@ export default function Overview({ puuid, region, nametag }: Props) {
           </div>
         </div>
 
-        {/* ═══ SESSION FLOW (also the game selector) ═══ */}
-        <Panel title="Session flow" hint={deepGames.length ? `${games.length} games · click one to break it down` : `${games.length} games · impact bar under each`} delay={0.1} className="mb-4">
+        {/* ═══ SESSION FLOW (also the game selector) — bare, full-width, scrollable ═══ */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4, ease: EASE }} className="mb-4">
+          <div className="flex items-center gap-2.5 mb-3">
+            <span className="inline-block w-1.5 h-1.5 rotate-45 bg-jade/70 shadow-[0_0_8px_rgba(0,217,146,0.8)]" />
+            <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-jade/55">Session flow</span>
+          </div>
           <SessionRibbon games={games} selectableIds={selectableIds} selectedId={selected?.matchId ?? null} onSelect={setSelectedId} />
-        </Panel>
+        </motion.div>
 
         {/* ═══ TIMELINE BREAKDOWN (driven by the ribbon selection above) ═══ */}
         {deepGames.length > 0 && selected && (
@@ -733,7 +838,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                   <span className="font-mono text-[10px] text-flash/40">{row.l}</span>
                   <span className="font-chakrapetch font-semibold text-[13px] text-flash/85 tabular-nums">{row.v}</span>
                 </div>
-                <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+                <div className="h-[3px] rounded-full bg-filmlight/[0.04] overflow-hidden">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${row.w}%` }} transition={{ delay: 0.5 + i * 0.08, duration: 0.6, ease: EASE }}
                     className="h-full rounded-full bg-gradient-to-r from-jade/20 to-jade/60" />
                 </div>
@@ -749,7 +854,7 @@ export default function Overview({ puuid, region, nametag }: Props) {
                     <span className="font-mono text-[10px] text-flash/45 uppercase tracking-wider">{roleLabel(r.role)}</span>
                     <span className="font-chakrapetch text-[12px] text-flash/70 tabular-nums">{r.games}g</span>
                   </div>
-                  <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+                  <div className="h-[3px] rounded-full bg-filmlight/[0.04] overflow-hidden">
                     <motion.div initial={{ width: 0 }} animate={{ width: `${(r.games / max) * 100}%` }} transition={{ delay: 0.55 + i * 0.07, duration: 0.5, ease: EASE }}
                       className="h-full rounded-full bg-jade/50" />
                   </div>

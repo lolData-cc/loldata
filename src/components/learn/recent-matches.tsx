@@ -396,7 +396,7 @@ export function RecentMatches({
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-[104px] rounded-md bg-black/20 backdrop-blur-lg animate-pulse"
+              className="h-[104px] rounded-md bg-filmdark/20 backdrop-blur-lg animate-pulse"
             />
           ))}
         </div>

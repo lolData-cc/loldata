@@ -15,8 +15,8 @@ const EASE_BRAND = [0.22, 1, 0.36, 1] as const
 
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/35 backdrop-blur-lg saturate-150",
-  "shadow-[0_20px_60px_rgba(0,0,0,0.65),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-filmdark/35 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_20px_60px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 )
 
 export default function BillingCancelPage() {

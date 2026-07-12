@@ -50,7 +50,7 @@ export function CyberTip({
               transform: top ? "translate(-50%, calc(-100% - 8px))" : "translate(-50%, 8px)",
             }}
           >
-            <div className="relative rounded-[8px] border border-jade/30 bg-[rgba(4,10,12,0.98)] px-3 py-2 text-[10.5px] leading-relaxed font-chakrapetch text-flash/85 shadow-[0_0_26px_rgba(0,0,0,0.72),0_0_14px_rgba(0,217,146,0.16)]">
+            <div className="relative rounded-[8px] border border-jade/30 bg-[rgba(4,10,12,0.98)] px-3 py-2 text-[10.5px] leading-relaxed font-chakrapetch text-flash/85 shadow-[0_0_26px_rgba(var(--c-shadow),0.72),0_0_14px_rgba(0,217,146,0.16)]">
               {tip}
               <span
                 className={cn(

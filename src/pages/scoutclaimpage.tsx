@@ -318,7 +318,7 @@ export default function ScoutClaimPage() {
                 {player.accounts.map((a) => (
                   <div
                     key={a.puuid}
-                    className="flex items-center justify-between px-3 py-2 rounded-md bg-black/35 border border-flash/[0.06]"
+                    className="flex items-center justify-between px-3 py-2 rounded-md bg-filmdark/35 border border-flash/[0.06]"
                   >
                     <span className="text-[12px] font-chakrapetch font-bold text-flash truncate">
                       {a.riotName}

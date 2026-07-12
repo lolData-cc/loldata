@@ -274,7 +274,7 @@ export default function NotFoundPage() {
             <span
               className={cn(
                 "block w-11 h-11 rotate-45 rounded-[3px] border transition-all duration-300",
-                "bg-black/40 border-jade/30",
+                "bg-filmdark/40 border-jade/30",
                 "group-hover:border-jade/70 group-hover:bg-jade/10",
                 "group-hover:shadow-[0_0_20px_rgba(0,217,146,0.3)]",
                 "shadow-[0_0_8px_rgba(0,217,146,0.1)]"

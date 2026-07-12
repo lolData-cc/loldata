@@ -178,11 +178,11 @@ export default function SeasonPage() {
       {/* ═══════════════════════════════════════════════
           STATS TABLE CARD
           ═══════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-md bg-black/20 mt-4 mb-16">
+      <div className="relative overflow-hidden rounded-md bg-filmdark/20 mt-4 mb-16">
         <div className="relative z-10">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="px-4 pt-4">
-              <TabsList className="flex justify-center bg-transparent h-auto p-0 gap-6 border-b border-white/[0.04]">
+              <TabsList className="flex justify-center bg-transparent h-auto p-0 gap-6 border-b border-hairline/[0.04]">
                 <TabsTrigger value="season" className={tabTriggerClass}>Season</TabsTrigger>
                 <TabsTrigger value="solo" className={tabTriggerClass}>Solo/Duo</TabsTrigger>
                 <TabsTrigger value="flex" className={tabTriggerClass}>Flex</TabsTrigger>
@@ -231,7 +231,7 @@ function ChampionTable({
     return (
       <div className="space-y-3 py-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-10 rounded bg-white/5 animate-pulse" />
+          <div key={i} className="h-10 rounded bg-filmlight/5 animate-pulse" />
         ))}
       </div>
     )
@@ -251,7 +251,7 @@ function ChampionTable({
     <div className="overflow-x-auto">
       <table className="w-full text-[12px] font-jetbrains">
         <thead>
-          <tr className="text-flash/20 text-[10px] tracking-[0.18em] uppercase border-b border-white/[0.04]">
+          <tr className="text-flash/20 text-[10px] tracking-[0.18em] uppercase border-b border-hairline/[0.04]">
             <th className="py-2.5 pl-3 pr-2 text-left w-8">#</th>
             <th className="py-2.5 px-2 text-left">Champion</th>
             <th className="py-2.5 px-2 text-center">Games</th>
@@ -279,8 +279,8 @@ function ChampionTable({
                   key={c.champion}
                   onClick={() => setExpanded(isExpanded ? null : c.champion)}
                   className={cn(
-                    "border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors cursor-clicker select-none",
-                    isExpanded ? "bg-white/[0.025]" : "even:bg-white/[0.01]"
+                    "border-b border-hairline/[0.03] hover:bg-filmlight/[0.03] transition-colors cursor-clicker select-none",
+                    isExpanded ? "bg-filmlight/[0.025]" : "even:bg-filmlight/[0.01]"
                   )}
                 >
                   <td className="py-2.5 pl-3 pr-2 text-flash/20">{i + 1}</td>
@@ -355,7 +355,7 @@ function ChampionTable({
 function MatchupPanel({ champion, matchups }: { champion: string; matchups: MatchupEntry[] }) {
   if (matchups.length === 0) {
     return (
-      <div className="bg-white/[0.015] border-t border-white/[0.03] px-6 py-4">
+      <div className="bg-filmlight/[0.015] border-t border-hairline/[0.03] px-6 py-4">
         <div className="text-[10px] tracking-[0.15em] uppercase text-flash/20 mb-2">
           Most faced opponents as {champion}
         </div>
@@ -367,7 +367,7 @@ function MatchupPanel({ champion, matchups }: { champion: string; matchups: Matc
   }
 
   return (
-    <div className="bg-white/[0.015] border-t border-white/[0.03] px-6 py-4">
+    <div className="bg-filmlight/[0.015] border-t border-hairline/[0.03] px-6 py-4">
       <div className="text-[10px] tracking-[0.15em] uppercase text-flash/20 mb-3">
         Most faced opponents as {champion}
       </div>
@@ -381,7 +381,7 @@ function MatchupPanel({ champion, matchups }: { champion: string; matchups: Matc
           return (
             <div
               key={m.opponent}
-              className="flex items-center gap-4 py-1.5 px-2 rounded bg-white/[0.02]"
+              className="flex items-center gap-4 py-1.5 px-2 rounded bg-filmlight/[0.02]"
             >
               {/* Opponent icon + name */}
               <div className="flex items-center gap-2 min-w-[130px]">

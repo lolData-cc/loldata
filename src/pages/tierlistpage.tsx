@@ -182,7 +182,7 @@ export default function TierlistPage() {
               </span>
               <div className="h-px w-12 bg-gradient-to-l from-transparent to-jade/40" />
             </div>
-            <h1 className="text-4xl font-mono font-black tracking-[0.12em] uppercase text-flash drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)]">
+            <h1 className="text-4xl font-mono font-black tracking-[0.12em] uppercase text-flash drop-shadow-[0_2px_20px_rgba(var(--c-shadow),0.8)]">
               TIER LIST
             </h1>
             <div className="flex items-center justify-center gap-3 mt-2">
@@ -212,7 +212,7 @@ export default function TierlistPage() {
                 "font-mono text-[10px] tracking-[0.1em] uppercase transition-all duration-200",
                 active
                   ? "bg-jade/15 text-jade ring-1 ring-jade/30 shadow-[0_0_10px_rgba(0,217,146,0.1)]"
-                  : "text-flash/30 hover:text-flash/50 hover:bg-white/[0.03]"
+                  : "text-flash/30 hover:text-flash/50 hover:bg-filmlight/[0.03]"
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -227,7 +227,7 @@ export default function TierlistPage() {
         <FilterPill label="Region" options={[...REGIONS]} value={region} onChange={setRegion} />
 
         {/* Elo label */}
-        <div className="flex items-center gap-1.5 px-3 py-2 rounded-sm font-mono text-[10px] tracking-[0.1em] uppercase bg-white/[0.02] ring-1 ring-white/[0.05]">
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-sm font-mono text-[10px] tracking-[0.1em] uppercase bg-filmlight/[0.02] ring-1 ring-hairline/[0.05]">
           <span className="text-flash/20">Elo:</span>
           <span className="text-jade">Diamond+</span>
         </div>
@@ -244,7 +244,7 @@ export default function TierlistPage() {
             onChange={e => setSearch(e.target.value)}
             className={cn(
               "w-48 px-3 py-2 rounded-sm font-mono text-[11px] text-flash/70 placeholder:text-flash/20",
-              "bg-white/[0.03] ring-1 ring-white/[0.06] focus:ring-jade/30 focus:outline-none",
+              "bg-filmlight/[0.03] ring-1 ring-hairline/[0.06] focus:ring-jade/30 focus:outline-none",
               "transition-all duration-200"
             )}
           />
@@ -264,7 +264,7 @@ export default function TierlistPage() {
         {loading ? (
           <div className="space-y-3">
             {["S","A","B","C","D"].map(t => (
-              <div key={t} className="h-24 rounded-md bg-white/[0.02] animate-pulse" />
+              <div key={t} className="h-24 rounded-md bg-filmlight/[0.02] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -292,7 +292,7 @@ export default function TierlistPage() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: tIdx * 0.06, duration: 0.3 }}
-                      className="flex rounded-[3px] overflow-hidden ring-1 ring-white/[0.04]"
+                      className="flex rounded-[3px] overflow-hidden ring-1 ring-hairline/[0.04]"
                     >
                       {/* Tier label column */}
                       <div className={cn(
@@ -323,7 +323,7 @@ export default function TierlistPage() {
                       </div>
 
                       {/* Champions flow */}
-                      <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-black/20">
+                      <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-filmdark/20">
                         {champs.map((c, cIdx) => (
                           <ChampCard key={c.champion_id} champ={c} idx={tIdx * 10 + cIdx} name={champName(c)} />
                         ))}
@@ -358,13 +358,13 @@ function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: 
       onClick={() => navigate(`/champions/${name}`)}
       className={cn(
         "group relative flex flex-col items-center w-[92px] py-2.5 px-1.5 rounded-[4px] cursor-pointer",
-        "bg-white/[0.03] transition-all duration-200",
-        "hover:bg-white/[0.08]",
+        "bg-filmlight/[0.03] transition-all duration-200",
+        "hover:bg-filmlight/[0.08]",
         isElite
           ? champ.tier === "S"
             ? "hover:shadow-[0_0_14px_rgba(251,191,36,0.15)] hover:ring-1 hover:ring-amber-400/30"
             : "hover:shadow-[0_0_10px_rgba(0,217,146,0.1)] hover:ring-1 hover:ring-jade/25"
-          : "hover:ring-1 hover:ring-white/[0.08]"
+          : "hover:ring-1 hover:ring-hairline/[0.08]"
       )}
     >
       {/* Icon */}
@@ -404,7 +404,7 @@ function ChampCard({ champ, idx, name }: { champ: TierChamp; idx: number; name: 
       <div className={cn(
         "absolute -bottom-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none",
         "opacity-0 group-hover:opacity-100 transition-opacity duration-100",
-        "bg-cement ring-1 ring-white/10 rounded-sm px-2 py-1 shadow-xl whitespace-nowrap"
+        "bg-cement ring-1 ring-hairline/10 rounded-sm px-2 py-1 shadow-xl whitespace-nowrap"
       )}>
         <span className="text-[8px] font-mono text-flash/40">{champ.games.toLocaleString()} games</span>
       </div>
@@ -456,7 +456,7 @@ function FilterPill({ label, options, value, onChange }: {
         className={cn(
           "flex items-center gap-1.5 px-3 py-2 rounded-sm cursor-pointer",
           "font-mono text-[10px] tracking-[0.1em] uppercase transition-all duration-200",
-          "bg-white/[0.02] ring-1 ring-white/[0.05] hover:ring-white/[0.1] hover:bg-white/[0.04]"
+          "bg-filmlight/[0.02] ring-1 ring-hairline/[0.05] hover:ring-hairline/[0.1] hover:bg-filmlight/[0.04]"
         )}
       >
         <span className="text-flash/20">{label}:</span>
@@ -471,7 +471,7 @@ function FilterPill({ label, options, value, onChange }: {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute top-full left-0 mt-1 z-50 min-w-[110px] rounded-sm bg-cement ring-1 ring-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
+            className="absolute top-full left-0 mt-1 z-50 min-w-[110px] rounded-sm bg-cement ring-1 ring-hairline/[0.08] shadow-[0_8px_32px_rgba(var(--c-shadow),0.6)] overflow-hidden"
           >
             {options.map(opt => (
               <button
@@ -479,7 +479,7 @@ function FilterPill({ label, options, value, onChange }: {
                 onClick={() => { onChange(opt); setOpen(false) }}
                 className={cn(
                   "w-full text-left px-3 py-2 text-[10px] font-mono tracking-[0.1em] uppercase cursor-pointer transition-colors",
-                  opt === value ? "text-jade bg-jade/10" : "text-flash/35 hover:text-flash/70 hover:bg-white/[0.04]"
+                  opt === value ? "text-jade bg-jade/10" : "text-flash/35 hover:text-flash/70 hover:bg-filmlight/[0.04]"
                 )}
               >
                 {opt}

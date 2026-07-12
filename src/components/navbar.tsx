@@ -225,6 +225,7 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = f
                         { label: "Overview", to: "/learn?t=overview" },
                         { label: "Your Games", to: "/learn?t=games" },
                         { label: "Explorer", to: "/learn/explorer" },
+                        { label: "Improvement Tree", to: "/learn/tree" },
                         { label: "Itemization", to: "/learn?t=itemization" },
                         { label: "Loldata AI", to: "/learn?t=loldata-ai" },
                       ]

@@ -86,7 +86,7 @@ function Chip({ e }: { e: Entity }) {
         src={e.icon}
         alt=""
         loading="lazy"
-        className="h-[1.18em] w-[1.18em] shrink-0 rounded-[4px] bg-black/30 object-cover ring-1 ring-jade/25"
+        className="h-[1.18em] w-[1.18em] shrink-0 rounded-[4px] bg-filmdark/30 object-cover ring-1 ring-jade/25"
         onError={(ev) => {
           ;(ev.currentTarget as HTMLImageElement).style.visibility = "hidden"
         }}

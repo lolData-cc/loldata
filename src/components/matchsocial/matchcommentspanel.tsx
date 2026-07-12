@@ -378,7 +378,7 @@ function Composer({
         rows={1}
         autoFocus={autoFocus}
         className={cn(
-          "flex-1 resize-none bg-black/30 border border-flash/15 rounded-[3px] outline-none focus:border-jade/45 font-chakrapetch leading-snug",
+          "flex-1 resize-none bg-filmdark/30 border border-flash/15 rounded-[3px] outline-none focus:border-jade/45 font-chakrapetch leading-snug",
           compact
             ? "px-2 py-1 text-[11px] text-flash placeholder:text-flash/30"
             : "px-2.5 py-1.5 text-[11px] text-flash placeholder:text-flash/30"

@@ -29,7 +29,7 @@ export function CyberToggle({ checked, onChange }: Props) {
           "relative w-11 h-[22px] rounded-[3px] border transition-all duration-300",
           checked
             ? "bg-jade/10 border-jade/40 shadow-[0_0_8px_rgba(0,217,146,0.18)]"
-            : "bg-black/40 border-flash/15"
+            : "bg-filmdark/40 border-flash/15"
         )}
       >
         {/* Scanlines overlay when active */}

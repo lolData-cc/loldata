@@ -20,7 +20,7 @@ const GOLD = "#FFB615"
 const glassBox = cn(
   "relative overflow-hidden rounded-md",
   "bg-[#0a0f12]/95 saturate-150",
-  "shadow-[0_14px_40px_rgba(0,0,0,0.6),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]",
+  "shadow-[0_14px_40px_rgba(var(--c-shadow),0.6),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]",
 )
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.7, delayChildren: 0.4 } } }
@@ -37,7 +37,7 @@ function Avatar({ id, size = 22, ring = "jade" }: { id: number; size?: number; r
       src={`${cdnBaseUrl()}/img/profileicon/${id}.png`}
       alt=""
       style={{ width: size, height: size, boxShadow: `0 0 0 1px ${ringColor}` }}
-      className="shrink-0 rounded-full bg-black/40 object-cover"
+      className="shrink-0 rounded-full bg-filmdark/40 object-cover"
       onError={(e) => (e.currentTarget.style.visibility = "hidden")}
     />
   )
@@ -71,7 +71,7 @@ function ScoutCard({ label, glyph: Glyph, glow = false, right, className, childr
 }
 
 function Row({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-2 rounded-[4px] bg-black/30 px-1.5 py-1">{children}</div>
+  return <div className="flex items-center gap-2 rounded-[4px] bg-filmdark/30 px-1.5 py-1">{children}</div>
 }
 
 // ── step shell (identical cadence to the Explorer tutorial) ──────────────────

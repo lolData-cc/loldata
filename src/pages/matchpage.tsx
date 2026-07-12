@@ -48,8 +48,8 @@ function extractRegionFromMatchId(matchId: string): string | undefined {
 // ── Glass card reusable classes ─────────────────────────────────────
 const glassCard = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/25 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 );
 
 
@@ -96,7 +96,7 @@ export default function MatchPage() {
     }, [pct, avgPct, delay])
 
     return (
-      <div className="relative h-[22px] w-full rounded-[3px] bg-white/[0.04] border border-white/[0.04] overflow-hidden">
+      <div className="relative h-[22px] w-full rounded-[3px] bg-filmlight/[0.04] border border-hairline/[0.04] overflow-hidden">
         {/* Player fill bar */}
         <div
           className="absolute inset-y-0 left-0 rounded-[2px]"
@@ -279,10 +279,10 @@ export default function MatchPage() {
           <img
             key={i}
             src={`${cdnBaseUrl()}/img/item/${id}.png`}
-            className="w-5 h-5 rounded-[3px] ring-1 ring-white/10"
+            className="w-5 h-5 rounded-[3px] ring-1 ring-hairline/10"
           />
         ) : (
-          <div key={i} className="w-5 h-5 rounded-[3px] bg-white/[0.03] ring-1 ring-white/[0.06]" />
+          <div key={i} className="w-5 h-5 rounded-[3px] bg-filmlight/[0.03] ring-1 ring-hairline/[0.06]" />
         )
       })}
     </div>
@@ -300,8 +300,8 @@ export default function MatchPage() {
     return (
       <div className={cn(
         "flex items-center gap-3 px-3 py-2 transition-all",
-        "border-b border-white/[0.04] last:border-b-0",
-        "hover:bg-white/[0.02]",
+        "border-b border-hairline/[0.04] last:border-b-0",
+        "hover:bg-filmlight/[0.02]",
         isFocused && "bg-jade/[0.04]"
       )}>
         {/* Champion + spells */}
@@ -309,7 +309,7 @@ export default function MatchPage() {
           <div className="relative w-8 h-8">
             <img
               src={`${cdnBaseUrl()}/img/champion/${p.championName}.png`}
-              className="w-8 h-8 rounded-[4px] ring-1 ring-white/10"
+              className="w-8 h-8 rounded-[4px] ring-1 ring-hairline/10"
             />
             {(isMvp || isAce) && (
               <span
@@ -580,12 +580,12 @@ export default function MatchPage() {
         <div className={glassCard}>
           <div className="relative z-10 flex">
             {/* Blue team — left half */}
-            <div className="flex-1 border-r border-white/[0.04]">
+            <div className="flex-1 border-r border-hairline/[0.04]">
               {/* Accent bar */}
               <div className="absolute left-0 top-0 bottom-0 w-1 z-10 bg-gradient-to-b from-cyan-400/80 to-cyan-400/10 rounded-l-md" />
 
               {/* Header */}
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-hairline/[0.06]">
                 <span className="text-cyan-400/50 text-[10px]">◈</span>
                 <span className={cn(
                   "font-mono text-[10px] tracking-[0.15em] uppercase",
@@ -610,7 +610,7 @@ export default function MatchPage() {
               <div className="absolute right-0 top-0 bottom-0 w-1 z-10 bg-gradient-to-b from-rose-400/80 to-rose-400/10 rounded-r-md" />
 
               {/* Header */}
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-hairline/[0.06]">
                 <span className="text-rose-400/50 text-[10px]">◈</span>
                 <span className={cn(
                   "font-mono text-[10px] tracking-[0.15em] uppercase",
@@ -650,14 +650,14 @@ export default function MatchPage() {
                         className={cn(
                           "flex items-center gap-2 text-left px-2 py-1.5 rounded-[4px] w-full justify-start transition-all cursor-clicker",
                           "font-mono text-[10px] tracking-wide",
-                          "text-flash/35 hover:text-flash/60 hover:bg-white/[0.03]",
-                          "data-[state=active]:bg-white/[0.06] data-[state=active]:text-flash/90",
+                          "text-flash/35 hover:text-flash/60 hover:bg-filmlight/[0.03]",
+                          "data-[state=active]:bg-filmlight/[0.06] data-[state=active]:text-flash/90",
                           "data-[state=active]:shadow-[inset_0_0_12px_rgba(0,217,146,0.04)]"
                         )}
                       >
                         <img
                           src={`${cdnBaseUrl()}/img/champion/${p.championName}.png`}
-                          className="w-6 h-6 rounded-[3px] ring-1 ring-white/10 shrink-0"
+                          className="w-6 h-6 rounded-[3px] ring-1 ring-hairline/10 shrink-0"
                         />
                         <span className={cn(
                           "truncate",
@@ -738,7 +738,7 @@ export default function MatchPage() {
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center gap-5 mt-3 pt-2.5 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-5 mt-3 pt-2.5 border-t border-hairline/[0.06]">
                       <div className="flex items-center gap-1.5">
                         <div className="w-5 h-[3px] rounded-full" style={{ background: "linear-gradient(90deg, rgba(0,217,146,0.1), rgba(0,217,146,0.5))" }} />
                         <span className="font-mono text-[9px] tracking-[0.15em] text-flash/25 uppercase">Player</span>

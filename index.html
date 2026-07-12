@@ -5,6 +5,15 @@
   <meta name="description" content="lolData helps players improve with smart, AI-powered tracking and personalized insights to boost performance.">
   <link rel="canonical" href="https://www.loldata.cc/" />
 
+  <!-- Colour theme, applied before first paint (no flash). The light theme is
+       COMING SOON (gated in src/lib/uiPrefs.ts LIGHT_THEME_ENABLED), so we force
+       dark for now. To re-enable light, restore the localStorage-based version. -->
+  <script>
+    (function () {
+      document.documentElement.classList.add("dark");
+    })();
+  </script>
+
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-YCFWG9LG1M"></script>
   <script>
     window.dataLayer = window.dataLayer || [];

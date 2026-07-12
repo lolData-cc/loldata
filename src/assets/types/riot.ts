@@ -93,6 +93,11 @@ export type MatchWithWin = {
   /** Signed LP change for this ranked game, from rank snapshots. Only present
    *  for tracked (premium/elite) accounts; null/undefined otherwise. */
   lpDelta?: number | null;
+  /** Average rank of the game (short code e.g. "E2"), computed from the
+   *  participants whose rank is saved in the DB. null when none are known. */
+  avgRank?: string | null;
+  /** How many of the 10 players had a saved rank behind avgRank. */
+  rankedCount?: number;
 }
 
 
@@ -113,6 +118,10 @@ export type SummonerInfo = {
   flexLp?: number
   peakFlexRank?: string
   peakFlexLp?: number
+  ranked5Rank?: string
+  ranked5Lp?: number
+  ranked5Wins?: number
+  ranked5Losses?: number
   ladderRank?: number | null
 }
 

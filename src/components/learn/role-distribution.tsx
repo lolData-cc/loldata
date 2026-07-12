@@ -31,7 +31,7 @@ export function RoleDistribution({ data, delay = 0 }: { data: RoleData[]; delay?
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="relative bg-black/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden"
+      className="relative bg-filmdark/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden"
     >
       <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-flash/30 mb-1 block">ROLES PLAYED</span>
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3">

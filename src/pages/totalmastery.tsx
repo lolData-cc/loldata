@@ -83,8 +83,8 @@ export default function TotalMasteryPage() {
 
     const glassDark = cn(
         "relative overflow-hidden rounded-md",
-        "bg-black/25 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+        "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+        "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
     );
 
     const glassOverlays = (
@@ -327,7 +327,7 @@ export default function TotalMasteryPage() {
                                         onClick={compute}
                                         className={cn(
                                             "rounded uppercase tracking-wide",
-                                            "bg-[#1D2436] hover:bg-[#243554] border border-white/10",
+                                            "bg-[#1D2436] hover:bg-[#243554] border border-hairline/10",
                                             "text-[#D0E3FF]"
                                         )}
                                     >
@@ -336,7 +336,7 @@ export default function TotalMasteryPage() {
                                 </div>
                             </div>
 
-                            <Separator className="bg-white/10 my-4" />
+                            <Separator className="bg-filmlight/10 my-4" />
 
                             {/* ACCOUNTS LIST */}
                             <div className="flex flex-col gap-2">
@@ -347,8 +347,8 @@ export default function TotalMasteryPage() {
                                             key={a.id}
                                             className={cn(
                                                 "relative overflow-hidden rounded-md px-3 py-2",
-                                                "bg-black/18 backdrop-blur-lg saturate-150",
-                                                "shadow-[0_10px_30px_rgba(0,0,0,0.50),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
+                                                "bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel",
+                                                "shadow-[0_10px_30px_rgba(var(--c-shadow),0.50),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
                                             )}
                                         >
                                             <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
@@ -361,7 +361,7 @@ export default function TotalMasteryPage() {
                                                     placeholder="name#TAG  (ex: Acc1#EUW)"
                                                     value={a.riotId}
                                                     onChange={(e) => updateAccount(a.id, { riotId: e.target.value })}
-                                                    className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20"
+                                                    className="bg-filmdark/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20"
                                                 />
 
                                                 <Popover
@@ -374,7 +374,7 @@ export default function TotalMasteryPage() {
                                                         <Button
                                                             variant="outline"
                                                             role="combobox"
-                                                            className="w-[90px] justify-between bg-black/20 border border-flash/10 text-flash hover:border-flash/20"
+                                                            className="w-[90px] justify-between bg-filmdark/20 border border-flash/10 text-flash hover:border-flash/20"
                                                         >
                                                             {a.region}
                                                         </Button>
@@ -408,7 +408,7 @@ export default function TotalMasteryPage() {
                                                             <Button
                                                                 type="button"
                                                                 onClick={() => removeAccount(a.id)}
-                                                                className="bg-transparent hover:bg-white/5 border border-white/10 text-flash/70"
+                                                                className="bg-transparent hover:bg-filmlight/5 border border-hairline/10 text-flash/70"
                                                                 disabled={accounts.length === 1}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
@@ -461,7 +461,7 @@ export default function TotalMasteryPage() {
                                                         TOP {idx + 1}
                                                     </div>
                                                     <div className="text-flash/30 text-sm">Loading...</div>
-                                                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                                    <div className="w-full h-1 bg-filmlight/10 rounded-full overflow-hidden">
                                                         <div className="h-full bg-jade/40 w-[35%] animate-pulse" />
                                                     </div>
                                                 </div>
@@ -521,7 +521,7 @@ export default function TotalMasteryPage() {
                                                 </div>
 
                                                 <div className="mt-4">
-                                                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                                    <div className="w-full h-1 bg-filmlight/10 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full bg-jade"
                                                             style={{ width: `${Math.max(20, 100 - idx * 18)}%` }}

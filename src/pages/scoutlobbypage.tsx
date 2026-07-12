@@ -320,8 +320,8 @@ const DEFAULT_HERO_CHAMPION = "Yunara";
 /* ─── shared styles ──────────────────────────────────────────────────── */
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/15 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+  "bg-filmdark/15 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
 );
 
 function GlowBackdrop({ subtle = false }: { subtle?: boolean }) {
@@ -419,11 +419,11 @@ function LobbyHero({
               narrow widths so the clock drops below the name instead
               of squeezing it. */}
           <div className="flex items-end justify-between gap-4 flex-wrap">
-            <h1 className="text-[34px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+            <h1 className="text-[34px] sm:text-[60px] font-jetbrains font-medium text-flash tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(var(--c-shadow),0.6)]">
               {lobby.name}
             </h1>
             {refreshSlot && (
-              <div className="shrink-0 pb-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+              <div className="shrink-0 pb-2 drop-shadow-[0_2px_8px_rgba(var(--c-shadow),0.6)]">
                 {refreshSlot}
               </div>
             )}
@@ -591,7 +591,7 @@ function SectionAvatars({
         );
       })}
       {unique.length > 4 && (
-        <div className="w-9 h-9 rounded-full flex items-center justify-center bg-black/40 border border-flash/15">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center bg-filmdark/40 border border-flash/15">
           <span className="text-[11px] font-jetbrains font-bold text-flash/60">
             +{unique.length - 4}
           </span>
@@ -645,7 +645,7 @@ function SessionStatChip({
         : {
             // Glass-dark neutral — sits in the card without shouting.
             ring: "ring-flash/[0.08]",
-            bg: "bg-black/25",
+            bg: "bg-filmdark/25",
             value: "text-flash/80",
             label: "text-flash/35",
             glow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
@@ -713,7 +713,7 @@ function SessionRankPill({
   return (
     <div
       title={`Started ${startRank.tier} ${startRank.rankDivision ?? ""} ${startRank.lp}LP → Now ${endRank.tier} ${endRank.rankDivision ?? ""} ${endRank.lp}LP`}
-      className="inline-flex items-center gap-1.5 h-[26px] px-1.5 rounded-[3px] ring-1 ring-flash/[0.08] bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] whitespace-nowrap"
+      className="inline-flex items-center gap-1.5 h-[26px] px-1.5 rounded-[3px] ring-1 ring-flash/[0.08] bg-filmdark/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] whitespace-nowrap"
     >
       {/* START side — single-line layout to match the slim chip height. */}
       <img
@@ -984,7 +984,7 @@ function PlayerSectionCardImpl({
 
   return (
     <div
-      className="relative overflow-hidden rounded-md bg-flash/[0.013] backdrop-blur-xl saturate-150 ring-1 ring-flash/[0.08] shadow-[0_18px_44px_-12px_rgba(0,0,0,0.8),0_4px_14px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.045)]"
+      className="relative overflow-hidden rounded-md bg-flash/[0.013] backdrop-blur-xl saturate-150 ring-1 ring-flash/[0.08] shadow-[0_18px_44px_-12px_rgba(var(--c-shadow),0.8),0_4px_14px_rgba(var(--c-shadow),0.45),inset_0_1px_0_rgba(255,255,255,0.045)]"
     >
       {/* Glass edge highlight along the top */}
       <div
@@ -1493,7 +1493,7 @@ function PlayerFilterBar({
         // better than a "card inside a card"). All the glass styling
         // is gated behind sm: so it only applies from tablet up.
         "h-12 flex items-center",
-        "sm:px-3 sm:relative sm:overflow-hidden sm:rounded-md sm:bg-black/15 sm:backdrop-blur-lg sm:saturate-150 sm:shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+        "sm:px-3 sm:relative sm:overflow-hidden sm:rounded-md sm:bg-filmdark/15 sm:backdrop-blur-lg sm:saturate-150 sm:shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
       )}
     >
       {/* Backdrop glow — desktop only, mobile sheds the whole box. */}
@@ -1516,7 +1516,7 @@ function PlayerFilterBar({
               if (v === "all") onFilterChange({ kind: "all" });
               else onFilterChange({ kind: "single", id: v });
             }}
-            className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-flash/15 rounded-md pl-4 pr-9 py-2.5 text-[13px] font-chakrapetch font-bold tracking-[0.16em] uppercase text-flash/90 cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_3px_14px_rgba(0,0,0,0.35)]"
+            className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-flash/15 rounded-md pl-4 pr-9 py-2.5 text-[13px] font-chakrapetch font-bold tracking-[0.16em] uppercase text-flash/90 cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_3px_14px_rgba(var(--c-shadow),0.35)]"
           >
             <option value="all">
               All players · {totalMatches}
@@ -2740,7 +2740,7 @@ function HistogramChart({
         return (
           <div key={d.label} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
             <span className="text-[10px] font-chakrapetch font-bold tabular-nums" style={{ color: accent }}>{d.count || ""}</span>
-            <div className="w-full bg-black/30 rounded-[3px] relative overflow-hidden" style={{ height: `${pct}%`, minHeight: d.count > 0 ? 6 : 1, border: `1px solid color-mix(in srgb, ${accent} 25%, transparent)` }}>
+            <div className="w-full bg-filmdark/30 rounded-[3px] relative overflow-hidden" style={{ height: `${pct}%`, minHeight: d.count > 0 ? 6 : 1, border: `1px solid color-mix(in srgb, ${accent} 25%, transparent)` }}>
               <div className="absolute inset-0" style={{ background: `linear-gradient(to top, color-mix(in srgb, ${accent} 40%, transparent), color-mix(in srgb, ${accent} 10%, transparent))`, boxShadow: `inset 0 -8px 12px color-mix(in srgb, ${accent} 25%, transparent)` }} />
             </div>
             <span className="text-[9px] font-jetbrains tracking-[0.1em] text-flash/45 truncate w-full text-center">{d.label}</span>
@@ -2897,7 +2897,7 @@ function RoleBars({ roles }: { roles: TrendingPayload["roleDistribution"] }) {
         return (
           <li key={r.role} className="flex items-center gap-3">
             <span className="w-10 text-[11px] font-jetbrains tracking-[0.15em] uppercase font-medium" style={{ color }}>{r.role}</span>
-            <div className="flex-1 h-5 bg-black/30 rounded-[3px] overflow-hidden relative">
+            <div className="flex-1 h-5 bg-filmdark/30 rounded-[3px] overflow-hidden relative">
               <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: `linear-gradient(to right, color-mix(in srgb, ${color} 25%, transparent), color-mix(in srgb, ${color} 55%, transparent))`, boxShadow: `inset 0 0 8px color-mix(in srgb, ${color} 20%, transparent)` }} />
               <span className="absolute inset-y-0 right-2 flex items-center text-[10px] font-jetbrains tabular-nums text-flash/70">{r.games}g · {r.winrate}%</span>
             </div>
@@ -3116,7 +3116,7 @@ function PlayerRadar({
     .join(" ") + " Z";
 
   return (
-    <div className="bg-black/25 border border-flash/10 rounded-[3px] p-3 flex flex-col">
+    <div className="bg-filmdark/25 border border-flash/10 rounded-[3px] p-3 flex flex-col">
       <div className="flex items-center gap-2 mb-2">
         <span className="w-2 h-2 rounded-full" style={{ background: accent, boxShadow: `0 0 6px ${accent}` }} />
         <span className="text-[12px] font-geist font-medium text-flash">{player.displayName}</span>
@@ -3167,7 +3167,7 @@ function TopChampionsList({ list }: { list: TrendingPayload["topChampions"] }) {
   return (
     <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
       {list.map((c, i) => (
-        <li key={c.champion} className="flex items-center gap-3 bg-black/25 border border-flash/10 rounded-[3px] px-3 py-2">
+        <li key={c.champion} className="flex items-center gap-3 bg-filmdark/25 border border-flash/10 rounded-[3px] px-3 py-2">
           <span className="text-[10px] font-jetbrains tracking-[0.15em] text-flash/30 w-5">{String(i + 1).padStart(2, "0")}</span>
           <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.champion)}.png`} alt={c.champion} className="w-8 h-8 rounded-md" />
           <div className="flex flex-col flex-1 min-w-0">
@@ -3594,7 +3594,7 @@ function LiveSessionCard({
   const hasBans = group.bansBlue.length > 0 || group.bansRed.length > 0;
 
   return (
-    <div className="group/live relative overflow-hidden rounded-lg bg-black/30 backdrop-blur-lg saturate-150 ring-1 ring-white/[0.06] shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-shadow hover:shadow-[0_16px_44px_rgba(0,0,0,0.62)]">
+    <div className="group/live relative overflow-hidden rounded-lg bg-filmdark/30 backdrop-blur-lg saturate-150 glass-panel ring-1 ring-hairline/[0.06] shadow-[0_10px_30px_rgba(var(--c-shadow),0.5)] transition-shadow hover:shadow-[0_16px_44px_rgba(var(--c-shadow),0.62)]">
       {/* Splash background — lead champion, heavily subdued */}
       <div className="absolute inset-0 z-0">
         <img
@@ -3682,7 +3682,7 @@ function LiveSessionCard({
       </div>
 
       {/* ── Matchup (secondary context): rosters + bans ── */}
-      <div className="relative z-[2] border-t border-white/[0.06] px-3.5 py-3">
+      <div className="relative z-[2] border-t border-hairline/[0.06] px-3.5 py-3">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-stretch text-[10.5px] font-jetbrains">
           <TeamRoster
             participants={blue}
@@ -3763,7 +3763,7 @@ function MemberTile({
     member.riotName.trim().toLowerCase();
 
   return (
-    <div className="relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 bg-white/[0.03] ring-1 ring-white/[0.06] overflow-hidden">
+    <div className="relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 bg-filmlight/[0.03] ring-1 ring-hairline/[0.06] overflow-hidden">
       {/* team-side accent bar */}
       <span
         aria-hidden
@@ -4163,7 +4163,7 @@ function LeaderboardTab({
                         draggable={false}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-black/40">
+                      <div className="w-full h-full flex items-center justify-center bg-filmdark/40">
                         <span
                           className="text-[14px] font-jetbrains font-bold"
                           style={{ color: p.color || JADE }}
@@ -5746,7 +5746,7 @@ function LeaderboardStatBox({
   loading: boolean;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-md bg-black/18 backdrop-blur-lg saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="relative overflow-hidden rounded-md bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel shadow-[0_8px_24px_rgba(var(--c-shadow),0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
       <GlowBackdrop subtle />
       <div className="relative z-[1] p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -5918,7 +5918,7 @@ function LeaderboardDuoStatBox({
     );
   };
   return (
-    <div className="relative overflow-hidden rounded-md bg-black/18 backdrop-blur-lg saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="relative overflow-hidden rounded-md bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel shadow-[0_8px_24px_rgba(var(--c-shadow),0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]">
       <GlowBackdrop subtle />
       <div className="relative z-[1] p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -6650,7 +6650,7 @@ function BountyLeaderboardPanel({
               return (
                 <div
                   key={row.lobby_player_id}
-                  className="relative flex items-center gap-3 px-3 py-2.5 rounded-md bg-black/15 border border-flash/[0.05] hover:bg-black/25 transition-colors"
+                  className="relative flex items-center gap-3 px-3 py-2.5 rounded-md bg-filmdark/15 border border-flash/[0.05] hover:bg-filmdark/25 transition-colors"
                 >
                   {/* Rank pip */}
                   <div
@@ -7067,7 +7067,7 @@ function HabitMetric({
   valueClass: string;
 }) {
   return (
-    <div className="bg-black/25 border border-flash/10 rounded-[3px] p-3">
+    <div className="bg-filmdark/25 border border-flash/10 rounded-[3px] p-3">
       <div className="text-[9px] font-jetbrains tracking-[0.2em] uppercase text-flash/40 mb-1.5">
         {label}
       </div>
@@ -7100,7 +7100,7 @@ function TodBar({
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="flex flex-col items-center gap-1 cursor-default">
-            <div className="relative w-full h-14 bg-black/25 border border-flash/10 rounded-[3px] overflow-hidden flex items-end justify-center transition-colors hover:border-flash/25">
+            <div className="relative w-full h-14 bg-filmdark/25 border border-flash/10 rounded-[3px] overflow-hidden flex items-end justify-center transition-colors hover:border-flash/25">
               <div
                 className="w-full transition-all"
                 style={{
@@ -7307,7 +7307,7 @@ function ChampionsCard({
             {champions.map((c, i) => (
               <li
                 key={c.champion}
-                className="flex items-center gap-3 bg-black/25 border border-flash/10 rounded-[3px] px-3 py-2"
+                className="flex items-center gap-3 bg-filmdark/25 border border-flash/10 rounded-[3px] px-3 py-2"
               >
                 <span className="text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/35 w-4">
                   {String(i + 1).padStart(2, "0")}
@@ -7662,7 +7662,7 @@ function HeroChampionPicker({
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
         className={cn(
-          "relative h-16 rounded-[3px] overflow-hidden border bg-black/40 cursor-clicker text-left",
+          "relative h-16 rounded-[3px] overflow-hidden border bg-filmdark/40 cursor-clicker text-left",
           "transition-all duration-200",
           expanded
             ? "border-jade/45 shadow-[0_0_14px_rgba(0,217,146,0.18)]"
@@ -7719,7 +7719,7 @@ function HeroChampionPicker({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search champion…"
-              className="w-full bg-black/30 border border-flash/15 rounded-[3px] h-9 px-3 text-[13px] text-flash placeholder:text-flash/30 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
+              className="w-full bg-filmdark/30 border border-flash/15 rounded-[3px] h-9 px-3 text-[13px] text-flash placeholder:text-flash/30 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
             />
             <div className="grid grid-cols-9 gap-1 max-h-[180px] overflow-y-auto cyber-scrollbar pr-1 -mr-1">
               {filtered.map((c) => {
@@ -8054,7 +8054,7 @@ function EditLobbyDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
-                className="w-full bg-black/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
+                className="w-full bg-filmdark/30 border border-flash/20 rounded-[3px] h-11 px-3 text-[15px] text-flash placeholder:text-flash/35 outline-none focus:border-jade/45 transition-colors font-chakrapetch"
               />
             </EditCollapsible>
 
@@ -8172,7 +8172,7 @@ function EditLobbyDialog({
                   "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[3px] border cursor-clicker transition-all text-left mb-3",
                   isPrivate
                     ? "border-jade/45 bg-jade/[0.08]"
-                    : "border-flash/10 bg-black/15 hover:border-flash/25"
+                    : "border-flash/10 bg-filmdark/15 hover:border-flash/25"
                 )}
               >
                 <Lock
@@ -8363,7 +8363,7 @@ function EditPlayerRow({
         "p-3",
         seamless
           ? "bg-transparent"
-          : "bg-black/25 border border-flash/15 rounded-[3px]"
+          : "bg-filmdark/25 border border-flash/15 rounded-[3px]"
       )}
     >
       <div className="flex items-center gap-2 mb-2">
@@ -8428,7 +8428,7 @@ function EditPlayerRow({
                 onChange={(e) =>
                   setRegion(e.target.value as (typeof REGIONS)[number])
                 }
-                className="bg-black/40 border border-flash/15 rounded-[2px] text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/85 px-2 py-1 outline-none"
+                className="bg-filmdark/40 border border-flash/15 rounded-[2px] text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/85 px-2 py-1 outline-none"
               >
                 {REGIONS.map((r) => (
                   <option key={r} value={r}>
@@ -8445,7 +8445,7 @@ function EditPlayerRow({
                   if (e.key === "Escape") setAdding(false);
                 }}
                 placeholder="name#tag"
-                className="flex-1 bg-black/30 border border-flash/15 rounded-[2px] text-xs text-flash placeholder:text-flash/30 px-2 py-1 outline-none focus:border-jade/40 font-chakrapetch"
+                className="flex-1 bg-filmdark/30 border border-flash/15 rounded-[2px] text-xs text-flash placeholder:text-flash/30 px-2 py-1 outline-none focus:border-jade/40 font-chakrapetch"
               />
               <button
                 onClick={submitAccount}
@@ -8525,7 +8525,7 @@ function PlayerIdentityPanel({
   // shared parent border, so no border/bg of our own.
   if (!playerId || !persisted) {
     return (
-      <div className="px-3 py-2 bg-black/15">
+      <div className="px-3 py-2 bg-filmdark/15">
         <span className="text-[9px] font-jetbrains tracking-[0.18em] uppercase text-flash/30">
           Save to enable identity controls
         </span>
@@ -8615,7 +8615,7 @@ function PlayerIdentityPanel({
   };
 
   return (
-    <div className="px-3 py-2 bg-black/15">
+    <div className="px-3 py-2 bg-filmdark/15">
       <div className="flex items-center gap-3 flex-wrap">
         {/* Status pill */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -8718,7 +8718,7 @@ function EditCollapsible({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 rounded-[4px] border border-flash/10 overflow-hidden bg-black/15">
+    <div className="mb-3 rounded-[4px] border border-flash/10 overflow-hidden bg-filmdark/15">
       <button
         type="button"
         onClick={onToggle}
@@ -8829,7 +8829,7 @@ function LobbyAdminsPanel({
   );
 
   return (
-    <div className="mb-3 rounded-[3px] bg-black/15 border border-flash/[0.06] p-3">
+    <div className="mb-3 rounded-[3px] bg-filmdark/15 border border-flash/[0.06] p-3">
       <div className="text-[10px] font-jetbrains tracking-[0.22em] uppercase text-flash/50 mb-2">
         ◇ Admins
       </div>
@@ -8926,7 +8926,7 @@ function SectionsChooser({
               "flex items-start gap-2.5 px-3 py-2 rounded-[3px] border cursor-clicker transition-all text-left",
               isOn
                 ? "border-jade/40 bg-jade/[0.08]"
-                : "border-flash/10 bg-black/15 hover:border-flash/25"
+                : "border-flash/10 bg-filmdark/15 hover:border-flash/25"
             )}
           >
             <div
@@ -8934,7 +8934,7 @@ function SectionsChooser({
                 "w-3.5 h-3.5 rounded-[2px] border flex items-center justify-center shrink-0 mt-0.5 transition-all",
                 isOn
                   ? "bg-jade/40 border-jade/60"
-                  : "border-flash/20 bg-black/30"
+                  : "border-flash/20 bg-filmdark/30"
               )}
             >
               {isOn && <Check className="w-2.5 h-2.5 text-flash" />}
@@ -9011,7 +9011,7 @@ function VerifyModeRadio({
               "flex items-start gap-2.5 px-3 py-2 rounded-[3px] border cursor-clicker transition-all text-left",
               isOn
                 ? "border-jade/45 bg-jade/[0.08]"
-                : "border-flash/10 bg-black/15 hover:border-flash/25"
+                : "border-flash/10 bg-filmdark/15 hover:border-flash/25"
             )}
           >
             <div
@@ -9363,7 +9363,7 @@ export default function ScoutLobbyPage() {
                         v === "matches" ? `/scout/${slug}` : `/scout/${slug}/${v}`;
                       navigate(next, { replace: false });
                     }}
-                    className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-jade/30 rounded-md pl-4 pr-10 py-3.5 text-[14px] font-chakrapetch font-bold tracking-[0.18em] uppercase text-jade cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(0,0,0,0.4)]"
+                    className="w-full appearance-none bg-black/55 backdrop-blur-md ring-1 ring-jade/30 rounded-md pl-4 pr-10 py-3.5 text-[14px] font-chakrapetch font-bold tracking-[0.18em] uppercase text-jade cursor-clicker focus:outline-none focus:ring-2 focus:ring-jade/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(var(--c-shadow),0.4)]"
                   >
                     {visibleTabs.map((t) => (
                       <option key={t.key} value={t.key}>

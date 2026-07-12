@@ -135,7 +135,7 @@ export function DatabaseStatsPanel() {
   return (
     <div className="font-chakrapetch text-flash p-6 md:p-8 max-w-[1000px]">
       {/* header — reads as a real page header, not an inline row */}
-      <header className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-white/[0.08]">
+      <header className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-hairline/[0.08]">
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="grid place-items-center w-11 h-11 rounded-[12px] border border-jade/25 bg-jade/[0.07] shrink-0">
             <Database size={20} className="text-jade" />
@@ -182,7 +182,7 @@ export function DatabaseStatsPanel() {
           <div
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border tabular-nums text-[13px] font-bold",
-              rate > 0 ? "border-jade/30 bg-jade/[0.07] text-jade" : "border-white/10 bg-black/30 text-flash/40"
+              rate > 0 ? "border-jade/30 bg-jade/[0.07] text-jade" : "border-hairline/10 bg-filmdark/30 text-flash/40"
             )}
           >
             <Activity size={14} className={rate > 0 ? "animate-pulse" : ""} />
@@ -192,7 +192,7 @@ export function DatabaseStatsPanel() {
       </div>
 
       {/* capacity gauge — DB size as a fill of the box's disk */}
-      <div className="rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.45)] p-5 mb-5">
+      <div className="rounded-[14px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.45)] p-5 mb-5">
         <div className="flex items-end justify-between gap-3 mb-3">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em] text-flash/40 mb-1.5">
@@ -214,15 +214,15 @@ export function DatabaseStatsPanel() {
         {hasDisk ? (
           <>
             {/* stacked: jade = DB, faint = rest of disk used, track = free capacity */}
-            <div className="relative h-3 rounded-full bg-white/[0.05] overflow-hidden">
-              <div className="absolute inset-y-0 left-0 bg-white/[0.12] transition-all duration-700" style={{ width: `${Math.min(100, diskPct)}%` }} />
+            <div className="relative h-3 rounded-full bg-filmlight/[0.05] overflow-hidden">
+              <div className="absolute inset-y-0 left-0 bg-filmlight/[0.12] transition-all duration-700" style={{ width: `${Math.min(100, diskPct)}%` }} />
               <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-jade/50 to-jade/80 transition-all duration-700" style={{ width: `${Math.min(100, dbPct)}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between text-[10px] text-flash/40">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-[2px] bg-jade/70" /> DB {fmtBytes(dbBytes)}
                 <span className="mx-1.5 text-flash/15">·</span>
-                <span className="w-2 h-2 rounded-[2px] bg-white/20" /> {diskPct.toFixed(0)}% disk used
+                <span className="w-2 h-2 rounded-[2px] bg-filmlight/20" /> {diskPct.toFixed(0)}% disk used
               </span>
               <span className="text-flash/30 tabular-nums">{fmtBytes(Math.max(0, diskTotal - diskUsed))} free</span>
             </div>
@@ -244,7 +244,7 @@ export function DatabaseStatsPanel() {
       </div>
 
       {/* tables by size */}
-      <div className="rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.45)] p-5">
+      <div className="rounded-[14px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.45)] p-5">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-flash/45 mb-4">
           <Table2 size={12} className="text-jade/60" /> Biggest tables
         </div>
@@ -261,7 +261,7 @@ export function DatabaseStatsPanel() {
                     {fmt(t.estRows)} <span className="text-flash/30">rows</span>
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                <div className="h-1.5 rounded-full bg-filmlight/[0.05] overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-jade/40 to-jade/70 transition-all duration-700"
                     style={{ width: `${pct}%` }}
@@ -281,7 +281,7 @@ export function DatabaseStatsPanel() {
 
 function Metric({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-[10px] border border-white/[0.07] bg-black/30 px-3.5 py-3">
+    <div className="rounded-[10px] border border-hairline/[0.07] bg-filmdark/30 px-3.5 py-3">
       <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-flash/40 mb-1.5">
         <span className="text-jade/70">{icon}</span>
         {label}

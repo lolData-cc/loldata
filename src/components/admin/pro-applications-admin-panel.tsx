@@ -84,7 +84,7 @@ function regionFromTag(tag: string): "EUW" | "NA" | "KR" {
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
+    <div className="relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
       <div className="relative z-[1] px-4 py-4">{children}</div>
     </div>
   );
@@ -109,8 +109,8 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 const btnJade = "px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
 const btnFlash = "px-2 py-1 rounded-sm cursor-clicker border border-flash/20 text-flash/70 hover:bg-flash/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
 const btnDanger = "px-2 py-1 rounded-sm cursor-clicker border border-error/30 text-error/80 hover:bg-error/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
-const inputCls = "w-full rounded-sm border border-flash/15 bg-black/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
-const selectCls = "rounded-sm border border-flash/15 bg-black/40 px-2 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
+const inputCls = "w-full rounded-sm border border-flash/15 bg-filmdark/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
+const selectCls = "rounded-sm border border-flash/15 bg-filmdark/40 px-2 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
 const thCls = "px-3 py-2 text-[10px] font-mono tracking-[0.15em] uppercase text-flash/50";
 const tdCls = "px-3 py-2 text-[11px] font-mono text-flash/70";
 
@@ -562,7 +562,7 @@ export function ProApplicationsAdminPanel() {
                   const lp = lpById[r.id];
                   const isLpsLoading = lpsLoadingId === r.id;
                   return (
-                    <tr key={r.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                    <tr key={r.id} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                       <td className={tdCls}>{new Date(r.created_at).toLocaleDateString()}</td>
                       <td className={`${tdCls} text-flash`}>{r.riot_id ?? "—"}</td>
                       <td className={tdCls}>{r.name ?? "—"}</td>
@@ -640,7 +640,7 @@ export function ProApplicationsAdminPanel() {
               </thead>
               <tbody>
                 {filteredPros.map((p) => (
-                  <tr key={p.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                  <tr key={p.id} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                     <td className={tdCls}>
                       {p.profile_image_url ? (
                         <img src={p.profile_image_url} alt="" className="w-6 h-6 rounded-full object-cover border border-flash/10" />
@@ -704,7 +704,7 @@ export function ProApplicationsAdminPanel() {
               </thead>
               <tbody>
                 {filteredTeams.map((t) => (
-                  <tr key={t.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                  <tr key={t.id} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                     <td className={tdCls}>
                       {t.logo_url ? <TeamLogo src={t.logo_url} alt={t.name} className="w-6 h-6 rounded-sm object-contain" /> : <div className="w-6 h-6 rounded-sm bg-flash/10 flex items-center justify-center text-[8px] text-flash/30">—</div>}
                     </td>
@@ -878,7 +878,7 @@ export function ProApplicationsAdminPanel() {
             <div>
               <p className="text-[10px] font-mono tracking-[0.15em] uppercase text-jade/50 mb-2">Connected Accounts &amp; Links</p>
               {/* Primary account (from pro_players.username) */}
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-black/20 border border-flash/10 mb-3">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-filmdark/20 border border-flash/10 mb-3">
                 <span className="text-[10px] font-mono text-jade/60 uppercase shrink-0">Primary</span>
                 <span className="text-[11px] font-mono text-flash">{manageTarget?.username}</span>
               </div>
@@ -905,7 +905,7 @@ export function ProApplicationsAdminPanel() {
               <Label className="text-[10px] font-mono tracking-[0.15em] uppercase text-jade/50">Logo</Label>
               <div className="flex items-center gap-3 mt-1">
                 <input ref={logoInputRef} type="file" accept="image/*" onChange={(e) => setAddTeamLogo(e.target.files?.[0] ?? null)}
-                  className="text-[11px] text-flash/60 font-mono file:mr-2 file:px-2 file:py-1 file:rounded-sm file:border file:border-flash/20 file:bg-black/40 file:text-flash/70 file:text-[10px] file:font-mono file:cursor-clicker hover:file:bg-flash/10" />
+                  className="text-[11px] text-flash/60 font-mono file:mr-2 file:px-2 file:py-1 file:rounded-sm file:border file:border-flash/20 file:bg-filmdark/40 file:text-flash/70 file:text-[10px] file:font-mono file:cursor-clicker hover:file:bg-flash/10" />
                 {addTeamLogo && <img src={URL.createObjectURL(addTeamLogo)} alt="preview" className="w-8 h-8 rounded-sm object-contain border border-flash/10" />}
               </div>
             </div>

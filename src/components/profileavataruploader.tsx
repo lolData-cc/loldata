@@ -114,7 +114,7 @@ export function PremiumAvatarUploader() {
     <>
       <SettingsCard title="Avatar" hint={isPremium ? "◈ PREMIUM" : "◈ FREE TIER"}>
         <div className="flex items-center gap-3.5">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-black/30">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-jade/15 bg-filmdark/30">
             {avatarUrl ? (
               <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
             ) : (

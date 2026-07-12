@@ -13,7 +13,10 @@ export const UI_PREFS_KEYS = {
   blueWinTint: "lolData:blueWinTint",
   legacyRankIcons: "lolData:legacyRankIcons",
   ambientLight: "lolData:ambientLight",
+  theme: "lolData:theme",
 } as const;
+
+export type ThemeMode = "dark" | "light";
 
 function safeWindow() {
   return typeof window !== "undefined" ? window : null;
@@ -237,4 +240,36 @@ export function setAmbientLight(value: number) {
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.ambientLight, String(Math.max(0, Math.min(100, Math.round(value)))));
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+/** Feature gate — the light theme is not shipped yet (COMING SOON). While this
+    is false the site is dark-only: getTheme forces dark and setTheme refuses
+    "light". Flip to true (+ restore the index.html boot script) to re-enable. */
+export const LIGHT_THEME_ENABLED = false;
+
+/** Colour theme. Default dark. While light is gated, always dark. */
+export function getTheme(): ThemeMode {
+  if (!LIGHT_THEME_ENABLED) return "dark";
+  const w = safeWindow();
+  if (!w) return "dark";
+  return w.localStorage.getItem(UI_PREFS_KEYS.theme) === "light" ? "light" : "dark";
+}
+
+/** Persist the theme, broadcast the change, and flip the <html> class so the
+    CSS variable set swaps immediately (single source of truth for the DOM). */
+export function setTheme(value: ThemeMode) {
+  const w = safeWindow();
+  if (!w) return;
+  if (value === "light" && !LIGHT_THEME_ENABLED) return; // gated — light coming soon
+  w.localStorage.setItem(UI_PREFS_KEYS.theme, value);
+  applyThemeClass(value);
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+/** Set `light`/`dark` on <html> (mutually exclusive). Safe to call anywhere. */
+export function applyThemeClass(value: ThemeMode) {
+  const d = typeof document !== "undefined" ? document.documentElement : null;
+  if (!d) return;
+  d.classList.toggle("light", value === "light");
+  d.classList.toggle("dark", value === "dark");
 }

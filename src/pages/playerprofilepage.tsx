@@ -149,7 +149,7 @@ function AccountRow({ a, idx, cutoffsMap }: { a: Account; idx: number; cutoffsMa
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE, delay: Math.min(idx * 0.05, 0.4) }}
-      className="relative overflow-hidden rounded-md border border-flash/[0.07] bg-black/25 px-4 py-3 backdrop-blur-lg transition-colors hover:border-jade/20"
+      className="relative overflow-hidden rounded-md border border-flash/[0.07] bg-filmdark/25 px-4 py-3 backdrop-blur-lg transition-colors hover:border-jade/20"
     >
       <span className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: `${color}88` }} />
       <div className="flex items-center justify-between gap-3">
@@ -220,7 +220,7 @@ function TopChampions({ champs }: { champs: Profile["topChampions"] }) {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.35, ease: EASE, delay: Math.min(i * 0.04, 0.4) }}
-            className="flex items-center gap-2.5 rounded-md border border-flash/[0.07] bg-black/25 px-3 py-2.5 backdrop-blur-lg"
+            className="flex items-center gap-2.5 rounded-md border border-flash/[0.07] bg-filmdark/25 px-3 py-2.5 backdrop-blur-lg"
           >
             <img
               src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.championName)}.png`}
@@ -297,9 +297,9 @@ export default function PlayerProfilePage() {
       <div className="relative z-[1] mx-auto w-full max-w-[1080px] px-3 lg:px-0">
         {state === "loading" && (
           <div className="flex flex-col gap-4">
-            <div className="h-[180px] animate-pulse rounded-lg bg-black/30" />
-            <div className="h-6 w-40 animate-pulse rounded bg-black/30" />
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-[92px] animate-pulse rounded-md bg-black/20" />)}
+            <div className="h-[180px] animate-pulse rounded-lg bg-filmdark/30" />
+            <div className="h-6 w-40 animate-pulse rounded bg-filmdark/30" />
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-[92px] animate-pulse rounded-md bg-filmdark/20" />)}
           </div>
         )}
 
@@ -316,7 +316,7 @@ export default function PlayerProfilePage() {
             {/* ── HERO ── */}
             <motion.div
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}
-              className="relative overflow-hidden rounded-lg border border-flash/[0.08] bg-black/30 backdrop-blur-xl"
+              className="relative overflow-hidden rounded-lg border border-flash/[0.08] bg-filmdark/30 backdrop-blur-xl"
             >
               {/* blurred avatar backdrop */}
               {data.avatar && (
@@ -331,7 +331,7 @@ export default function PlayerProfilePage() {
                 <div className="relative shrink-0">
                   <div className="absolute -inset-1 rounded-xl bg-jade/20 blur-md" />
                   {data.avatar ? (
-                    <img src={data.avatar} alt="" className="relative h-[116px] w-[116px] rounded-xl object-cover ring-2 ring-jade/30 shadow-[0_8px_30px_rgba(0,0,0,0.55)]" />
+                    <img src={data.avatar} alt="" className="relative h-[116px] w-[116px] rounded-xl object-cover ring-2 ring-jade/30 shadow-[0_8px_30px_rgba(var(--c-shadow),0.55)]" />
                   ) : (
                     <div className="relative grid h-[116px] w-[116px] place-items-center rounded-xl bg-black/50 ring-2 ring-jade/20">
                       <span className="font-chakrapetch text-3xl font-black text-jade/40">{data.name.charAt(0).toUpperCase()}</span>

@@ -83,7 +83,7 @@ function MatchupDetailDialog({ entry, isThreat, championId, onClose }: {
   return createPortal(
     <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-      <div className="relative z-10 w-[560px] max-h-[85vh] overflow-y-auto rounded-md shadow-[0_20px_60px_rgba(0,0,0,0.7)]"
+      <div className="relative z-10 w-[560px] max-h-[85vh] overflow-y-auto rounded-md shadow-[0_20px_60px_rgba(var(--c-shadow),0.7)]"
         style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)", animation: "dialogOpen 0.25s ease-out" }}
         onClick={e => e.stopPropagation()}>
         {/* Splash header */}
@@ -100,7 +100,7 @@ function MatchupDetailDialog({ entry, isThreat, championId, onClose }: {
           </button>
           {/* Champion info */}
           <div className="absolute bottom-3 left-4 flex items-center gap-3 z-10">
-            <img src={`${cdnBaseUrl()}/img/champion/${entry.championId}.png`} alt="" className="w-12 h-12 rounded-[4px] border border-white/[0.1]" />
+            <img src={`${cdnBaseUrl()}/img/champion/${entry.championId}.png`} alt="" className="w-12 h-12 rounded-[4px] border border-hairline/[0.1]" />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-[18px] font-orbitron text-flash/90">{entry.championId}</h3>
@@ -191,7 +191,7 @@ function ChampCard({ entry, isThreat, championId }: { entry: MatchupEntry; isThr
         <div className="relative z-10 flex items-center gap-3 px-3.5 py-3">
           <div className="relative shrink-0">
             <img src={`${cdnBaseUrl()}/img/champion/${entry.championId}.png`} alt={entry.championId}
-              className="w-10 h-10 rounded-[3px] border border-white/[0.08]" />
+              className="w-10 h-10 rounded-[3px] border border-hairline/[0.08]" />
             {entry.ban && (
               <span className="absolute -top-1.5 -right-1.5 text-[6px] font-orbitron font-bold text-red-400 bg-red-400/15 border border-red-400/30 px-1 py-px rounded-[2px] uppercase tracking-wider leading-none">BAN</span>
             )}

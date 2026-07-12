@@ -190,7 +190,7 @@ export function MatchReplayDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[1400px] h-[92vh] bg-liquirice/95 rounded-lg ring-1 ring-flash/10 shadow-[0_30px_120px_-20px_rgba(0,0,0,0.9),0_8px_28px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden flex flex-col"
+        className="relative w-full max-w-[1400px] h-[92vh] bg-liquirice/95 rounded-lg ring-1 ring-flash/10 shadow-[0_30px_120px_-20px_rgba(var(--c-shadow),0.9),0_8px_28px_rgba(var(--c-shadow),0.7),inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden flex flex-col"
       >
         {/* Background ambient glow */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,217,146,0.06),transparent_60%)]" />
@@ -590,7 +590,7 @@ function ScoreTopOverlay({
 
   return (
     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[90] pointer-events-none flex flex-col items-center gap-1">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-sm bg-liquirice/75 backdrop-blur-md ring-1 ring-flash/15 px-3 py-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.6)]">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-sm bg-liquirice/75 backdrop-blur-md ring-1 ring-flash/15 px-3 py-1.5 shadow-[0_4px_14px_rgba(var(--c-shadow),0.6)]">
         {/* BLUE side */}
         <div className="flex items-baseline gap-2">
           <span
@@ -629,7 +629,7 @@ function ScoreTopOverlay({
       {showLead && (
         <div
           className={cn(
-            "pointer-events-auto flex items-center gap-1.5 rounded-full bg-liquirice/70 backdrop-blur-md px-2 py-0.5 ring-1 shadow-[0_4px_14px_rgba(0,0,0,0.55)]",
+            "pointer-events-auto flex items-center gap-1.5 rounded-full bg-liquirice/70 backdrop-blur-md px-2 py-0.5 ring-1 shadow-[0_4px_14px_rgba(var(--c-shadow),0.55)]",
             teamGold.diff > 0 ? "ring-[#5BA8E6]/40" : "ring-[#d63336]/40"
           )}
         >
@@ -659,7 +659,7 @@ function SpeedControlsOverlay({
   const SPEEDS: ReplaySpeed[] = [0.5, 1, 2, 4, 8, 16];
   return (
     <div className="absolute bottom-2 left-2 z-[100] pointer-events-auto">
-      <div className="flex items-center gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(0,0,0,0.6)]">
+      <div className="flex items-center gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(var(--c-shadow),0.6)]">
         {SPEEDS.map((s) => (
           <button
             key={s}
@@ -691,7 +691,7 @@ function PlaybackControlsOverlay({
 }) {
   return (
     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto">
-      <div className="flex items-center gap-1 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(0,0,0,0.6)]">
+      <div className="flex items-center gap-1 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(var(--c-shadow),0.6)]">
         <button
           type="button"
           onClick={() => onStep(-30_000)}
@@ -846,7 +846,7 @@ function DragonGhost() {
   const Icon = eliteMonsterIcon("DRAGON");
   // Bumped from w-3 h-3 (12px) — at 12px the new dragon silhouette
   // was still cramped; 16px reads clearly as a proper dragon profile.
-  return <Icon className="w-4 h-4 drop-shadow-[0_0_2px_rgba(0,0,0,0.7)]" />;
+  return <Icon className="w-4 h-4 drop-shadow-[0_0_2px_rgba(var(--c-shadow),0.7)]" />;
 }
 
 function ObjChip({ count, icon }: { count: number; icon: "baron" | "herald" | "voidgrub" | "atakhan" }) {

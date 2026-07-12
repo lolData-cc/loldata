@@ -31,14 +31,14 @@ export function CyberSelect({ value, onChange, options, placeholder = "Select", 
           "border backdrop-blur-lg",
           value
             ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_12px_rgba(0,217,146,0.08)]"
-            : "text-flash/40 border-flash/10 hover:text-flash/60 hover:border-flash/20 bg-black/40",
+            : "text-flash/40 border-flash/10 hover:text-flash/60 hover:border-flash/20 bg-filmdark/40",
           className
         )}
       >
         {activeLabel}
         <ChevronDown className="h-3 w-3" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-40 text-sm bg-black/80 backdrop-blur-xl border-white/10">
+      <DropdownMenuContent align="start" className="w-40 text-sm bg-black/80 backdrop-blur-xl border-hairline/10">
         {options.map((opt) => (
           <DropdownMenuItem
             key={opt.value}

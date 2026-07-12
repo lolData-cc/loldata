@@ -125,7 +125,7 @@ function ItemIcon({ id, size = 44, names }: { id: number; size?: number; names: 
           width={size}
           height={size}
           loading="lazy"
-          className="rounded-md ring-1 ring-flash/10 bg-black/30"
+          className="rounded-md ring-1 ring-flash/10 bg-filmdark/30"
           onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
         />
         <PatchTag kind="item" id={id} />
@@ -392,7 +392,7 @@ function LaningSection({ s, vsName }: { s: StatsResp; vsName?: string | null }) 
     if (val == null) return null
     const pos = val >= 0
     return (
-      <div className="flex flex-col items-center justify-center px-2 py-2 rounded-md bg-black/25">
+      <div className="flex flex-col items-center justify-center px-2 py-2 rounded-md bg-filmdark/25">
         <span className="text-[9px] font-chakrapetch font-bold uppercase tracking-[0.14em] text-flash/35">{label}</span>
         <span className={cn("text-[18px] font-chakrapetch font-bold tabular-nums leading-tight", pos ? "text-jade" : "text-[#ff6286]")}>{pos ? "+" : ""}{Math.round(val)}</span>
       </div>
@@ -682,7 +682,7 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
                       className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 border-b border-flash/[0.04] last:border-0 transition-colors text-left cursor-pointer",
                         i === pageIdx ? "bg-jade/[0.07]" : "hover:bg-flash/[0.03]")}>
                       <div className="relative shrink-0">
-                        {ks && <img src={ks} alt="" className="w-8 h-8 rounded-full bg-black/40" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                        {ks && <img src={ks} alt="" className="w-8 h-8 rounded-full bg-filmdark/40" onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
                         {ss && <img src={ss} alt="" className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#0a1416] p-px" />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -740,7 +740,7 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
                 const sec = getStyleIcon(r.sub)
                 return (
                   <div key={i} className={cn("flex items-center gap-3", i > 0 && "mt-3 pt-3 border-t border-flash/[0.05]")}>
-                    {ks && <img src={ks} alt="" className={cn("rounded-full bg-black/40", i === 0 ? "w-12 h-12" : "w-9 h-9")} onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
+                    {ks && <img src={ks} alt="" className={cn("rounded-full bg-filmdark/40", i === 0 ? "w-12 h-12" : "w-9 h-9")} onError={(e) => { e.currentTarget.style.opacity = "0.2" }} />}
                     <div className="min-w-0 flex-1">
                       <div className={cn("font-chakrapetch font-bold truncate", i === 0 ? "text-[14px] text-flash/90" : "text-[12px] text-flash/60")}>{getKeystoneName(r.keystone) ?? `Keystone ${r.keystone}`}</div>
                       <div className="flex items-center gap-1.5 mt-1">{prim && <img src={prim} alt="" className="w-4 h-4" />}<span className="text-flash/20 text-[10px]">+</span>{sec && <img src={sec} alt="" className="w-4 h-4 opacity-80" />}</div>
@@ -893,10 +893,10 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
                   100% Free
                 </span>
               </div>
-              <h3 className="font-chakrapetch font-bold uppercase tracking-[0.04em] leading-[0.95] text-xl sm:text-[28px] text-flash drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
+              <h3 className="font-chakrapetch font-bold uppercase tracking-[0.04em] leading-[0.95] text-xl sm:text-[28px] text-flash drop-shadow-[0_2px_14px_rgba(var(--c-shadow),0.85)]">
                 Go deeper in the Explorer
               </h3>
-              <p className="mt-1.5 hidden sm:block max-w-[46ch] text-[12px] sm:text-[13px] leading-relaxed text-flash/65 drop-shadow-[0_1px_10px_rgba(0,0,0,0.9)]">
+              <p className="mt-1.5 hidden sm:block max-w-[46ch] text-[12px] sm:text-[13px] leading-relaxed text-flash/65 drop-shadow-[0_1px_10px_rgba(var(--c-shadow),0.9)]">
                 Build custom {name} queries — ally &amp; enemy synergies, item win-rates and matchup splits.
                 <span className="text-jade/85 font-semibold"> Completely free.</span>
               </p>
@@ -907,7 +907,7 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
               <button
                 type="button"
                 onClick={() => setShowTutorial(true)}
-                className="group inline-flex items-center justify-center gap-1.5 min-w-[176px] rounded-md bg-black/40 px-4 py-2 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.16em] text-flash/70 backdrop-blur-sm shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] transition-[color,box-shadow] hover:text-flash hover:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.22)] cursor-pointer"
+                className="group inline-flex items-center justify-center gap-1.5 min-w-[176px] rounded-md bg-filmdark/40 px-4 py-2 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.16em] text-flash/70 backdrop-blur-sm shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] transition-[color,box-shadow] hover:text-flash hover:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.22)] cursor-pointer"
               >
                 <HelpCircle className="h-3.5 w-3.5" /> What's that?
               </button>
@@ -918,7 +918,7 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
                   "group inline-flex items-center justify-center gap-2 min-w-[176px] shrink-0 rounded-md px-4 py-2 font-chakrapetch font-bold text-[11px] uppercase tracking-[0.16em] transition-colors cursor-pointer backdrop-blur-sm",
                   session
                     ? "bg-jade/20 text-jade border border-jade/40 hover:bg-jade/30 shadow-[0_0_24px_rgba(0,217,146,0.25)]"
-                    : "bg-black/40 text-flash/80 border border-flash/25 hover:text-flash hover:border-flash/40"
+                    : "bg-filmdark/40 text-flash/80 border border-flash/25 hover:text-flash hover:border-flash/40"
                 )}
               >
                 {session ? (

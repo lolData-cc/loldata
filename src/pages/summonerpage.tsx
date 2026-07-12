@@ -1,6 +1,7 @@
 import React from "react"
 import { createPortal } from "react-dom"
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
+import { computeImpact } from "@/utils/impact"
 import { motion, AnimatePresence } from "framer-motion"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import { useNavigate } from "react-router-dom";
@@ -61,12 +62,13 @@ import { PlayerHoverCard } from "@/components/playerhovercard";
 import { TeamLogo } from "@/components/teamlogo";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
-import { calculatePlayerRating } from "@/utils/calculatePlayerRating";
+import { calculateLoldataScore } from "@/utils/loldataScore";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
 import { enrichRecentProfile } from "@/lib/recentSearchedProfiles";
 import { GlassOverlays } from "@/components/ui/glass-overlays";
 import { MatchReplayDialog } from "@/components/matchreplay/MatchReplayDialog";
+import MatchExpand from "@/components/matchexpand";
 import { AnimatedOutline } from "@/components/ui/animated-outline";
 
 const itemKeys: (keyof Participant)[] = [
@@ -134,6 +136,7 @@ export default function SummonerPage() {
   const { enabled: contextMenuMode } = useContextMenuActions()
   const { enabled: clickToExpand } = useClickToExpandMatch()
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
+  const [closingMatchId, setClosingMatchId] = useState<string | null>(null) // plays the collapse animation before unmount
   const [replayMatch, setReplayMatch] = useState<{ matchId: string; match: MatchWithWin["match"] } | null>(null)
   const { session: authSession, isAdmin } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
@@ -245,8 +248,8 @@ export default function SummonerPage() {
     return now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase();
   }, []);
 
-  const recentRating = useMemo(() => {
-    return calculatePlayerRating(matches, summonerInfo?.puuid ?? "", 15);
+  const loldata = useMemo(() => {
+    return calculateLoldataScore(matches, summonerInfo?.puuid ?? "", 20);
   }, [matches, summonerInfo?.puuid]);
 
   const recentDetailedStats = useMemo(() => {
@@ -257,6 +260,7 @@ export default function SummonerPage() {
     let games = 0, wins = 0;
     let totalKills = 0, totalDeaths = 0, totalAssists = 0;
     let totalCS = 0, totalGold = 0, totalMinutes = 0;
+    let impactSum = 0;
     const kpValues: number[] = [];
     const dmgValues: number[] = [];
     const visionValues: number[] = [];
@@ -270,6 +274,7 @@ export default function SummonerPage() {
       games++;
       if (m.win) wins++;
       form.push(m.win ? "W" : "L");
+      impactSum += computeImpact(me, m.match.info);
 
       totalKills += me.kills;
       totalDeaths += me.deaths;
@@ -323,6 +328,7 @@ export default function SummonerPage() {
       games, wins, form,
       avgKills: avgKills.toFixed(1), avgDeaths: avgDeaths.toFixed(1), avgAssists: avgAssists.toFixed(1),
       avgKda, csPerMin, goldPerMin, avgKP, avgDmg, avgVision,
+      avgImpact: games > 0 ? Math.round(impactSum / games) : 0,
       roleDistribution, streakType, streakCount,
     };
   }, [matches, summonerInfo?.puuid]);
@@ -354,6 +360,7 @@ export default function SummonerPage() {
     440: "Ranked Flex",
     450: "ARAM",
     700: "Clash",
+    710: "Ranked 5s",
     900: "URF",
     1020: "One for All",
     1700: "Arena",
@@ -361,8 +368,8 @@ export default function SummonerPage() {
 
   const glassDark = cn(
     "relative overflow-hidden rounded-md",
-    "bg-black/25 backdrop-blur-lg saturate-150",
-    "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+    "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+    "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
   );
 
 
@@ -1081,21 +1088,6 @@ export default function SummonerPage() {
     );
   }
 
-  function ratingToTier(score: number): string {
-    if (score >= 92) return "S+";
-    if (score >= 85) return "S";
-    if (score >= 78) return "A+";
-    if (score >= 72) return "A";
-    if (score >= 66) return "B+";
-    if (score >= 60) return "B";
-    if (score >= 55) return "C+";
-    if (score >= 50) return "C";
-    if (score >= 45) return "D+";
-    if (score >= 40) return "D";
-    return "D";
-  }
-
-
   async function fetchSummonerInfo(name: string, tag: string, region: string): Promise<{ found: boolean; cooldownRemaining: number }> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/summoner`, {
@@ -1243,11 +1235,11 @@ export default function SummonerPage() {
             return (
               <>
                 {displayChamps.map((champ) => (
-                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center xl:gap-4">
+                  <div key={champ.champion} className="flex items-center justify-between px-3 w-full xl:grid xl:grid-cols-[148px_96px_minmax(0,1fr)] xl:items-center xl:gap-3">
                     <div className="flex items-center gap-3 xl:justify-self-start">
                       <img src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(champ.champion)}.png`} alt={champ.champion} className="w-12 h-12 rounded-full ring-1 ring-flash/10" />
-                      <div className="flex flex-col gap-0.5 justify-start min-w-[100px]">
-                        <div className="font-chakrapetch font-bold uppercase tracking-[0.04em] text-[13px] text-flash truncate w-[100px]">{champ.champion}</div>
+                      <div className="flex flex-col gap-0.5 justify-start min-w-0">
+                        <div className="font-chakrapetch font-bold uppercase tracking-[0.04em] text-[13px] text-flash truncate max-w-[100px]">{champ.champion}</div>
                         <div className="font-mono text-[10.5px] tabular-nums text-flash/55">
                           {(() => {
                             const num = Number(champ.csPerMin);
@@ -1259,7 +1251,7 @@ export default function SummonerPage() {
                     </div>
 
                     {/* Center KDA column — visible only at xl+ */}
-                    <div className="hidden xl:flex flex-col items-center gap-0.5 whitespace-nowrap xl:justify-self-center xl:ml-[24px]">
+                    <div className="hidden xl:flex flex-col items-center gap-0.5 whitespace-nowrap xl:w-full">
                       <div className={cn("font-chakrapetch font-bold text-[13px] tabular-nums leading-none", getKdaClass(champ.avgKda))}>
                         {champ.avgKda} KDA
                       </div>
@@ -1364,8 +1356,8 @@ export default function SummonerPage() {
           <div
             className={cn(
               "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
-              "bg-black/25 backdrop-blur-lg saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+              "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
             )}
           >
             {/* glossy overlays */}
@@ -1505,27 +1497,19 @@ export default function SummonerPage() {
 
               {/* ———— PERFORMANCE OVERVIEW ———— */}
               {!recentDetailedStats && (
-                <div className="px-3 pt-2 pb-4 font-jetbrains animate-pulse">
-                  <div className="flex items-start gap-1">
-                    {/* Radar skeleton */}
-                    <div className="shrink-0 -ml-2 flex items-center justify-center" style={{ width: 190, height: 190 }}>
-                      <div className="w-[130px] h-[130px] rounded-full border border-white/[0.06]" />
+                <div className="px-3 pt-2 pb-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0 -ml-2 flex items-center justify-center w-[180px] h-[180px]">
+                      <div className="w-[120px] h-[120px] rounded-full border border-hairline/[0.06]" />
                     </div>
-                    {/* Stats skeleton */}
-                    <div className="flex flex-col gap-[7px] pt-3 flex-1 min-w-0">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 flex-1 min-w-0">
                       {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="flex items-center justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
-                          <Skeleton className="w-[40px] h-3" />
-                          <Skeleton className="w-[50px] h-4" />
+                        <div key={i} className="flex flex-col gap-1.5">
+                          <Skeleton className="w-[40px] h-2.5" />
+                          <Skeleton className="w-[52px] h-4" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                  {/* Footer skeleton */}
-                  <div className="flex gap-3 px-1 pt-2 mt-1 border-t border-white/[0.06]">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="w-[45px] h-3" />
-                    ))}
                   </div>
                 </div>
               )}
@@ -1556,12 +1540,12 @@ export default function SummonerPage() {
 
                 return (
                   <div className="px-3 pt-2 pb-4 font-jetbrains">
-                    <div className="flex items-start gap-1">
+                    <div className="flex items-center gap-3">
 
-                      {/* Radar chart — left */}
+                      {/* Radar chart — left (unchanged mood) */}
                       <TooltipProvider delayDuration={0}>
-                        <div className="shrink-0 -ml-2 relative mt-[22px]">
-                          <svg width="190" height="190" viewBox="0 0 220 220">
+                        <div className="shrink-0 -ml-2 relative">
+                          <svg width="180" height="180" viewBox="0 0 220 220">
                             {/* Grid hexagons */}
                             {[0.25, 0.5, 0.75, 1].map(s => (
                               <polygon key={s} points={hex(maxR * s)} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
@@ -1573,7 +1557,6 @@ export default function SummonerPage() {
                             })}
                             {/* Data fill */}
                             <polygon points={dataHex} fill="rgba(0,217,146,0.08)" stroke="rgba(0,217,146,0.5)" strokeWidth="1.5" strokeLinejoin="round" />
-                            {/* Inner glow fill */}
                             <polygon points={dataHex} fill="url(#radarGlow)" />
                             {/* Data dots with tooltips */}
                             {radarStats.map((s, i) => {
@@ -1594,7 +1577,7 @@ export default function SummonerPage() {
                                 </Tooltip>
                               );
                             })}
-                            {/* Labels */}
+                            {/* Axis labels */}
                             {radarStats.map((s, i) => {
                               const [lx, ly] = pt(angles[i], maxR + 16);
                               return (
@@ -1613,25 +1596,24 @@ export default function SummonerPage() {
                         </div>
                       </TooltipProvider>
 
-                      {/* Stats panel — right */}
-                      <div className="flex flex-col gap-[7px] pt-6 flex-1 min-w-0">
+                      {/* Stats — minimal 2-column readout, each a grey cyber pill */}
+                      <div className="grid grid-cols-2 gap-1.5 flex-1 min-w-0 self-start mt-7">
                         {[
-                          { label: "KDA", value: recentDetailedStats.avgKda, sub: `${recentDetailedStats.avgKills}/${recentDetailedStats.avgDeaths}/${recentDetailedStats.avgAssists}` },
+                          { label: "KDA", value: recentDetailedStats.avgKda },
                           { label: "CS/MIN", value: recentDetailedStats.csPerMin },
                           { label: "KP", value: `${recentDetailedStats.avgKP}%` },
                           { label: "DMG", value: `${recentDetailedStats.avgDmg}%` },
                           { label: "GOLD/M", value: String(recentDetailedStats.goldPerMin) },
-                          { label: "VIS/M", value: recentDetailedStats.avgVision },
+                          { label: "AVG IMPACT", value: recentDetailedStats.avgImpact },
                         ].map(s => (
-                          <div key={s.label} className="flex items-baseline justify-between border-b border-white/[0.04] pb-[6px] last:border-0 last:pb-0">
-                            <span className="text-[10px] text-flash/35 uppercase tracking-wider">{s.label}</span>
-                            <div className="flex items-baseline gap-1.5">
-                              {s.sub && <span className="text-[10px] text-flash/25">{s.sub}</span>}
-                              <span className="text-[14px] text-jade tabular-nums font-medium">{s.value}</span>
+                          <div key={s.label} className="flex flex-col gap-0.5 rounded-[7px] bg-gradient-to-b from-filmlight/[0.07] to-filmlight/[0.02] px-2.5 py-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.055)]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1 h-1 rotate-45 bg-jade/60 shrink-0" />
+                              <span className="text-[8.5px] font-mono uppercase tracking-[0.14em] text-flash/35 whitespace-nowrap">{s.label}</span>
                             </div>
+                            <span className="font-chakrapetch font-bold text-[17px] text-flash/90 tabular-nums leading-none pl-2.5">{s.value}</span>
                           </div>
                         ))}
-
                       </div>
 
                     </div>
@@ -1647,8 +1629,8 @@ export default function SummonerPage() {
             id="season-stats"
             className={cn(
               "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
-              "bg-black/25 backdrop-blur-lg saturate-150",
-              "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.02)]"
+              "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+              "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.02)]"
             )}
           >
             <GlassOverlays />
@@ -1755,169 +1737,90 @@ export default function SummonerPage() {
             </div>
           </div>
 
-          {monthlyDayStats.length > 0 && (
-            <div className="w-[90%] mt-4 flex flex-col xl:flex-row gap-4 xl:items-stretch">
-              {/* SINISTRA: HEATMAP (uguale a prima come altezza) */}
-              <div className={cn(glassDark, "flex-1 text-sm font-thin")}>
-                <div className="relative z-10 px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-flash/70">
-                    <span>THIS MONTH</span>
-                    <span className="uppercase opacity-70">{monthLabel}</span>
-                  </div>
+          {!!summonerInfo?.puuid && matches.length > 0 && (
+            <div className="w-[90%] mt-4 flex flex-col gap-4">
+              {/* LOLDATA SCORE — rank-relative performance rating (full-width) */}
+              <div className={cn(glassDark, "w-full text-sm font-thin")}>
+                <div className="relative z-10 px-5 py-4">
+                  {(() => {
+                    const has = !!summonerInfo?.puuid && matches.length > 0 && loldata.games > 0;
+                    const s = loldata.score;
+                    const up = s >= 57, down = s <= 44;
+                    const sColor = up ? "text-jade" : down ? "text-[#e0503f]" : "text-flash/80";
+                    const cats = [
+                      { k: "Combat", v: loldata.dimensions.combat },
+                      { k: "Damage", v: loldata.dimensions.damage },
+                      { k: "Economy", v: loldata.dimensions.economy },
+                      { k: "Vision", v: loldata.dimensions.vision },
+                      { k: "Objectives", v: loldata.dimensions.objectives },
+                    ];
+                    const vHex = (v: number) => (v >= 55 ? "#00d992" : v <= 45 ? "#e0503f" : "rgba(215,216,217,0.72)");
+                    return (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-jetbrains tracking-[0.2em] uppercase text-flash/55">
+                            LOLDATA Score
+                          </span>
+                          <div className="flex-1 h-px bg-flash/[0.07]" />
+                          {has && (
+                            <span className="text-[9px] font-jetbrains tracking-wide uppercase text-flash/35">
+                              {loldata.games} games
+                            </span>
+                          )}
+                        </div>
 
-                  <div className="mt-3">
-                    <TooltipProvider delayDuration={80}>
-                      {/* GRID CON 3 RIGHE FISSE E COLONNE AUTOMATICHE */}
-                      <div
-                        className="grid gap-[2px] w-fit mx-auto"
-                        style={{
-                          gridTemplateRows: "repeat(3, auto)",
-                          gridAutoFlow: "column",
-                        }}
-                      >
+                        {/* score row */}
+                        <div className="mt-2 flex items-center gap-3 flex-wrap">
+                          <span className={cn("text-[54px] font-chakrapetch font-bold leading-none tracking-tight", sColor)}>
+                            {has ? s : "--"}
+                          </span>
+                          {has && (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span
+                                className={cn(
+                                  "text-[12px] font-chakrapetch font-bold px-2 py-[2px] rounded-[3px] tracking-wide leading-none",
+                                  up ? "bg-jade/15 text-jade" : down ? "bg-[#e0503f]/15 text-[#e0503f]" : "bg-flash/10 text-flash/60"
+                                )}
+                              >
+                                {loldata.delta >= 0 ? `+${loldata.delta}` : loldata.delta}
+                              </span>
+                              <span className="text-[8px] font-jetbrains uppercase tracking-[0.16em] text-flash/35 leading-none">
+                                vs rank
+                              </span>
+                            </div>
+                          )}
+                          <div className="hidden sm:block h-9 w-px bg-flash/[0.08] mx-0.5" />
+                          <span
+                            className={cn(
+                              "text-[13px] font-chakrapetch",
+                              up ? "text-jade" : down ? "text-[#e0503f]" : "text-flash/65"
+                            )}
+                          >
+                            {has ? loldata.verdict : "Not enough games"}
+                          </span>
+                        </div>
 
-                        {monthlyDayStats.map((cell, idx) => {
-                          const dayNumber = cell.date.getDate();
-                          const baseClasses = "w-3 h-3 rounded-[2px] cursor-default";
-
-                          const dayName = cell.date.toLocaleDateString("en-US", { weekday: "short" });
-                          const monthDay = cell.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-                          // Celle senza partite
-                          if (!cell.games || cell.winrate == null) {
-                            return (
-                              <Tooltip key={idx}>
-                                <TooltipTrigger asChild>
-                                  <div className={cn(baseClasses, "bg-white/5")} />
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
-                                  <div className="relative bg-[#0a0f14] border border-flash/10 rounded-[3px] px-3 py-2 min-w-[100px]">
-                                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-flash/20 rounded-l-[3px]" />
-                                    <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
-                                    <div className="mt-1 text-[11px] text-flash/30 font-mono">No games</div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                          }
-
-                          // Cells with games: color based on winrate
-                          // 0% = red, 50% = muted neutral, 100% = jade green
-                          const wr = cell.winrate;
-                          const isHighWr = wr >= 70 && cell.games >= 3;
-                          let bgColor: string;
-                          let shadow: string | undefined;
-
-                          if (wr < 50) {
-                            // Red side: lerp from deep red to muted
-                            const t = wr / 50; // 0→1
-                            const r = Math.round(180 - 100 * t);  // 180→80
-                            const g = Math.round(40 + 40 * t);    // 40→80
-                            const b = Math.round(50 + 30 * t);    // 50→80
-                            bgColor = `rgb(${r}, ${g}, ${b})`;
-                          } else {
-                            // Green side: lerp from muted to jade
-                            const t = (wr - 50) / 50; // 0→1
-                            const r = Math.round(80 - 80 * t);    // 80→0
-                            const g = Math.round(80 + 137 * t);   // 80→217
-                            const b = Math.round(80 + 66 * t);    // 80→146
-                            bgColor = `rgb(${r}, ${g}, ${b})`;
-                          }
-
-                          if (isHighWr) {
-                            shadow = `0 0 6px rgba(0, 217, 146, 0.6), 0 0 2px rgba(0, 217, 146, 0.3)`;
-                          }
-
-                          return (
-                            <Tooltip key={idx}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={cn(baseClasses, isHighWr && "animate-heatmapPulse")}
-                                  style={{ backgroundColor: bgColor, boxShadow: shadow }}
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="p-0 bg-transparent border-none shadow-none">
-                                <div className="relative bg-[#0a0f14] border border-jade/15 rounded-[3px] px-3 py-2 min-w-[120px]">
-                                  <div className={cn(
-                                    "absolute left-0 top-0 bottom-0 w-[2px] rounded-l-[3px]",
-                                    cell.winrate >= 60 ? "bg-jade" : cell.winrate >= 50 ? "bg-jade/50" : "bg-[#c93232]"
-                                  )} />
-                                  <div className="text-[10px] font-mono text-flash/40 tracking-wider uppercase">{dayName} · {monthDay}</div>
-                                  <div className="mt-1.5 flex items-baseline gap-2">
-                                    <span className={cn(
-                                      "text-base font-bold font-mono leading-none",
-                                      cell.winrate >= 60 ? "text-jade" : cell.winrate >= 50 ? "text-flash/70" : "text-[#c93232]"
-                                    )}>{cell.winrate}%</span>
-                                    <span className="text-[10px] text-flash/30 font-mono uppercase">WR</span>
-                                  </div>
-                                  <div className="mt-1 flex items-center gap-1.5 text-[10px] font-mono text-flash/50">
-                                    <span className="text-jade/70">{cell.wins}W</span>
-                                    <span className="text-flash/20">·</span>
-                                    <span className="text-[#c93232]/70">{cell.games - cell.wins}L</span>
-                                    <span className="text-flash/20">·</span>
-                                    <span>{cell.games} {cell.games === 1 ? "game" : "games"}</span>
-                                  </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    </TooltipProvider>
-
-                  </div>
-
-                  <div className="flex justify-between items-center mt-3 text-[10px] text-flash/50">
-                    <span>NO GAMES</span>
-                    <span>LOW WR</span>
-                    <span>HIGH WR</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* DESTRA: PLAYER RATING (stessa altezza grazie a items-stretch) */}
-              <div className={cn(glassDark, "w-full xl:w-52 text-sm font-thin xl:flex-shrink-0")}>
-                <div className="relative z-10 px-4 py-3 h-full flex flex-col justify-between">
-                  <div>
-                    <div className="text-[11px] uppercase text-flash/70 tracking-wide">
-                      Player rating
-                    </div>
-                    <div className="mt-1 text-[10px] text-flash/50">
-                      Based on recent games
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-col gap-2">
-                    {/* Valore grande dinamico */}
-                    <div className="text-3xl font-semibold text-jade leading-none">
-                      {summonerInfo?.puuid && matches.length > 0
-                        ? ratingToTier(recentRating)
-                        : "--"}
-                    </div>
-
-                    {/* Barra score dinamica */}
-                    <div className="mt-1">
-                      <div className="flex justify-between text-[10px] text-flash/50 mb-1">
-                        <span>Score</span>
-                        <span>
-                          {summonerInfo?.puuid && matches.length > 0
-                            ? `${recentRating} / 100`
-                            : "No data"}
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-jade transition-all duration-300"
-                          style={{
-                            width:
-                              summonerInfo?.puuid && matches.length > 0
-                                ? `${recentRating}%`
-                                : "40%",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                        {/* dimension stat pills — symmetric 5-up grid, full width */}
+                        {has && (
+                          <div className="mt-4 grid grid-cols-5 gap-2.5">
+                            {cats.map((d) => (
+                              <div
+                                key={d.k}
+                                className="flex flex-col items-center justify-center gap-1.5 rounded-[3px] py-3 px-1 bg-gradient-to-b from-filmlight/[0.055] to-filmlight/[0.015] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+                              >
+                                <span className="text-[8px] font-jetbrains uppercase tracking-[0.04em] text-flash/45 text-center leading-none whitespace-nowrap">
+                                  {d.k}
+                                </span>
+                                <span className="text-[22px] font-chakrapetch font-bold leading-none" style={{ color: vHex(d.v) }}>
+                                  {d.v}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1931,7 +1834,7 @@ export default function SummonerPage() {
 
 
           {duoStats.length > 0 && (
-            <div className="relative overflow-hidden w-[90%] mt-5 rounded-md bg-black/25 backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="relative overflow-hidden w-[90%] mt-5 rounded-md bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]">
               <div className="pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.025),rgba(255,255,255,0)_70%)]" />
               <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.015] via-transparent to-black/30" />
 
@@ -1960,7 +1863,7 @@ export default function SummonerPage() {
                       "px-4 py-2.5 grid grid-cols-[1.6rem_1fr_4.2rem_3.2rem] gap-x-3 items-center border-b border-flash/[0.05] transition-colors cursor-clicker",
                       filterDuoPuuid === duo.puuid
                         ? "bg-jade/10 border-jade/20"
-                        : "hover:bg-white/[0.02]"
+                        : "hover:bg-filmlight/[0.02]"
                     )}
                   >
                     {/* Rank */}
@@ -2008,7 +1911,7 @@ export default function SummonerPage() {
                       <span className={cn("text-xs font-mono leading-none tabular-nums", getWinrateClass(duo.winrate, duo.games))}>
                         {duo.winrate}%
                       </span>
-                      <div className="w-full h-[3px] bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-full h-[3px] bg-filmlight/10 rounded-full overflow-hidden">
                         <div
                           className={cn("h-full rounded-full", duo.winrate >= 50 ? "bg-jade/60" : "bg-[#b11315]/60")}
                           style={{ width: `${duo.winrate}%` }}
@@ -2126,131 +2029,53 @@ export default function SummonerPage() {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse lg:flex-row-reverse lg:flex-nowrap justify-center lg:justify-between items-center lg:items-start mt-2 lg:mt-[22px] mb-2 lg:mb-6 w-full min-w-full max-w-full">
+          <div className="flex flex-col-reverse lg:flex-row-reverse lg:flex-nowrap justify-center lg:justify-between items-center lg:items-start mt-2 lg:mt-[22px] mb-2 lg:mb-0 w-full min-w-full max-w-full">
             {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
             {(() => {
-              const currentRank = rankQueueView === "flex" ? (summonerInfo?.flexRank ?? "Unranked") : (summonerInfo?.rank ?? "Unranked");
-              const currentLp = rankQueueView === "flex" ? (summonerInfo?.flexLp ?? 0) : (summonerInfo?.lp ?? 0);
-              const peakRank = rankQueueView === "flex" ? (summonerInfo?.peakFlexRank ?? "Unranked") : (summonerInfo?.peakRank ?? "Unranked");
-              const peakLp = rankQueueView === "flex" ? (summonerInfo?.peakFlexLp ?? 0) : (summonerInfo?.peakLp ?? 0);
+              const ranks = [
+                { key: "solo", label: "Solo/Duo", rank: summonerInfo?.rank ?? "Unranked", lp: summonerInfo?.lp ?? 0 },
+                { key: "flex", label: "Flex", rank: summonerInfo?.flexRank ?? "Unranked", lp: summonerInfo?.flexLp ?? 0 },
+                { key: "ranked5", label: "Ranked 5s", rank: summonerInfo?.ranked5Rank ?? "Unranked", lp: summonerInfo?.ranked5Lp ?? 0 },
+              ];
               return (
-                <div className="hidden lg:flex flex-wrap lg:flex-nowrap items-center justify-center gap-0 h-full">
-                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Current</span>
-                    {/* Rank icon — crossfade + scale/blur morph on solo↔flex toggle.
-                        The popLayout mode lets the incoming icon enter while the
-                        outgoing one finishes its exit so the swap reads as a
-                        gradient between the two PNGs instead of a hard cut. The
-                        rounded backdrop stays static behind so the eye has an
-                        anchor while the icon dissolves. */}
-                    <div className="relative w-28 h-28 flex items-center justify-center">
-                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <AnimatePresence mode="popLayout" initial={false}>
-                          <motion.img
-                            key={`current-${rankQueueView}`}
-                            src={
-                              !currentRank || currentRank.toLowerCase() === "unranked"
-                                ? "/img/unranked.png"
-                                : getRankImage(currentRank)
-                            }
-                            alt="Rank icon"
-                            className="w-32 h-32"
+                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
+                  {ranks.map(({ key, label, rank, lp }) => {
+                    const unranked = !rank || String(rank).toLowerCase() === "unranked";
+                    return (
+                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[106px]">
+                        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 whitespace-nowrap">{label}</span>
+                        <div className="relative w-[84px] h-[84px] flex items-center justify-center">
+                          <div className="absolute w-14 h-14 bg-filmdark/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
+                          <img
+                            src={unranked ? "/img/unranked.png" : getRankImage(rank)}
+                            alt={`${label} rank`}
+                            className="relative z-10 w-[98px] h-[98px]"
                             draggable={false}
                             onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                            initial={{ opacity: 0, scale: 0.82, filter: "blur(4px)" }}
-                            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                            exit={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
-                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                           />
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                    {/* Rank text + LP also crossfade in sync so name/LP don't
-                        flicker out of phase with the icon morph. */}
-                    <div className="flex flex-col items-center text-sm min-w-[180px] relative">
-                      <AnimatePresence mode="popLayout" initial={false}>
-                        <motion.div
-                          key={`current-text-${rankQueueView}`}
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                          className="flex flex-col items-center"
-                        >
-                          <span className="text-[13px] font-mono font-semibold text-flash/70 tracking-wide">{currentRank}</span>
-                          {currentRank && currentRank.toLowerCase() !== "unranked" && (
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-[13px] font-mono font-semibold text-flash/65 tracking-wide whitespace-nowrap">{rank}</span>
+                          {!unranked && (
                             <span
                               className="text-[16px] font-chakrapetch font-bold text-flash tabular-nums"
-                              style={{
-                                textShadow:
-                                  "0 0 10px rgba(255,255,255,0.45), 0 0 22px rgba(255,255,255,0.18)",
-                              }}
+                              style={{ textShadow: "0 0 10px rgba(255,255,255,0.35), 0 0 20px rgba(255,255,255,0.12)" }}
                             >
-                              {currentLp}{" "}
-                              <span className="text-[11px] text-flash/55" style={{ textShadow: "0 0 8px rgba(255,255,255,0.25)" }}>
-                                LP
-                              </span>
+                              {lp} <span className="text-[11px] text-flash/45">LP</span>
                             </span>
                           )}
-                        </motion.div>
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-flash/25">Peak</span>
-                    <div className="relative w-28 h-28 flex items-center justify-center">
-                      <div className="absolute w-20 h-20 bg-black/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <AnimatePresence mode="popLayout" initial={false}>
-                          <motion.img
-                            key={`peak-${rankQueueView}`}
-                            src={
-                              !peakRank || peakRank.toLowerCase() === "unranked"
-                                ? "/img/unranked.png"
-                                : getRankImage(peakRank)
-                            }
-                            alt="Highest Rank icon"
-                            className="w-32 h-32"
-                            draggable={false}
-                            onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                            // Peak runs at 0.7 opacity at rest — animate to that
-                            // target so the entering icon settles into the right
-                            // visual weight.
-                            initial={{ opacity: 0, scale: 0.82, filter: "blur(4px)" }}
-                            animate={{ opacity: 0.7, scale: 1, filter: "blur(0px)" }}
-                            exit={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
-                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                          />
-                        </AnimatePresence>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-center text-sm min-w-[180px] relative">
-                      <AnimatePresence mode="popLayout" initial={false}>
-                        <motion.div
-                          key={`peak-text-${rankQueueView}`}
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                          className="flex flex-col items-center"
-                        >
-                          <span className="text-[13px] font-mono font-semibold text-flash/50 tracking-wide">{peakRank}</span>
-                          {peakRank && peakRank.toLowerCase() !== "unranked" && (
-                            <span className="text-[16px] font-chakrapetch font-bold text-flash/30 tabular-nums">{peakLp} <span className="text-[11px] text-flash/15">LP</span></span>
-                          )}
-                        </motion.div>
-                      </AnimatePresence>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })()}
             <div
               className={cn(
                 "hidden lg:block relative overflow-hidden rounded-md max-w-[440px]",
-                "bg-black/25 backdrop-blur-lg saturate-150",
-                "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+                "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+                "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
               )}
             >
               {/* glossy overlays */}
@@ -2260,10 +2085,10 @@ export default function SummonerPage() {
               )} />
               <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
 
-              <div className="relative z-10 flex items-center gap-5 px-6 py-4">
+              <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
-                <div className="relative shrink-0 w-[96px] h-[96px]">
+                <div className="relative shrink-0 w-[118px] h-[118px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
@@ -2290,7 +2115,7 @@ export default function SummonerPage() {
                 </div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                <div className="flex flex-col gap-2.5 flex-1 min-w-0">
                   {/* Pro / streamer identity — shown directly above the summoner name */}
                   <div className="flex items-center gap-2 flex-wrap">
                     {proPlayerInfo ? (
@@ -2346,7 +2171,7 @@ export default function SummonerPage() {
                     }}
                   >
                     {!summonerInfo ? (
-                      <Skeleton className="h-8 w-[200px] bg-white/10" />
+                      <Skeleton className="h-8 w-[200px] bg-filmlight/10" />
                     ) : (
                       <>
                         <span className={cn(
@@ -2396,35 +2221,6 @@ export default function SummonerPage() {
                 </div>
               </div>
 
-              {/* Mastery banner — thin edge-to-edge strip at card bottom */}
-              {topMastery.length > 0 && (
-                <div className="relative z-10 flex h-[28px] overflow-hidden px-6 gap-1.5 pb-2">
-                  {topMastery.map((m, idx) => (
-                    <div key={m.championId} className="group relative flex-1 overflow-hidden rounded-[3px] cursor-clicker">
-                      <img
-                        src={cdnSplashUrl(m.champName)}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-40 transition-all duration-300"
-                        style={{ objectPosition: "center 25%" }}
-                        onError={(e) => { e.currentTarget.style.opacity = "0" }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <div className="relative z-10 flex items-center gap-2 h-full px-2.5">
-                        <img
-                          src={`${cdnBaseUrl()}/img/champion/${m.champName}.png`}
-                          alt={m.champName}
-                          className="w-5 h-5 rounded-[2px]"
-                        />
-                        <span className="text-[10px] font-orbitron text-flash/40 group-hover:text-jade/70 truncate transition-colors duration-300">{m.champName}</span>
-                        <span className="text-[11px] font-orbitron font-bold text-flash/70 tabular-nums ml-auto">
-                          {m.points >= 1_000_000 ? `${(m.points / 1_000_000).toFixed(1)}M` : m.points >= 1_000 ? `${Math.round(m.points / 1_000)}k` : m.points}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
             </div>
 
           </div>
@@ -2445,23 +2241,22 @@ export default function SummonerPage() {
           })()}
 
           <div className="w-full mt-4">
-            {/* ── Unified filter row ── */}
-            <div className="hidden lg:flex items-center gap-2">
+            {/* ── Unified filter row — cohesive glass toolbar ── */}
+            <div className="hidden lg:flex items-center gap-1.5 rounded-lg border border-hairline/[0.07] bg-filmdark/30 p-1 backdrop-blur-lg shadow-[0_8px_24px_rgba(var(--c-shadow),0.4),inset_0_1px_0_rgb(var(--c-hairline)/0.05)]">
               {/* Queue — dropdown (many options) */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={cn(
-                    "group relative font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-3.5 h-[32px] rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 overflow-hidden",
-                    "border backdrop-blur-lg",
+                    "group font-chakrapetch font-semibold text-[10px] tracking-[0.13em] uppercase px-3 h-6 rounded-[5px] transition-all duration-200 cursor-clicker flex w-32 items-center justify-center gap-1.5",
                     selectedQueue !== "All"
-                      ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
-                      : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
+                      ? "bg-jade/[0.14] text-jade shadow-[inset_0_0_0_1px_rgb(var(--c-jade)/0.32)]"
+                      : "text-flash/50 hover:text-flash/80 hover:bg-filmlight/[0.05]",
                   )}
                 >
                   {selectedQueue === "All" ? "Queue" : selectedQueue === "Ranked Solo/Duo" ? "Solo/Duo" : "Flex"}
                   <ChevronDown className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 text-sm bg-black/60 backdrop-blur-xl border-white/10">
+                <DropdownMenuContent align="start" className="w-48 text-sm bg-filmdark/95 backdrop-blur-xl border-hairline/10">
                   {(["All", "Ranked Solo/Duo", "Ranked Flex"] as QueueType[]).map((queue) => (
                     <DropdownMenuItem
                       key={queue}
@@ -2480,23 +2275,22 @@ export default function SummonerPage() {
               {/* Champion — dialog picker */}
               <div
                 className={cn(
-                  "font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-3.5 rounded-[2px] transition-all duration-300 cursor-clicker flex items-center gap-1.5 h-[32px]",
-                  "border backdrop-blur-lg",
+                  "font-chakrapetch font-semibold text-[10px] tracking-[0.13em] uppercase px-3 rounded-[5px] transition-all duration-200 cursor-clicker flex w-32 items-center justify-center gap-1.5 h-6",
                   selectedChampion
-                    ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
-                    : "text-flash/50 border-flash/10 hover:text-flash/70 hover:border-flash/20 hover:shadow-[0_0_10px_rgba(215,216,217,0.05)] bg-black/40",
+                    ? "bg-jade/[0.14] text-jade shadow-[inset_0_0_0_1px_rgb(var(--c-jade)/0.32)]"
+                    : "text-flash/50 hover:text-flash/80 hover:bg-filmlight/[0.05]",
                 )}
               >
                 <ChampionPicker
                   champions={allChampions}
                   selectedChampion={selectedChampion}
                   onSelect={(champName) => setSelectedChampion(champName)}
-                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-chakrapetch"
+                  triggerClassName="!text-[10px] !tracking-[0.15em] !font-chakrapetch !font-semibold"
                 />
               </div>
 
-              {/* Role — segmented buttons */}
-              <div className="flex items-center gap-0">
+              {/* Role — segmented group */}
+              <div className="flex items-center gap-0.5 rounded-md bg-filmdark/30 p-0.5">
                 {([
                   { value: null, label: "Role", icon: null },
                   { value: "TOP", label: "Top", icon: <RoleTopIcon className="w-4 h-4" /> },
@@ -2510,14 +2304,10 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedRole(role.value === selectedRole ? null : role.value)}
                     className={cn(
-                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase min-w-[32px] px-2 h-[32px] transition-all duration-300 cursor-clicker flex items-center justify-center",
-                      "border border-flash/10 backdrop-blur-lg",
-                      i === 0 && "rounded-l-[2px]",
-                      i === arr.length - 1 && "rounded-r-[2px]",
-                      i > 0 && "-ml-px",
+                      "font-chakrapetch font-semibold text-[10px] tracking-[0.13em] uppercase min-w-[30px] px-2 h-6 rounded-[5px] transition-all duration-200 cursor-clicker flex items-center justify-center",
                       (role.value === null ? selectedRole === null : selectedRole === role.value)
-                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
-                        : "text-flash/40 hover:text-flash/70 bg-black/40",
+                        ? "bg-jade/[0.14] text-jade shadow-[inset_0_0_0_1px_rgb(var(--c-jade)/0.32)]"
+                        : "text-flash/50 hover:text-flash/80 hover:bg-filmlight/[0.05]",
                     )}
                   >
                     {role.icon ?? role.label}
@@ -2525,8 +2315,8 @@ export default function SummonerPage() {
                 ))}
               </div>
 
-              {/* Result — segmented buttons */}
-              <div className="flex items-center gap-0">
+              {/* Result — segmented group */}
+              <div className="flex items-center gap-0.5 rounded-md bg-filmdark/30 p-0.5 ml-auto">
                 {([
                   { value: "all" as const, label: "All" },
                   { value: "wins" as const, label: "W" },
@@ -2537,14 +2327,10 @@ export default function SummonerPage() {
                     type="button"
                     onClick={() => setSelectedResult(opt.value)}
                     className={cn(
-                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase px-2.5 h-[32px] transition-all duration-300 cursor-clicker",
-                      "border border-flash/10 backdrop-blur-lg",
-                      i === 0 && "rounded-l-[2px]",
-                      i === arr.length - 1 && "rounded-r-[2px]",
-                      i > 0 && "-ml-px",
+                      "font-chakrapetch font-semibold text-[10px] tracking-[0.13em] uppercase px-2.5 h-6 rounded-[5px] transition-all duration-200 cursor-clicker flex items-center justify-center min-w-[30px]",
                       selectedResult === opt.value
-                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)] z-10"
-                        : "text-flash/40 hover:text-flash/70 bg-black/40",
+                        ? "bg-jade/[0.14] text-jade shadow-[inset_0_0_0_1px_rgb(var(--c-jade)/0.32)]"
+                        : "text-flash/50 hover:text-flash/80 hover:bg-filmlight/[0.05]",
                     )}
                   >
                     {opt.label}
@@ -2552,31 +2338,6 @@ export default function SummonerPage() {
                 ))}
               </div>
 
-              {/* Spacer */}
-              <div className="flex-1" />
-
-              {/* Rank queue toggle */}
-              <div className="flex items-center gap-0">
-                {(["solo", "flex"] as const).map((mode, i, arr) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setRankQueueView(mode)}
-                    className={cn(
-                      "font-chakrapetch text-[10px] tracking-[0.15em] uppercase min-w-[48px] text-center px-3 h-[32px] transition-all duration-300 cursor-clicker",
-                      "border border-flash/10 backdrop-blur-lg",
-                      i === 0 && "rounded-l-[2px]",
-                      i === arr.length - 1 && "rounded-r-[2px]",
-                      i > 0 && "border-l-0",
-                      rankQueueView === mode
-                        ? "text-jade bg-jade/10 border-jade/30 shadow-[0_0_16px_rgba(0,217,146,0.12)]"
-                        : "text-flash/40 hover:text-flash/70 bg-black/40",
-                    )}
-                  >
-                    {mode === "solo" ? "Solo" : "Flex"}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* ── Stats summary bar ── */}
@@ -2636,7 +2397,7 @@ export default function SummonerPage() {
               if (visibleStats.vis) tiles.push({ label: "VIS", value: avgVis })
 
               return (
-                <div className="mt-3 hidden lg:block rounded-md border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_26px_rgba(0,0,0,0.35)]">
+                <div className="mt-3 hidden lg:block rounded-md border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_26px_rgba(var(--c-shadow),0.35)]">
                   {/* header strip */}
                   <div className="flex items-center gap-2 px-4 pt-2.5">
                     <span className="h-[5px] w-[5px] rounded-full bg-jade shadow-[0_0_6px_rgba(0,217,146,0.8)]" />
@@ -2655,7 +2416,7 @@ export default function SummonerPage() {
                         <span className="text-[8px] uppercase tracking-[0.18em] text-flash/30 font-chakrapetch">Win Rate</span>
                       </div>
                       {/* W/L ratio bar */}
-                      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-black/40">
+                      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-filmdark/40">
                         <div className="h-full bg-jade shadow-[0_0_8px_rgba(0,217,146,0.45)]" style={{ width: `${wr}%` }} />
                         <div className="h-full bg-[#b11315]/55" style={{ width: `${100 - wr}%` }} />
                       </div>
@@ -2706,8 +2467,8 @@ export default function SummonerPage() {
                     key={idx}
                     className={cn(
                       "flex items-center gap-4 p-3 rounded-md h-28",
-                      "bg-black/22 backdrop-blur-lg saturate-150",
-                      "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
+                      "bg-filmdark/22 backdrop-blur-lg saturate-150 glass-panel",
+                      "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
                     )}
                   >
                     {/* summoner icon 29 as placeholder */}
@@ -2719,8 +2480,8 @@ export default function SummonerPage() {
 
                     {/* skeleton text */}
                     <div className="flex flex-col gap-2 w-full">
-                      <Skeleton className="h-4 w-1/2 bg-white/10" />
-                      <Skeleton className="h-4 w-1/3 bg-white/10" />
+                      <Skeleton className="h-4 w-1/2 bg-filmlight/10" />
+                      <Skeleton className="h-4 w-1/3 bg-filmlight/10" />
                     </div>
                   </li>
                 ))}
@@ -2728,7 +2489,7 @@ export default function SummonerPage() {
             ) : filteredMatches.length === 0 ? (
               <Error404 />
             ) : (
-              <div ref={listRef} className="space-y-1 mt-4">
+              <div ref={listRef} className="theme-dark bg-liquirice text-flash space-y-1 mt-4 rounded-lg pb-2">
                 {(matchGroupingDisabled
                   ? [["all", filteredMatches] as const]
                   : [...groupedByDay.entries()]
@@ -2751,7 +2512,7 @@ export default function SummonerPage() {
                           {wins > 0 && <span className="text-jade">{wins}W</span>}
                           {losses > 0 && <span className="text-[#b11315]">{losses}L</span>}
                           {wins > 0 && losses > 0 && <span className={getWinrateClass(wr, rows.length)}>{wr}% WR</span>}
-                          <Separator orientation="vertical" className="hidden lg:block h-4 bg-[#48504E]" />
+                          <Separator orientation="vertical" className="hidden lg:block h-4 bg-flash/20" />
                           <span className="hidden lg:inline text-flash/70 uppercase">{playedLabel}</span>
                         </div>
                       </div>
@@ -2804,34 +2565,42 @@ export default function SummonerPage() {
                             <div
                               key={match.metadata.matchId}
                               className={cn(
-                                clickToExpand
-                                  ? (expandedMatchId === match.metadata.matchId ? "match-card-expanded" : "match-card-collapsed")
-                                  : "match-card-group"
+                                expandedMatchId === match.metadata.matchId
+                                  ? "match-card-expanded"
+                                  : clickToExpand ? "match-card-collapsed" : "match-card-group"
                               )}
-                              onClick={clickToExpand ? (e) => {
+                              onClick={(e) => {
                                 // Don't toggle if clicking a button/link inside
                                 if ((e.target as HTMLElement).closest("button, a")) return;
-                                setExpandedMatchId(prev => prev === match.metadata.matchId ? null : match.metadata.matchId);
-                              } : undefined}
+                                const id = match.metadata.matchId;
+                                if (expandedMatchId === id) {
+                                  // play the collapse animation, then unmount
+                                  setExpandedMatchId(null);
+                                  setClosingMatchId(id);
+                                  window.setTimeout(() => setClosingMatchId(c => (c === id ? null : c)), 320);
+                                } else {
+                                  setExpandedMatchId(id);
+                                }
+                              }}
                             >
                             <li
                               className={cn(
-                                "relative overflow-hidden rounded-md p-2 text-flash transition",
+                                "relative z-[2] overflow-hidden rounded-md p-2 text-flash transition cursor-clicker",
                                 isRemake
-                                  ? "bg-black/30 backdrop-blur-lg saturate-150"
+                                  ? "bg-filmdark/30 backdrop-blur-lg saturate-150 glass-panel"
                                   : coloredMatchBg
                                     ? win
                                       ? (blueWinTint ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150" : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150")
                                       : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
-                                    : "bg-black/18 backdrop-blur-lg saturate-150",
-                                "shadow-[0_10px_30px_rgba(0,0,0,0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
+                                    : "bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel",
+                                "shadow-[0_10px_30px_rgba(var(--c-shadow),0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
                                 isRemake
-                                  ? "hover:bg-black/35 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                  ? "hover:bg-filmdark/35 hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                                   : coloredMatchBg
                                     ? win
-                                      ? (blueWinTint ? "hover:bg-[#5BA8E6]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]" : "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]")
-                                      : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                                    : "hover:bg-black/16 hover:shadow-[0_14px_40px_rgba(0,0,0,0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                      ? (blueWinTint ? "hover:bg-[#5BA8E6]/[0.14] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]" : "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]")
+                                      : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                    : "hover:bg-filmdark/16 hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
                               )}
                               {...(contextMenuMode ? {
                                 onContextMenu: (e: React.MouseEvent) => {
@@ -3455,8 +3224,67 @@ export default function SummonerPage() {
                                 </div>
                               </div>
                             </li>
+
+                            {/* ── Expanded scoreboard — build / stats / runes per player ── */}
+                            {(expandedMatchId === match.metadata.matchId || closingMatchId === match.metadata.matchId) && (
+                              <MatchExpand
+                                match={match as any}
+                                mePuuid={summonerInfo?.puuid ?? ""}
+                                region={region ?? "euw"}
+                                closing={closingMatchId === match.metadata.matchId}
+                                actions={
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEnterMatch(matchId)}
+                                      className="h-7 px-4 rounded-[3px] text-[9.5px] font-mono tracking-[0.15em] uppercase bg-filmlight/[0.05] ring-1 ring-white/[0.1] text-flash/65 hover:text-jade hover:ring-jade/40 hover:bg-jade/[0.08] transition-all duration-200 cursor-clicker"
+                                    >
+                                      VIEW
+                                    </button>
+                                    {isJungler && (
+                                      <button
+                                        type="button"
+                                        onClick={() => fetchAnalysis(matchId)}
+                                        className={cn(
+                                          "h-7 px-4 rounded-[3px] text-[9.5px] font-mono tracking-[0.15em] uppercase ring-1 transition-all duration-200 cursor-clicker",
+                                          analysisEntry?.open
+                                            ? "bg-jade/[0.12] text-jade ring-jade/40"
+                                            : "bg-filmlight/[0.05] ring-white/[0.1] text-flash/65 hover:text-jade hover:ring-jade/40 hover:bg-jade/[0.08]"
+                                        )}
+                                      >
+                                        SCAN
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="h-7 px-4 rounded-[3px] text-[9.5px] font-mono tracking-[0.15em] uppercase bg-filmlight/[0.05] ring-1 ring-white/[0.1] text-flash/65 hover:text-purple-300 hover:ring-purple-400/40 hover:bg-purple-500/[0.08] transition-all duration-200 cursor-clicker"
+                                      onClick={() => {
+                                        const me = match.info.participants.find((p: any) => p.puuid === summonerInfo?.puuid)
+                                        const champName = me?.championName ?? "Unknown"
+                                        const kda = `${me?.kills ?? 0}/${me?.deaths ?? 0}/${me?.assists ?? 0}`
+                                        const result = win ? "won" : "lost"
+                                        const prompt = `Analyze my ${champName} game where I went ${kda} and ${result}. Match ID: ${match.metadata.matchId}`
+                                        navigate(`/learn?tab=ai&prompt=${encodeURIComponent(prompt)}`)
+                                      }}
+                                    >
+                                      ASK AI
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplayMatch({ matchId, match })}
+                                      className="relative h-7 pl-6 pr-4 rounded-[3px] text-[9.5px] font-mono tracking-[0.15em] uppercase bg-jade/[0.14] text-jade ring-1 ring-jade/35 hover:bg-jade/[0.22] hover:ring-jade/60 transition-all duration-200 cursor-clicker"
+                                      title="Open the full match replay — every event on the map"
+                                    >
+                                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-jade shadow-[0_0_4px_rgba(0,217,146,0.8)] animate-pulse" />
+                                      REPLAY
+                                    </button>
+                                  </>
+                                }
+                              />
+                            )}
+
                             {/* Hover action tabs below the card */}
-                            {!contextMenuMode && (
+                            {!contextMenuMode && expandedMatchId !== match.metadata.matchId && closingMatchId !== match.metadata.matchId && (
                               <div className="match-action-wrap" style={{ marginTop: '-1px' }}>
                                 <div className="match-action-tabs flex items-center justify-between px-4 py-1">
                                   <span className="flex items-center gap-1.5 text-[9px] font-mono text-flash/50 tabular-nums tracking-wider mt-0.5">
@@ -3708,7 +3536,7 @@ export default function SummonerPage() {
       {showAdminDialog && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowAdminDialog(false)}>
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-          <div className="relative z-10 w-[420px] rounded-md overflow-hidden bg-black/60 backdrop-blur-xl saturate-150"
+          <div className="relative z-10 w-[420px] rounded-md overflow-hidden bg-filmdark/95 backdrop-blur-xl saturate-150"
             style={{
               animation: "dialogOpen 0.25s ease-out",
               boxShadow: "0 20px 60px rgba(0,0,0,0.7), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -3833,7 +3661,7 @@ export default function SummonerPage() {
               className={cn(
                 "min-w-[200px] py-1.5 rounded-sm overflow-hidden",
                 "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
-                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+                "shadow-[0_10px_40px_rgba(var(--c-shadow),0.7),0_0_20px_rgba(0,217,146,0.05)]"
               )}
             >
               {/* Header accent */}
@@ -3971,7 +3799,7 @@ export default function SummonerPage() {
               className={cn(
                 "min-w-[180px] py-1.5 rounded-sm overflow-hidden",
                 "bg-black/80 backdrop-blur-xl border border-flash/[0.10]",
-                "shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(0,217,146,0.05)]"
+                "shadow-[0_10px_40px_rgba(var(--c-shadow),0.7),0_0_20px_rgba(0,217,146,0.05)]"
               )}
             >
               <div className="px-3 pt-1.5 pb-2 border-b border-flash/[0.06] mb-1">
@@ -4059,7 +3887,7 @@ export default function SummonerPage() {
                 "relative z-10 w-[380px] rounded-sm overflow-hidden",
                 "bg-[#060d10]/95 backdrop-blur-xl",
                 "border border-flash/[0.10]",
-                "shadow-[0_20px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(0,217,146,0.05)]"
+                "shadow-[0_20px_60px_rgba(var(--c-shadow),0.7),0_0_30px_rgba(0,217,146,0.05)]"
               )}
             >
               {/* Header */}
@@ -4089,7 +3917,7 @@ export default function SummonerPage() {
                       "border",
                       reportReason === reason
                         ? "text-red-400 bg-red-500/[0.08] border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.08)]"
-                        : "text-flash/35 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-black/20"
+                        : "text-flash/35 border-flash/[0.08] hover:text-flash/50 hover:border-flash/[0.15] bg-filmdark/20"
                     )}
                   >
                     {reason}
@@ -4118,7 +3946,7 @@ export default function SummonerPage() {
                     "border",
                     reportReason
                       ? "text-red-400 border-red-500/30 bg-red-500/[0.06] hover:bg-red-500/[0.12]"
-                      : "text-flash/15 border-flash/[0.05] bg-black/10 cursor-not-allowed"
+                      : "text-flash/15 border-flash/[0.05] bg-filmdark/10 cursor-not-allowed"
                   )}
                 >
                   Submit Report

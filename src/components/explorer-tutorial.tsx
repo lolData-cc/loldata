@@ -20,7 +20,7 @@ const EASE = [0.22, 1, 0.36, 1] as const
 const glassBox = cn(
   "relative overflow-hidden rounded-md",
   "bg-[#0a0f12]/95 saturate-150",
-  "shadow-[0_14px_40px_rgba(0,0,0,0.6),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "shadow-[0_14px_40px_rgba(var(--c-shadow),0.6),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 )
 
 const ACCENT: Record<string, string> = {
@@ -95,7 +95,7 @@ function SubjectMock({ champion }: { champion: string }) {
         />
         <div className="flex flex-col gap-1">
           <span className="rounded-[3px] border border-jade/30 bg-jade/10 px-1.5 py-[2px] text-center font-chakrapetch text-[9px] font-bold text-jade/90">{champion}</span>
-          <span className="rounded-[3px] bg-black/45 px-1.5 py-[2px] text-center font-chakrapetch text-[8px] font-bold uppercase tracking-wider text-flash/50">Middle</span>
+          <span className="rounded-[3px] bg-filmdark/45 px-1.5 py-[2px] text-center font-chakrapetch text-[8px] font-bold uppercase tracking-wider text-flash/50">Middle</span>
         </div>
       </div>
     </NodeChip>

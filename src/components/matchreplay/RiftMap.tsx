@@ -473,7 +473,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
           >
             <div className="relative">
               <div className="absolute inset-0 rounded-full blur-[6px] opacity-50" style={{ background: tint }} />
-              <Icon className="relative w-3 h-3 drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" />
+              <Icon className="relative w-3 h-3 drop-shadow-[0_0_3px_rgba(var(--c-shadow),0.8)]" />
             </div>
           </div>
         );
@@ -536,7 +536,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
                 opacity: fade,
               }}
             >
-              <SkullIcon className="w-4 h-4 drop-shadow-[0_0_4px_rgba(0,0,0,0.9)]" />
+              <SkullIcon className="w-4 h-4 drop-shadow-[0_0_4px_rgba(var(--c-shadow),0.9)]" />
             </div>
           </React.Fragment>
         );
@@ -572,7 +572,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
                 opacity: fade,
               }}
             >
-              <Icon className="w-5 h-5 drop-shadow-[0_0_6px_rgba(0,0,0,0.9)]" />
+              <Icon className="w-5 h-5 drop-shadow-[0_0_6px_rgba(var(--c-shadow),0.9)]" />
             </div>
           </React.Fragment>
         );

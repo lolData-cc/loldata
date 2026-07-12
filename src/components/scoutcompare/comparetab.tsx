@@ -235,7 +235,7 @@ export function CompareTab({
 
       {/* Stat rows */}
       {left && right ? (
-        <div className="rounded-md bg-black/20 border border-flash/[0.06] divide-y divide-flash/[0.06] overflow-hidden">
+        <div className="rounded-md bg-filmdark/20 border border-flash/[0.06] divide-y divide-flash/[0.06] overflow-hidden">
           <StatRow
             label="Games"
             leftValue={left.games}
@@ -274,7 +274,7 @@ export function CompareTab({
           <RankRow left={left} right={right} />
         </div>
       ) : (
-        <div className="rounded-md bg-black/20 border border-flash/[0.06] py-10 text-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
+        <div className="rounded-md bg-filmdark/20 border border-flash/[0.06] py-10 text-center text-[11px] font-jetbrains tracking-[0.2em] uppercase text-flash/30">
           Pick two players to compare
         </div>
       )}
@@ -331,8 +331,8 @@ function PlayerPicker({
                 isSelected
                   ? "border-jade/60 bg-jade/[0.12]"
                   : isExcluded
-                    ? "border-flash/5 bg-black/15 opacity-30 cursor-not-allowed"
-                    : "border-flash/15 bg-black/20 hover:border-flash/35"
+                    ? "border-flash/5 bg-filmdark/15 opacity-30 cursor-not-allowed"
+                    : "border-flash/15 bg-filmdark/20 hover:border-flash/35"
               )}
             >
               {url ? (

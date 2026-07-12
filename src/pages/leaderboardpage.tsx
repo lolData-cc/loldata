@@ -43,7 +43,7 @@ const PAGE_SIZE = 25
 // glass surface — same recipe as the dashboard cards (bright hairline on the
 // near-black page, no visible white border)
 const glass =
-  "relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.07)]"
+  "relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.07)]"
 
 // podium metals
 const MEDALS = [
@@ -232,14 +232,14 @@ export default function LeaderboardPage() {
               {/* apex cutoff chips — real LP to reach each tier (LP of the
                   player at the tier's positional slot; computed server-side) */}
               <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-black/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(255,182,21,0.22)]">
+                <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(255,182,21,0.22)]">
                   <img src={getRankImage("CHALLENGER")} alt="" className="w-3.5 h-3.5 object-contain" />
                   <span className="text-[9px] font-mono tracking-[0.14em] text-flash/45 uppercase">Chall. cutoff</span>
                   <span className="text-[11px] font-chakrapetch font-bold text-[#FFB615]/90 tabular-nums">
                     {cutoffs?.challenger != null ? `${cutoffs.challenger.toLocaleString()} LP` : "—"}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-black/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.20)]">
+                <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.20)]">
                   <img src={getRankImage("GRANDMASTER")} alt="" className="w-3.5 h-3.5 object-contain" />
                   <span className="text-[9px] font-mono tracking-[0.14em] text-flash/45 uppercase">GM cutoff</span>
                   <span className="text-[11px] font-chakrapetch font-bold text-red-300/85 tabular-nums">
@@ -507,7 +507,7 @@ export default function LeaderboardPage() {
             <button
               disabled={page <= 1}
               onClick={() => load(page - 1)}
-              className="px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-white/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker"
+              className="px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-filmlight/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker"
             >
               PREV
             </button>
@@ -535,7 +535,7 @@ export default function LeaderboardPage() {
             <button
               disabled={page >= totalPages}
               onClick={() => load(page + 1)}
-              className="px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-white/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker"
+              className="px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-filmlight/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker"
             >
               NEXT
             </button>

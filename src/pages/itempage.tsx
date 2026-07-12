@@ -39,8 +39,8 @@ const EASE_BRAND = [0.22, 1, 0.36, 1] as const
 // reads as native to the site rather than a fork of a fork.
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/25 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 )
 
 // ─── Fetch helper with timeout + exponential backoff retries ────────
@@ -938,7 +938,7 @@ function StatisticsTab(props: {
               value={championCsv}
               onChange={(e) => setChampionCsv(e.target.value)}
               placeholder="e.g. 64, 76"
-              className="bg-black/40 border border-flash/15 hover:border-flash/30 focus:border-jade/55 focus:outline-none rounded-sm px-3 py-1.5 w-[200px] text-[13px] font-jetbrains text-flash placeholder:text-flash/30 transition-colors"
+              className="bg-filmdark/40 border border-flash/15 hover:border-flash/30 focus:border-jade/55 focus:outline-none rounded-sm px-3 py-1.5 w-[200px] text-[13px] font-jetbrains text-flash placeholder:text-flash/30 transition-colors"
             />
           </div>
         </div>
@@ -1004,7 +1004,7 @@ function StatisticsTab(props: {
               delay={0.18}
               extra={
                 <div className="mt-3">
-                  <div className="h-1.5 rounded-full bg-black/35 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-filmdark/35 overflow-hidden">
                     <motion.div
                       className="h-full rounded-full bg-gradient-to-r from-jade to-jade/45"
                       initial={{ width: 0 }}
@@ -1146,7 +1146,7 @@ function UtilizerRow({
   resolved: boolean
 }) {
   return (
-    <li className="group flex items-center gap-3 p-2.5 rounded-sm bg-black/25 border border-flash/[0.06] hover:border-jade/30 hover:bg-jade/[0.04] transition-colors duration-200">
+    <li className="group flex items-center gap-3 p-2.5 rounded-sm bg-filmdark/25 border border-flash/[0.06] hover:border-jade/30 hover:bg-jade/[0.04] transition-colors duration-200">
       <span className="w-5 text-center text-[10px] font-mono tracking-wider text-flash/35">
         {rank.toString().padStart(2, "0")}
       </span>
@@ -1206,7 +1206,7 @@ function CyberSelect({
           onChange={(e) => onChange(e.target.value)}
           className="
             appearance-none cursor-clicker
-            bg-black/40 border border-flash/15 hover:border-flash/30
+            bg-filmdark/40 border border-flash/15 hover:border-flash/30
             focus:border-jade/55 focus:outline-none
             rounded-sm pl-3 pr-8 py-1.5
             text-[13px] font-jetbrains text-flash
@@ -1233,7 +1233,7 @@ function CyberSelect({
 function ItemSkeleton() {
   return (
     <div className="relative pb-16">
-      <div className="relative -mt-6 mb-6 h-[260px] md:h-[300px] overflow-hidden rounded-md bg-black/30 animate-pulse">
+      <div className="relative -mt-6 mb-6 h-[260px] md:h-[300px] overflow-hidden rounded-md bg-filmdark/30 animate-pulse">
         <div className="h-full flex items-center gap-6 p-6">
           <div className="w-24 h-24 md:w-28 md:h-28 rounded-md bg-flash/[0.06]" />
           <div className="flex-1 space-y-3">
@@ -1274,7 +1274,7 @@ function UtilizersSkeleton() {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <li
           key={i}
-          className="flex items-center gap-3 p-2.5 rounded-sm bg-black/25 border border-flash/[0.06] animate-pulse"
+          className="flex items-center gap-3 p-2.5 rounded-sm bg-filmdark/25 border border-flash/[0.06] animate-pulse"
         >
           <div className="w-5 h-3 bg-flash/[0.05] rounded" />
           <div className="w-10 h-10 rounded-md bg-flash/[0.06]" />

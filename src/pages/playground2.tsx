@@ -11,7 +11,7 @@ export default function PlaygroundPage() {
           [--bw:2px]          /* spessore 'bordo' */
           text-white
           before:content-[''] before:absolute before:inset-0
-          before:bg-white/10
+          before:bg-filmlight/10
           before:[clip-path:polygon(0_0,100%_0,100%_calc(100%-var(--cut)),calc(100%-var(--cut))_100%,0_100%)]
           after:content-[''] after:absolute after:inset-[var(--bw)]
           after:bg-neutral-900

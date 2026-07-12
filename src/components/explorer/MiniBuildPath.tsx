@@ -38,7 +38,7 @@ export function MiniBuildPath({ graph }: { graph: ExplorerGraph }) {
   if (path.length === 0) return null;
 
   return (
-    <div className="mb-3 pb-3 border-b border-white/[0.06]">
+    <div className="mb-3 pb-3 border-b border-hairline/[0.06]">
       <div className="text-[8px] font-chakrapetch font-bold uppercase tracking-[0.16em] text-flash/40 mb-1.5">Core build</div>
       <div className="flex items-center gap-1">
         {path.map((it, i) => (

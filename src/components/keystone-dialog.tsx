@@ -52,7 +52,7 @@ export function KeystoneDialog({
       <DialogContent className="w-auto max-w-none bg-transparent border-none shadow-none p-0 [&>button]:hidden">
         {/* iOS-16 frosted glass square */}
         <div
-          className="relative rounded-[30px] p-6 border border-white/20"
+          className="relative rounded-[30px] p-6 border border-hairline/20"
           style={{
             background: "linear-gradient(135deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035))",
             backdropFilter: "blur(28px) saturate(160%)",

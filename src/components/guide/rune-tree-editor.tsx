@@ -387,7 +387,7 @@ export function RuneTreeEditor({ value, onChange, title, onTitleChange, descript
           {showChampPicker && createPortal(
             <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowChampPicker(false)}>
               <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-              <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+              <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
                 style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
                 onClick={e => e.stopPropagation()}>
                 <div className="absolute inset-0 pointer-events-none opacity-15"

@@ -177,14 +177,14 @@ export function PricingPlans() {
               className={cn(
                 "group relative flex flex-col rounded-2xl border p-6 backdrop-blur-md transition-[transform,border-color,background-color] duration-300 sm:p-7",
                 p.featured
-                  ? "border-jade/30 bg-[radial-gradient(140%_120%_at_50%_-10%,rgba(0,217,146,0.12),rgba(6,12,13,0.55))] shadow-[0_0_55px_-14px_rgba(0,217,146,0.4)] md:-translate-y-3 md:scale-[1.035]"
-                  : "border-flash/10 bg-[#0a0f10]/55 hover:-translate-y-1 hover:border-jade/25"
+                  ? "border-jade/30 bg-[radial-gradient(140%_120%_at_50%_-10%,rgba(0,217,146,0.12),rgba(6,12,13,0.55))] glass-panel shadow-[0_0_55px_-14px_rgba(0,217,146,0.4)] md:-translate-y-3 md:scale-[1.035]"
+                  : "border-flash/10 bg-[#0a0f10]/55 glass-panel hover:-translate-y-1 hover:border-jade/25"
               )}
             >
               {p.featured && <BorderBeam size={130} duration={7} borderWidth={1.4} />}
 
               {/* inset hairline — the one OK white touch (glass spec) */}
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.05]" />
+              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-hairline/[0.05]" />
 
               {p.featured && (
                 <span className="absolute -top-[11px] left-1/2 -translate-x-1/2 rounded-full bg-jade px-3 py-1 font-chakrapetch text-[9px] font-bold uppercase tracking-[0.2em] text-liquirice shadow-[0_0_22px_-4px_rgba(0,217,146,0.8)]">
@@ -272,7 +272,7 @@ export function PricingPlans() {
                     {!isLoading && p.featured && (
                       <span
                         aria-hidden
-                        className="pointer-events-none absolute top-0 h-full w-1/5 bg-white/40 blur-[6px] [animation:pp-sheen_2.6s_ease-in-out_infinite]"
+                        className="pointer-events-none absolute top-0 h-full w-1/5 bg-filmlight/40 blur-[6px] [animation:pp-sheen_2.6s_ease-in-out_infinite]"
                       />
                     )}
                     <span className="relative z-10">{isLoading ? "Redirecting…" : `Get ${p.name}`}</span>

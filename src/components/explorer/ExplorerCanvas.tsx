@@ -317,24 +317,24 @@ function Canvas({ onBack }: { onBack?: () => void }) {
           {/* zoom + clear — secondary controls, bottom-left.
               Desktop only: on phone you pinch-to-zoom and the eraser just clutters. */}
           <div className="absolute bottom-4 left-0 pointer-events-auto flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-1 rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+            <div className="hidden lg:flex items-center gap-1 rounded-[7px] border border-hairline/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(var(--c-shadow),0.4)]">
               <button onClick={() => rf.zoomIn({ duration: 200 })} aria-label="Zoom in" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Plus size={14} /></button>
               <button onClick={() => rf.zoomOut({ duration: 200 })} aria-label="Zoom out" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Minus size={14} /></button>
-              <span className="w-px h-4 bg-white/10 mx-0.5" />
+              <span className="w-px h-4 bg-filmlight/10 mx-0.5" />
               <button onClick={() => rf.fitView({ duration: 300, padding: 0.2 })} aria-label="Fit view" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><Maximize size={12} /></button>
             </div>
             {/* clear screen — separate square box, same chrome (desktop only) */}
-            <div className="hidden lg:block rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+            <div className="hidden lg:block rounded-[7px] border border-hairline/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(var(--c-shadow),0.4)]">
               <button onClick={clearCanvas} aria-label="Clear canvas" title="Clear canvas" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-error hover:bg-error/10 transition-colors cursor-clicker"><Eraser size={13} /></button>
             </div>
             {/* what's that? — same box chrome as clear, but jade hover since it's
                 informational; opens the Explorer tutorial (desktop only). */}
-            <div className="hidden lg:block rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+            <div className="hidden lg:block rounded-[7px] border border-hairline/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(var(--c-shadow),0.4)]">
               <button onClick={() => setTutorialOpen(true)} aria-label="What's this?" title="What's this?" className="grid place-items-center w-7 h-7 rounded-[5px] text-flash/45 hover:text-jade hover:bg-jade/10 transition-colors cursor-clicker"><HelpCircle size={14} /></button>
             </div>
             {/* saved snapshots — appears once at least one snapshot exists */}
             {snapshots.length > 0 && (
-              <div className="rounded-[7px] border border-white/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(0,0,0,0.4)]">
+              <div className="rounded-[7px] border border-hairline/10 bg-[rgba(8,14,16,0.8)] backdrop-blur-md p-1 shadow-[0_6px_18px_rgba(var(--c-shadow),0.4)]">
                 <button onClick={() => setSnapsOpen((v) => !v)} aria-label="Saved snapshots" title="Saved snapshots" className={cn("relative grid place-items-center w-7 h-7 rounded-[5px] transition-colors cursor-clicker", snapsOpen ? "text-jade bg-jade/10" : "text-flash/45 hover:text-jade hover:bg-jade/10")}>
                   <Layers size={14} />
                   <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 grid place-items-center rounded-full bg-jade text-[8px] font-chakrapetch font-bold text-[#03110c] leading-none">{snapshots.length}</span>
@@ -374,7 +374,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
                 <button
                   key={p.kind}
                   onClick={() => addNode(p.kind)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] border border-white/10 bg-[rgba(8,14,16,0.82)] hover:bg-white/[0.06] hover:border-white/20 transition-colors cursor-clicker"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] border border-hairline/10 bg-[rgba(8,14,16,0.82)] hover:bg-filmlight/[0.06] hover:border-hairline/20 transition-colors cursor-clicker"
                 >
                   <p.Icon size={12} style={{ color: p.accent }} />
                   <span className="text-[11px] font-chakrapetch text-flash/75">{p.label}</span>
@@ -394,17 +394,17 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}
           />
           <div
-            className="explorer-surface outline-none fixed z-[9] w-[230px] sm:w-[248px] p-2 rounded-[8px] border border-jade/25 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.7)] animate-in fade-in-0 zoom-in-95 duration-100"
+            className="explorer-surface outline-none fixed z-[9] w-[230px] sm:w-[248px] p-2 rounded-[8px] border border-jade/25 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_16px_44px_rgba(var(--c-shadow),0.7)] animate-in fade-in-0 zoom-in-95 duration-100"
             style={{ left: Math.min(ctx.x, window.innerWidth - 260), top: Math.min(ctx.y, window.innerHeight - 330) }}
           >
             {/* ADD MODULE — the usual modules, dropped where you clicked */}
-            <div className="px-1 pb-1.5 mb-1.5 border-b border-white/[0.07] text-[8px] font-chakrapetch font-semibold tracking-[0.18em] uppercase text-jade/55">Add module</div>
+            <div className="px-1 pb-1.5 mb-1.5 border-b border-hairline/[0.07] text-[8px] font-chakrapetch font-semibold tracking-[0.18em] uppercase text-jade/55">Add module</div>
             <div className="grid grid-cols-2 gap-1">
               {PALETTE.map((p) => (
                 <button
                   key={p.kind}
                   onClick={() => addNode(p.kind, ctx)}
-                  className="group flex items-center gap-2 px-2 py-2 rounded-[5px] border border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.07] hover:border-white/15 transition-colors cursor-clicker text-left"
+                  className="group flex items-center gap-2 px-2 py-2 rounded-[5px] border border-hairline/[0.05] bg-filmlight/[0.02] hover:bg-filmlight/[0.07] hover:border-hairline/15 transition-colors cursor-clicker text-left"
                 >
                   <span className="grid place-items-center w-5 h-5 rounded-[4px] shrink-0" style={{ background: `${p.accent}1f` }}>
                     <p.Icon size={12} style={{ color: p.accent }} />
@@ -415,7 +415,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
             </div>
 
             {/* ADD SUBMODULE — attaches onto the module you right-clicked */}
-            <div className="px-1 pt-2.5 pb-1.5 mb-1.5 border-b border-white/[0.07] text-[8px] font-chakrapetch font-semibold tracking-[0.18em] uppercase text-error/55">Add submodule</div>
+            <div className="px-1 pt-2.5 pb-1.5 mb-1.5 border-b border-hairline/[0.07] text-[8px] font-chakrapetch font-semibold tracking-[0.18em] uppercase text-error/55">Add submodule</div>
             <button
               onClick={() => addNode("exclude", ctx)}
               className="group w-full flex items-center gap-2 px-2 py-2 rounded-[5px] border border-error/25 bg-error/[0.07] hover:bg-error/[0.13] hover:border-error/45 transition-colors cursor-clicker text-left"
@@ -461,8 +461,8 @@ function Canvas({ onBack }: { onBack?: () => void }) {
       {snapsOpen && (
         <>
           <div className="absolute inset-0 z-[7] pointer-events-auto" onClick={() => setSnapsOpen(false)} />
-          <div className="absolute bottom-[58px] left-4 z-[8] w-[calc(100vw-2rem)] sm:w-[300px] max-h-[52vh] flex flex-col rounded-[10px] border border-jade/20 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.7)] overflow-hidden pointer-events-auto animate-[snapPanelIn_0.18s_cubic-bezier(0.16,1,0.3,1)]">
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.07]">
+          <div className="absolute bottom-[58px] left-4 z-[8] w-[calc(100vw-2rem)] sm:w-[300px] max-h-[52vh] flex flex-col rounded-[10px] border border-jade/20 bg-[rgba(6,12,14,0.97)] backdrop-blur-xl shadow-[0_18px_50px_rgba(var(--c-shadow),0.7)] overflow-hidden pointer-events-auto animate-[snapPanelIn_0.18s_cubic-bezier(0.16,1,0.3,1)]">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-hairline/[0.07]">
               <div className="flex items-center gap-2">
                 <Layers size={13} className="text-jade" />
                 <span className="text-[10px] font-chakrapetch font-bold tracking-[0.2em] uppercase text-jade/70">Snapshots</span>
@@ -477,7 +477,7 @@ function Canvas({ onBack }: { onBack?: () => void }) {
                 </div>
               ) : (
                 snapshots.map((s) => (
-                  <div key={s.id} className="group flex items-center gap-2 px-2.5 py-2 rounded-[6px] border border-white/[0.06] bg-white/[0.02] hover:border-jade/30 hover:bg-jade/[0.05] transition-colors">
+                  <div key={s.id} className="group flex items-center gap-2 px-2.5 py-2 rounded-[6px] border border-hairline/[0.06] bg-filmlight/[0.02] hover:border-jade/30 hover:bg-jade/[0.05] transition-colors">
                     <button onClick={() => onOpenSnapshot(s)} className="flex-1 min-w-0 flex flex-col items-start text-left cursor-clicker">
                       <span className="text-[11px] font-chakrapetch font-semibold text-flash/90 truncate max-w-full group-hover:text-jade transition-colors">{s.name}</span>
                       <span className="text-[8px] font-chakrapetch uppercase tracking-[0.14em] text-flash/30 mt-0.5">saved {timeAgo(s.savedAt)} · re-runs live</span>
@@ -524,7 +524,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
 
   return (
     <div className="absolute inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-0 h-[58%] lg:h-full w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-jade/15 bg-[rgba(5,10,12,0.94)] backdrop-blur-xl flex flex-col animate-[slideUp_0.3s_ease-out] lg:animate-[slideIn_0.25s_ease] z-[5]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-hairline/[0.06]">
         <div className="flex flex-col">
           <span className="text-[10px] font-chakrapetch font-semibold tracking-[0.22em] uppercase text-jade/65">Result</span>
           <div className="flex items-center gap-2 mt-1.5">
@@ -575,7 +575,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
               const ratio = d > 0 ? (k + a) / d : k + a;
               const rc = ratio >= 5 ? "#FFB615" : ratio >= 3 ? "#00d992" : ratio >= 2 ? "#d7d8d9" : "#8a9096";
               return (
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-[6px] border border-white/[0.07] bg-black/30">
+                <div className="flex items-center justify-between px-3 py-2.5 rounded-[6px] border border-hairline/[0.07] bg-filmdark/30">
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[8px] font-chakrapetch tracking-[0.16em] uppercase text-flash/35">Avg · kills / deaths / assists</span>
                     <div className="flex items-baseline gap-1.5 font-chakrapetch tabular-nums text-[18px] leading-none">
@@ -586,7 +586,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
                       <span className="text-flash">{a.toFixed(1)}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end leading-none pl-3 border-l border-white/[0.06]">
+                  <div className="flex flex-col items-end leading-none pl-3 border-l border-hairline/[0.06]">
                     <span className="text-[24px] font-bold font-chakrapetch tabular-nums" style={{ color: rc }}>{ratio.toFixed(2)}</span>
                     <span className="text-[8px] font-chakrapetch tracking-[0.18em] uppercase text-flash/35 mt-1.5">KDA</span>
                   </div>
@@ -598,7 +598,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
                 ["Avg CS", Number(stat!.avg_cs ?? 0).toLocaleString()],
                 ["Avg Gold", Number(stat!.avg_gold ?? 0).toLocaleString()],
               ].map(([k, v]) => (
-                <div key={k} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-[5px] border border-white/[0.07] bg-black/30">
+                <div key={k} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-[5px] border border-hairline/[0.07] bg-filmdark/30">
                   <span className="text-[8px] font-chakrapetch tracking-[0.16em] uppercase text-flash/35">{k}</span>
                   <span className="text-[14px] font-chakrapetch text-flash tabular-nums">{v}</span>
                 </div>
@@ -624,10 +624,10 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
               return (
                 <div
                   key={String(raw)}
-                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-[5px] hover:bg-white/[0.04]"
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-[5px] hover:bg-filmlight/[0.04]"
                 >
                   <span className="text-[10px] font-chakrapetch text-flash/30 w-4 tabular-nums">{i + 1}</span>
-                  <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-7 h-7 rounded-[4px] border border-white/10" alt="" />
+                  <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-7 h-7 rounded-[4px] border border-hairline/10" alt="" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] font-chakrapetch text-flash truncate">{label}</span>
@@ -642,7 +642,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
                         <span className={cn("text-[12px] font-chakrapetch tabular-nums", wr >= 50 ? "text-jade" : "text-error")}>{wr}%</span>
                       </div>
                     </div>
-                    <div className="mt-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="mt-1 h-1 rounded-full bg-filmlight/[0.06] overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${Math.min(100, wr)}%`, background: wr >= 50 ? "#00d992" : "#ff6286" }} />
                     </div>
                   </div>
@@ -663,7 +663,7 @@ function ResultsPanel({ data, graph, onClose, onExpand, onSave, canSave, saved }
       {/* footer — Deep dive (80%) + Save snapshot (20%), one line. Hidden on an
           empty combo (nothing to expand or snapshot). */}
       {!empty && (
-        <div className="flex items-stretch gap-2 px-4 py-3 border-t border-white/[0.06]">
+        <div className="flex items-stretch gap-2 px-4 py-3 border-t border-hairline/[0.06]">
           <button
             onClick={onExpand}
             className="group basis-[80%] grow flex items-center justify-center gap-2 h-10 rounded-[7px] border border-jade/35 bg-jade/[0.08] hover:bg-jade/[0.16] hover:border-jade/60 transition-all cursor-clicker outline-none focus:outline-none focus-visible:outline-none shadow-[0_0_0_rgba(0,217,146,0)] hover:shadow-[0_0_22px_rgba(0,217,146,0.25)]"
@@ -754,7 +754,7 @@ function PatchVariation({ graph }: { graph: ExplorerGraph }) {
 
   if (phase === "loading") {
     return (
-      <div className="mt-1 flex flex-col gap-2 pt-3 border-t border-white/[0.06]">
+      <div className="mt-1 flex flex-col gap-2 pt-3 border-t border-hairline/[0.06]">
         {header}
         <div className="flex items-center gap-2 text-flash/40 text-[10px] font-chakrapetch py-1.5">
           <Loader2 size={12} className="animate-spin" /> loading patch trend…
@@ -764,7 +764,7 @@ function PatchVariation({ graph }: { graph: ExplorerGraph }) {
   }
   if (phase !== "ready" || !rows) {
     return (
-      <div className="mt-1 flex flex-col gap-2 pt-3 border-t border-white/[0.06]">
+      <div className="mt-1 flex flex-col gap-2 pt-3 border-t border-hairline/[0.06]">
         {header}
         <span className="text-[10px] font-chakrapetch text-flash/35 py-0.5">
           {phase === "error" ? "Patch trend unavailable." : "Not enough patches to chart a trend."}
@@ -780,7 +780,7 @@ function PatchVariation({ graph }: { graph: ExplorerGraph }) {
   const totalGames = rows.reduce((a, r) => a + r.games, 0);
 
   return (
-    <div className="mt-1 flex flex-col gap-2.5 pt-3 border-t border-white/[0.06]">
+    <div className="mt-1 flex flex-col gap-2.5 pt-3 border-t border-hairline/[0.06]">
       {header}
 
       {/* metric selector */}
@@ -791,7 +791,7 @@ function PatchVariation({ graph }: { graph: ExplorerGraph }) {
             onClick={() => setMetric(x.key)}
             className={cn(
               "flex-1 py-1 rounded-[4px] text-[9px] font-chakrapetch font-bold tracking-[0.1em] uppercase transition-colors cursor-clicker",
-              metric === x.key ? "bg-jade/15 text-jade border border-jade/35" : "text-flash/40 border border-white/[0.07] hover:text-flash/70"
+              metric === x.key ? "bg-jade/15 text-jade border border-jade/35" : "text-flash/40 border border-hairline/[0.07] hover:text-flash/70"
             )}
           >
             {x.label}
@@ -811,7 +811,7 @@ function PatchVariation({ graph }: { graph: ExplorerGraph }) {
           return (
             <div key={r.patch} className="flex items-center gap-2">
               <span className="w-9 shrink-0 text-[10px] font-chakrapetch tabular-nums text-flash/55">{r.patch}</span>
-              <div className="flex-1 h-2.5 rounded-[3px] bg-white/[0.05] overflow-hidden">
+              <div className="flex-1 h-2.5 rounded-[3px] bg-filmlight/[0.05] overflow-hidden">
                 <div className="h-full rounded-[3px] transition-all duration-300" style={{ width: `${w}%`, background: barColor, opacity: low ? 0.4 : 0.85 }} />
               </div>
               <span className={cn(

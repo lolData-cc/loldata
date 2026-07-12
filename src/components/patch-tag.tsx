@@ -178,7 +178,7 @@ export function PatchTag({ kind, id, size = 13, corner = "tr", className }: {
   const badge = (
     <span
       className={cn(
-        "grid place-items-center rounded-[3px] ring-1 shadow-[0_1px_4px_rgba(0,0,0,0.65)]",
+        "grid place-items-center rounded-[3px] ring-1 shadow-[0_1px_4px_rgba(var(--c-shadow),0.65)]",
         c.ring, c.bg, c.fg
       )}
       style={{ width: size, height: size }}

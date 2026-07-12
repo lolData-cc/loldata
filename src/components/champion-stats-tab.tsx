@@ -243,7 +243,7 @@ function OpponentPentagonDialog({
               ? "border-jade/50 bg-jade/10"
               : opp
                 ? "border-jade/30 bg-jade/[0.04]"
-                : "border-white/[0.06] bg-white/[0.02] hover:border-jade/30 hover:bg-white/[0.03]"
+                : "border-hairline/[0.06] bg-filmlight/[0.02] hover:border-jade/30 hover:bg-filmlight/[0.03]"
           )}
         >
           <div className="flex items-center gap-2 mb-2">
@@ -256,7 +256,7 @@ function OpponentPentagonDialog({
             </span>
           </div>
 
-          <div className="border-t border-white/[0.06] pt-2">
+          <div className="border-t border-hairline/[0.06] pt-2">
             {opp ? (
               <div className="flex items-center gap-2">
                 <img
@@ -388,7 +388,7 @@ function OpponentPentagonDialog({
                       ? "border-jade/50 shadow-[0_0_12px_rgba(0,217,146,0.15)] cursor-clicker"
                       : opp
                         ? "border-jade/30 shadow-[0_0_8px_rgba(0,217,146,0.06)] cursor-clicker"
-                        : "border-white/15 shadow-[0_0_8px_rgba(255,255,255,0.03)] hover:border-white/25 cursor-clicker"
+                        : "border-hairline/15 shadow-[0_0_8px_rgba(255,255,255,0.03)] hover:border-hairline/25 cursor-clicker"
                   )}
                 >
                   <div className="flex items-center gap-3 mb-3">
@@ -401,7 +401,7 @@ function OpponentPentagonDialog({
                     </span>
                   </div>
 
-                  <div className="border-t border-white/[0.06] pt-3">
+                  <div className="border-t border-hairline/[0.06] pt-3">
                     {opp ? (
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
@@ -502,7 +502,7 @@ function OpponentPentagonDialog({
               <div className={cn(
                 "rounded-md border border-jade/20 p-4",
                 "bg-black/70 backdrop-blur-xl",
-                "shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]"
+                "shadow-[0_8px_32px_rgba(var(--c-shadow),0.5),inset_0_0_0_0.5px_rgba(255,255,255,0.06)]"
               )}>
                 <div className="relative mb-3">
                   <input
@@ -513,7 +513,7 @@ function OpponentPentagonDialog({
                       : `Search champion for ${ROLES.find((rl) => rl.key === activeSlot)?.label ?? ""}...`
                     }
                     className={cn(
-                      "w-full bg-white/[0.03] border border-white/[0.06] rounded-sm",
+                      "w-full bg-filmlight/[0.03] border border-hairline/[0.06] rounded-sm",
                       "px-3 py-2 text-[13px] font-jetbrains text-flash placeholder:text-flash/20",
                       "focus:outline-none focus:border-jade/30 transition-colors"
                     )}
@@ -543,7 +543,7 @@ function OpponentPentagonDialog({
                             type="button"
                             className={cn(
                               "group flex flex-col items-center gap-1 py-2 px-1 rounded-sm cursor-clicker",
-                              "bg-white/[0.02] border border-transparent",
+                              "bg-filmlight/[0.02] border border-transparent",
                               "hover:bg-jade/10 hover:border-jade/20 transition-all duration-150"
                             )}
                             onClick={() => handleItemSelect(it)}
@@ -584,7 +584,7 @@ function OpponentPentagonDialog({
                             type="button"
                             className={cn(
                               "group flex flex-col items-center gap-1.5 py-2 px-1 rounded-sm cursor-clicker",
-                              "bg-white/[0.02] border border-transparent",
+                              "bg-filmlight/[0.02] border border-transparent",
                               "hover:bg-jade/10 hover:border-jade/20 transition-all duration-150"
                             )}
                             onClick={() => handleSelect(champ.name)}
@@ -1005,7 +1005,7 @@ function RankFilterButton({
               "relative overflow-hidden rounded-sm",
               "bg-[#060e10]/95 backdrop-blur-xl",
               "border border-flash/[0.06]",
-              "shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+              "shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
             )}
           >
             <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/20" />

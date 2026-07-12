@@ -11,8 +11,8 @@ const REGIONS = ["EUW", "EUNE", "NA", "KR"] as const
 type Account = { id: string; username: string; region: string | null }
 type Socials = { region?: string | null; twitter_url?: string | null; youtube_url?: string | null; twitch_url?: string | null }
 
-const inputCls = "w-full rounded-[4px] border border-flash/10 bg-black/40 px-2.5 py-1.5 font-jetbrains text-[12px] text-flash/90 outline-none transition-colors focus:border-jade/40 placeholder:text-flash/25"
-const selCls = "rounded-[4px] border border-flash/10 bg-black/40 px-2 py-1.5 font-jetbrains text-[11px] text-flash/80 outline-none transition-colors focus:border-jade/40 cursor-clicker"
+const inputCls = "w-full rounded-[4px] border border-flash/10 bg-filmdark/40 px-2.5 py-1.5 font-jetbrains text-[12px] text-flash/90 outline-none transition-colors focus:border-jade/40 placeholder:text-flash/25"
+const selCls = "rounded-[4px] border border-flash/10 bg-filmdark/40 px-2 py-1.5 font-jetbrains text-[11px] text-flash/80 outline-none transition-colors focus:border-jade/40 cursor-clicker"
 
 export function TalentLinkManager({ type, ownerId }: { type: "pro" | "streamer"; ownerId: string }) {
   const { session } = useAuth()
@@ -80,7 +80,7 @@ export function TalentLinkManager({ type, ownerId }: { type: "pro" | "streamer";
           <div className="space-y-2">
             <div className="max-h-[176px] space-y-1.5 overflow-y-auto pr-1 cyber-scrollbar">
               {accounts.map((a) => (
-                <div key={a.id} className="flex items-center gap-2 rounded-[4px] border border-flash/[0.07] bg-black/25 px-2.5 py-1.5">
+                <div key={a.id} className="flex items-center gap-2 rounded-[4px] border border-flash/[0.07] bg-filmdark/25 px-2.5 py-1.5">
                   <span className="rounded-[3px] border border-jade/20 bg-jade/[0.06] px-1.5 py-[1px] font-jetbrains text-[9px] font-bold uppercase text-jade/70">{a.region || "—"}</span>
                   <span className="flex-1 truncate font-jetbrains text-[12px] text-flash/85">{a.username}</span>
                   <button type="button" onClick={() => removeAccount(a.id)} disabled={busy} className="grid h-5 w-5 shrink-0 place-items-center rounded-[3px] text-flash/35 transition-colors hover:bg-[#ff6286]/15 hover:text-[#ff6286] disabled:opacity-40 cursor-clicker"><X className="h-3 w-3" /></button>

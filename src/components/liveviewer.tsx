@@ -42,8 +42,8 @@ type LiveViewerProps = {
 // ── Glass card reusable classes ─────────────────────────────────────
 const glassCard = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/60 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-black/60 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 )
 
 const ROLES = ["top", "jungle", "mid", "bot", "support"] as const
@@ -211,7 +211,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
     return (
       <div className={cn(
         "relative overflow-hidden flex items-center gap-2.5 px-2.5 py-1.5 transition-all rounded-[4px]",
-        "hover:bg-white/[0.03]",
+        "hover:bg-filmlight/[0.03]",
         isFocused && "bg-jade/[0.06] shadow-[inset_0_0_12px_rgba(0,217,146,0.06)]"
       )}>
         {/* B&W splash art background behind the whole row */}
@@ -229,7 +229,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
             <div className="relative w-8 h-8">
               <img
                 src={`${cdnBaseUrl()}/img/champion/${formatChampName(championMap[p.championId])}.png`}
-                className="w-8 h-8 rounded-[4px] ring-1 ring-white/10"
+                className="w-8 h-8 rounded-[4px] ring-1 ring-hairline/10"
               />
             </div>
             <div className="flex flex-col gap-0.5">
@@ -400,7 +400,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
 
             <div className="relative z-10">
               {/* Header */}
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-hairline/[0.06]">
                 <span className="text-cyan-400/50 text-[10px]">◈</span>
                 <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-cyan-300/80">
                   Blue Side
@@ -429,7 +429,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
 
             <div className="relative z-10">
               {/* Header */}
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-hairline/[0.06]">
                 <span className="text-rose-400/50 text-[10px]">◈</span>
                 <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-rose-300/80">
                   Red Side

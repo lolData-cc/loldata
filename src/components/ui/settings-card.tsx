@@ -36,13 +36,12 @@ export function SettingsCard({
       className={cn(
         "relative flex flex-col overflow-hidden rounded-md",
         "backdrop-blur-lg saturate-150",
-        // A subtle *light* film lifts the card above the near-black page
-        // (#040A0C) so it reads as a surface, and a 1px hairline draws a
-        // clearly visible edge — the one sanctioned white touch.
-        danger ? "bg-[#ff6286]/[0.05]" : "bg-white/[0.04]",
+        // Theme-aware glass: dark keeps the historic light-film-on-near-black
+        // look; light becomes a crisp elevated paper card. Both recipes live in
+        // .glass-surface (index.css) so the surface flips with the theme.
         danger
-          ? "shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,98,134,0.30),inset_0_1px_0_rgba(255,98,134,0.14)]"
-          : "shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]",
+          ? "bg-error/[0.06] shadow-[0_10px_30px_rgb(var(--c-filmdark)/0.30),inset_0_0_0_1px_rgb(var(--c-error)/0.30),inset_0_1px_0_rgb(var(--c-error)/0.14)]"
+          : "glass-surface",
         className
       )}
     >

@@ -92,13 +92,13 @@ export function DeepDive({ data, graph, onClose, onSave, canSave, saved }: { dat
               {saved ? "Saved" : "Save snapshot"}
             </button>
           )}
-          <button onClick={onClose} title="Collapse (Esc)" className="grid place-items-center w-8 h-8 rounded-[6px] text-flash/45 hover:text-flash hover:bg-white/[0.06] transition-colors cursor-clicker">
+          <button onClick={onClose} title="Collapse (Esc)" className="grid place-items-center w-8 h-8 rounded-[6px] text-flash/45 hover:text-flash hover:bg-filmlight/[0.06] transition-colors cursor-clicker">
             <X size={17} />
           </button>
         </div>
 
         {/* header — champion + a light, inline query recap, all on the left */}
-        <div className="deep-section flex items-start gap-3.5 pb-5 mb-6 border-b border-white/[0.07]" style={{ animationDelay: "40ms" }}>
+        <div className="deep-section flex items-start gap-3.5 pb-5 mb-6 border-b border-hairline/[0.07]" style={{ animationDelay: "40ms" }}>
           {graph.subject.champion && (
             <img src={champIcon(graph.subject.champion)} className="w-14 h-14 rounded-[7px] border border-jade/40 shrink-0" style={{ boxShadow: "0 0 18px rgba(0,217,146,0.25)" }} alt="" />
           )}
@@ -180,12 +180,12 @@ export function DeepDive({ data, graph, onClose, onSave, canSave, saved }: { dat
                     title={isItemDim ? "Matchup analysis" : undefined}
                     className={cn(
                       "group flex items-center gap-3 px-3 py-2.5 rounded-[8px] border",
-                      i < 3 ? "border-jade/20 bg-jade/[0.04]" : "border-white/[0.06] bg-black/30",
+                      i < 3 ? "border-jade/20 bg-jade/[0.04]" : "border-hairline/[0.06] bg-filmdark/30",
                       isItemDim && "cursor-clicker hover:border-jade/40 transition-colors"
                     )}
                   >
                     <span className={cn("w-6 text-center text-[13px] font-chakrapetch font-bold tabular-nums", i === 0 ? "text-citrine" : i < 3 ? "text-jade" : "text-flash/30")}>{i + 1}</span>
-                    <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-9 h-9 rounded-[5px] border border-white/10 shrink-0" alt="" />
+                    <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-9 h-9 rounded-[5px] border border-hairline/10 shrink-0" alt="" />
                     <div className="flex-1 min-w-0">
                       <span className="block text-[14px] font-chakrapetch font-bold text-flash truncate">{label}</span>
                       {isItemDim && (
@@ -200,7 +200,7 @@ export function DeepDive({ data, graph, onClose, onSave, canSave, saved }: { dat
                         <span className="block text-[7px] font-chakrapetch uppercase tracking-[0.1em] text-flash/30 -mt-0.5">lift pp</span>
                       </div>
                     )}
-                    <div className="w-[26%] max-w-[300px] h-2.5 rounded-full bg-white/[0.06] overflow-hidden shrink-0">
+                    <div className="w-[26%] max-w-[300px] h-2.5 rounded-full bg-filmlight/[0.06] overflow-hidden shrink-0">
                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, w)}%`, background: w >= 50 ? "linear-gradient(90deg,#00a070,#00d992)" : "linear-gradient(90deg,#b53b54,#ff6286)", boxShadow: w >= 50 ? "0 0 10px rgba(0,217,146,0.5)" : "0 0 10px rgba(255,98,134,0.4)" }} />
                     </div>
                     <span className={cn("w-14 text-right text-[15px] font-chakrapetch font-bold tabular-nums", w >= 50 ? "text-jade" : "text-error")}>{w}%</span>
@@ -262,14 +262,14 @@ function PatchTrend({ graph }: { graph: ExplorerGraph }) {
   }, [rows, m]);
 
   return (
-    <div className="deep-section rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5" style={{ animationDelay: "90ms" }}>
+    <div className="deep-section rounded-[12px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5" style={{ animationDelay: "90ms" }}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <SectionTitle>Patch variation</SectionTitle>
         <div className="flex gap-1">
           {METRICS.map((x) => (
             <button key={x.key} onClick={() => setMetric(x.key)}
               className={cn("px-2.5 py-1 rounded-[5px] text-[10px] font-chakrapetch font-bold uppercase tracking-[0.08em] transition-colors cursor-clicker",
-                metric === x.key ? "bg-jade/15 text-jade border border-jade/35" : "text-flash/40 border border-white/[0.07] hover:text-flash/70")}>
+                metric === x.key ? "bg-jade/15 text-jade border border-jade/35" : "text-flash/40 border border-hairline/[0.07] hover:text-flash/70")}>
               {x.label}
             </button>
           ))}
@@ -284,7 +284,7 @@ function PatchTrend({ graph }: { graph: ExplorerGraph }) {
           {/* verdict sentence */}
           <div className="flex items-center gap-2.5 mb-3">
             <span className={cn("grid place-items-center w-7 h-7 rounded-[6px] border",
-              verdict.dir === "up" ? "text-jade border-jade/30 bg-jade/10" : verdict.dir === "down" ? "text-error border-error/30 bg-error/10" : "text-flash/50 border-white/10 bg-white/[0.04]")}>
+              verdict.dir === "up" ? "text-jade border-jade/30 bg-jade/10" : verdict.dir === "down" ? "text-error border-error/30 bg-error/10" : "text-flash/50 border-hairline/10 bg-filmlight/[0.04]")}>
               {verdict.dir === "up" ? <TrendingUp size={15} /> : verdict.dir === "down" ? <TrendingDown size={15} /> : <MinusIcon size={15} />}
             </span>
             <p className="text-[12.5px] font-chakrapetch text-flash/80 leading-snug">
@@ -333,7 +333,7 @@ function PatchTrend({ graph }: { graph: ExplorerGraph }) {
               const prev = i > 0 ? chartData[i - 1].value : null;
               const dl = prev == null ? null : c.value - prev;
               return (
-                <div key={c.patch} className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] border border-white/[0.07] bg-black/30">
+                <div key={c.patch} className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] border border-hairline/[0.07] bg-filmdark/30">
                   <span className="text-[10px] font-chakrapetch tabular-nums text-flash/55">{c.patch}</span>
                   <span className="text-[11px] font-chakrapetch font-bold tabular-nums text-flash">{m.fmt(c.value)}</span>
                   {dl != null && Math.abs(dl) >= m.eps && (
@@ -376,7 +376,7 @@ function Ring({ value }: { value: number }) {
 
 function BigStat({ label, value, accent, sub }: { label: string; value: string; accent: string; sub?: string }) {
   return (
-    <div className="flex flex-col justify-center rounded-[9px] border border-white/[0.07] bg-black/30 px-3 py-3">
+    <div className="flex flex-col justify-center rounded-[9px] border border-hairline/[0.07] bg-filmdark/30 px-3 py-3">
       <span className="text-[8px] font-chakrapetch tracking-[0.16em] uppercase text-flash/35">{label}</span>
       <span className="text-[24px] leading-none font-chakrapetch font-bold tabular-nums mt-1.5" style={{ color: accent }}>{value}</span>
       {sub && <span className="text-[9px] font-chakrapetch text-flash/40 tabular-nums mt-1">{sub}</span>}
@@ -467,12 +467,12 @@ function ChipMini({ icon, label, tone = "neutral", prefix, contain }: { icon?: s
       : tone === "enemy" ? "border-error/15 bg-error/[0.03]"
         : tone === "ally" ? "border-jade/20 bg-jade/[0.04]"
           : tone === "cat" ? "border-citrine/25 bg-citrine/[0.05]"
-            : "border-white/10 bg-white/[0.03]";
+            : "border-hairline/10 bg-filmlight/[0.03]";
   const prefixCls = tone === "cat" ? "text-citrine/90" : tone === "bad" ? "text-error/75" : "text-flash/35";
   return (
     <span className={cn("flex items-center gap-1 pl-1 pr-1.5 py-[1px] rounded-[5px] border", toneCls)} title={label}>
       {prefix && <span className={cn("text-[8px] font-chakrapetch font-bold uppercase tracking-[0.06em]", prefixCls)}>{prefix}</span>}
-      {icon && <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className={cn("w-4 h-4", contain ? "object-contain" : "rounded-[3px] border border-white/10")} alt="" />}
+      {icon && <img src={icon} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className={cn("w-4 h-4", contain ? "object-contain" : "rounded-[3px] border border-hairline/10")} alt="" />}
       <span className="text-[9.5px] font-chakrapetch text-flash/75">{label}</span>
     </span>
   );

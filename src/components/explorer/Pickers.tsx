@@ -23,12 +23,12 @@ export type OptGroup = { label?: string; options: Opt[] };
 // portaled popups; jade border instead of the base theme's white one.
 const GLASS =
   "explorer-surface outline-none !border !border-jade/25 bg-black/90 backdrop-blur-xl saturate-150 " +
-  "shadow-[0_16px_44px_rgba(0,0,0,0.7)]";
+  "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7)]";
 
 const triggerBase =
   "nodrag group w-full rounded-[4px] cursor-clicker outline-none focus:outline-none " +
   "focus-visible:outline-none focus-visible:ring-0 flex items-center " +
-  "border bg-black/40 backdrop-blur-lg transition-all duration-200";
+  "border bg-filmdark/40 backdrop-blur-lg transition-all duration-200";
 
 export function ExplorerSelect({
   value, onChange, options, groups, placeholder = "—", renderIcon,
@@ -51,7 +51,7 @@ export function ExplorerSelect({
       <DropdownMenuTrigger
         className={cn(
           triggerBase, "h-8 px-2.5 gap-1.5 font-chakrapetch text-[11.5px]",
-          active ? "text-flash border-jade/30 hover:border-jade/50" : "text-flash/45 border-white/10 hover:border-white/20"
+          active ? "text-flash border-jade/30 hover:border-jade/50" : "text-flash/45 border-hairline/10 hover:border-hairline/20"
         )}
       >
         {activeIcon && <span className="shrink-0 grid place-items-center w-[18px] h-[18px]">{activeIcon}</span>}
@@ -65,7 +65,7 @@ export function ExplorerSelect({
       >
         {sections.map((sec, si) => (
           <div key={si}>
-            {si > 0 && <div className="mx-1 my-1 h-px bg-white/[0.07]" />}
+            {si > 0 && <div className="mx-1 my-1 h-px bg-filmlight/[0.07]" />}
             {sec.label && (
               <div className="px-2 pt-1 pb-1 font-chakrapetch text-[8.5px] font-bold uppercase tracking-[0.2em] text-flash/30 select-none">
                 {sec.label}
@@ -110,13 +110,13 @@ export function IconCombobox({
         <button
           className={cn(
             triggerBase, "h-9 px-2 gap-2",
-            active ? "border-jade/30 hover:border-jade/50" : "border-white/10 hover:border-white/20"
+            active ? "border-jade/30 hover:border-jade/50" : "border-hairline/10 hover:border-hairline/20"
           )}
         >
           {active ? (
-            <img src={icon(active.value)} className="w-6 h-6 rounded-[3px] border border-white/10 shrink-0" alt="" draggable={false} />
+            <img src={icon(active.value)} className="w-6 h-6 rounded-[3px] border border-hairline/10 shrink-0" alt="" draggable={false} />
           ) : (
-            <div className="w-6 h-6 rounded-[3px] bg-black/40 border border-white/10 shrink-0" />
+            <div className="w-6 h-6 rounded-[3px] bg-filmdark/40 border border-hairline/10 shrink-0" />
           )}
           <span className={cn("flex-1 text-left truncate font-chakrapetch text-[12px]", active ? "text-flash" : "text-flash/40")}>
             {active?.label ?? placeholder}
@@ -140,7 +140,7 @@ export function IconCombobox({
                     "text-flash/70 aria-selected:bg-jade/10 aria-selected:text-jade"
                   )}
                 >
-                  <img src={icon(o.value)} className="w-6 h-6 rounded-[3px] border border-white/10 shrink-0" alt="" loading="lazy" draggable={false} />
+                  <img src={icon(o.value)} className="w-6 h-6 rounded-[3px] border border-hairline/10 shrink-0" alt="" loading="lazy" draggable={false} />
                   <span className="flex-1 truncate">{o.label}</span>
                   {value === o.value && <Check className="w-3.5 h-3.5 text-jade shrink-0" />}
                 </CommandItem>

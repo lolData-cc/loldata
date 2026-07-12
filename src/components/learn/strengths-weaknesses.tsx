@@ -17,7 +17,7 @@ export function StrengthsWeaknesses({ strengths, weaknesses, delay = 0 }: Props)
       className="grid grid-cols-1 sm:grid-cols-2 gap-3"
     >
       {/* Strengths */}
-      <div className="relative bg-black/30 border border-jade/10 rounded-sm p-3 overflow-hidden">
+      <div className="relative bg-filmdark/30 border border-jade/10 rounded-sm p-3 overflow-hidden">
         <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
         <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-jade/50 mb-2 block">STRENGTHS</span>
         <ul className="space-y-1.5">
@@ -37,7 +37,7 @@ export function StrengthsWeaknesses({ strengths, weaknesses, delay = 0 }: Props)
       </div>
 
       {/* Weaknesses */}
-      <div className="relative bg-black/30 border border-red-400/10 rounded-sm p-3 overflow-hidden">
+      <div className="relative bg-filmdark/30 border border-red-400/10 rounded-sm p-3 overflow-hidden">
         <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-red-400/40" />
         <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-red-400/50 mb-2 block">WEAKNESSES</span>
         <ul className="space-y-1.5">

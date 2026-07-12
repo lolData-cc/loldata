@@ -89,7 +89,7 @@ export function SituationalGuide({ graph, items }: { graph: ExplorerGraph; items
   }, [graph, ids]);
 
   return (
-    <div className="deep-section rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5" style={{ animationDelay: "180ms" }}>
+    <div className="deep-section rounded-[12px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5" style={{ animationDelay: "180ms" }}>
       <div className="flex items-center gap-2 mb-1">
         <Swords size={14} className="text-citrine" />
         <span className="text-[11px] font-chakrapetch font-bold tracking-[0.2em] uppercase text-flash/65">Adapt your build</span>
@@ -104,7 +104,7 @@ export function SituationalGuide({ graph, items }: { graph: ExplorerGraph; items
         <div className="h-[90px] grid place-items-center text-[11px] font-chakrapetch text-flash/35">Matchup analysis unavailable.</div>
       )}
       {phase === "empty" && (
-        <div className="rounded-[9px] border border-white/[0.07] bg-black/25 px-4 py-3.5 text-[11.5px] font-chakrapetch text-flash/55 leading-relaxed">
+        <div className="rounded-[9px] border border-hairline/[0.07] bg-filmdark/25 px-4 py-3.5 text-[11.5px] font-chakrapetch text-flash/55 leading-relaxed">
           No item in this build shifts winrate enough with the enemy comp to call it situational — the core build holds up regardless of who you face (or the per-matchup samples are still too small to be sure).
         </div>
       )}
@@ -112,8 +112,8 @@ export function SituationalGuide({ graph, items }: { graph: ExplorerGraph; items
       {phase === "ready" && groups && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {groups.map((g) => (
-            <div key={g.key} className="rounded-[10px] border border-white/[0.08] bg-black/30 p-3">
-              <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-white/[0.06]">
+            <div key={g.key} className="rounded-[10px] border border-hairline/[0.08] bg-filmdark/30 p-3">
+              <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-hairline/[0.06]">
                 {isClass(g.category) ? (
                   <img src={categoryIcon(g.category)} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} className="w-6 h-6 object-contain shrink-0" alt="" />
                 ) : (
@@ -158,7 +158,7 @@ function Line({ icon, label, picks, tone }: { icon: React.ReactNode; label: stri
                 tone === "strong" ? "border-jade/30 bg-jade/[0.06]" : "border-error/25 bg-error/[0.05]"
               )}
             >
-              <img src={itemIcon(p.item)} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-5 h-5 rounded-[4px] border border-white/10" alt="" />
+              <img src={itemIcon(p.item)} onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} className="w-5 h-5 rounded-[4px] border border-hairline/10" alt="" />
               <span className={cn("text-[10px] font-chakrapetch font-bold tabular-nums", tone === "strong" ? "text-jade" : "text-error")}>
                 {p.delta >= 0 ? "+" : ""}
                 {p.delta.toFixed(1)}

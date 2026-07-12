@@ -11,7 +11,7 @@ export function KDASparkline({ data, delay = 0 }: { data: DataPoint[]; delay?: n
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="relative bg-black/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden"
+      className="relative bg-filmdark/30 border border-flash/[0.06] rounded-sm p-3 overflow-hidden"
     >
       <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-flash/30 mb-2 block">KDA PER GAME</span>
       <div className="h-32">

@@ -66,13 +66,30 @@ module.exports = {
   			]
   		},
   		colors: {
-  			liquirice: '#040A0C',
-  			flash: '#d7d8d9',
-  			pine: '#148460',
-  			cement: '#0f1213',
-  			jade: '#00d992',
-  			error: '#ff6286',
-  			citrine: '#FFB615'
+  			// Theme-aware named colors. Each resolves to a CSS variable
+  			// (space-separated RGB channels) so `/opacity` modifiers keep
+  			// working AND the value flips between the dark/light token sets
+  			// defined in index.css. Dark values == the historic hex, so the
+  			// dark theme is unchanged.
+  			liquirice: 'rgb(var(--c-bg) / <alpha-value>)',
+  			flash: 'rgb(var(--c-fg) / <alpha-value>)',
+  			pine: 'rgb(var(--c-pine) / <alpha-value>)',
+  			cement: 'rgb(var(--c-surface) / <alpha-value>)',
+  			jade: 'rgb(var(--c-jade) / <alpha-value>)',
+  			error: 'rgb(var(--c-error) / <alpha-value>)',
+  			citrine: 'rgb(var(--c-citrine) / <alpha-value>)',
+  			// Semantic surface/ink tokens (aliases + new roles).
+  			bg: 'rgb(var(--c-bg) / <alpha-value>)',
+  			surface: 'rgb(var(--c-surface) / <alpha-value>)',
+  			surface2: 'rgb(var(--c-surface2) / <alpha-value>)',
+  			ink: 'rgb(var(--c-fg) / <alpha-value>)',
+  			muted: 'rgb(var(--c-muted) / <alpha-value>)',
+  			faint: 'rgb(var(--c-faint) / <alpha-value>)',
+  			// Films & edges — replace literal black/white so they flip.
+  			// Dark base == 255/255/255 or 0/0/0 → identical to today.
+  			hairline: 'rgb(var(--c-hairline) / <alpha-value>)',
+  			filmlight: 'rgb(var(--c-filmlight) / <alpha-value>)',
+  			filmdark: 'rgb(var(--c-filmdark) / <alpha-value>)'
   		},
   		animation: {
   			pulseGlow: 'pulseGlow 10s ease-in-out infinite',

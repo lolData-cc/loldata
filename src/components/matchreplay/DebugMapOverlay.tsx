@@ -488,7 +488,7 @@ export function CalibrationPanel({
 
   return (
     <div className="absolute top-2 right-2 z-[120] pointer-events-auto max-h-[calc(100%-1rem)] overflow-hidden">
-      <div className="flex flex-col gap-1.5 p-2 rounded-sm bg-liquirice/90 backdrop-blur-md ring-1 ring-flash/15 shadow-[0_4px_14px_rgba(0,0,0,0.6)] w-[210px]">
+      <div className="flex flex-col gap-1.5 p-2 rounded-sm bg-liquirice/90 backdrop-blur-md ring-1 ring-flash/15 shadow-[0_4px_14px_rgba(var(--c-shadow),0.6)] w-[210px]">
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-flash/65">
@@ -558,7 +558,7 @@ export function CalibrationPanel({
             </div>
 
             {/* Computed vs applied calibration */}
-            <div className="mt-1 px-1.5 py-1.5 rounded-sm bg-black/40 ring-1 ring-flash/[0.04] text-[9px] font-mono text-flash/55 leading-snug">
+            <div className="mt-1 px-1.5 py-1.5 rounded-sm bg-filmdark/40 ring-1 ring-flash/[0.04] text-[9px] font-mono text-flash/55 leading-snug">
               <div className="text-flash/40 uppercase tracking-wider text-[8px] mb-0.5">applied</div>
               <div>scaleX: <span className="text-flash/85 tabular-nums">{appliedCalibration.scaleX.toFixed(3)}</span></div>
               <div>scaleY: <span className="text-flash/85 tabular-nums">{appliedCalibration.scaleY.toFixed(3)}</span></div>

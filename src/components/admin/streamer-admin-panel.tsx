@@ -39,7 +39,7 @@ type StreamerAppRow = {
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
+    <div className="relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
       <div className="relative z-[1] px-4 py-4">{children}</div>
     </div>
   );
@@ -184,8 +184,8 @@ export function StreamerAdminPanel() {
   const btnJade = "px-2 py-1 rounded-sm cursor-clicker border border-jade/30 text-jade hover:bg-jade/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
   const btnFlash = "px-2 py-1 rounded-sm cursor-clicker border border-flash/20 text-flash/70 hover:bg-flash/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
   const btnDanger = "px-2 py-1 rounded-sm cursor-clicker border border-error/30 text-error/80 hover:bg-error/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
-  const inputCls = "w-full rounded-sm border border-flash/15 bg-black/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
-  const selectCls = "rounded-sm border border-flash/15 bg-black/40 px-2 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
+  const inputCls = "w-full rounded-sm border border-flash/15 bg-filmdark/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
+  const selectCls = "rounded-sm border border-flash/15 bg-filmdark/40 px-2 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
   const thCls = "px-3 py-2 text-[10px] font-mono tracking-[0.15em] uppercase text-flash/50";
   const tdCls = "px-3 py-2 text-[11px] font-mono text-flash/70";
 
@@ -225,7 +225,7 @@ export function StreamerAdminPanel() {
                 {pendingApps.map((a) => {
                   const isBusy = appBusyId === a.id;
                   return (
-                    <tr key={a.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                    <tr key={a.id} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                       <td className={tdCls}>{new Date(a.created_at).toLocaleDateString()}</td>
                       <td className={`${tdCls} text-flash`}>{a.twitch_username}</td>
                       <td className={`${tdCls} text-flash`}>{a.lol_account}</td>
@@ -308,7 +308,7 @@ export function StreamerAdminPanel() {
               </thead>
               <tbody>
                 {filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                  <tr key={s.id} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                     <td className={`${tdCls} text-flash`}>{s.lol_nametag ?? "—"}</td>
                     <td className={tdCls}>
                       <a

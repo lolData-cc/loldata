@@ -6,7 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { cn } from "@/lib/utils"
 import { cdnBaseUrl } from "@/config"
 import { Separator } from "@/components/ui/separator"
-import { LayoutDashboard, History, Workflow, Sword, Sparkles, ArrowUpRight, type LucideIcon } from "lucide-react"
+import { LayoutDashboard, History, Workflow, Network, Sword, Sparkles, ArrowUpRight, FlaskConical, type LucideIcon } from "lucide-react"
 import LoldataAIChat from "@/components/loldataaichat"
 import Overview from "@/components/overview"
 import { RecentMatches } from "@/components/learn/recent-matches"
@@ -30,19 +30,24 @@ function SidebarButton({
     desc,
     active,
     onClick,
+    disabled = false,
 }: {
     icon: LucideIcon
     label: string
     desc: string
     active: boolean
     onClick: () => void
+    disabled?: boolean
 }) {
     return (
         <button
             onClick={onClick}
+            disabled={disabled}
+            aria-disabled={disabled}
             className={cn(
-                "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 cursor-clicker",
-                active ? "bg-jade/[0.08]" : "hover:bg-flash/[0.03]"
+                "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200",
+                disabled ? "cursor-not-allowed opacity-55" : "cursor-clicker",
+                active ? "bg-jade/[0.08]" : disabled ? "" : "hover:bg-flash/[0.03]"
             )}
         >
             <span
@@ -59,22 +64,29 @@ function SidebarButton({
             >
                 <Icon size={14} strokeWidth={1.75} />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
                 <span
                     className={cn(
-                        "block font-chakrapetch text-[12.5px] font-semibold uppercase tracking-[0.09em] leading-none transition-colors duration-200",
+                        "block whitespace-nowrap font-chakrapetch text-[12.5px] font-semibold uppercase tracking-[0.09em] leading-none transition-colors duration-200",
                         active ? "text-jade" : "text-flash/85 group-hover:text-flash"
                     )}
                 >
                     {label}
                 </span>
-                <span
-                    className={cn(
-                        "mt-1.5 block truncate font-chakrapetch text-[11px] font-normal tracking-[0.01em] leading-none transition-colors duration-200",
-                        active ? "text-jade/70" : "text-flash/45 group-hover:text-flash/65"
+                <span className="mt-1.5 flex items-center gap-1.5">
+                    <span
+                        className={cn(
+                            "min-w-0 truncate font-chakrapetch text-[11px] font-normal tracking-[0.01em] leading-none transition-colors duration-200",
+                            active ? "text-jade/70" : "text-flash/45 group-hover:text-flash/65"
+                        )}
+                    >
+                        {desc}
+                    </span>
+                    {disabled && (
+                        <span className="shrink-0 rounded-full bg-citrine/15 px-1.5 py-[2px] font-chakrapetch text-[7.5px] font-bold uppercase tracking-[0.13em] leading-none text-citrine/90 shadow-[inset_0_0_0_1px_rgb(var(--c-citrine)/0.3)]">
+                            Soon
+                        </span>
                     )}
-                >
-                    {desc}
                 </span>
             </span>
         </button>
@@ -141,8 +153,8 @@ export default function LearnPage() {
                                 navigate(`/summoners/${region.toLowerCase()}/${n.replace(/\s+/g, "+")}-${t}`)
                             }}
                             className={cn(
-                                "group relative mb-5 flex w-full items-center gap-2.5 overflow-hidden rounded-[3px] border border-flash/10 bg-black/30 px-2.5 py-2 text-left transition-colors duration-200",
-                                nametag && region ? "cursor-clicker hover:border-jade/25 hover:bg-black/45" : "cursor-default"
+                                "group relative mb-5 flex w-full items-center gap-2.5 overflow-hidden rounded-[3px] border border-flash/10 bg-filmdark/30 px-2.5 py-2 text-left transition-colors duration-200",
+                                nametag && region ? "cursor-clicker hover:border-jade/25 hover:bg-filmdark/45" : "cursor-default"
                             )}
                         >
                             <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-jade/40" />
@@ -178,13 +190,34 @@ export default function LearnPage() {
 
                         {/* Explorer — standalone tool on its own full-page route, set apart from the tabs. */}
                         <div className="mt-4 border-t border-flash/[0.07] pt-4">
-                            <span className="mb-2 block px-2.5 font-chakrapetch text-[8.5px] font-bold uppercase tracking-[0.32em] text-flash/25">Tools</span>
+                            <span className="mb-2 block px-2.5">
+                                <span className="relative inline-block font-chakrapetch text-[8.5px] font-bold uppercase tracking-[0.32em] text-flash/25">
+                                    Tools
+                                    {/* still-in-development badge, anchored to the top-right corner */}
+                                    <span className="absolute -top-2 left-full -translate-x-[9px] rounded-full bg-gradient-to-r from-[#a85585] to-[#6f4287] px-[5px] py-[1px] font-chakrapetch text-[6.5px] font-bold uppercase tracking-[0.13em] leading-none text-white/90 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),0_1px_5px_rgba(120,60,120,0.35)]">Beta</span>
+                                </span>
+                            </span>
                             <SidebarButton
                                 icon={Workflow}
                                 label="EXPLORER"
                                 desc="Node query builder"
                                 active={false}
                                 onClick={() => navigate("/learn/explorer")}
+                            />
+                            <SidebarButton
+                                icon={Network}
+                                label="IMPROVEMENT TREE"
+                                desc="3D skill path"
+                                active={false}
+                                onClick={() => navigate("/learn/tree")}
+                            />
+                            <SidebarButton
+                                icon={FlaskConical}
+                                label="PATCH ANALYZER"
+                                desc="Patch impact"
+                                active={false}
+                                disabled
+                                onClick={() => {}}
                             />
                         </div>
                     </div>

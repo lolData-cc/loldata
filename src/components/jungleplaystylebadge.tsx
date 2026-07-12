@@ -30,7 +30,7 @@ export function JunglePlaystyleBadge({ tag, topsideCount, botsideCount }: Props)
       className={cn(
         "h-5 flex items-center gap-1.5 pl-2 pr-2.5",
         "font-mono text-[9px] uppercase tracking-[0.1em]",
-        "border-l-2 bg-black/30",
+        "border-l-2 bg-filmdark/30",
         getJunglePlaystyleTagClasses(tag)
       )}
     >
@@ -70,7 +70,7 @@ export function JungleStartingCampBadge({ camp }: StartingCampProps) {
       className={cn(
         "h-5 flex items-center gap-1.5 pl-2 pr-2.5",
         "font-mono text-[9px] uppercase tracking-[0.1em]",
-        "border-l-2 bg-black/30",
+        "border-l-2 bg-filmdark/30",
         getStartingCampClasses(camp)
       )}
     >
@@ -93,7 +93,7 @@ export function JungleInvadeBadge({ invade }: InvadeProps) {
       className={cn(
         "h-5 flex items-center gap-1.5 pl-2 pr-2.5",
         "font-mono text-[9px] uppercase tracking-[0.1em]",
-        "border-l-2 bg-black/30",
+        "border-l-2 bg-filmdark/30",
         getInvadeClasses(invade)
       )}
     >

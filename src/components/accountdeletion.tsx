@@ -198,7 +198,7 @@ export function AccountDeletion() {
                   autoComplete="off"
                   spellCheck={false}
                   disabled={deleting}
-                  className="w-full rounded-[2px] border border-flash/10 bg-black/40 px-3 py-2 text-sm text-flash outline-none font-mono tracking-widest placeholder:text-flash/15 focus:border-error/30 transition-colors"
+                  className="w-full rounded-[2px] border border-flash/10 bg-filmdark/40 px-3 py-2 text-sm text-flash outline-none font-mono tracking-widest placeholder:text-flash/15 focus:border-error/30 transition-colors"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && canConfirm) handleDelete();
                   }}

@@ -71,8 +71,8 @@ function makeUid() {
 /* ─── glass card style (mirrors summonerpage "This Season" box) ──────── */
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/15 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+  "bg-filmdark/15 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
 );
 
 /* Soft jade radial glow that sits behind the card content so the surface
@@ -161,10 +161,10 @@ const FluidInput = ({
       <input
         {...props}
         className={cn(
-          "relative w-full bg-black/30 border border-flash/15 rounded-[3px] font-chakrapetch text-flash placeholder:text-flash/35 outline-none",
+          "relative w-full bg-filmdark/30 border border-flash/15 rounded-[3px] font-chakrapetch text-flash placeholder:text-flash/35 outline-none",
           "transition-[border-color,background-color] duration-200",
           "group-focus-within:border-jade/0 group-hover:border-flash/25",
-          "group-focus-within:bg-black/40",
+          "group-focus-within:bg-filmdark/40",
           sizing,
           className
         )}
@@ -362,11 +362,11 @@ function AccountAdder({
             }}
             placeholder="name#tag"
             className={cn(
-              "relative w-full h-10 px-3.5 bg-black/30 border border-flash/15 rounded-[3px]",
+              "relative w-full h-10 px-3.5 bg-filmdark/30 border border-flash/15 rounded-[3px]",
               "font-chakrapetch text-[14px] text-flash placeholder:text-flash/35 outline-none",
               "transition-[border-color,background-color] duration-200",
               "group-focus-within:border-jade/0 group-hover:border-flash/25",
-              "group-focus-within:bg-black/40"
+              "group-focus-within:bg-filmdark/40"
             )}
           />
         </div>
@@ -377,9 +377,9 @@ function AccountAdder({
               variant="outline"
               role="combobox"
               className={cn(
-                "h-10 w-[78px] justify-between bg-black/30 border border-flash/15",
+                "h-10 w-[78px] justify-between bg-filmdark/30 border border-flash/15",
                 "font-jetbrains text-[12px] tracking-[0.18em] uppercase text-flash/85",
-                "hover:border-flash/25 hover:bg-black/40"
+                "hover:border-flash/25 hover:bg-filmdark/40"
               )}
             >
               {region}
@@ -467,7 +467,7 @@ function PlayerCard({
 
   return (
     <div
-      className="relative rounded-[2px] overflow-hidden bg-black/20 border border-flash/15"
+      className="relative rounded-[2px] overflow-hidden bg-filmdark/20 border border-flash/15"
       style={{
         boxShadow:
           "inset 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.03)",
@@ -673,7 +673,7 @@ function LinkRow({
       >
         <span style={{ fontSize: "9px" }}>◆</span> {label}
       </span>
-      <div className="flex items-center gap-2 bg-black/30 border border-flash/15 rounded-[3px] px-3 py-2.5 hover:border-flash/25 transition-colors">
+      <div className="flex items-center gap-2 bg-filmdark/30 border border-flash/15 rounded-[3px] px-3 py-2.5 hover:border-flash/25 transition-colors">
         <code className="flex-1 text-[13px] font-jetbrains text-flash/90 truncate">{value}</code>
         <button
           type="button"
@@ -845,7 +845,7 @@ export default function ScoutCreateLobbyPage() {
             </span>
           </motion.div>
           <motion.h1
-            className="font-chakrapetch text-4xl font-bold uppercase leading-[0.95] tracking-[0.02em] text-flash drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)] sm:text-[52px]"
+            className="font-chakrapetch text-4xl font-bold uppercase leading-[0.95] tracking-[0.02em] text-flash drop-shadow-[0_4px_24px_rgba(var(--c-shadow),0.9)] sm:text-[52px]"
             {...rise(0.22)}
           >
             Assemble
@@ -853,7 +853,7 @@ export default function ScoutCreateLobbyPage() {
             the squad
           </motion.h1>
           <motion.p
-            className="mt-4 max-w-[52ch] font-chakrapetch text-[14px] leading-relaxed text-flash/70 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
+            className="mt-4 max-w-[52ch] font-chakrapetch text-[14px] leading-relaxed text-flash/70 drop-shadow-[0_2px_12px_rgba(var(--c-shadow),0.9)]"
             {...rise(0.36)}
           >
             Drop in a roster of Riot accounts and Scout tracks them as one — every
@@ -869,7 +869,7 @@ export default function ScoutCreateLobbyPage() {
           <button
             type="button"
             onClick={() => setShowTutorial(true)}
-            className="group absolute right-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-md bg-black/40 px-3 py-2 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.16em] text-flash/70 backdrop-blur-sm shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] transition-[color,box-shadow] hover:text-flash hover:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.22)] cursor-clicker"
+            className="group absolute right-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-md bg-filmdark/40 px-3 py-2 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.16em] text-flash/70 backdrop-blur-sm shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] transition-[color,box-shadow] hover:text-flash hover:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.22)] cursor-clicker"
           >
             <HelpCircle className="h-3.5 w-3.5" /> What is this?
           </button>

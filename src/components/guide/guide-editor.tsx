@@ -107,7 +107,7 @@ function ChampionSearch({ onSelect, onClose }: { onSelect: (champId: string) => 
   return createPortal(
     <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 w-[420px] max-h-[460px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+      <div className="relative z-10 w-[420px] max-h-[460px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
         style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
         onClick={e => e.stopPropagation()}>
         <div className="absolute inset-0 pointer-events-none opacity-20"
@@ -173,7 +173,7 @@ function ItemSearch({ onSelect, onClose, includeComponents, keepOpen }: { onSele
   return createPortal(
     <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 w-[460px] max-h-[460px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+      <div className="relative z-10 w-[460px] max-h-[460px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
         style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
         onClick={e => e.stopPropagation()}>
         <div className="absolute inset-0 pointer-events-none opacity-20"
@@ -1031,7 +1031,7 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
       {showChampPicker && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowChampPicker(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
             style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
             onClick={e => e.stopPropagation()}>
             <div className="absolute inset-0 pointer-events-none opacity-15"
@@ -1092,7 +1092,7 @@ function MultiBuildEditor({ section, onChange }: { section: GuideSection & { typ
       {bootChampPickerIdx !== null && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setBootChampPickerIdx(null)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
             style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
             onClick={e => e.stopPropagation()}>
             <div className="absolute inset-0 pointer-events-none opacity-15"
@@ -1275,7 +1275,7 @@ function JunglePathEditor({ section, onChange }: { section: GuideSection & { typ
         style={{ minHeight: 64 }} />
 
       {/* Minimap — click to add/remove camps */}
-      <div className="relative w-[300px] h-[300px] rounded-sm overflow-hidden border border-flash/[0.08] bg-black/40">
+      <div className="relative w-[300px] h-[300px] rounded-sm overflow-hidden border border-flash/[0.08] bg-filmdark/40">
         <img src={MINIMAP_URL} alt="Map" className="w-full h-full object-cover opacity-50" draggable={false} />
         <div className="absolute inset-0 bg-liquirice/20" />
         <div className="absolute inset-0 pointer-events-none opacity-10"
@@ -1305,7 +1305,7 @@ function JunglePathEditor({ section, onChange }: { section: GuideSection & { typ
                 "w-7 h-7 rounded-full flex items-center justify-center border transition-all",
                 isSelected
                   ? "bg-black/80 border-jade/50 shadow-[0_0_10px_rgba(0,217,146,0.3)]"
-                  : "bg-black/40 border-flash/[0.15] hover:border-flash/30"
+                  : "bg-filmdark/40 border-flash/[0.15] hover:border-flash/30"
               )}>
                 {isSelected ? (
                   <span className="text-[11px] font-orbitron font-bold text-jade">{idx + 1}</span>
@@ -1322,7 +1322,7 @@ function JunglePathEditor({ section, onChange }: { section: GuideSection & { typ
       {showChampPicker && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowChampPicker(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+          <div className="relative z-10 w-[480px] max-h-[520px] rounded-md overflow-hidden shadow-[0_20px_60px_rgba(var(--c-shadow),0.6)]"
             style={{ background: "linear-gradient(180deg, #0c1517 0%, #080e10 100%)" }}
             onClick={e => e.stopPropagation()}>
             <div className="relative z-10 px-4 py-2.5 border-b border-jade/10">

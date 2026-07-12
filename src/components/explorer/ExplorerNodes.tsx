@@ -102,7 +102,7 @@ const dotStyle = (accent: string): React.CSSProperties => ({
 });
 
 const numCls =
-  "nodrag w-full h-8 bg-black/40 border border-jade/25 rounded-[4px] px-2 " +
+  "nodrag w-full h-8 bg-filmdark/40 border border-jade/25 rounded-[4px] px-2 " +
   "font-chakrapetch text-[12px] text-flash outline-none focus:border-jade/50";
 
 // Walk edges backward from a node to collect it + everything attached UPSTREAM
@@ -206,7 +206,7 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
     <div
       className={cn(
         "group relative w-[224px] rounded-[7px] border bg-[rgba(8,14,16,0.86)] backdrop-blur-md transition-colors",
-        selected ? "border-transparent" : excluded ? "border-error/45" : "border-white/10",
+        selected ? "border-transparent" : excluded ? "border-error/45" : "border-hairline/10",
         excluded && "rounded-b-none border-b-error/30", // bottom edge mates with the EXCLUDE piece keyed beneath
         droppable && "ring-2 ring-error/70 ring-offset-2 ring-offset-[#05090b] border-error/50"
       )}
@@ -272,18 +272,18 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
                 trigger={
                   <button
                     className={cn(
-                      "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-black/40 backdrop-blur-lg transition-all duration-200",
-                      d.champion ? "border-jade/30 hover:border-jade/50" : anyChamp ? "border-jade/20 hover:border-jade/40" : "border-white/10 hover:border-white/20"
+                      "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-filmdark/40 backdrop-blur-lg transition-all duration-200",
+                      d.champion ? "border-jade/30 hover:border-jade/50" : anyChamp ? "border-jade/20 hover:border-jade/40" : "border-hairline/10 hover:border-hairline/20"
                     )}
                   >
                     {d.champion ? (
-                      <img src={champIcon(d.champion)} className="w-6 h-6 rounded-[3px] border border-white/10 shrink-0" alt="" draggable={false} />
+                      <img src={champIcon(d.champion)} className="w-6 h-6 rounded-[3px] border border-hairline/10 shrink-0" alt="" draggable={false} />
                     ) : anyChamp ? (
                       <div className="w-6 h-6 rounded-[3px] grid place-items-center bg-jade/[0.06] border border-jade/25 shrink-0">
                         <span className="text-jade text-[13px] leading-none font-chakrapetch">∀</span>
                       </div>
                     ) : (
-                      <div className="w-6 h-6 rounded-[3px] bg-black/40 border border-white/10 shrink-0" />
+                      <div className="w-6 h-6 rounded-[3px] bg-filmdark/40 border border-hairline/10 shrink-0" />
                     )}
                     <span className={cn("flex-1 text-left truncate font-chakrapetch text-[12px]", d.champion ? "text-flash" : anyChamp ? "text-jade/70" : "text-flash/40")}>
                       {d.champion ? champDisplayName(d.champion) : anyChamp ? "Any champion" : "Pick a champion"}
@@ -330,14 +330,14 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
                 trigger={
                   <button
                     className={cn(
-                      "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-black/40 backdrop-blur-lg transition-all duration-200",
-                      d.itemId ? "border-citrine/30 hover:border-citrine/50" : "border-white/10 hover:border-white/20"
+                      "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-filmdark/40 backdrop-blur-lg transition-all duration-200",
+                      d.itemId ? "border-citrine/30 hover:border-citrine/50" : "border-hairline/10 hover:border-hairline/20"
                     )}
                   >
                     {d.itemId ? (
-                      <img src={itemIcon(d.itemId)} className="w-6 h-6 rounded-[3px] border border-white/10 shrink-0" alt="" draggable={false} />
+                      <img src={itemIcon(d.itemId)} className="w-6 h-6 rounded-[3px] border border-hairline/10 shrink-0" alt="" draggable={false} />
                     ) : (
-                      <div className="w-6 h-6 rounded-[3px] bg-black/40 border border-white/10 shrink-0" />
+                      <div className="w-6 h-6 rounded-[3px] bg-filmdark/40 border border-hairline/10 shrink-0" />
                     )}
                     <span className={cn("flex-1 text-left truncate font-chakrapetch text-[12px]", d.itemId ? "text-flash" : "text-flash/40")}>
                       {d.itemId ? itemName(d.itemId) : "Pick an item"}
@@ -361,14 +361,14 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
               trigger={
                 <button
                   className={cn(
-                    "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-black/40 backdrop-blur-lg transition-all duration-200",
-                    d.keystone ? "border-jade/30 hover:border-jade/50" : "border-white/10 hover:border-white/20"
+                    "nodrag group w-full h-9 px-2 gap-2 rounded-[4px] cursor-clicker outline-none flex items-center border bg-filmdark/40 backdrop-blur-lg transition-all duration-200",
+                    d.keystone ? "border-jade/30 hover:border-jade/50" : "border-hairline/10 hover:border-hairline/20"
                   )}
                 >
                   {d.keystone && getKeystoneIcon(d.keystone) ? (
-                    <img src={getKeystoneIcon(d.keystone)!} className="w-6 h-6 rounded-full border border-white/10 shrink-0" alt="" draggable={false} />
+                    <img src={getKeystoneIcon(d.keystone)!} className="w-6 h-6 rounded-full border border-hairline/10 shrink-0" alt="" draggable={false} />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-black/40 border border-white/10 shrink-0" />
+                    <div className="w-6 h-6 rounded-full bg-filmdark/40 border border-hairline/10 shrink-0" />
                   )}
                   <span className={cn("flex-1 text-left truncate font-chakrapetch text-[12px]", d.keystone ? "text-flash" : "text-flash/40")}>
                     {d.keystone ? (getKeystoneName(d.keystone) ?? "Keystone") : "Pick a keystone"}
@@ -433,7 +433,7 @@ export function ExplorerNode({ id, type, data, selected }: NodeProps) {
           edge (left/right -1px) so the seam lines up exactly. */}
       {excluded && (
         <div className="absolute top-full left-[-1px] right-[-1px] z-10 -mt-px select-none">
-          <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-b-[7px] border border-t-0 border-error/45 bg-[rgba(13,13,15,0.9)] shadow-[0_3px_8px_rgba(0,0,0,0.3)]">
+          <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-b-[7px] border border-t-0 border-error/45 bg-[rgba(13,13,15,0.9)] shadow-[0_3px_8px_rgba(var(--c-shadow),0.3)]">
             <span className="absolute left-1.5 bottom-1.5 w-[3px] h-[3px] rounded-full bg-[#1a0408] border border-error/45" />
             <span className="absolute right-1.5 bottom-1.5 w-[3px] h-[3px] rounded-full bg-[#1a0408] border border-error/45" />
             <span className="grid place-items-center w-5 h-5 rounded-[3px] bg-error/15 border border-error/30 shrink-0">

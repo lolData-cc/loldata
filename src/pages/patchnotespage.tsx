@@ -57,7 +57,7 @@ function EntityCard({ kind, entityKey, name, changes, prose }: {
         <img
           src={icon}
           alt={name}
-          className="h-11 w-11 shrink-0 rounded-lg bg-black/30 object-cover ring-1 ring-flash/10"
+          className="h-11 w-11 shrink-0 rounded-lg bg-filmdark/30 object-cover ring-1 ring-flash/10"
           onError={(e) => { e.currentTarget.style.opacity = "0.2" }}
         />
         <div className="min-w-0 flex-1">

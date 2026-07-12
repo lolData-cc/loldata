@@ -311,7 +311,7 @@ function AccountVerifyRow({
 
   // ─── Unverified row ────────────────────────────────────────────────
   return (
-    <div className="rounded-md bg-black/35 border border-flash/[0.08] overflow-hidden">
+    <div className="rounded-md bg-filmdark/35 border border-flash/[0.08] overflow-hidden">
       <div className="flex items-center gap-3 px-3 py-2.5">
         <div className="w-8 h-8 rounded-md bg-flash/[0.04] border border-flash/15 flex items-center justify-center shrink-0">
           <span className="text-[11px] font-jetbrains font-bold text-flash/55">

@@ -164,7 +164,7 @@ function BuildPanel({ participantId, timeline, scrollRef }: {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="border border-cyan-500/[0.07] rounded-md bg-[#08080a] shadow-[inset_0_0_20px_rgba(0,0,0,0.4)] flex-1 flex items-center">
+      <div className="border border-cyan-500/[0.07] rounded-md bg-[#08080a] shadow-[inset_0_0_20px_rgba(var(--c-shadow),0.4)] flex-1 flex items-center">
         <div
           ref={scrollRef}
           className="flex gap-4 overflow-x-auto scrollbar-hide px-6 py-3 w-full items-center"
@@ -181,7 +181,7 @@ function BuildPanel({ participantId, timeline, scrollRef }: {
                     <div key={`buy-${id}`} className="relative w-7 h-7">
                       <img
                         src={`${cdnBaseUrl()}/img/item/${id}.png`}
-                        className="w-7 h-7 rounded ring-1 ring-white/10"
+                        className="w-7 h-7 rounded ring-1 ring-hairline/10"
                       />
                       {count > 1 && (
                         <span className="absolute -bottom-0.5 -right-0.5 text-[8px] bg-black/90 text-flash/60 rounded px-0.5 leading-none font-mono">
@@ -194,7 +194,7 @@ function BuildPanel({ participantId, timeline, scrollRef }: {
                     <div key={`sold-${id}-${i}`} className="relative w-7 h-7 opacity-40">
                       <img
                         src={`${cdnBaseUrl()}/img/item/${id}.png`}
-                        className="w-7 h-7 rounded grayscale ring-1 ring-white/5"
+                        className="w-7 h-7 rounded grayscale ring-1 ring-hairline/5"
                       />
                       <span className="absolute -bottom-0.5 -right-0.5 text-[7px] bg-rose-900/80 text-rose-300 rounded px-0.5 leading-none font-mono">
                         X
@@ -366,11 +366,11 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
       const isBlueKill = killer?.teamId === 100;
       return (
         <div className="flex items-center gap-2">
-          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-hairline/10" />}
           <span className={isBlueKill ? "text-cyan-300" : "text-rose-300"}>{killer?.riotIdGameName ?? "Unknown"}</span>
           <span className="text-flash/20">///</span>
           <span className={!isBlueKill ? "text-cyan-300" : "text-rose-300"}>{victim?.riotIdGameName ?? "Unknown"}</span>
-          {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-hairline/10" />}
         </div>
       );
     }
@@ -381,7 +381,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
       const monsterName = getMonsterDisplayName(event.monsterType, event.monsterSubType);
       return (
         <div className="flex items-center gap-2">
-          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-white/10" />}
+          {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-5 h-5 rounded-sm ring-1 ring-hairline/10" />}
           <span className={isBlue ? "text-cyan-300" : "text-rose-300"}>{killer?.riotIdGameName ?? (isBlue ? "Blue" : "Red")}</span>
           <span className="text-flash/20">///</span>
           <span className={getMonsterColor(event.monsterType)}>{monsterName}</span>
@@ -437,11 +437,11 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
 
     return (
       <div className="flex items-center gap-2 min-w-0">
-        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-hairline/10" />}
         <span className={cn("truncate text-[11px]", isBlueKill ? "text-cyan-300/90" : "text-rose-300/90")}>{killer?.riotIdGameName ?? "Unknown"}</span>
         <span className="text-flash/15 text-[10px] shrink-0 tracking-widest">&gt;</span>
         <span className={cn("truncate text-[11px]", !isBlueKill ? "text-cyan-300/90" : "text-rose-300/90")}>{victim?.riotIdGameName ?? "Unknown"}</span>
-        {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {victim && <img src={`${cdnBaseUrl()}/img/champion/${victim.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-hairline/10" />}
         {assists > 0 && <span className="text-flash/15 text-[9px] shrink-0 tracking-wider">+{assists}</span>}
       </div>
     );
@@ -454,7 +454,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
 
     return (
       <div className="flex items-center gap-2 min-w-0">
-        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-white/10" />}
+        {killer && <img src={`${cdnBaseUrl()}/img/champion/${killer.championName}.png`} className="w-4 h-4 rounded-[3px] shrink-0 ring-1 ring-hairline/10" />}
         <span className={cn("truncate text-[11px]", isBlue ? "text-cyan-300/90" : "text-rose-300/90")}>{killer?.riotIdGameName ?? (isBlue ? "Blue" : "Red")}</span>
         <span className="text-flash/15 text-[10px] shrink-0 tracking-widest">&gt;</span>
         <span className={cn("shrink-0 text-[11px]", getMonsterColor(event.monsterType))}>{monsterName}</span>
@@ -496,7 +496,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
                 "rounded-[3px] transition-all cursor-clicker ring-1",
                 selectedBuildPlayer === i
                   ? "ring-cyan-400/60 shadow-[0_0_8px_rgba(34,211,238,0.2)] scale-110"
-                  : "ring-white/5 opacity-50 hover:opacity-80"
+                  : "ring-hairline/5 opacity-50 hover:opacity-80"
               )}
             >
               <img
@@ -579,7 +579,7 @@ export function KillMap({ timeline, participants, focusedPlayerPuuid }: Props) {
           {isEventTab ? (
             <>
               {/* Event list — no scroll, fixed rows per page */}
-              <div className="flex-1 mt-2 border border-cyan-500/[0.07] rounded-md bg-[#08080a] shadow-[inset_0_0_20px_rgba(0,0,0,0.4)]">
+              <div className="flex-1 mt-2 border border-cyan-500/[0.07] rounded-md bg-[#08080a] shadow-[inset_0_0_20px_rgba(var(--c-shadow),0.4)]">
                 {filteredEvents.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <span className="text-flash/15 font-mono text-[10px] tracking-[0.2em] uppercase">No events</span>

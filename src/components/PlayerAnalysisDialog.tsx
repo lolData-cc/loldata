@@ -157,7 +157,7 @@ function SectionCard({
 
 function StatPill({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm bg-white/[0.03] border border-white/[0.06]">
+    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06]">
       <span className="text-[9px] tracking-[0.15em] uppercase text-flash/30 font-jetbrains">
         {label}
       </span>
@@ -179,7 +179,7 @@ function PctBar({ pct, color = AC, label, sub }: { pct: number; color?: string; 
       <span className="w-[70px] text-right text-[10px] font-jetbrains text-flash/50 uppercase tracking-wider shrink-0">
         {label}
       </span>
-      <div className="flex-1 h-[6px] bg-white/[0.06] rounded-sm overflow-hidden">
+      <div className="flex-1 h-[6px] bg-filmlight/[0.06] rounded-sm overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(pct, 100)}%` }}
@@ -237,7 +237,7 @@ export function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
             <img
               src={`${cdnBaseUrl()}/img/champion/${c.championName}.png`}
               alt={c.championName}
-              className="w-7 h-7 rounded-sm border border-white/10"
+              className="w-7 h-7 rounded-sm border border-hairline/10"
             />
             <span className="w-[80px] text-[11px] font-jetbrains text-flash/80 truncate">
               {c.championName}
@@ -245,7 +245,7 @@ export function ChampionPoolSection({ data }: { data: PlayerAnalysisResult }) {
             <span className="text-[10px] font-jetbrains text-flash/40 w-[30px]">
               {c.games}g
             </span>
-            <div className="flex-1 h-[6px] bg-white/[0.06] rounded-sm overflow-hidden">
+            <div className="flex-1 h-[6px] bg-filmlight/[0.06] rounded-sm overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${c.winrate}%` }}
@@ -302,7 +302,7 @@ function WinLossSection({ data }: { data: PlayerAnalysisResult }) {
                 {m.onWin}
               </span>
               <div className="flex-1 flex items-center gap-0.5">
-                <div className="flex-1 h-[4px] bg-white/[0.06] rounded-sm overflow-hidden flex justify-end">
+                <div className="flex-1 h-[4px] bg-filmlight/[0.06] rounded-sm overflow-hidden flex justify-end">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(Math.max((m.onWin / (m.onWin + m.onLoss || 1)) * 100, 5), 95)}%` }}
@@ -311,7 +311,7 @@ function WinLossSection({ data }: { data: PlayerAnalysisResult }) {
                   />
                 </div>
                 <div className="w-px h-3 bg-flash/20" />
-                <div className="flex-1 h-[4px] bg-white/[0.06] rounded-sm overflow-hidden">
+                <div className="flex-1 h-[4px] bg-filmlight/[0.06] rounded-sm overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(Math.max((m.onLoss / (m.onWin + m.onLoss || 1)) * 100, 5), 95)}%` }}
@@ -396,7 +396,7 @@ function JungleSection({ data }: { data: PlayerAnalysisResult }) {
               ))}
             </div>
           </div>
-          <div className="w-[120px] flex flex-col items-center justify-center bg-white/[0.02] rounded-sm border border-white/[0.06] p-3">
+          <div className="w-[120px] flex flex-col items-center justify-center bg-filmlight/[0.02] rounded-sm border border-hairline/[0.06] p-3">
             <span className="text-[9px] font-jetbrains text-flash/30 uppercase tracking-[0.2em] mb-1">
               Invade Rate
             </span>
@@ -479,7 +479,7 @@ function WardDistributionSection({ data }: { data: PlayerAnalysisResult }) {
           <PctBar label="TOPSIDE" pct={tPct} color="#3b82f6" sub={`${wd.topside}w`} />
           <PctBar label="BOTSIDE" pct={bPct} color="#ef4444" sub={`${wd.botside}w`} />
           <PctBar label="NEUTRAL" pct={nPct} color="#6b7280" sub={`${wd.neutral}w`} />
-          <div className="pt-1 border-t border-white/[0.06]">
+          <div className="pt-1 border-t border-hairline/[0.06]">
             <span className="text-[9px] font-jetbrains text-flash/25">
               Total wards placed: {wd.totalWards} across {data.meta.matchesAnalyzed} games
             </span>
@@ -538,15 +538,15 @@ function BootsDistributionSection({ data }: { data: PlayerAnalysisResult }) {
                 <img
                   src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
                   alt={b.boots}
-                  className="w-7 h-7 rounded-sm border border-white/10 shrink-0"
+                  className="w-7 h-7 rounded-sm border border-hairline/10 shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-sm bg-white/5 border border-white/10 shrink-0" />
+                <div className="w-7 h-7 rounded-sm bg-filmlight/5 border border-hairline/10 shrink-0" />
               )}
               <span className="w-[110px] text-[10px] font-jetbrains text-flash/60 truncate shrink-0">
                 {b.boots}
               </span>
-              <div className="flex-1 h-[6px] bg-white/[0.06] rounded-sm overflow-hidden">
+              <div className="flex-1 h-[6px] bg-filmlight/[0.06] rounded-sm overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(b.pct, 100)}%` }}
@@ -633,7 +633,7 @@ function EarlyGameSection({ data }: { data: PlayerAnalysisResult }) {
               </div>
               <div className="flex items-center gap-3">
                 {/* Games count bar */}
-                <div className="flex-1 h-[8px] bg-white/[0.04] rounded-sm overflow-hidden">
+                <div className="flex-1 h-[8px] bg-filmlight/[0.04] rounded-sm overflow-hidden">
                   {b.games > 0 && (
                     <motion.div
                       initial={{ width: 0 }}
@@ -665,8 +665,8 @@ function EarlyGameSection({ data }: { data: PlayerAnalysisResult }) {
         </div>
 
         {/* Average diffs + First blood */}
-        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/[0.06]">
-          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-white/[0.03] border border-white/[0.06]">
+        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-hairline/[0.06]">
+          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06]">
             <span className="text-[8px] tracking-[0.15em] uppercase text-flash/30 font-jetbrains">
               AVG KILL DIFF
             </span>
@@ -677,7 +677,7 @@ function EarlyGameSection({ data }: { data: PlayerAnalysisResult }) {
               {eg.avgKillDiffAtTen >= 0 ? "+" : ""}{eg.avgKillDiffAtTen}
             </span>
           </div>
-          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06]">
             <span className="text-[8px] tracking-[0.15em] uppercase text-flash/30 font-jetbrains">
               AVG GOLD DIFF
             </span>
@@ -688,7 +688,7 @@ function EarlyGameSection({ data }: { data: PlayerAnalysisResult }) {
               {eg.avgGoldDiffAtTen >= 0 ? "+" : ""}{eg.avgGoldDiffAtTen}
             </span>
           </div>
-          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06]">
             <span className="text-[8px] tracking-[0.15em] uppercase text-flash/30 font-jetbrains">
               AVG CS DIFF
             </span>
@@ -699,7 +699,7 @@ function EarlyGameSection({ data }: { data: PlayerAnalysisResult }) {
               {eg.avgCsDiffAtTen >= 0 ? "+" : ""}{eg.avgCsDiffAtTen}
             </span>
           </div>
-          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06]">
             <span className="text-[8px] tracking-[0.15em] uppercase text-flash/30 font-jetbrains">
               FIRST BLOOD
             </span>
@@ -1089,7 +1089,7 @@ export function PlayerAnalysisDialog({
 
             <div className="relative z-[5]">
               {/* Header */}
-              <div className="px-5 pt-5 pb-3 border-b border-white/[0.06]">
+              <div className="px-5 pt-5 pb-3 border-b border-hairline/[0.06]">
                 <div
                   className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase mb-1"
                   style={{ color: "rgba(255,182,21,0.5)" }}
@@ -1217,7 +1217,7 @@ export function PlayerAnalysisDialog({
 
             <div className="relative z-[5]">
               {/* ── Header ────────────────────────────────── */}
-              <div className="px-6 pt-5 pb-3 border-b border-white/[0.06]">
+              <div className="px-6 pt-5 pb-3 border-b border-hairline/[0.06]">
                 <div
                   className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase mb-1"
                   style={{ color: `color-mix(in srgb, ${AC} 50%, transparent)` }}
@@ -1326,7 +1326,7 @@ export function PlayerAnalysisDialog({
                       {/* Progress bar */}
                       {progress.total > 0 && (
                         <div className="w-full max-w-xs">
-                          <div className="relative h-[3px] bg-white/[0.06] rounded-full overflow-hidden">
+                          <div className="relative h-[3px] bg-filmlight/[0.06] rounded-full overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
                               style={{ background: `linear-gradient(90deg, ${AC}, ${CITRINE})` }}

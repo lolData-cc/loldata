@@ -110,7 +110,7 @@ export default function ScoutLobbiesManager() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="h-16 rounded-[2px] border border-flash/8 bg-black/20 animate-pulse"
+            className="h-16 rounded-[2px] border border-flash/8 bg-filmdark/20 animate-pulse"
           />
         ))}
       </div>
@@ -131,7 +131,7 @@ export default function ScoutLobbiesManager() {
   return (
     <div className="space-y-4">
       {/* QUOTA HEADER */}
-      <div className="relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
+      <div className="relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
         <div className="relative z-[1] px-4 py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
@@ -202,7 +202,7 @@ export default function ScoutLobbiesManager() {
 
       {/* LOBBIES LIST */}
       {data.lobbies.length === 0 ? (
-        <div className="rounded-[2px] border border-dashed border-flash/15 bg-black/20 px-6 py-10 flex flex-col items-center text-center gap-3">
+        <div className="rounded-[2px] border border-dashed border-flash/15 bg-filmdark/20 px-6 py-10 flex flex-col items-center text-center gap-3">
           <div className="relative w-10 h-10">
             <span className="absolute inset-0 rotate-45 rounded-[3px] border border-jade/30 bg-jade/5" />
             <span className="absolute inset-0 flex items-center justify-center text-jade/60">
@@ -231,7 +231,7 @@ export default function ScoutLobbiesManager() {
             <Link
               key={lobby.slug}
               to={`/scout/${lobby.slug}`}
-              className="group relative block rounded-[2px] border border-flash/10 bg-black/25 hover:bg-black/35 hover:border-jade/25 hover:shadow-[0_0_15px_rgba(0,217,146,0.08)] transition-all overflow-hidden"
+              className="group relative block rounded-[2px] border border-flash/10 bg-filmdark/25 hover:bg-filmdark/35 hover:border-jade/25 hover:shadow-[0_0_15px_rgba(0,217,146,0.08)] transition-all overflow-hidden"
             >
               <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-flash/20 group-hover:bg-jade/50 transition-colors" />
               <div className="relative z-10 px-4 py-3 pl-5 flex items-center gap-4">

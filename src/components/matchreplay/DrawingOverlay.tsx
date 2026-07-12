@@ -207,7 +207,7 @@ export function DrawingToolbar({ tool, setTool, color, setColor, onClear, onUndo
   return (
     <div className="absolute top-2 left-2 z-[120] flex flex-col gap-1 pointer-events-auto">
       {/* Mode buttons */}
-      <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+      <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(var(--c-shadow),0.55)]">
         <ToolBtn
           icon={<MousePointer2 className="w-3.5 h-3.5" />}
           label="select"
@@ -230,7 +230,7 @@ export function DrawingToolbar({ tool, setTool, color, setColor, onClear, onUndo
 
       {/* Color swatches — only visible when pen tool is active */}
       {tool === "pen" && (
-        <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+        <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(var(--c-shadow),0.55)]">
           {DRAW_COLORS.map((c) => (
             <button
               key={c}
@@ -249,7 +249,7 @@ export function DrawingToolbar({ tool, setTool, color, setColor, onClear, onUndo
 
       {/* Undo + Clear — only show if there's something to act on */}
       {hasStrokes && (
-        <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+        <div className="flex flex-col gap-0.5 p-1 rounded-sm bg-liquirice/80 backdrop-blur-md ring-1 ring-flash/10 shadow-[0_4px_14px_rgba(var(--c-shadow),0.55)]">
           <ToolBtn
             icon={<Undo2 className="w-3.5 h-3.5" />}
             label="undo"

@@ -211,7 +211,7 @@ export function AccountLinkOverride() {
       </div>
 
       {/* Identity card — who's being edited + current link state. */}
-      <div className="rounded-md border border-citrine/15 bg-black/30 backdrop-blur-md p-4">
+      <div className="rounded-md border border-citrine/15 bg-filmdark/30 backdrop-blur-md p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] font-jetbrains">
           <div>
             <div className="text-[9px] uppercase tracking-[0.22em] text-flash/35 mb-1">
@@ -254,14 +254,14 @@ export function AccountLinkOverride() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Faker"
               disabled={linking}
-              className="w-full bg-black/30 border border-flash/15 focus:border-citrine/55 rounded-sm px-3 py-2 text-sm text-flash placeholder:text-flash/25 font-jetbrains outline-none transition-colors disabled:opacity-60"
+              className="w-full bg-filmdark/30 border border-flash/15 focus:border-citrine/55 rounded-sm px-3 py-2 text-sm text-flash placeholder:text-flash/25 font-jetbrains outline-none transition-colors disabled:opacity-60"
             />
           </div>
           <div className="w-full sm:w-32">
             <label className="block text-[9px] uppercase tracking-[0.22em] text-flash/35 mb-1.5">
               Tag
             </label>
-            <div className="flex items-center bg-black/30 border border-flash/15 focus-within:border-citrine/55 rounded-sm px-3 py-2 transition-colors">
+            <div className="flex items-center bg-filmdark/30 border border-flash/15 focus-within:border-citrine/55 rounded-sm px-3 py-2 transition-colors">
               <span className="text-flash/35 text-sm font-jetbrains mr-0.5">#</span>
               <input
                 value={tag}
@@ -278,7 +278,7 @@ export function AccountLinkOverride() {
           <label className="block text-[9px] uppercase tracking-[0.22em] text-flash/35 mb-1.5">
             Region
           </label>
-          <div className="inline-flex rounded-sm border border-flash/[0.12] bg-white/[0.02] p-[3px]">
+          <div className="inline-flex rounded-sm border border-flash/[0.12] bg-filmlight/[0.02] p-[3px]">
             {regions.map((r) => (
               <button
                 key={r}

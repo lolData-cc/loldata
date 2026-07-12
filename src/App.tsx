@@ -1,6 +1,8 @@
 import { Routes, Route, useLocation } from "react-router-dom"
 import { useEffect, useRef } from "react";
 import { useAmbientLight } from "@/hooks/useAmbientLight";
+import { useTheme } from "@/hooks/useTheme";
+import { applyThemeClass } from "@/lib/uiPrefs";
 import { Navbar } from "@/components/navbar"
 import { supabase } from "@/lib/supabaseClient"
 import { Footer } from "@/components/footer"
@@ -9,6 +11,7 @@ import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
 import LearnPage from "@/pages/learnpage"
 import ExplorerPage from "@/pages/explorerpage"
+import ImprovementTreePage from "@/pages/improvementtreepage"
 import LoginPage from "@/pages/loginpage"
 import MatchPage from "@/pages/matchpage"
 import PlayerProfilePage from "@/pages/playerprofilepage"
@@ -140,6 +143,7 @@ export function RootLayout({
   children: React.ReactNode;
 }>) {
   const { pathname } = useLocation()
+  const { theme } = useTheme()
   // Champion DETAIL pages (/champions/<id>…) get the match-page treatment: the
   // full-bleed splash hero slides UP under a floating, transparent navbar (no
   // reserved spacer, no top margin) instead of sitting below a solid bar.
@@ -161,18 +165,6 @@ export function RootLayout({
 
   return (
     <>
-      <Toaster
-        position="top-right"
-        closeButton={false}
-        toastOptions={{
-          classNames: {
-            title: "font-jetbrains !text-flash/40 ",
-            description: "font-geist !text-flash",
-            actionButton: "!bg-jade/20 uppercase font-jetbrains",
-            toast: "!bg-liquirice !border-flash/20",
-          },
-        }}
-      />
       <div
         ref={scrollRef}
         className="relative font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full min-h-full flex justify-center overflow-y-scroll scrollbar-hide"
@@ -191,15 +183,30 @@ export function RootLayout({
   )
 }
 function App() {
+  const { theme } = useTheme()
+  // Keep <html> class in sync with the stored theme — covers cross-tab
+  // changes (the storage event updates the hook, this flips the class) and
+  // any first-mount drift from the pre-paint boot script in index.html.
+  useEffect(() => { applyThemeClass(theme) }, [theme])
   return (
       <AuthProvider>
         <LiveViewerProvider>
           <ChampionPickerProvider>
+            {/* Single global Toaster — mounted here (App) so it covers every
+                route exactly once. A second one used to live in RootLayout,
+                which double-rendered every toast on RootLayout pages. */}
             <Toaster
               position="top-right"
-              theme="dark"
-              richColors
-              closeButton
+              theme={theme}
+              closeButton={false}
+              toastOptions={{
+                classNames: {
+                  title: "font-jetbrains !text-flash/40 ",
+                  description: "font-geist !text-flash",
+                  actionButton: "!bg-jade/20 uppercase font-jetbrains",
+                  toast: "!bg-liquirice !border-flash/20",
+                },
+              }}
             />
 
             <LiveToastOnBoot />
@@ -224,6 +231,14 @@ function App() {
                 element={
                   <AuthGuard>
                     <ExplorerPage />
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/learn/tree"
+                element={
+                  <AuthGuard>
+                    <ImprovementTreePage />
                   </AuthGuard>
                 }
               />

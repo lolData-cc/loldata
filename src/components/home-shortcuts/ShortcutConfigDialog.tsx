@@ -266,9 +266,9 @@ function TypeGrid({
             title={disabled ? t.disabledReason : undefined}
             className={cn(
               "group text-left rounded-sm p-3 border transition-all duration-200 cursor-clicker",
-              "bg-white/[0.02] border-white/[0.06]",
+              "bg-filmlight/[0.02] border-hairline/[0.06]",
               "hover:border-jade/35 hover:bg-jade/[0.06]",
-              "disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white/[0.02] disabled:hover:border-white/[0.06]"
+              "disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-filmlight/[0.02] disabled:hover:border-hairline/[0.06]"
             )}
           >
             <div className="flex items-center gap-2 mb-1">
@@ -332,10 +332,10 @@ const labelClass =
   "block font-jetbrains text-[9px] tracking-[0.22em] uppercase text-flash/40 mb-1.5"
 
 const inputClass = cn(
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-sm",
+  "w-full bg-filmlight/[0.03] border border-hairline/[0.08] rounded-sm",
   "px-3 py-2 text-[13px] font-jetbrains text-flash",
   "placeholder:text-flash/20",
-  "focus:outline-none focus:border-jade/35 focus:bg-white/[0.05]",
+  "focus:outline-none focus:border-jade/35 focus:bg-filmlight/[0.05]",
   "transition-colors duration-150"
 )
 
@@ -351,7 +351,7 @@ function FormFooter({
   saveDisabled?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/[0.05]">
+    <div className="flex items-center justify-between pt-2 mt-1 border-t border-hairline/[0.05]">
       <button
         type="button"
         onClick={onCancel}
@@ -747,7 +747,7 @@ function SegmentedPicker({
               "transition-all duration-200",
               active
                 ? "text-jade bg-jade/10 border-jade/30"
-                : "text-flash/40 border-white/[0.06] hover:text-flash/65 hover:border-white/[0.14] bg-black/30"
+                : "text-flash/40 border-hairline/[0.06] hover:text-flash/65 hover:border-hairline/[0.14] bg-filmdark/30"
             )}
           >
             {opt.label}
@@ -778,7 +778,7 @@ function CheckRow({
           "w-4 h-4 rounded-[3px] border flex items-center justify-center transition-all duration-200",
           checked
             ? "border-jade bg-jade/20 shadow-[0_0_8px_rgba(0,217,146,0.3)]"
-            : "border-flash/25 bg-white/[0.02]"
+            : "border-flash/25 bg-filmlight/[0.02]"
         )}
       >
         {checked && (
@@ -897,11 +897,11 @@ function ChampionCombobox({
         <div
           className={cn(
             "absolute left-0 right-0 mt-2 z-50 rounded-sm overflow-hidden",
-            "bg-black/90 backdrop-blur-xl border border-white/10",
-            "shadow-[0_16px_44px_rgba(0,0,0,0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
+            "bg-black/90 backdrop-blur-xl border border-hairline/10",
+            "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
           )}
         >
-          <div className="p-2 border-b border-white/[0.06]">
+          <div className="p-2 border-b border-hairline/[0.06]">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-flash/25 pointer-events-none" />
               <input
@@ -910,7 +910,7 @@ function ChampionCombobox({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search champion…"
                 className={cn(
-                  "w-full bg-white/[0.03] border border-white/[0.06] rounded-sm",
+                  "w-full bg-filmlight/[0.03] border border-hairline/[0.06] rounded-sm",
                   "pl-8 pr-2 py-1.5 text-[12px] font-jetbrains text-flash placeholder:text-flash/20",
                   "focus:outline-none focus:border-jade/30"
                 )}
@@ -939,13 +939,13 @@ function ChampionCombobox({
                       "transition-colors duration-100",
                       active
                         ? "bg-jade/[0.10] text-jade"
-                        : "text-flash/80 hover:bg-white/[0.04] hover:text-jade"
+                        : "text-flash/80 hover:bg-filmlight/[0.04] hover:text-jade"
                     )}
                   >
                     <img
                       src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(c.name)}.png`}
                       alt=""
-                      className="w-5 h-5 rounded-full ring-1 ring-white/[0.08]"
+                      className="w-5 h-5 rounded-full ring-1 ring-hairline/[0.08]"
                       draggable={false}
                     />
                     <span className="font-chakrapetch text-[12px] tracking-wide">
@@ -1072,8 +1072,8 @@ function ScoutPlayerCombobox({
         <div
           className={cn(
             "absolute left-0 right-0 mt-2 z-50 rounded-sm overflow-hidden",
-            "bg-black/90 backdrop-blur-xl border border-white/10",
-            "shadow-[0_16px_44px_rgba(0,0,0,0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
+            "bg-black/90 backdrop-blur-xl border border-hairline/10",
+            "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
           )}
         >
           <div className="max-h-[200px] overflow-y-auto cyber-scrollbar p-1">
@@ -1087,7 +1087,7 @@ function ScoutPlayerCombobox({
                 "w-full text-left px-2 py-1.5 rounded-sm font-chakrapetch text-[12px] tracking-wide cursor-clicker",
                 !value
                   ? "bg-jade/[0.10] text-jade"
-                  : "text-flash/55 hover:bg-white/[0.04] hover:text-jade"
+                  : "text-flash/55 hover:bg-filmlight/[0.04] hover:text-jade"
               )}
             >
               Any player
@@ -1106,7 +1106,7 @@ function ScoutPlayerCombobox({
                     "w-full text-left px-2 py-1.5 rounded-sm font-chakrapetch text-[12px] tracking-wide cursor-clicker",
                     active
                       ? "bg-jade/[0.10] text-jade"
-                      : "text-flash/80 hover:bg-white/[0.04] hover:text-jade"
+                      : "text-flash/80 hover:bg-filmlight/[0.04] hover:text-jade"
                   )}
                 >
                   {p.displayName}
@@ -1235,8 +1235,8 @@ function MyLobbiesCombobox({
         <div
           className={cn(
             "absolute left-0 right-0 mt-2 z-50 rounded-sm overflow-hidden",
-            "bg-black/90 backdrop-blur-xl border border-white/10",
-            "shadow-[0_16px_44px_rgba(0,0,0,0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
+            "bg-black/90 backdrop-blur-xl border border-hairline/10",
+            "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
           )}
         >
           <div className="max-h-[240px] overflow-y-auto cyber-scrollbar p-1">
@@ -1255,7 +1255,7 @@ function MyLobbiesCombobox({
                     "transition-colors duration-100",
                     active
                       ? "bg-jade/[0.10] text-jade"
-                      : "text-flash/80 hover:bg-white/[0.04] hover:text-jade"
+                      : "text-flash/80 hover:bg-filmlight/[0.04] hover:text-jade"
                   )}
                 >
                   <div className="min-w-0 flex-1">

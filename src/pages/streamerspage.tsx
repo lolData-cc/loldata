@@ -80,8 +80,8 @@ function CopyBox({ text, note }: { text: string; note?: string }) {
 
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/25 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 );
 
 /* ── Fade in animation wrapper ─────────────────────────────────────── */
@@ -104,8 +104,8 @@ function FadeIn({ children, className = "", delay = 0 }: { children: React.React
 
 /* ── Shared styles ─────────────────────────────────────────────────── */
 
-const inputCls = "w-full rounded-sm border border-flash/15 bg-black/40 px-3 py-2 text-[12px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
-const selectCls = "w-full rounded-sm border border-flash/15 bg-black/40 px-3 py-2 text-[12px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
+const inputCls = "w-full rounded-sm border border-flash/15 bg-filmdark/40 px-3 py-2 text-[12px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
+const selectCls = "w-full rounded-sm border border-flash/15 bg-filmdark/40 px-3 py-2 text-[12px] text-flash font-mono outline-none focus:border-jade/30 cursor-clicker";
 
 /* ── Main page ─────────────────────────────────────────────────────── */
 

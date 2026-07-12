@@ -97,7 +97,7 @@ export default function ChampionPage() {
         <h1 className="mb-2 text-xl font-semibold">Radial Champion Selector</h1>
         <p className="text-sm text-neutral-400">Wheel con finestra di colonne per una migliore leggibilità.</p>
         {confirmed && (
-          <div className="mt-4 flex items-center gap-3 rounded-md border border-white/10 bg-neutral-900/50 p-3 text-sm text-neutral-200">
+          <div className="mt-4 flex items-center gap-3 rounded-md border border-hairline/10 bg-neutral-900/50 p-3 text-sm text-neutral-200">
             <img
               src={confirmed.image || "/placeholder.svg"}
               alt={`${confirmed.label} portrait`}

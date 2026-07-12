@@ -10,7 +10,9 @@ export function getKdaClass(kda: string | number): string {
   if (num < 3) return 'text-flash/50';
   if (num < 4) return 'text-jade/70';
   if (num < 5) return 'text-jade';
-  return 'text-jade drop-shadow-[0_0_4px_rgba(0,217,146,0.4)]';
+  // Elite territory rewards orange; 6+ glows.
+  if (num < 6) return 'text-[#ff9838]';
+  return 'text-[#ff9838] drop-shadow-[0_0_8px_rgba(255,152,56,0.85)] drop-shadow-[0_0_3px_rgba(255,152,56,0.7)]';
 }
 
 export function getKdaBackgroundStyle(kda: string | number) {

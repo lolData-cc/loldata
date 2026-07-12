@@ -170,7 +170,7 @@ function ItemNode({
             ? "border-citrine/60 bg-citrine/[0.06]"
             : big
               ? "border-jade/25 bg-jade/[0.04] hover:border-jade/45"
-              : "border-white/[0.07] bg-black/30 hover:border-white/20"
+              : "border-hairline/[0.07] bg-filmdark/30 hover:border-hairline/20"
         )}
       >
         <div className="relative">
@@ -230,7 +230,7 @@ function Shell({
   bare?: boolean;
 }) {
   return (
-    <div className={cn("deep-section", !bare && "rounded-[12px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5")} style={{ animationDelay: "150ms" }}>
+    <div className={cn("deep-section", !bare && "rounded-[12px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.55)] p-4 md:p-5")} style={{ animationDelay: "150ms" }}>
       {(!bare || coverage != null) && (
       <div className="flex items-center justify-between gap-3 mb-3.5">
         {bare ? <span /> : (

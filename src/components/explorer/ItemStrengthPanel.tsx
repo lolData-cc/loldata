@@ -56,9 +56,9 @@ export function ItemStrengthPanel({
   return (
     <div className="absolute inset-0 z-[30] grid place-items-center p-4" style={{ animation: "deepDiveExpand 0.28s cubic-bezier(0.16,1,0.3,1)" }}>
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[560px] max-h-[86vh] overflow-y-auto cyber-scrollbar rounded-[14px] border border-jade/20 bg-[rgba(6,12,14,0.97)] p-5 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+      <div className="relative w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[560px] max-h-[86vh] overflow-y-auto cyber-scrollbar rounded-[14px] border border-jade/20 bg-[rgba(6,12,14,0.97)] p-5 shadow-[0_0_40px_rgba(var(--c-shadow),0.6)]">
         {/* header */}
-        <div className="flex items-start gap-3 pb-4 mb-4 border-b border-white/[0.07]">
+        <div className="flex items-start gap-3 pb-4 mb-4 border-b border-hairline/[0.07]">
           <img
             src={itemIcon(itemId)}
             onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
@@ -78,7 +78,7 @@ export function ItemStrengthPanel({
               </div>
             )}
           </div>
-          <button onClick={onClose} title="Close (Esc)" className="shrink-0 grid place-items-center w-8 h-8 rounded-[6px] border border-white/10 text-flash/45 hover:text-flash hover:border-white/25 transition-colors cursor-clicker">
+          <button onClick={onClose} title="Close (Esc)" className="shrink-0 grid place-items-center w-8 h-8 rounded-[6px] border border-hairline/10 text-flash/45 hover:text-flash hover:border-hairline/25 transition-colors cursor-clicker">
             <X size={16} />
           </button>
         </div>
@@ -108,7 +108,7 @@ export function ItemStrengthPanel({
                 ))}
               </>
             ) : (
-              <div className="rounded-[9px] border border-white/[0.07] bg-black/30 px-4 py-3 text-[11.5px] font-chakrapetch text-flash/55 leading-relaxed">
+              <div className="rounded-[9px] border border-hairline/[0.07] bg-filmdark/30 px-4 py-3 text-[11.5px] font-chakrapetch text-flash/55 leading-relaxed">
                 No enemy-composition produced a statistically significant winrate shift for this item — it performs about the same regardless of who you face (or the per-matchup samples are still too small to call).
               </div>
             )}
@@ -144,7 +144,7 @@ function VerdictRow({ v, muted }: { v: StrengthVerdict; muted?: boolean }) {
     <div
       className={cn(
         "flex items-center gap-3 rounded-[9px] border px-3 py-2.5",
-        muted ? "border-white/[0.05] bg-black/20 opacity-70" : strong ? "border-jade/25 bg-jade/[0.05]" : weak ? "border-error/25 bg-error/[0.05]" : "border-white/[0.07] bg-black/30"
+        muted ? "border-hairline/[0.05] bg-filmdark/20 opacity-70" : strong ? "border-jade/25 bg-jade/[0.05]" : weak ? "border-error/25 bg-error/[0.05]" : "border-hairline/[0.07] bg-filmdark/30"
       )}
     >
       {/* category icon / badge */}
@@ -152,7 +152,7 @@ function VerdictRow({ v, muted }: { v: StrengthVerdict; muted?: boolean }) {
         {isClass(v.category) ? (
           <img src={categoryIcon(v.category)} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} className="w-7 h-7 object-contain" alt={v.category} />
         ) : (
-          <span className="px-1.5 py-0.5 rounded-[4px] border border-white/15 text-[9px] font-chakrapetch font-bold text-flash/70">{v.category}</span>
+          <span className="px-1.5 py-0.5 rounded-[4px] border border-hairline/15 text-[9px] font-chakrapetch font-bold text-flash/70">{v.category}</span>
         )}
       </div>
 

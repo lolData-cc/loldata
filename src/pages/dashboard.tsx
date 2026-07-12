@@ -35,6 +35,7 @@ import { ContextMenuActionsPreference } from "@/components/contextmenuactionspre
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
 import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreference";
 import { AmbientLightPreference } from "@/components/ambientlightpreference";
+import { ThemePreference } from "@/components/themepreference";
 import { ChangePassword } from "@/components/changepassword";
 import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
 import { cdnBaseUrl, API_BASE_URL, BOX_API_BASE_URL } from "@/config";
@@ -180,8 +181,8 @@ export default function DashboardPage() {
                 {/* User identity card */}
                 <div
                   className={cn(
-                    "relative mx-2 mb-3 rounded-[2px] border border-flash/10 bg-black/30 overflow-hidden",
-                    nametag && userRegion && "cursor-clicker hover:bg-black/40 transition-colors"
+                    "relative mx-2 mb-3 rounded-[2px] border border-flash/10 bg-filmdark/30 overflow-hidden",
+                    nametag && userRegion && "cursor-clicker hover:bg-filmdark/40 transition-colors"
                   )}
                   onClick={() => {
                     if (nametag && userRegion) {
@@ -325,6 +326,7 @@ export default function DashboardPage() {
                   {/* GENERAL */}
                   <div className="space-y-3">
                     <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: GENERAL ::</p>
+                    <ThemePreference />
                     <AmbientLightPreference />
                     <LegacyRankIconsPreference />
                   </div>
@@ -361,7 +363,7 @@ export default function DashboardPage() {
                           Choose between Sheet (shadcn) and Radial dock.
                         </span>
 
-                        <div className="relative flex shrink-0 rounded-sm border border-white/[0.08] bg-white/[0.02] p-[3px]">
+                        <div className="relative flex shrink-0 rounded-sm border border-hairline/[0.08] bg-filmlight/[0.02] p-[3px]">
                           {/* Sliding indicator */}
                           <div
                             className={cn(
@@ -603,7 +605,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
 
       {/* Membership — plan · AI credits · perks · actions, one cohesive frame. */}
       <motion.div
-        className="relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-lg saturate-150"
+        className="relative overflow-hidden rounded-lg bg-filmdark/40 backdrop-blur-lg saturate-150 glass-panel"
         style={{
           boxShadow: isPaid
             ? "0 22px 60px rgba(0,0,0,0.6), 0 0 36px rgba(0,217,146,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
@@ -618,7 +620,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
         {/* Top row — PLAN | AI CREDITS */}
         <div className="grid grid-cols-1 md:grid-cols-2">
           {/* Plan */}
-          <div className="relative p-6 border-b md:border-b-0 md:border-r border-white/[0.07]">
+          <div className="relative p-6 border-b md:border-b-0 md:border-r border-hairline/[0.07]">
             {isPaid ? (
               <div
                 aria-hidden
@@ -719,7 +721,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
         </div>
 
         {/* Perks */}
-        <div className="border-t border-white/[0.07] px-6 py-5">
+        <div className="border-t border-hairline/[0.07] px-6 py-5">
           <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-flash/40">
             {isPaid ? "Included with your plan" : "Free tier includes"}
           </div>
@@ -756,7 +758,7 @@ function BillingTabContent({ plan }: { plan: string | null }) {
         </div>
 
         {/* Action bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] bg-black/20 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline/[0.07] bg-filmdark/20 px-6 py-4">
           {isPaid ? (
             <motion.button
               type="button"
@@ -918,7 +920,7 @@ function PlanSetupContent({ currentPlan }: { currentPlan: string | null }) {
 
       {/* Identity card — shows who's editing what so an admin doesn't
           accidentally fire this on a session they didn't expect. */}
-      <div className="rounded-md border border-citrine/15 bg-black/30 backdrop-blur-md p-4">
+      <div className="rounded-md border border-citrine/15 bg-filmdark/30 backdrop-blur-md p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] font-jetbrains">
           <div>
             <div className="text-[9px] uppercase tracking-[0.22em] text-flash/35 mb-1">
@@ -972,7 +974,7 @@ function PlanSetupContent({ currentPlan }: { currentPlan: string | null }) {
                   "disabled:cursor-not-allowed",
                   isCurrent
                     ? "border-jade/55 bg-jade/10 shadow-[0_0_24px_rgba(0,217,146,0.25)]"
-                    : "border-flash/15 bg-black/30 hover:border-citrine/45 hover:bg-citrine/[0.05]"
+                    : "border-flash/15 bg-filmdark/30 hover:border-citrine/45 hover:bg-citrine/[0.05]"
                 )}
               >
                 <div className="flex items-start justify-between mb-2">

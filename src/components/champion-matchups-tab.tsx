@@ -79,7 +79,7 @@ const GLASS: React.CSSProperties = {
 
 // shared panel chrome (matches the Explorer's BuildPathViz shell, so the runes +
 // build-path cards in the game-plan row read as one coherent set)
-const PANEL = "rounded-[14px] border border-white/[0.08] bg-[rgba(6,12,14,0.55)]"
+const PANEL = "rounded-[14px] border border-hairline/[0.08] bg-[rgba(6,12,14,0.55)]"
 
 // Flat grid — used when WebGL is unavailable AND as the orbit's error-boundary
 // fallback (a thrown WebGL texture error must never take down the whole tab).
@@ -308,7 +308,7 @@ function MatchupSearch({ nodes, onPick }: { nodes: MatchupNode[]; onPick: (k: st
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         placeholder="Search a matchup…"
-        className="w-full h-11 rounded-xl bg-black/30 ring-1 ring-inset ring-white/10 focus:ring-jade/40 pl-9 pr-3 font-jetbrains text-[12px] text-flash/85 placeholder:text-flash/30 outline-none transition-shadow"
+        className="w-full h-11 rounded-xl bg-filmdark/30 ring-1 ring-inset ring-hairline/10 focus:ring-jade/40 pl-9 pr-3 font-jetbrains text-[12px] text-flash/85 placeholder:text-flash/30 outline-none transition-shadow"
       />
       {open && results.length > 0 && (
         <div className="absolute z-30 mt-1.5 w-full rounded-xl border border-jade/15 bg-[rgba(6,12,14,0.97)] backdrop-blur-md p-1 max-h-[280px] overflow-y-auto cyber-scrollbar" style={{ boxShadow: "0 30px 60px -25px rgba(0,0,0,0.8)" }}>
@@ -434,9 +434,9 @@ function RunesCard({ championKey, opponentKey, opponentName }: { championKey: nu
         <div className="flex flex-col items-center text-center">
           {/* keystone */}
           {getKeystoneIcon(top.perk_keystone) ? (
-            <img src={getKeystoneIcon(top.perk_keystone)!} alt="" className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-black/40 p-1.5" style={{ boxShadow: "0 0 22px rgba(0,217,146,0.25)" }} />
+            <img src={getKeystoneIcon(top.perk_keystone)!} alt="" className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-filmdark/40 p-1.5" style={{ boxShadow: "0 0 22px rgba(0,217,146,0.25)" }} />
           ) : (
-            <div className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-black/40" />
+            <div className="w-16 h-16 rounded-full ring-1 ring-jade/30 bg-filmdark/40" />
           )}
           <div className="mt-2.5 font-chakrapetch text-[15px] font-bold text-flash/90">{getKeystoneName(top.perk_keystone) ?? "Keystone"}</div>
 
@@ -463,8 +463,8 @@ function TreePill({ styleId }: { styleId: number }) {
   const icon = getStyleIcon(styleId)
   const name = getStyleName(styleId)
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.04] ring-1 ring-inset ring-white/10 pl-1 pr-2.5 py-1">
-      {icon ? <img src={icon} alt="" className="w-5 h-5" /> : <span className="w-5 h-5 rounded-full bg-white/10" />}
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-filmlight/[0.04] ring-1 ring-inset ring-hairline/10 pl-1 pr-2.5 py-1">
+      {icon ? <img src={icon} alt="" className="w-5 h-5" /> : <span className="w-5 h-5 rounded-full bg-filmlight/10" />}
       <span className="font-chakrapetch text-[11px] font-semibold text-flash/70">{name ?? "—"}</span>
     </span>
   )
@@ -472,7 +472,7 @@ function TreePill({ styleId }: { styleId: number }) {
 
 function Stat({ label, value, good }: { label: string; value: string; good?: boolean }) {
   return (
-    <div className="rounded-lg bg-black/25 ring-1 ring-inset ring-white/[0.06] py-2">
+    <div className="rounded-lg bg-filmdark/25 ring-1 ring-inset ring-hairline/[0.06] py-2">
       <div className={cn("font-chakrapetch text-[15px] font-bold tabular-nums", good == null ? "text-flash/85" : good ? "text-jade" : "text-[#ff6286]")}>{value}</div>
       <div className="font-jetbrains text-[8px] uppercase tracking-[0.16em] text-flash/35 mt-0.5">{label}</div>
     </div>

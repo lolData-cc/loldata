@@ -86,14 +86,14 @@ export function ChangePassword() {
                   placeholder="New password"
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[2px] border border-flash/10 bg-black/30 text-flash/80 text-sm font-mono placeholder:text-flash/20 focus:outline-none focus:border-jade/30 transition-colors"
+                  className="w-full px-3 py-2 rounded-[2px] border border-flash/10 bg-filmdark/30 text-flash/80 text-sm font-mono placeholder:text-flash/20 focus:outline-none focus:border-jade/30 transition-colors"
                 />
                 <input
                   type="password"
                   placeholder="Confirm new password"
                   value={confirmPw}
                   onChange={(e) => setConfirmPw(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[2px] border border-flash/10 bg-black/30 text-flash/80 text-sm font-mono placeholder:text-flash/20 focus:outline-none focus:border-jade/30 transition-colors"
+                  className="w-full px-3 py-2 rounded-[2px] border border-flash/10 bg-filmdark/30 text-flash/80 text-sm font-mono placeholder:text-flash/20 focus:outline-none focus:border-jade/30 transition-colors"
                 />
 
                 {newPw && confirmPw && newPw !== confirmPw && (

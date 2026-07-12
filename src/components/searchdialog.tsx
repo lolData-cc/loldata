@@ -680,7 +680,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             className={cn(
               "relative overflow-hidden rounded-md",
               "bg-black/75 backdrop-blur-xl saturate-150",
-              "shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_40px_rgba(0,217,146,0.08),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.04)]"
+              "shadow-[0_24px_70px_rgba(var(--c-shadow),0.75),0_0_40px_rgba(0,217,146,0.08),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.04)]"
             )}
           >
             {/* CRT zap line — the bright jade neon that spawns at
@@ -769,7 +769,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     spellCheck={false}
                     autoComplete="off"
                     className={cn(
-                      "w-full h-12 bg-white/[0.03] border border-white/[0.06] rounded-sm",
+                      "w-full h-12 bg-filmlight/[0.03] border border-hairline/[0.06] rounded-sm",
                       "pl-10 pr-3 text-[14px] font-jetbrains text-flash",
                       "placeholder:text-flash/20",
                       "focus:outline-none focus:border-jade/30",
@@ -805,9 +805,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     align="end"
                     sideOffset={6}
                     className={cn(
-                      "min-w-[120px] p-1 border border-white/10",
+                      "min-w-[120px] p-1 border border-hairline/10",
                       "bg-black/85 backdrop-blur-xl saturate-150",
-                      "shadow-[0_16px_44px_rgba(0,0,0,0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
+                      "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
                     )}
                   >
                     {REGIONS.map((r) => {
@@ -913,7 +913,7 @@ function RowShell({
       className={cn(
         "relative overflow-hidden rounded-md",
         "bg-black/75 backdrop-blur-xl saturate-150",
-        "shadow-[0_16px_44px_rgba(0,0,0,0.65),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]",
+        "shadow-[0_16px_44px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.5px_rgba(255,255,255,0.08)]",
         className
       )}
     >
@@ -1138,7 +1138,7 @@ function SuggestionRow({
             className="w-9 h-9 rounded-sm object-cover border border-jade/25 shrink-0"
           />
         ) : sugg._isPro ? (
-          <div className="w-9 h-9 rounded-sm bg-black/40 border border-jade/15 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-sm bg-filmdark/40 border border-jade/15 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 64 52" className="w-5 h-4">
               <circle
                 cx="32"
@@ -1164,10 +1164,10 @@ function SuggestionRow({
             // from /_current_version.txt so newer accounts render.
             src={`${cdnBaseUrl()}/img/profileicon/${sugg.icon_id}.png`}
             alt=""
-            className="w-9 h-9 rounded-sm border border-white/[0.06] shrink-0"
+            className="w-9 h-9 rounded-sm border border-hairline/[0.06] shrink-0"
           />
         ) : (
-          <div className="w-9 h-9 rounded-sm bg-white/[0.03] border border-white/[0.06] flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-sm bg-filmlight/[0.03] border border-hairline/[0.06] flex items-center justify-center shrink-0">
             <span className="text-[13px] font-chakrapetch font-bold text-flash/55">
               {sugg.name.slice(0, 1).toUpperCase()}
             </span>
@@ -1252,10 +1252,10 @@ function SuggestionRow({
                 isRecent
                   ? highlighted
                     ? "bg-[#a78bfa]/[0.18] border-[#a78bfa]/30"
-                    : "bg-white/[0.02] border-white/[0.05] group-hover:bg-[#a78bfa]/[0.14] group-hover:border-[#a78bfa]/25"
+                    : "bg-filmlight/[0.02] border-hairline/[0.05] group-hover:bg-[#a78bfa]/[0.14] group-hover:border-[#a78bfa]/25"
                   : highlighted
                     ? "bg-jade/[0.14] border-jade/25"
-                    : "bg-white/[0.02] border-white/[0.05] group-hover:bg-jade/[0.10] group-hover:border-jade/20"
+                    : "bg-filmlight/[0.02] border-hairline/[0.05] group-hover:bg-jade/[0.10] group-hover:border-jade/20"
               )}
             >
               <img

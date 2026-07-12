@@ -616,7 +616,7 @@ function ChampionPickerContent({
               }
             }
           }}
-          className="bg-black/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
+          className="bg-filmdark/20 border border-flash/10 hover:border-flash/20 focus:outline-none focus:ring-1 focus:ring-flash/20 rounded text-flash placeholder:text-flash/20 text-sm"
         />
       </div>
 

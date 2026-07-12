@@ -467,15 +467,15 @@ function MatchCardImpl({
       className={cn(
         "relative overflow-hidden rounded-md p-3 text-flash transition",
         isRemake
-          ? "bg-black/30 backdrop-blur-lg saturate-150"
+          ? "bg-filmdark/30 backdrop-blur-lg saturate-150 glass-panel"
           : coloredMatchBg
           ? win
             ? blueWinTint
-              ? "bg-[#5BA8E6]/[0.06] backdrop-blur-lg saturate-150"
-              : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150"
-            : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150"
-          : "bg-black/18 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]",
+              ? "bg-[#5BA8E6]/[0.06] backdrop-blur-lg saturate-150 match-bluewin"
+              : "bg-[#00D18D]/[0.04] backdrop-blur-lg saturate-150 match-win"
+            : "bg-[#c93232]/[0.05] backdrop-blur-lg saturate-150 match-loss"
+          : "bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel",
+        "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.35px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.025)]",
         selected && "ring-2 ring-jade/80"
       )}
     >
@@ -689,7 +689,7 @@ function MatchCardImpl({
                         <img
                           src={champIcon}
                           alt={championName}
-                          className="w-[54px] h-[54px] rounded-md shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                          className="w-[54px] h-[54px] rounded-md shadow-[0_2px_8px_rgba(var(--c-shadow),0.4)]"
                         />
                         {championLevel != null && (
                           <div className="absolute -bottom-1 -right-1 bg-black/85 text-flash text-[10px] px-1.5 py-0.5 rounded-sm shadow font-chakrapetch font-bold tabular-nums leading-none">

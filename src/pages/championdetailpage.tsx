@@ -610,7 +610,7 @@ export default function ChampionDetailPage() {
                       <span className="text-[16px] font-orbitron font-bold text-jade/70 tabular-nums">{activeGuide.upvotes}</span>
                       <span className="text-[7px] font-mono text-jade/30 uppercase tracking-[0.2em]">UPVOTES</span>
                     </div>
-                    <div className="flex flex-col items-center gap-1 w-[60px] py-1.5 rounded-sm border border-flash/[0.08] bg-black/30">
+                    <div className="flex flex-col items-center gap-1 w-[60px] py-1.5 rounded-sm border border-flash/[0.08] bg-filmdark/30">
                       <span className="text-[16px] font-orbitron font-bold text-flash/70 tabular-nums">{activeGuide.views}</span>
                       <span className="text-[7px] font-mono text-flash/25 uppercase tracking-[0.2em]">VIEWS</span>
                     </div>
@@ -755,8 +755,8 @@ function Panel({ className, children }: { className?: string; children: React.Re
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-md bg-black/25 backdrop-blur-lg saturate-150",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]",
+        "relative overflow-hidden rounded-md bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+        "shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]",
         className,
       )}
     >
@@ -767,7 +767,7 @@ function Panel({ className, children }: { className?: string; children: React.Re
 
 function StatChip({ label, value, tone = "jade" }: { label: string; value: string; tone?: "jade" | "sky" }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-[4px] bg-black/40 px-2 py-1 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)]">
+    <span className="inline-flex items-center gap-1.5 rounded-[4px] bg-filmdark/40 px-2 py-1 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)]">
       <span className="font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/40">{label}</span>
       <span className={cn("font-jetbrains text-[11px] font-semibold tabular-nums", tone === "sky" ? "text-sky-300/85" : "text-jade/90")}>{value}</span>
     </span>
@@ -830,7 +830,7 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
                         alt=""
                         className={cn(
                           "h-11 w-11 rounded-md object-cover transition-all",
-                          on ? "ring-2 ring-jade shadow-[0_0_16px_rgba(0,217,146,0.4)]" : "opacity-60 ring-1 ring-white/10 group-hover:opacity-100 group-hover:ring-jade/40",
+                          on ? "ring-2 ring-jade shadow-[0_0_16px_rgba(0,217,146,0.4)]" : "opacity-60 ring-1 ring-hairline/10 group-hover:opacity-100 group-hover:ring-jade/40",
                         )}
                       />
                       <span className={cn("absolute -bottom-1 -right-1 rounded-[2px] px-1 text-[8px] font-black leading-[1.5]", on ? "bg-jade text-black" : "bg-black/80 text-flash/55")}>{ab.key}</span>
@@ -839,7 +839,7 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
                 })}
               </div>
               {/* featured detail fills the rest */}
-              <motion.div key={active.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: "easeOut" }} className="min-w-0 flex-1 border-l border-white/[0.06] pl-4">
+              <motion.div key={active.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: "easeOut" }} className="min-w-0 flex-1 border-l border-hairline/[0.06] pl-4">
                 <div className="flex items-center gap-2.5">
                   <span className="rounded-[3px] bg-jade px-1.5 py-0.5 font-jetbrains text-[10px] font-black text-black">{active.key}</span>
                   <h4 className="font-chakrapetch text-[15px] font-bold uppercase tracking-[0.02em] text-flash">{active.name}</h4>
@@ -861,7 +861,7 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
             <SectionTitle>Base Stats</SectionTitle>
             <div className="mt-4 grid flex-1 content-between grid-cols-1 gap-x-7 sm:grid-cols-2">
               {STAT_PAIRS.filter((p) => champ.stats![p.key] !== undefined).map((p) => (
-                <div key={p.key} className="flex items-baseline justify-between gap-2 border-b border-white/[0.05] py-[7px]">
+                <div key={p.key} className="flex items-baseline justify-between gap-2 border-b border-hairline/[0.05] py-[7px]">
                   <span className="font-jetbrains text-[11px] uppercase tracking-[0.08em] text-flash/40">{p.label}</span>
                   <span className="font-jetbrains tabular-nums">
                     <span className="text-[13px] font-semibold text-flash/85">{champ.stats![p.key]}</span>
@@ -888,10 +888,10 @@ function ChampOverview({ champ }: { champ: ChampInfo }) {
               {(["attack", "defense", "magic", "difficulty"] as const).map((stat) => {
                 const val = champ.info![stat]
                 return (
-                  <div key={stat} className="flex flex-col items-center justify-center rounded-md bg-black/30 p-3.5 text-center shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.12)] transition-shadow hover:shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.32)]">
+                  <div key={stat} className="flex flex-col items-center justify-center rounded-md bg-filmdark/30 p-3.5 text-center shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.12)] transition-shadow hover:shadow-[inset_0_0_0_0.5px_rgba(0,217,146,0.32)]">
                     <div className="font-chakrapetch text-[24px] font-bold tabular-nums text-jade" style={{ textShadow: "0 0 22px rgba(0,217,146,0.3)" }}>{val}</div>
                     <div className="mt-0.5 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/40">{stat}</div>
-                    <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-filmlight/[0.06]">
                       <motion.div initial={{ width: 0 }} animate={{ width: `${val * 10}%` }} transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }} className="h-full rounded-full bg-gradient-to-r from-jade to-jade/40" />
                     </div>
                   </div>

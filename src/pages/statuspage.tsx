@@ -37,7 +37,7 @@ const HISTORY_REFRESH_MS = 5 * 60_000
 const STRIP_BUCKETS = 48 // 24h at 30min
 
 const glass =
-  "relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.07)]"
+  "relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.07)]"
 
 const STATE_META: Record<ServiceState, { label: string; dot: string; text: string }> = {
   2: { label: "Operational", dot: "bg-jade shadow-[0_0_10px_rgba(0,217,146,0.8)]", text: "text-jade" },
@@ -141,12 +141,12 @@ export default function StatusPage() {
         </div>
         <div className="flex items-center gap-2">
           {clientLatency != null && (
-            <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-black/45 px-2 py-1 font-mono text-[10px] text-flash/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+            <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 px-2 py-1 font-mono text-[10px] text-flash/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
               your latency
               <span className="font-chakrapetch font-bold text-flash/85 tabular-nums">{clientLatency}ms</span>
             </span>
           )}
-          <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-black/45 px-2 py-1 font-mono text-[10px] tracking-[0.14em] uppercase text-jade/70 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.20)]">
+          <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 px-2 py-1 font-mono text-[10px] tracking-[0.14em] uppercase text-jade/70 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.20)]">
             <span className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
             auto-refresh 30s
           </span>
@@ -193,7 +193,7 @@ export default function StatusPage() {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", STATE_META[s.state].dot)} />
                   <span className="font-chakrapetch font-semibold text-[14px] text-flash/90">{s.label}</span>
-                  <span className={cn("font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-[2px] rounded-[3px] bg-black/40", STATE_META[s.state].text)}>
+                  <span className={cn("font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-[2px] rounded-[3px] bg-filmdark/40", STATE_META[s.state].text)}>
                     {STATE_META[s.state].label}
                   </span>
                 </div>

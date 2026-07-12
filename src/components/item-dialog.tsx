@@ -115,12 +115,12 @@ function PickerBody({
 
   return (
     <div className="relative w-full" onKeyDown={onKeyDown}>
-      <div className="relative overflow-hidden rounded-lg border border-white/15 bg-black/55 backdrop-blur-2xl saturate-150 shadow-[0_0_0_1px_rgba(0,217,146,0.16),0_18px_50px_rgba(0,0,0,0.65)]">
+      <div className="relative overflow-hidden rounded-lg border border-hairline/15 bg-black/55 backdrop-blur-2xl saturate-150 shadow-[0_0_0_1px_rgba(0,217,146,0.16),0_18px_50px_rgba(var(--c-shadow),0.65)]">
         <BorderBeam duration={8} size={130} />
 
         <div className="relative z-10 flex flex-col">
           {/* header */}
-          <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
+          <div className="px-4 pt-4 pb-3 border-b border-hairline/[0.06]">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="w-1 h-3 bg-jade rounded-full" />
@@ -131,7 +131,7 @@ function PickerBody({
                   <button
                     type="button"
                     onClick={onClear}
-                    className="text-[9px] font-jetbrains uppercase tracking-[0.2em] px-2 py-0.5 border border-white/[0.06] rounded-sm text-flash/30 hover:text-jade hover:border-jade/30 hover:bg-jade/5 transition-all cursor-clicker"
+                    className="text-[9px] font-jetbrains uppercase tracking-[0.2em] px-2 py-0.5 border border-hairline/[0.06] rounded-sm text-flash/30 hover:text-jade hover:border-jade/30 hover:bg-jade/5 transition-all cursor-clicker"
                   >
                     Clear
                   </button>
@@ -154,7 +154,7 @@ function PickerBody({
                 placeholder="Search item…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/[0.07] rounded-sm pl-9 pr-3 py-2 text-[13px] font-jetbrains text-flash placeholder:text-flash/25 focus:outline-none focus:border-jade/35 transition-colors"
+                className="w-full bg-filmlight/[0.03] border border-hairline/[0.07] rounded-sm pl-9 pr-3 py-2 text-[13px] font-jetbrains text-flash placeholder:text-flash/25 focus:outline-none focus:border-jade/35 transition-colors"
               />
               <div
                 className={cn(
@@ -199,13 +199,13 @@ function PickerBody({
                           ? "border-jade/60 bg-jade/15"
                           : isActive
                             ? "border-jade/30 bg-jade/10"
-                            : "border-white/[0.06] bg-white/[0.02] hover:bg-jade/[0.08] hover:border-jade/30"
+                            : "border-hairline/[0.06] bg-filmlight/[0.02] hover:bg-jade/[0.08] hover:border-jade/30"
                       )}
                     >
                       <div
                         className={cn(
                           "w-11 h-11 rounded-[4px] overflow-hidden border transition-colors duration-150",
-                          selected ? "border-jade/50" : isActive ? "border-jade/40" : "border-white/10 group-hover:border-jade/40"
+                          selected ? "border-jade/50" : isActive ? "border-jade/40" : "border-hairline/10 group-hover:border-jade/40"
                         )}
                       >
                         <img
@@ -235,7 +235,7 @@ function PickerBody({
           </div>
 
           {/* footer hint */}
-          <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between text-[9px] font-jetbrains text-flash/25 uppercase tracking-[0.18em]">
+          <div className="px-4 py-2 border-t border-hairline/[0.06] flex items-center justify-between text-[9px] font-jetbrains text-flash/25 uppercase tracking-[0.18em]">
             <span>{filtered.length} items · live</span>
             <span className="hidden sm:inline">↑↓←→ navigate · enter select · esc close</span>
           </div>

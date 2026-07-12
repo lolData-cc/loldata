@@ -84,7 +84,7 @@ export default function ChampionDuosTab({ champ, patch }: { champ: { id: string;
       </p>
 
       {/* ranked table */}
-      <section className="rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]">
+      <section className="rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[0_20px_50px_-20px_rgba(var(--c-shadow),0.7)]">
         <div className="grid grid-cols-[34px_1fr_64px_52px] sm:grid-cols-[48px_1fr_150px_110px_84px] items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 text-[9px] uppercase tracking-[0.18em] text-flash/30 border-b border-flash/10 font-chakrapetch">
           <span className="text-center">#</span>
           <span>{words.one}</span>
@@ -136,13 +136,13 @@ export default function ChampionDuosTab({ champ, patch }: { champ: { id: string;
                     </span>
                   </span>
                   <span className="flex items-center gap-2.5 justify-end sm:justify-start">
-                    <span className="hidden sm:block h-1.5 flex-1 rounded-full bg-black/40 overflow-hidden">
+                    <span className="hidden sm:block h-1.5 flex-1 rounded-full bg-filmdark/40 overflow-hidden">
                       <span className="block h-full rounded-full bg-gradient-to-r from-jade/50 to-jade" style={{ width: `${wrBar}%` }} />
                     </span>
                     <span className={cn("text-[13px] font-chakrapetch font-bold tabular-nums w-[44px] text-right", wrClass(d.winrate))}>{d.winrate.toFixed(1)}%</span>
                   </span>
                   <span className="flex items-center justify-center gap-2">
-                    <span className="h-1 w-10 rounded-full bg-black/40 overflow-hidden hidden sm:block">
+                    <span className="h-1 w-10 rounded-full bg-filmdark/40 overflow-hidden hidden sm:block">
                       <span className="block h-full rounded-full bg-[#7bd9b0]/70" style={{ width: `${synBar}%` }} />
                     </span>
                     <span className={cn("text-[12px] font-chakrapetch font-bold tabular-nums", d.lift > 0 ? "text-jade" : "text-[#ff6286]")}>

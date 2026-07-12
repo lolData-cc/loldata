@@ -68,8 +68,8 @@ function TypingOnInView({
 
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/25 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
+  "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
 );
 
 /* ── Fade in wrapper ───────────────────────────────────────────────── */
@@ -364,7 +364,7 @@ export default function ScoutPage() {
             <FadeIn key={p.tier} delay={i * 0.12}>
               <div
                 className={cn(
-                  "relative overflow-hidden rounded-md bg-black/30 backdrop-blur-lg saturate-150 border",
+                  "relative overflow-hidden rounded-md bg-filmdark/30 backdrop-blur-lg saturate-150 glass-panel border",
                   p.ring,
                   "h-full"
                 )}

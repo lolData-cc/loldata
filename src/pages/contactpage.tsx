@@ -22,12 +22,12 @@ const EASE = [0.22, 1, 0.36, 1] as const
 // Glass card — mirrors the scout-create / "This Season" surface.
 const glassDark = cn(
   "relative overflow-hidden rounded-md",
-  "bg-black/15 backdrop-blur-lg saturate-150",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+  "bg-filmdark/15 backdrop-blur-lg saturate-150 glass-panel",
+  "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
 )
 
 const inputCls =
-  "w-full rounded-sm border border-transparent bg-black/40 px-3 py-2 font-jetbrains text-sm text-flash placeholder:text-flash/25 outline-none transition-colors focus:border-jade/55"
+  "w-full rounded-sm border border-transparent bg-filmdark/40 px-3 py-2 font-jetbrains text-sm text-flash placeholder:text-flash/25 outline-none transition-colors focus:border-jade/55"
 
 const labelCls =
   "mb-1.5 block text-[9px] uppercase tracking-[0.22em] text-flash/40"
@@ -107,13 +107,13 @@ export default function ContactPage() {
             </span>
           </motion.div>
           <motion.h1
-            className="font-chakrapetch text-4xl font-bold uppercase leading-[0.95] tracking-[0.02em] text-flash drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)] sm:text-[52px]"
+            className="font-chakrapetch text-4xl font-bold uppercase leading-[0.95] tracking-[0.02em] text-flash drop-shadow-[0_4px_24px_rgba(var(--c-shadow),0.9)] sm:text-[52px]"
             {...rise(0.22)}
           >
             Get in touch
           </motion.h1>
           <motion.p
-            className="mt-4 max-w-[54ch] font-chakrapetch text-[14px] leading-relaxed text-flash/70 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
+            className="mt-4 max-w-[54ch] font-chakrapetch text-[14px] leading-relaxed text-flash/70 drop-shadow-[0_2px_12px_rgba(var(--c-shadow),0.9)]"
             {...rise(0.36)}
           >
             Questions, feedback, a bug, a partnership — or you just broke something

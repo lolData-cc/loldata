@@ -36,11 +36,11 @@ const PAGE_SIZE = 50;
 const thCls = "px-3 py-2 text-[10px] font-mono tracking-[0.15em] uppercase text-flash/50";
 const tdCls = "px-3 py-2 text-[11px] font-mono text-flash/70";
 const btnFlash = "px-2 py-1 rounded-sm cursor-clicker border border-flash/20 text-flash/70 hover:bg-flash/10 text-[11px] tracking-[0.1em] uppercase disabled:opacity-50 disabled:pointer-events-none";
-const inputCls = "w-full rounded-sm border border-flash/15 bg-black/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
+const inputCls = "w-full rounded-sm border border-flash/15 bg-filmdark/40 px-3 py-1.5 text-[11px] text-flash font-mono outline-none focus:border-jade/30 transition-colors";
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-md bg-white/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
+    <div className="relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
       <div className="relative z-[1] px-4 py-4">{children}</div>
     </div>
   );
@@ -139,7 +139,7 @@ export function BoxProsDirectory() {
                 </thead>
                 <tbody>
                   {data.pros.map((p) => (
-                    <tr key={p.slug} className="border-b border-flash/5 hover:bg-white/[0.03] transition-colors">
+                    <tr key={p.slug} className="border-b border-flash/5 hover:bg-filmlight/[0.03] transition-colors">
                       <td className={`${tdCls} text-flash`}>
                         <Link to={`/players/${p.slug}`} className="text-jade/90 hover:text-jade hover:underline underline-offset-2 cursor-clicker">
                           {p.name}
