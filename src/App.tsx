@@ -62,6 +62,7 @@ import BillingSuccessPage from "@/pages/billingsuccess";
 import BillingCancelPage from "@/pages/billingcancel";
 import ContactPage from "@/pages/contactpage";
 import StatusPage from "@/pages/statuspage";
+import { QuickSlotsRail } from "@/components/home-shortcuts/QuickSlotsRail";
 //
 
 declare global {
@@ -178,6 +179,10 @@ export function RootLayout({
               Remounting it per route re-arms its scroll-in entrance animation. */}
           <Footer key={pathname} className="mt-32" />
         </div>
+        {/* Quick Slots — floating shortcut rail on the centre-right edge,
+            site-wide. Gated by the Preferences → Customizations toggle
+            (renders nothing when off). */}
+        <QuickSlotsRail />
       </div>
     </>
   )

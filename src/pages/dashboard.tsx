@@ -33,6 +33,7 @@ import { HideRemakesPreference } from "@/components/hideremakespreference";
 import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
+import { QuickSlotsPreference } from "@/components/quickslotspreference";
 import { LegacyRankIconsPreference } from "@/components/legacyrankiconspreference";
 import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ThemePreference } from "@/components/themepreference";
@@ -352,6 +353,11 @@ export default function DashboardPage() {
                     <BorderBeamPreference />
                     <TechBackgroundPreference />
                     <MatchTransitionPreference />
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">:: CUSTOMIZATIONS ::</p>
+                    <QuickSlotsPreference />
                   </div>
 
                   <div className="space-y-3">

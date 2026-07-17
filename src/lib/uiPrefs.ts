@@ -10,6 +10,7 @@ export const UI_PREFS_KEYS = {
   statsBarVisibleStats: "lolData:statsBarVisibleStats",
   useContextMenuActions: "lolData:useContextMenuActions",
   clickToExpandMatch: "lolData:clickToExpandMatch",
+  quickSlots: "lolData:quickSlots",
   blueWinTint: "lolData:blueWinTint",
   legacyRankIcons: "lolData:legacyRankIcons",
   ambientLight: "lolData:ambientLight",
@@ -198,6 +199,21 @@ export function setClickToExpandMatch(value: boolean) {
   const w = safeWindow();
   if (!w) return;
   w.localStorage.setItem(UI_PREFS_KEYS.clickToExpandMatch, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+// ── Quick Slots (floating shortcut rail) ──
+
+export function getQuickSlotsEnabled(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: off — opt-in from Preferences → Customizations
+  return w.localStorage.getItem(UI_PREFS_KEYS.quickSlots) === "1";
+}
+
+export function setQuickSlotsEnabled(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+  w.localStorage.setItem(UI_PREFS_KEYS.quickSlots, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }
 

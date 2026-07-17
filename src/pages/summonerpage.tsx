@@ -38,6 +38,7 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
+import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ShowMoreMatches } from "@/components/showmorematches"
@@ -66,7 +67,6 @@ import { calculateLoldataScore } from "@/utils/loldataScore";
 import { supabase } from "@/lib/supabaseClient";
 import { showCyberToast } from "@/lib/toast-utils";
 import { enrichRecentProfile } from "@/lib/recentSearchedProfiles";
-import { GlassOverlays } from "@/components/ui/glass-overlays";
 import { MatchReplayDialog } from "@/components/matchreplay/MatchReplayDialog";
 import MatchExpand from "@/components/matchexpand";
 import { AnimatedOutline } from "@/components/ui/animated-outline";
@@ -227,7 +227,6 @@ export default function SummonerPage() {
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
   const [matchesCentered, setMatchesCentered] = useState(false);
@@ -409,17 +408,21 @@ export default function SummonerPage() {
     return isCorrectQueue && isCorrectChampion && isCorrectResult && isCorrectRole && isCorrectDuo && isNotHiddenRemake;
   });
 
+  // Manual "load more": +20 per click, hard-capped at the latest 50 matches.
+  const MAX_MATCHES = 50;
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
     if (!name || !tag || !region) return;
+    const remaining = MAX_MATCHES - matches.length;
+    if (remaining <= 0) return;
 
     setIsLoadingMore(true);
     try {
-      await fetchMatches(name, tag, region, nextOffset, /* append */ true);
+      await fetchMatches(name, tag, region, nextOffset, /* append */ true, Math.min(20, remaining));
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMore, name, tag, region, nextOffset]);
+  }, [isLoadingMore, hasMore, name, tag, region, nextOffset, matches.length]);
 
   const monthlyDayStats = useMemo<DayWinrateCell[]>(() => {
     if (!matches || matches.length === 0) return [];
@@ -909,23 +912,6 @@ export default function SummonerPage() {
     }
   }, [isIngesting, matches.length]);
 
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting) loadMore();
-      },
-      { root: null, rootMargin: "200px 0px 200px 0px", threshold: 0 }
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-    // riesegui quando cambia la dimensione della lista o lo stato di loading/hasMore
-  }, [loadMore, filteredMatches.length, hasMore, loading]);
-
   // ── Context menu dismiss ──
   useEffect(() => {
     if (!ctxMenu) return;
@@ -1112,11 +1098,14 @@ export default function SummonerPage() {
     }
   }
 
-  async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false) {
+  // Loads 20 at once (backend caps a single page at 20) so the LOLDATA Score
+  // — computed on the latest 20 games — is stable from the first paint instead
+  // of drifting as more matches stream in.
+  async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false, limit = 20) {
     const res = await fetch(`${API_BASE_URL}/api/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, tag, region, offset, limit: 10 }),
+      body: JSON.stringify({ name, tag, region, offset, limit }),
     });
     const data = await res.json();
 
@@ -1323,6 +1312,9 @@ export default function SummonerPage() {
 
   return (
     <div className="relative z-0">
+      {/* mobile boot sequence — covers the empty grid while the Riot response
+          is in flight, then locks + wipes away (see summonerbootoverlay.tsx) */}
+      <SummonerBootOverlay active={!summonerInfo} />
       {!techBgDisabled && <UltraTechBackground />}
 
       {(selectedQueue !== "All" || selectedChampion || selectedResult !== "all" || selectedRole || filterDuoPuuid) && (
@@ -1353,22 +1345,7 @@ export default function SummonerPage() {
 
           {/* (pro/streamer identity now renders on the header line above the summoner name) */}
 
-          <div
-            className={cn(
-              "relative overflow-hidden w-[90%] mt-5 rounded-md text-sm font-thin",
-              "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
-              "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
-            )}
-          >
-            {/* glossy overlays */}
-            <div
-              className={cn(
-                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
-                "bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.12),rgba(255,255,255,0)_62%)]"
-              )}
-            />
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/3 via-transparent to-black/40" />
-
+          <div className={cn(glassDark, "w-[90%] mt-5 text-sm font-thin")}>
             {/* beam sopra al vetro */}
             <BorderBeam duration={8} size={100} />
 
@@ -1627,14 +1604,8 @@ export default function SummonerPage() {
 
           <div
             id="season-stats"
-            className={cn(
-              "relative overflow-hidden w-[90%] h-[420px] mt-4 rounded-md text-sm font-thin",
-              "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
-              "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.02)]"
-            )}
+            className={cn(glassDark, "w-[90%] h-[420px] mt-4 text-sm font-thin")}
           >
-            <GlassOverlays />
-
             {/* contenuto */}
             <div className="relative z-10">
               <Tabs
@@ -1834,7 +1805,7 @@ export default function SummonerPage() {
 
 
           {duoStats.length > 0 && (
-            <div className="relative overflow-hidden w-[90%] mt-5 rounded-md bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className={cn(glassDark, "w-[90%] mt-5")}>
               <div className="pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.025),rgba(255,255,255,0)_70%)]" />
               <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.015] via-transparent to-black/30" />
 
@@ -2071,20 +2042,7 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div
-              className={cn(
-                "hidden lg:block relative overflow-hidden rounded-md max-w-[440px]",
-                "bg-filmdark/25 backdrop-blur-lg saturate-150 glass-panel",
-                "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.5px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.05)]"
-              )}
-            >
-              {/* glossy overlays */}
-              <div className={cn(
-                "pointer-events-none absolute -top-24 left-0 h-56 w-full z-[1]",
-                "bg-[radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_62%)]"
-              )} />
-              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.02] via-transparent to-black/30" />
-
+            <div className={cn(glassDark, "hidden lg:block max-w-[440px]")}>
               <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
@@ -2242,7 +2200,7 @@ export default function SummonerPage() {
 
           <div className="w-full mt-4">
             {/* ── Unified filter row — cohesive glass toolbar ── */}
-            <div className="hidden lg:flex items-center gap-1.5 rounded-lg border border-hairline/[0.07] bg-filmdark/30 p-1 backdrop-blur-lg shadow-[0_8px_24px_rgba(var(--c-shadow),0.4),inset_0_1px_0_rgb(var(--c-hairline)/0.05)]">
+            <div className={cn(glassDark, "hidden lg:flex items-center gap-1.5 p-1")}>
               {/* Queue — dropdown (many options) */}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -2397,7 +2355,7 @@ export default function SummonerPage() {
               if (visibleStats.vis) tiles.push({ label: "VIS", value: avgVis })
 
               return (
-                <div className="mt-3 hidden lg:block rounded-md border border-flash/10 bg-[rgba(6,12,14,0.5)] backdrop-blur-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_26px_rgba(var(--c-shadow),0.35)]">
+                <div className={cn(glassDark, "mt-3 hidden lg:block")}>
                   {/* header strip */}
                   <div className="flex items-center gap-2 px-4 pt-2.5">
                     <span className="h-[5px] w-[5px] rounded-full bg-jade shadow-[0_0_6px_rgba(0,217,146,0.8)]" />
@@ -2467,8 +2425,8 @@ export default function SummonerPage() {
                     key={idx}
                     className={cn(
                       "flex items-center gap-4 p-3 rounded-md h-28",
-                      "bg-filmdark/22 backdrop-blur-lg saturate-150 glass-panel",
-                      "shadow-[0_10px_30px_rgba(var(--c-shadow),0.55),inset_0_0_0_0.4px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]"
+                      // same resting surface as the real (ungrouped) match cards
+                      "bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel"
                     )}
                   >
                     {/* summoner icon 29 as placeholder */}
@@ -3355,12 +3313,41 @@ export default function SummonerPage() {
                     </section>
                   );
                 })}
-                {/* SENTINEL per infinite scroll */}
-                <div ref={sentinelRef} className="h-10 flex items-center justify-center">
-                  {isLoadingMore && hasMore ? (
+                {/* LOAD MORE — manual paging, capped at the latest 50 matches
+                    so the LOLDATA Score (latest 20) never drifts on scroll. */}
+                <div className="h-12 flex items-center justify-center">
+                  {isLoadingMore ? (
                     <LoadingSquares />
-                  ) : !hasMore ? (
-                    <div></div>//limit reached 
+                  ) : hasMore && matches.length < 50 ? (
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      className={cn(
+                        "group relative inline-flex items-center justify-center gap-1.5 h-8 px-6",
+                        "font-jetbrains text-[10px] tracking-[0.16em] uppercase",
+                        "bg-jade/30 hover:bg-jade/70 text-jade/85 hover:text-jade",
+                        "transition-all duration-300 cursor-clicker select-none"
+                      )}
+                      style={{ clipPath: "polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)" }}
+                    >
+                      <span
+                        className="pointer-events-none absolute inset-[1.5px] bg-[#081012] transition-colors duration-300"
+                        style={{ clipPath: "polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)" }}
+                      />
+                      <span
+                        className="pointer-events-none absolute inset-[1.5px] bg-jade/[0.06] group-hover:bg-jade/[0.12] transition-colors duration-300"
+                        style={{ clipPath: "polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)" }}
+                      />
+                      <span className="relative w-[5px] h-[5px] rotate-45 shrink-0 bg-jade/45 group-hover:bg-jade group-hover:shadow-[0_0_6px_rgba(0,217,146,0.9)] transition-all duration-300" />
+                      <span className="relative">Load more</span>
+                      <span className="relative font-jetbrains text-[8.5px] text-jade/40 tracking-[0.1em] normal-case">
+                        {matches.length}/50
+                      </span>
+                    </button>
+                  ) : matches.length >= 50 ? (
+                    <span className="font-jetbrains text-[8.5px] tracking-[0.2em] uppercase text-flash/25">
+                      ◈ latest 50 matches loaded
+                    </span>
                   ) : null}
                 </div>
               </div>

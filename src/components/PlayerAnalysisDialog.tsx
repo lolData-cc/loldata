@@ -1039,24 +1039,45 @@ export function PlayerAnalysisDialog({
           }}
           disabled={!puuid}
           className={cn(
-            "group relative inline-flex items-center gap-1.5 h-8 px-4 overflow-hidden",
-            "font-jetbrains text-[10px] tracking-[0.15em] uppercase",
-            "border rounded-[3px]",
+            "group relative inline-flex items-center justify-center gap-1.5 h-8 w-[104px]",
+            "font-jetbrains text-[10px] tracking-[0.16em] uppercase",
             "transition-all duration-300",
             "cursor-clicker select-none",
             "disabled:opacity-60 disabled:pointer-events-none",
+            // the button bg IS the notched outline colour
             isLocked
-              ? "border-flash/10 bg-flash/5 text-flash/25"
-              : "border-jade/30 bg-jade/10 text-jade hover:border-jade/50 hover:shadow-[0_0_16px_rgba(0,217,146,0.2)]"
+              ? "bg-flash/15 text-flash/25"
+              : "bg-jade/35 hover:bg-jade/75 text-jade"
           )}
+          style={{ clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))" }}
         >
+          {/* inner fill — 1.5px inset, same notch → crisp 1px outline all around */}
+          <span
+            className="pointer-events-none absolute inset-[1.5px] bg-[#081012] transition-colors duration-300"
+            style={{ clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px))" }}
+          />
+          {/* tint over the fill */}
+          <span
+            className={cn(
+              "pointer-events-none absolute inset-[1.5px] transition-colors duration-300",
+              isLocked ? "bg-flash/[0.03]" : "bg-jade/[0.07] group-hover:bg-jade/[0.13]"
+            )}
+            style={{ clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px))" }}
+          />
+          {/* scanlines on hover */}
           {!isLocked && (
-            <>
-              <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.06) 3px, rgba(0,217,146,0.06) 4px)" }} />
-              <span className="absolute inset-0 bg-jade/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
-            </>
+            <span
+              className="absolute inset-[1.5px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              style={{ clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px))", background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,217,146,0.05) 3px, rgba(0,217,146,0.05) 4px)" }}
+            />
           )}
-          <span className="relative text-[8px] group-hover:scale-110 transition-transform duration-300">◈</span>
+          {/* diamond tick */}
+          <span className={cn(
+            "relative w-[5px] h-[5px] rotate-45 shrink-0 transition-all duration-300",
+            isLocked
+              ? "bg-flash/20"
+              : "bg-jade/50 group-hover:bg-jade group-hover:shadow-[0_0_6px_rgba(0,217,146,0.9)]"
+          )} />
           <span className="relative">ANALYZE</span>
         </button>
         {isFreeUser && usageChecked && !trialUsed && (
