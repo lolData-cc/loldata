@@ -42,11 +42,16 @@ export default defineConfig({
 
       // Catch-all backend proxy. Letting Vite forward /api means the
       // phone hits http://<PC-LAN-IP>:5173/api/scout/feed/... and Vite
-      // talks to localhost:3001 on the PC's behalf — no need to expose
+      // talks to the backend on the PC's behalf — no need to expose
       // the backend on the LAN. Frontend should fetch with relative
       // URLs (see src/config.ts → API_BASE_URL = "" in dev).
+      //
+      // Defaults to the BOX (api2 = prod backend), so `bun run dev` works
+      // on its own with nothing else running. To develop against a local
+      // backend instead, put this in .env.local:
+      //   VITE_DEV_API_TARGET=http://localhost:3001
       "/api": {
-        target: "http://localhost:3001",
+        target: process.env.VITE_DEV_API_TARGET || "https://api2.loldata.cc",
         changeOrigin: true,
         secure: false,
         // ws:true lets Vite proxy the WebSocket upgrade for live lobby

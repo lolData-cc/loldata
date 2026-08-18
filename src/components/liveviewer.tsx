@@ -180,6 +180,95 @@ function HexPortrait({ champ, side, focused, role, otp, filled }: {
   )
 }
 
+// ── PHONE row: dead-simple — champ, name, rank, two numbers ─────────
+function MobileRow({ p, side, role, focusedRiotId, rank, pStats, championMap, onGoToPlayer }: {
+  p: Participant
+  side: "blue" | "red"
+  role?: string
+  focusedRiotId: string
+  rank?: RankEntry
+  pStats?: PStats
+  championMap: Record<number, string>
+  onGoToPlayer: (riotId: string) => void
+}) {
+  const isFocused = p.riotId === focusedRiotId
+  const isStreamerMode = !rank?.rank || rank.rank.toLowerCase() === "error"
+  const raw = (p.riotId || p.summonerName || "").trim()
+  const displayName = raw.split("#")[0]?.trim()
+  const hidden = !displayName || raw.toLowerCase().includes("error")
+
+  const champWr = pStats?.championWinrate ?? null
+  const hasChampData = champWr != null && (pStats?.championGames ?? 0) > 0
+  const totalGames = (rank?.wins ?? 0) + (rank?.losses ?? 0)
+  const totalWr = !isStreamerMode && totalGames > 0 ? Math.round(((rank?.wins ?? 0) / totalGames) * 100) : null
+  const wrCol = (v: number) => (v >= 60 ? "#00d992" : v < 45 ? "#fb7185" : "rgba(215,216,217,0.85)")
+  const RoleIcon = role ? ROLE_ICON[role] : null
+
+  return (
+    <div className={cn(
+      "flex items-center gap-2.5 rounded-[4px] px-2 py-[5px]",
+      isFocused ? "bg-jade/[0.08] ring-1 ring-jade/25" : "bg-flash/[0.03]"
+    )}>
+      <div className="relative shrink-0">
+        <img
+          src={championMap[p.championId] ? `${cdnBaseUrl()}/img/champion/${formatChampName(championMap[p.championId])}.png` : undefined}
+          alt=""
+          className={cn(
+            "h-9 w-9 rounded-[4px] ring-1",
+            isFocused ? "ring-jade/70" : side === "blue" ? "ring-[#5BA8E6]/40" : "ring-[#e0503f]/40"
+          )}
+          draggable={false}
+        />
+        {RoleIcon && (
+          <span className="absolute -bottom-1 -right-1 grid h-[14px] w-[14px] place-items-center rounded-full bg-liquirice/95 shadow-[0_0_0_1px_rgba(215,216,217,0.18)]">
+            <RoleIcon className="h-[8px] w-[8px]" />
+          </span>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 leading-none">
+        {hidden || isStreamerMode ? (
+          <span
+            className="inline-block font-orbitron text-[7.5px] font-bold uppercase tracking-[0.16em] px-1.5 py-[2px] rounded-[2px] border border-flash/15 whitespace-nowrap"
+            style={{ background: "linear-gradient(135deg, rgba(155,89,182,0.15), rgba(168,85,199,0.08))", color: "rgba(168,85,199,0.8)" }}
+          >
+            Streamer mode
+          </span>
+        ) : (
+          <>
+            <span
+              onClick={() => p.riotId && onGoToPlayer(p.riotId)}
+              className={cn(
+                "block truncate font-chakrapetch text-[12.5px] font-semibold tracking-wide cursor-clicker",
+                isFocused ? "text-jade" : "text-flash/90"
+              )}
+            >
+              {displayName}
+            </span>
+            <span className="mt-[4px] block truncate font-jetbrains text-[9px] tabular-nums text-flash/45">
+              {totalWr != null && <>WR <span style={{ color: wrCol(totalWr) }} className="font-semibold">{totalWr}%</span></>}
+              {hasChampData && <>{"  "}CH <span style={{ color: wrCol(champWr!) }} className="font-semibold">{champWr}%</span></>}
+              {pStats?.championKda != null && <>{"  "}KDA <span className="text-flash/70 font-semibold">{pStats.championKda.toFixed(1)}</span></>}
+            </span>
+          </>
+        )}
+      </div>
+
+      {!isStreamerMode && rank?.rank && (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <img src={getRankImage(rank.rank)} alt="" className="h-[20px] w-[20px] object-contain" draggable={false} />
+          <div className="flex flex-col items-end leading-none">
+            <span className="whitespace-nowrap font-chakrapetch text-[10px] font-bold uppercase text-flash/85">{rank.rank}</span>
+            {rank.lp != null && (
+              <span className="mt-[3px] whitespace-nowrap font-chakrapetch text-[11px] font-bold tabular-nums text-jade">{rank.lp} LP</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── One floating player plate — hex + game-ui info wing ─────────────
 function PlayerPlate({ p, side, idx, focusedRiotId, rank, pStats, championMap, onGoToPlayer }: {
   p: Participant
@@ -466,11 +555,60 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
       {/* No panel, no box — a properly DARK dim + floating visor elements. */}
       <DialogContent
         overlayClassName="bg-[#020608]/85 backdrop-blur-md"
-        className="w-auto max-w-[1380px] bg-transparent border-none p-0 text-flash top-[10%] translate-y-0 [&>button:last-child]:hidden shadow-none"
+        className="flex flex-col w-full max-w-full h-[100dvh] max-h-[100dvh] overflow-hidden left-0 translate-x-0 top-0 translate-y-0 px-3 pt-3 pb-4 lg:block lg:w-auto lg:max-w-[1380px] lg:h-auto lg:max-h-none lg:overflow-visible lg:left-[50%] lg:translate-x-[-50%] lg:top-[10%] lg:px-0 lg:pt-0 lg:pb-0 bg-transparent border-none text-flash [&>button:last-child]:hidden shadow-none"
       >
         <style>{HUD_CSS}</style>
 
-        <div className="lvh-sway" style={{ perspective: "1000px" }}>
+        {/* phone-only close — the fixed sheet needs an explicit way out */}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close live game"
+          className="lg:hidden absolute right-3 top-3 z-30 grid h-9 w-9 place-items-center rounded-[4px] bg-flash/[0.08] text-flash/80 active:bg-flash/[0.15] cursor-clicker"
+        >
+          <span className="text-[15px] leading-none">✕</span>
+        </button>
+
+        {/* PHONE: simple, single-screen roster (no scroll, no HUD) */}
+        <div className="lg:hidden flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center justify-center gap-3 pb-2 pt-1">
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+              <span className="font-jetbrains text-[9px] uppercase tracking-[0.2em] text-red-400/80">Live</span>
+            </span>
+            <ElapsedClock startTime={game?.gameStartTime} />
+            {queueName && <span className="font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/35 truncate max-w-[120px]">{queueName}</span>}
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+            {([
+              { id: 100 as const, side: "blue" as const, label: "Blue side", color: "text-[#5BA8E6]/75" },
+              { id: 200 as const, side: "red" as const, label: "Red side", color: "text-[#e0503f]/80" },
+            ]).map((t) => (
+              <div key={t.id}>
+                <div className={cn("mb-1 font-jetbrains text-[8.5px] uppercase tracking-[0.24em]", t.color)}>◈ {t.label}</div>
+                <div className="flex flex-col gap-[5px]">
+                  {teamPlayers(t.id).map((p, idx) => (
+                    <MobileRow
+                      key={p.summonerName || p.riotId || idx}
+                      p={p}
+                      side={t.side}
+                      role={(ROLES as readonly string[])[idx]}
+                      focusedRiotId={riotId}
+                      rank={ranks[p.riotId]}
+                      pStats={liveStats[p.riotId]}
+                      championMap={championMap}
+                      onGoToPlayer={goToPlayer}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+
+        <div className="lvh-sway hidden lg:block" style={{ perspective: "1000px" }}>
           {/* ── floating header readout ── */}
           <div className="lvh-head mb-9 flex items-center justify-center gap-4" style={{ transform: "rotateX(9deg)" }}>
             <div className="flex items-center gap-2">
@@ -487,7 +625,7 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
           </div>
 
           {/* ── two floating columns, close together, tilted toward you ── */}
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-center lg:gap-32">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-start lg:justify-center lg:gap-32">
             <div className="lvh-col-l flex flex-col gap-4">
               <span className="lvh-in font-jetbrains text-[9px] uppercase tracking-[0.26em] text-[#5BA8E6]/70" style={{ ["--lvh-from" as any]: "-18px" }}>
                 ◈ Blue side

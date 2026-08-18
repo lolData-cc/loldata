@@ -815,12 +815,15 @@ export function PlayerAnalysisDialog({
   summonerName,
   externalOpen,
   onExternalOpenChange,
+  fill,
 }: {
   puuid: string;
   region: string;
   summonerName: string;
   externalOpen?: boolean;
   onExternalOpenChange?: (open: boolean) => void;
+  /** Stretch the trigger to its container width (profile-card layout). */
+  fill?: boolean;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen ?? internalOpen;
@@ -1024,7 +1027,7 @@ export function PlayerAnalysisDialog({
   return (
     <>
       {/* Trigger Button */}
-      <div className="relative inline-flex flex-col items-center">
+      <div className={cn("relative inline-flex flex-col items-center", fill && "w-full")}>
         <button
           onClick={() => {
             if (isLocked) {
@@ -1039,7 +1042,8 @@ export function PlayerAnalysisDialog({
           }}
           disabled={!puuid}
           className={cn(
-            "group relative inline-flex items-center justify-center gap-1.5 h-8 w-[104px]",
+            "group relative inline-flex shrink-0 items-center justify-center gap-1.5 h-8",
+            fill ? "w-full" : "w-[104px]",
             "font-jetbrains text-[10px] tracking-[0.16em] uppercase",
             "transition-all duration-300",
             "cursor-clicker select-none",

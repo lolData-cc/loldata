@@ -3,6 +3,7 @@ import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import splashPositionMap from "@/converters/splashPositionMap"
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
+import { badgeKey, type BadgeMapResponse, type BadgeNameMap } from "@/lib/proBadges"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import queueMap from "@/converters/queueMap"
@@ -74,6 +75,9 @@ export default function MatchPage() {
   const [playerRanks, setPlayerRanks] = useState<Record<string, { rank: string; lp: number }>>({})
   const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
   const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
+  // nametag → who they actually are, so the nameplate can name the pro.
+  const [proNames, setProNames] = useState<BadgeNameMap>(new Map());
+  const [streamerNames, setStreamerNames] = useState<BadgeNameMap>(new Map());
   const navigate = useNavigate();
 
   const getAverage = (key: string, participants: Participant[]) => {
@@ -168,10 +172,12 @@ export default function MatchPage() {
     // Scoreboard nameplates: every known pro/streamer account nametag, merged
     // server-side on the box (lolpros import + curated Cloud tables).
     fetch(`${BOX_API_BASE_URL}/api/pros/badge-map`)
-      .then((r) => (r.ok ? r.json() : { pros: [], streamers: [] }))
-      .then(({ pros, streamers }: { pros: string[]; streamers: string[] }) => {
-        setProUsernames(new Set(pros));
-        setStreamerUsernames(new Set(streamers));
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: BadgeMapResponse) => {
+        setProUsernames(new Set(d.pros ?? []));
+        setStreamerUsernames(new Set(d.streamers ?? []));
+        setProNames(new Map(Object.entries(d.proNames ?? {})));
+        setStreamerNames(new Map(Object.entries(d.streamerNames ?? {})));
       })
       .catch(() => { /* badges are decorative — fail silent */ });
   }, []);
@@ -384,10 +390,18 @@ export default function MatchPage() {
         {/* Name + Rank */}
         <div className="w-[110px] min-w-0 shrink-0">
           {(() => {
-            const nameKey = p.riotIdGameName && p.riotIdTagline ? `${p.riotIdGameName}#${p.riotIdTagline}`.toLowerCase() : "";
+            const nameKey = badgeKey(p.riotIdGameName, p.riotIdTagline);
             const isPro = nameKey && proUsernames.has(nameKey);
             const isStr = nameKey && !isPro && streamerUsernames.has(nameKey);
+            // The badge says "notable", this says who — the column is only
+            // 110px wide, so the handle gets its own line under the nick.
+            const identity = isPro
+              ? proNames.get(nameKey)
+              : isStr
+                ? streamerNames.get(nameKey)
+                : undefined;
             return (
+              <>
               <div className="flex items-center gap-1">
                 {p.riotIdGameName && p.riotIdTagline ? (
                   <Link
@@ -423,6 +437,22 @@ export default function MatchPage() {
                   </span>
                 )}
               </div>
+              {identity && (
+                <Link
+                  to={`/players/${identity.slug}`}
+                  onClick={(e) => e.stopPropagation()}
+                  title={`${identity.name} — profile`}
+                  className={cn(
+                    "block truncate text-[10px] font-chakrapetch font-semibold leading-none mt-[3px] transition-colors cursor-clicker",
+                    isPro
+                      ? "text-jade/70 hover:text-jade"
+                      : "text-[#c9a3e0]/70 hover:text-[#c9a3e0]"
+                  )}
+                >
+                  {identity.name}
+                </Link>
+              )}
+              </>
             );
           })()}
           {/* Rank badge */}
@@ -666,22 +696,35 @@ export default function MatchPage() {
                           {p.riotIdGameName ?? "Unknown"}
                         </span>
                         {(() => {
-                          const nk = p.riotIdGameName && p.riotIdTagline ? `${p.riotIdGameName}#${p.riotIdTagline}`.toLowerCase() : "";
+                          const nk = badgeKey(p.riotIdGameName, p.riotIdTagline);
                           const isPro = nk && proUsernames.has(nk);
                           const isStr = nk && !isPro && streamerUsernames.has(nk);
                           if (!isPro && !isStr) return null;
+                          const identity = isPro ? proNames.get(nk) : streamerNames.get(nk);
                           return (
-                            <span
-                              className="shrink-0 text-[7px] font-black leading-none px-[2px] py-[1px] rounded-[2px] tracking-wide"
-                              style={{
-                                background: isPro
-                                  ? "linear-gradient(135deg, #00d992, #00b8ff)"
-                                  : "linear-gradient(135deg, #7b42a1, #a855c7)",
-                                color: isPro ? "#040A0C" : "#e0d0f0",
-                              }}
-                            >
-                              {isPro ? "PRO" : "STR"}
-                            </span>
+                            <>
+                              <span
+                                className="shrink-0 text-[7px] font-black leading-none px-[2px] py-[1px] rounded-[2px] tracking-wide"
+                                style={{
+                                  background: isPro
+                                    ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                    : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                  color: isPro ? "#040A0C" : "#e0d0f0",
+                                }}
+                              >
+                                {isPro ? "PRO" : "STR"}
+                              </span>
+                              {identity && (
+                                <span
+                                  className={cn(
+                                    "shrink-0 max-w-[64px] truncate text-[9px] font-chakrapetch font-semibold leading-none",
+                                    isPro ? "text-jade/70" : "text-[#c9a3e0]/70"
+                                  )}
+                                >
+                                  {identity.name}
+                                </span>
+                              )}
+                            </>
                           );
                         })()}
                         <span className={cn(

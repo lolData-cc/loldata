@@ -59,7 +59,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, X, Check, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, X, Check, Pencil, Trash2, Eye, Webhook, Send, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/authcontext";
 import { VerifyBadge } from "@/components/verifybadge";
@@ -7563,7 +7563,8 @@ type EditSectionKey =
   | "hero"
   | "players"
   | "sections"
-  | "verify";
+  | "verify"
+  | "webhooks";
 
 // Canonical list of tab keys. The frontend tab rendering uses these
 // to gate which tabs render; SECTIONS_CATALOG is also what the
@@ -8221,6 +8222,18 @@ function EditLobbyDialog({
                 Verification mode
               </div>
               <VerifyModeRadio value={verifyMode} onChange={setVerifyMode} />
+            </EditCollapsible>
+
+            {/* Discord webhooks — mirrors the feed into a channel.
+                Self-contained: saves immediately, independent of the
+                dialog's Save button. */}
+            <EditCollapsible
+              open={openSections.has("webhooks")}
+              onToggle={() => toggleSection("webhooks")}
+              title="Discord"
+              summary="Mirror the feed to a channel"
+            >
+              <LobbyWebhooksPanel lobbySlug={lobby.slug} open={openSections.has("webhooks")} />
             </EditCollapsible>
 
             {err && (
@@ -8894,6 +8907,483 @@ function LobbyAdminsPanel({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ─── Discord webhooks panel ─────────────────────────────────────────── */
+
+type LobbyWebhook = {
+  id: string;
+  label: string | null;
+  /** Masked target ("discord.com/…/123/abcd•••") — the raw URL never leaves
+   *  the backend, it is a bearer credential for the channel. */
+  target: string;
+  enabled: boolean;
+  queueFilter: number[] | null;
+  minDurationS: number;
+  /** Bot identity override. null on either = not overridden, so Discord uses
+   *  whatever the webhook itself is configured with in the channel settings. */
+  username: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  lastPostedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+};
+
+// Presets instead of a raw queue-id picker: nobody wants to type "420".
+const QUEUE_PRESETS: Array<{ key: string; label: string; ids: number[] | null }> = [
+  { key: "all", label: "All queues", ids: null },
+  { key: "ranked", label: "Ranked only", ids: [420, 440] },
+  { key: "solo", label: "Solo/Duo", ids: [420] },
+];
+
+const presetKeyFor = (ids: number[] | null): string => {
+  if (!ids || ids.length === 0) return "all";
+  const s = [...ids].sort().join(",");
+  return QUEUE_PRESETS.find((p) => p.ids && [...p.ids].sort().join(",") === s)?.key ?? "all";
+};
+
+/**
+ * Name + picture the messages are posted under. Discord lets a webhook message
+ * override the identity configured on the channel's webhook — these are that
+ * override, and clearing BOTH hands it back to Discord (where an image can be
+ * uploaded directly instead of hosted somewhere).
+ *
+ * Local state + explicit Save: typing a URL char-by-char would otherwise fire a
+ * PATCH per keystroke.
+ */
+function WebhookIdentityEditor({
+  hook,
+  busy,
+  onSave,
+}: {
+  hook: LobbyWebhook;
+  busy: boolean;
+  onSave: (patch: { username: string; avatarUrl: string }) => void;
+}) {
+  const [name, setName] = useState(hook.username ?? "");
+  const [avatar, setAvatar] = useState(hook.avatarUrl ?? "");
+  const [broken, setBroken] = useState(false);
+
+  // Re-sync when the row is replaced by a server response.
+  useEffect(() => {
+    setName(hook.username ?? "");
+    setAvatar(hook.avatarUrl ?? "");
+  }, [hook.username, hook.avatarUrl]);
+
+  useEffect(() => setBroken(false), [avatar]);
+
+  const dirty = name !== (hook.username ?? "") || avatar !== (hook.avatarUrl ?? "");
+
+  return (
+    <div className="mt-2 pt-2 border-t border-flash/[0.06]">
+      <div className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mb-1.5">
+        Posts as
+      </div>
+      <div className="flex items-center gap-2">
+        {/* Live avatar preview — a broken URL shows immediately instead of
+            silently posting with no picture. */}
+        <div className="w-9 h-9 shrink-0 rounded-full overflow-hidden bg-black/40 border border-flash/10 grid place-items-center">
+          {avatar && !broken ? (
+            <img
+              src={avatar}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setBroken(true)}
+            />
+          ) : (
+            <Webhook className="w-4 h-4 text-flash/25" />
+          )}
+        </div>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Bot name"
+          maxLength={80}
+          className="min-w-0 flex-1 bg-black/25 border border-flash/15 rounded-[3px] h-8 px-2 text-[11px] font-chakrapetch text-flash placeholder:text-flash/25 outline-none focus:border-jade/45 transition-colors"
+        />
+      </div>
+      <div className="flex items-center gap-2 mt-1.5">
+        <input
+          value={avatar}
+          onChange={(e) => setAvatar(e.target.value)}
+          placeholder="Avatar image URL (png/jpg)"
+          spellCheck={false}
+          className="min-w-0 flex-1 bg-black/25 border border-flash/15 rounded-[3px] h-8 px-2 text-[10px] font-jetbrains text-flash placeholder:text-flash/25 outline-none focus:border-jade/45 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => onSave({ username: name, avatarUrl: avatar })}
+          disabled={busy || !dirty}
+          className={cn(
+            "shrink-0 text-[9px] font-jetbrains tracking-[0.18em] uppercase font-medium px-2.5 h-8 rounded-[3px] border cursor-clicker transition-all",
+            dirty && !busy
+              ? "border-jade/45 text-jade bg-jade/[0.10] hover:bg-jade/[0.20]"
+              : "border-flash/10 text-flash/25"
+          )}
+        >
+          Save
+        </button>
+      </div>
+      {broken && avatar && (
+        <div className="text-[9px] font-jetbrains tracking-[0.1em] text-error/70 mt-1">
+          ◆ That URL isn't loading as an image
+        </div>
+      )}
+      <div className="text-[9px] font-chakrapetch text-flash/35 mt-1.5 leading-snug">
+        Leave both empty to use the name and picture set on the webhook in
+        Discord — that way you can upload an image instead of hosting one.
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Discord integration for a lobby: paste a channel webhook and every finished
+ * game gets mirrored there as an embed (champion icon, KDA, score, avg elo).
+ *
+ * Self-contained — each action hits the API immediately, so it is independent
+ * of the dialog's Save button. Only loads once the section is expanded, so
+ * opening the edit dialog costs nothing.
+ */
+function LobbyWebhooksPanel({
+  lobbySlug,
+  open,
+}: {
+  lobbySlug: string;
+  open: boolean;
+}) {
+  const [hooks, setHooks] = useState<LobbyWebhook[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [label, setLabel] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const loadedRef = useRef(false);
+
+  const authHeader = async (): Promise<HeadersInit | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    return {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    };
+  };
+
+  const load = useCallback(async () => {
+    const headers = await authHeader();
+    if (!headers) {
+      setLoadErr("Login required");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/scout/webhooks/${lobbySlug}`, {
+        headers,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLoadErr(body?.error ?? "Failed to load");
+        setHooks([]);
+        return;
+      }
+      setLoadErr(null);
+      setHooks(body.webhooks ?? []);
+    } catch {
+      setLoadErr("Network error");
+      setHooks([]);
+    }
+  }, [lobbySlug]);
+
+  useEffect(() => {
+    if (!open || loadedRef.current) return;
+    loadedRef.current = true;
+    load();
+  }, [open, load]);
+
+  const add = async () => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setAdding(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(`${API_BASE_URL}/api/scout/webhooks/${lobbySlug}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: trimmed, label: label.trim() || null }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showCyberToast({
+          title: "Could not connect",
+          description: body?.error,
+          variant: "error",
+        });
+        return;
+      }
+      setUrl("");
+      setLabel("");
+      setHooks((prev) => [...(prev ?? []), body.webhook]);
+      showCyberToast({
+        title: "Channel connected",
+        description: "New games will be posted here",
+        tag: "HOOK",
+        variant: "status",
+      });
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const patch = async (id: string, body: Record<string, unknown>) => {
+    setBusy(id);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/webhooks/${lobbySlug}/${id}`,
+        { method: "PATCH", headers, body: JSON.stringify(body) }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showCyberToast({ title: "Update failed", description: data?.error, variant: "error" });
+        return;
+      }
+      setHooks((prev) => (prev ?? []).map((h) => (h.id === id ? data.webhook : h)));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (id: string) => {
+    setBusy(id);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/webhooks/${lobbySlug}/${id}`,
+        { method: "DELETE", headers }
+      );
+      if (!res.ok) {
+        showCyberToast({ title: "Delete failed", variant: "error" });
+        return;
+      }
+      setHooks((prev) => (prev ?? []).filter((h) => h.id !== id));
+      showCyberToast({ title: "Channel disconnected", tag: "HOOK", variant: "status" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendTest = async (id: string) => {
+    setBusy(id);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(
+        `${API_BASE_URL}/api/scout/webhooks/${lobbySlug}/${id}/test`,
+        { method: "POST", headers }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showCyberToast({
+          title: "Test failed",
+          description: body?.error,
+          variant: "error",
+        });
+        // Surface the fresh error on the row too.
+        load();
+        return;
+      }
+      showCyberToast({
+        title: "Test sent",
+        description: "Check the Discord channel",
+        tag: "HOOK",
+        variant: "status",
+      });
+      load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="text-[10px] font-chakrapetch text-flash/45 leading-snug mb-3">
+        Post every finished game to a Discord channel — champion, K/D/A, score
+        and the lobby's average elo, like a mirror of the feed. In Discord:{" "}
+        <span className="text-flash/70">
+          Channel settings → Integrations → Webhooks → New webhook → Copy URL
+        </span>
+        .
+      </div>
+
+      {/* Existing integrations */}
+      {hooks === null ? (
+        <div className="flex items-center gap-2 text-[10px] font-jetbrains tracking-[0.18em] uppercase text-flash/35 py-2">
+          <Loader2 className="w-3 h-3 animate-spin" /> Loading
+        </div>
+      ) : hooks.length === 0 ? (
+        <div className="text-[10px] font-jetbrains tracking-[0.15em] uppercase text-flash/30 mb-3">
+          No channel connected
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 mb-3">
+          {hooks.map((h) => (
+            <div
+              key={h.id}
+              className="rounded-[3px] border border-flash/[0.08] bg-black/[0.18] p-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <Webhook
+                  className={cn(
+                    "w-3.5 h-3.5 shrink-0",
+                    h.enabled ? "text-jade" : "text-flash/30"
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-chakrapetch font-bold text-flash truncate">
+                    {h.label || "Discord channel"}
+                  </div>
+                  <div className="text-[9px] font-jetbrains text-flash/35 truncate">
+                    {h.target}
+                  </div>
+                </div>
+
+                {/* enable switch */}
+                <button
+                  type="button"
+                  onClick={() => patch(h.id, { enabled: !h.enabled })}
+                  disabled={busy === h.id}
+                  title={h.enabled ? "Pause posting" : "Resume posting"}
+                  className={cn(
+                    "relative w-8 h-4 rounded-full transition-colors shrink-0 cursor-clicker disabled:opacity-40",
+                    h.enabled
+                      ? "bg-jade/40 border border-jade/60"
+                      : "bg-flash/10 border border-flash/15"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-[1px] w-[14px] h-[14px] rounded-full transition-all",
+                      h.enabled
+                        ? "left-[15px] bg-jade shadow-[0_0_6px_rgba(0,217,146,0.6)]"
+                        : "left-[1px] bg-flash/40"
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* queue preset chips */}
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {QUEUE_PRESETS.map((p) => {
+                  const active = presetKeyFor(h.queueFilter) === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => patch(h.id, { queueFilter: p.ids })}
+                      disabled={busy === h.id}
+                      className={cn(
+                        "text-[9px] font-jetbrains tracking-[0.16em] uppercase px-2 py-1 rounded-[3px] border cursor-clicker transition-all disabled:opacity-40",
+                        active
+                          ? "border-jade/40 text-jade bg-jade/[0.10]"
+                          : "border-flash/10 text-flash/40 hover:text-flash/70 hover:border-flash/25"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+
+                <div className="flex-1" />
+
+                <button
+                  type="button"
+                  onClick={() => sendTest(h.id)}
+                  disabled={busy === h.id}
+                  className="flex items-center gap-1.5 text-[9px] font-jetbrains tracking-[0.18em] uppercase font-medium px-2 py-1 rounded-[3px] border border-jade/25 text-jade/85 bg-jade/[0.06] hover:bg-jade/[0.15] cursor-clicker transition-all disabled:opacity-40"
+                >
+                  {busy === h.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3" />
+                  )}
+                  Test
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(h.id)}
+                  disabled={busy === h.id}
+                  title="Disconnect"
+                  className="p-1 rounded-[3px] text-flash/35 hover:text-error/80 hover:bg-error/[0.06] cursor-clicker disabled:opacity-40"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <WebhookIdentityEditor
+                hook={h}
+                busy={busy === h.id}
+                onSave={(identity) => patch(h.id, identity)}
+              />
+
+              {h.lastError && (
+                <div className="flex items-start gap-1.5 mt-2 text-[9px] font-jetbrains tracking-[0.1em] text-error/75 leading-snug">
+                  <AlertTriangle className="w-3 h-3 shrink-0 mt-[1px]" />
+                  <span className="min-w-0 break-words">{h.lastError}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loadErr && (
+        <div className="text-[10px] font-jetbrains tracking-[0.15em] uppercase text-error/70 mb-2">
+          ◆ {loadErr}
+        </div>
+      )}
+
+      {/* Connect a new channel */}
+      <div className="rounded-[3px] border border-flash/[0.08] bg-filmdark/20 p-2.5">
+        <div className="text-[9px] font-jetbrains tracking-[0.22em] uppercase text-flash/40 mb-1.5">
+          Connect a channel
+        </div>
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://discord.com/api/webhooks/…"
+          spellCheck={false}
+          className="w-full bg-black/25 border border-flash/15 rounded-[3px] h-9 px-2.5 text-[11px] font-jetbrains text-flash placeholder:text-flash/25 outline-none focus:border-jade/45 transition-colors"
+        />
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Label (optional) — e.g. #scrims-feed"
+            maxLength={60}
+            className="flex-1 min-w-0 bg-black/25 border border-flash/15 rounded-[3px] h-9 px-2.5 text-[11px] font-chakrapetch text-flash placeholder:text-flash/25 outline-none focus:border-jade/45 transition-colors"
+          />
+          <button
+            type="button"
+            onClick={add}
+            disabled={adding || !url.trim()}
+            className="shrink-0 flex items-center gap-1.5 text-[10px] font-jetbrains tracking-[0.2em] uppercase font-medium px-3 h-9 rounded-[3px] border border-jade/45 text-jade bg-jade/[0.10] hover:bg-jade/[0.20] cursor-clicker transition-all disabled:opacity-40"
+          >
+            {adding ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Plus className="w-3 h-3" />
+            )}
+            Connect
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

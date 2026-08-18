@@ -40,7 +40,7 @@ export function UpdateButton({
       {...props}
       disabled={loading || cooldown}
       className={cn(
-        "group relative inline-flex items-center justify-center gap-1.5 h-8 w-[104px]",
+        "group relative inline-flex shrink-0 items-center justify-center gap-1.5 h-8 w-[104px]",
         cooldown ? "font-orbitron text-[10px] tracking-wider" : "font-jetbrains text-[10px] tracking-[0.16em] uppercase",
         "transition-all duration-300 cursor-clicker select-none",
         "disabled:pointer-events-none",

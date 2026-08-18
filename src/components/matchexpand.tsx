@@ -14,6 +14,7 @@ import { getKeystoneIcon, getStyleIcon } from "@/constants/runes";
 import { getRuneName, useRuneTrees } from "@/constants/runeData";
 import { useMatchTimeline } from "@/components/matchreplay/timelineApi";
 import { computeImpact, impactTone } from "@/utils/impact";
+import { badgeKey, type BadgeNameMap } from "@/lib/proBadges";
 
 type P = any; // raw Riot participant — the page already consumes these fields untyped
 
@@ -76,12 +77,20 @@ export default function MatchExpand({
   region,
   actions,
   closing,
+  proUsernames,
+  streamerUsernames,
+  proNames,
+  streamerNames,
 }: {
   match: { metadata: { matchId: string }; info: any };
   mePuuid: string;
   region: string;
   actions?: React.ReactNode;
   closing?: boolean;
+  proUsernames?: Set<string>;
+  streamerUsernames?: Set<string>;
+  proNames?: BadgeNameMap;
+  streamerNames?: BadgeNameMap;
 }) {
   const [view, setView] = useState<View>("build");
   // Height-collapse choreography: mount at 0fr, expand to 1fr on the next frame;
@@ -344,6 +353,16 @@ export default function MatchExpand({
                       const place = placements.get(p.puuid) ?? 10;
                       const riotName = p.riotIdGameName;
                       const tag = p.riotIdTagline;
+                      const nameKey = badgeKey(riotName, tag);
+                      const isProPlayer = !!nameKey && !!proUsernames?.has(nameKey);
+                      const isStreamerPlayer = !!nameKey && !isProPlayer && !!streamerUsernames?.has(nameKey);
+                      // Who the badge belongs to — the badge alone says "someone
+                      // notable", the handle says WHO.
+                      const identity = isProPlayer
+                        ? proNames?.get(nameKey)
+                        : isStreamerPlayer
+                          ? streamerNames?.get(nameKey)
+                          : undefined;
                       const keystoneId = p.perks?.styles?.[0]?.selections?.[0]?.perk;
                       const subStyleId = p.perks?.styles?.[1]?.style;
                       return (
@@ -386,6 +405,22 @@ export default function MatchExpand({
                                 <span className="w-[14px] h-[14px] rounded-full bg-filmlight/[0.06]" />
                               )}
                             </div>
+                            {(isProPlayer || isStreamerPlayer) && (
+                              <span
+                                className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
+                                style={{
+                                  background: isProPlayer
+                                    ? "linear-gradient(135deg, #00d992, #00b8ff)"
+                                    : "linear-gradient(135deg, #7b42a1, #a855c7)",
+                                  color: isProPlayer ? "#040A0C" : "#e0d0f0",
+                                  boxShadow: isProPlayer
+                                    ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
+                                    : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
+                                }}
+                              >
+                                {isProPlayer ? "PRO" : "STR"}
+                              </span>
+                            )}
                             {riotName && tag ? (
                               <Link
                                 to={`/summoners/${region}/${String(riotName).replace(/\s+/g, "+")}-${tag}`}
@@ -398,6 +433,20 @@ export default function MatchExpand({
                               </Link>
                             ) : (
                               <span className="min-w-0 truncate text-[12px] font-chakrapetch text-flash/55">{p.championName}</span>
+                            )}
+                            {identity && (
+                              <Link
+                                to={`/players/${identity.slug}`}
+                                title={`${identity.name} — profile`}
+                                className={cn(
+                                  "shrink-0 max-w-[72px] truncate text-[10px] font-chakrapetch font-semibold leading-none transition-colors cursor-clicker",
+                                  isProPlayer
+                                    ? "text-jade/75 hover:text-jade"
+                                    : "text-[#c9a3e0]/75 hover:text-[#c9a3e0]"
+                                )}
+                              >
+                                {identity.name}
+                              </Link>
                             )}
                           </div>
 

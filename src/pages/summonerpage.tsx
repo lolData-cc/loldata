@@ -1,7 +1,7 @@
 import React from "react"
 import { createPortal } from "react-dom"
 import type { MatchWithWin, SummonerInfo, ChampionStats, Participant } from "@/assets/types/riot"
-import { computeImpact } from "@/utils/impact"
+import { computeImpact, impactTone } from "@/utils/impact"
 import { motion, AnimatePresence } from "framer-motion"
 import { calculateLolDataScores } from "@/utils/calculatePlayerRating";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +29,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import type { BadgeMapResponse, BadgeNameMap } from "@/lib/proBadges"
 import { DiamondButton } from "@/components/ui/diamond-button"
 // import { getPlayerBadges } from "@/utils/badges";
 import {
@@ -193,6 +194,10 @@ export default function SummonerPage() {
   const [adminFields, setAdminFields] = useState({ nickname: "", team: "", firstName: "", lastName: "", nationality: "", twitchLogin: "" });
   const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
   const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
+  // nametag → who they actually are, so a nameplate can say "Faker" and link
+  // to the profile instead of only flagging the account as notable.
+  const [proNames, setProNames] = useState<BadgeNameMap>(new Map());
+  const [streamerNames, setStreamerNames] = useState<BadgeNameMap>(new Map());
   const [proPlayerInfo, setProPlayerInfo] = useState<{
     id: string; username: string; first_name: string | null; last_name: string | null;
     nickname: string | null; team: string | null; nationality: string | null;
@@ -235,6 +240,7 @@ export default function SummonerPage() {
   const [matchCtxMenu, setMatchCtxMenu] = useState<{ x: number; y: number; matchId: string; isJungler: boolean } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
   const [linkedDiscord, setLinkedDiscord] = useState<{
@@ -803,10 +809,12 @@ export default function SummonerPage() {
     // Scoreboard nameplates: every known pro/streamer account nametag, merged
     // server-side on the box (lolpros import + curated Cloud tables).
     fetch(`${BOX_API_BASE_URL}/api/pros/badge-map`)
-      .then((r) => (r.ok ? r.json() : { pros: [], streamers: [] }))
-      .then(({ pros, streamers }: { pros: string[]; streamers: string[] }) => {
-        setProUsernames(new Set(pros));
-        setStreamerUsernames(new Set(streamers));
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: BadgeMapResponse) => {
+        setProUsernames(new Set(d.pros ?? []));
+        setStreamerUsernames(new Set(d.streamers ?? []));
+        setProNames(new Map(Object.entries(d.proNames ?? {})));
+        setStreamerNames(new Map(Object.entries(d.streamerNames ?? {})));
       })
       .catch(() => { /* badges are decorative — fail silent */ });
   }, []);
@@ -1966,6 +1974,26 @@ export default function SummonerPage() {
                   Level {summonerInfo?.level} · {region?.toUpperCase()}
                 </div>
               </div>
+              {/* phone LIVE opener — the desktop trigger lives in the lg-only card */}
+              {summonerInfo?.live && summonerInfo?.puuid && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMobileLiveOpen(true)}
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-red-500 font-mono text-[9px] font-bold tracking-[0.18em] uppercase text-white shadow-[0_0_14px_rgba(239,68,68,0.55)] active:brightness-110 cursor-clicker"
+                  >
+                    <span className="w-[5px] h-[5px] rounded-full bg-white animate-pulse" />
+                    Live
+                  </button>
+                  <LiveViewer
+                    puuid={summonerInfo.puuid}
+                    riotId={`${summonerInfo.name}#${summonerInfo.tag}`}
+                    region={region!}
+                    controlledOpen={mobileLiveOpen}
+                    onControlledOpenChange={setMobileLiveOpen}
+                  />
+                </>
+              )}
             </div>
 
             <div className="h-px bg-flash/10 my-2.5" />
@@ -2063,6 +2091,11 @@ export default function SummonerPage() {
                         `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }}
                   />
+                  {summonerInfo?.level != null && (
+                    <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-[3px] bg-black/85 px-1.5 py-[2px] font-chakrapetch text-[10px] font-bold tabular-nums leading-none text-flash/90 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
+                      {summonerInfo.level}
+                    </span>
+                  )}
                   {summonerInfo?.live && summonerInfo?.puuid && (
                     <LiveViewer
                       puuid={summonerInfo.puuid}
@@ -2145,16 +2178,21 @@ export default function SummonerPage() {
                     )}
                   </div>
 
-                  {/* Level · Region · Rank */}
-                  <div className="flex items-center gap-2.5 text-[12px] font-mono">
-                    <span className="text-flash/35">Level {summonerInfo?.level}</span>
-                    <span className="text-flash/15">·</span>
-                    <span className="text-flash/35">{region?.toUpperCase()}</span>
+                  {/* Meta line — always rendered (min-h reserves one line) so the
+                      name above and buttons below stay put. Level → avatar pill;
+                      here: PEAK rank (not surfaced elsewhere) + ladder rank. */}
+                  <div className="flex min-h-[18px] items-center gap-2 font-mono text-[12px]">
+                    {summonerInfo?.peakRank && summonerInfo.peakRank.toLowerCase() !== "unranked" && (
+                      <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-flash/[0.06] px-1.5 py-[2px] leading-none">
+                        <span className="text-[9px] uppercase tracking-[0.14em] text-citrine/60">Peak</span>
+                        <span className="text-[11px] font-semibold text-flash/70">{summonerInfo.peakRank}</span>
+                        {summonerInfo.peakLp != null && (
+                          <span className="text-[11px] text-flash/40 tabular-nums">{summonerInfo.peakLp} LP</span>
+                        )}
+                      </span>
+                    )}
                     {summonerInfo?.ladderRank && (
-                      <>
-                        <span className="text-flash/15">·</span>
-                        <span className="text-jade/50 tracking-[0.08em]">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
-                      </>
+                      <span className="tracking-[0.08em] text-jade/50">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
                     )}
                   </div>
 
@@ -2544,21 +2582,22 @@ export default function SummonerPage() {
                             <li
                               className={cn(
                                 "relative z-[2] overflow-hidden rounded-md p-2 text-flash transition cursor-clicker",
+                                // Win/loss backgrounds: no more flat green/red slabs — a deep,
+                                // desaturated wash that's strongest at the coloured left border
+                                // and dies into neutral glass within ~40% of the card (dpm-style
+                                // tint: the card stays dark, the colour just breathes off the edge).
                                 isRemake
                                   ? "bg-filmdark/30 backdrop-blur-lg saturate-150 glass-panel"
                                   : coloredMatchBg
                                     ? win
-                                      ? (blueWinTint ? "bg-[#5BA8E6]/[0.10] backdrop-blur-lg saturate-150" : "bg-[#00D18D]/[0.08] backdrop-blur-lg saturate-150")
-                                      : "bg-[#c93232]/[0.10] backdrop-blur-lg saturate-150"
+                                      ? (blueWinTint
+                                          ? "bg-filmlight/[0.045] bg-[linear-gradient(90deg,rgba(91,168,230,0.11),rgba(91,168,230,0.045)_45%,rgba(91,168,230,0.018)_100%)] backdrop-blur-lg"
+                                          : "bg-filmlight/[0.045] bg-[linear-gradient(90deg,rgba(0,209,141,0.10),rgba(0,209,141,0.04)_45%,rgba(0,209,141,0.016)_100%)] backdrop-blur-lg")
+                                      : "bg-filmlight/[0.045] bg-[linear-gradient(90deg,rgba(201,50,50,0.10),rgba(201,50,50,0.04)_45%,rgba(201,50,50,0.016)_100%)] backdrop-blur-lg"
                                     : "bg-filmdark/18 backdrop-blur-lg saturate-150 glass-panel",
                                 "shadow-[0_10px_30px_rgba(var(--c-shadow),0.60),inset_0_0_0_0.35px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.03)]",
-                                isRemake
-                                  ? "hover:bg-filmdark/35 hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                                  : coloredMatchBg
-                                    ? win
-                                      ? (blueWinTint ? "hover:bg-[#5BA8E6]/[0.14] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]" : "hover:bg-[#00D18D]/[0.12] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]")
-                                      : "hover:bg-[#c93232]/[0.14] hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                                    : "hover:bg-filmdark/16 hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                                "hover:shadow-[0_14px_40px_rgba(var(--c-shadow),0.65),inset_0_0_0_0.35px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]",
+                                isRemake && "hover:bg-filmdark/35"
                               )}
                               {...(contextMenuMode ? {
                                 onContextMenu: (e: React.MouseEvent) => {
@@ -2581,9 +2620,10 @@ export default function SummonerPage() {
                                 </>
                               )}
 
-                              {/* Aegis of Valor watermark — a loss that cost 0 LP (no-LP-loss).
-                                  Same cosmetic the scout MatchCard uses for double-LP wins. */}
-                              {!win && lpDelta === 0 && (
+                              {/* Aegis of Valor watermark — a loss that cost 0 LP (no-LP-loss)
+                                  OR a double-LP win (same ≥35 LP heuristic as the scout
+                                  MatchCard: a normal win can't reach 35+ without the 2× cosmetic). */}
+                              {((!win && lpDelta === 0) || (win && typeof lpDelta === "number" && lpDelta >= 35)) && (
                                 <img
                                   src={doubleLpBadgeUrl()}
                                   alt=""
@@ -2593,6 +2633,7 @@ export default function SummonerPage() {
                                 />
                               )}
 
+                              
                               <div
                                 className={cn(
                                   "pointer-events-none absolute -top-28 left-0 h-60 w-full z-[1]",
@@ -2651,26 +2692,6 @@ export default function SummonerPage() {
                                               Desktop: inline after the result. Mobile: a pill next to
                                               the KDA box (see below) — so hide this one on phones.
                                               0 LP is real (Aegis-of-Valor no-LP-loss) → show it neutral. */}
-                                          {typeof lpDelta === "number" && (
-                                            <span className={cn(
-                                              "hidden lg:inline text-[11px] font-semibold tabular-nums",
-                                              lpDelta > 0 ? "text-[#00D992]" : lpDelta < 0 ? "text-[#d63336]" : "text-flash/55"
-                                            )}>
-                                              {lpDelta > 0 ? "+" : ""}{lpDelta}
-                                              <span className="opacity-55 ml-0.5">LP</span>
-                                            </span>
-                                          )}
-
-                                          {isSelfMvpOrAce && coloredMatchBg && (
-                                            <span className={cn(
-                                              "hidden lg:inline text-[9px] font-mono font-bold tracking-[0.15em] px-1.5 py-[1px] rounded-[2px] border",
-                                              summonerInfo?.puuid === mvpWin
-                                                ? (blueWinTint ? "text-[#8ec5ff] border-[#8ec5ff]/25 bg-[#8ec5ff]/10" : "text-[#9fffc3] border-[#9fffc3]/25 bg-[#9fffc3]/10")
-                                                : "text-[#ff6b6b] border-[#ff6b6b]/25 bg-[#ff6b6b]/10"
-                                            )}>
-                                              {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
-                                            </span>
-                                          )}
 
                                         </span>
 
@@ -2689,469 +2710,257 @@ export default function SummonerPage() {
                                       </div>
 
 
-                                      <div className="relative flex justify-between">
-                                        <div className="relative z-40 flex justify-between w-full">
-                                          <div className="mt-3 flex-1 min-w-0">
-                                            <div className="flex space-x-1 lg:space-x-1.5 relative">
-                                              <div className="relative w-12 h-12">
-                                                <img
-                                                  src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`}
-                                                  alt={championName}
-                                                  className="w-12 h-12 rounded-md"
-                                                />
-                                                {participant?.champLevel && (
-                                                  <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded-sm shadow font-geist">
-                                                    {participant.champLevel}
-                                                  </div>
-                                                )}
-                                                {isSelfMvpOrAce && (
-                                                  <span
-                                                    className={cn(
-                                                      "lg:hidden absolute -top-1 -left-1 z-20 px-1 rounded-[3px] text-[8px] leading-none",
-                                                      summonerInfo?.puuid === mvpWin
-                                                        ? "bg-pine text-jade"
-                                                        : "bg-[#3A2C45] text-[#C693F1]"
-                                                    )}
-                                                    style={{ lineHeight: '1', fontWeight: 700 }}
-                                                  >
-                                                    {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
-                                                  </span>
-                                                )}
+                                      {/* MAIN ROW - one flat, full-width strip: every zone gets its
+                                          slice of the card (dpm-style density, no dead centre). */}
+                                      <div className="relative z-40 mt-2.5 flex w-full items-center justify-between gap-3 lg:gap-5">
+
+                                        {/* 1 - champion identity: portrait + spells + runes */}
+                                        <div className="flex shrink-0 items-center gap-1.5">
+                                          <div className="relative h-[52px] w-[52px]">
+                                            <img
+                                              src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(championName)}.png`}
+                                              alt={championName}
+                                              className="h-[52px] w-[52px] rounded-md"
+                                            />
+                                            {participant?.champLevel && (
+                                              <div className="absolute -bottom-1 -right-1 rounded-sm bg-black/80 px-1.5 py-0.5 font-geist text-[10px] text-white shadow">
+                                                {participant.champLevel}
                                               </div>
-
-                                              {participant && (
-                                                <>
-                                                  <div className="flex flex-col">
-                                                    <img
-                                                      src={summonerSpellUrl(participant.summoner1Id)}
-                                                      alt="Spell 1"
-                                                      className="w-6 h-6 rounded-sm"
-                                                    />
-                                                    <img
-                                                      src={summonerSpellUrl(participant.summoner2Id)}
-                                                      alt="Spell 2"
-                                                      className="w-6 h-6 rounded-sm"
-                                                    />
-                                                  </div>
-                                                  {participant.perks?.styles && participant.perks.styles.length >= 2 && (
-                                                    <div className="grid grid-rows-2 gap-0 lg:gap-0.5">
-                                                      {(() => {
-                                                        const keystoneId = participant.perks!.styles[0]?.selections?.[0]?.perk;
-                                                        const keystoneSrc = keystoneId ? getKeystoneIcon(keystoneId) : null;
-                                                        const keystoneName = keystoneId ? getKeystoneName(keystoneId) : null;
-                                                        return (
-                                                          <TooltipProvider delayDuration={150}>
-                                                            <Tooltip>
-                                                              <TooltipTrigger asChild>
-                                                                <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
-                                                                  {keystoneSrc && (
-                                                                    <img src={keystoneSrc} alt={keystoneName ?? "Keystone"} className="w-5 h-5 rounded-full" />
-                                                                  )}
-                                                                </div>
-                                                              </TooltipTrigger>
-                                                              {keystoneName && (
-                                                                <TooltipContent side="top" className="text-xs">
-                                                                  {keystoneName}
-                                                                </TooltipContent>
-                                                              )}
-                                                            </Tooltip>
-                                                          </TooltipProvider>
-                                                        );
-                                                      })()}
-                                                      {(() => {
-                                                        const subStyleId = participant.perks!.styles[1]?.style;
-                                                        const subStyleSrc = subStyleId ? getStyleIcon(subStyleId) : null;
-                                                        const subStyleName = subStyleId ? getStyleName(subStyleId) : null;
-                                                        return (
-                                                          <TooltipProvider delayDuration={150}>
-                                                            <Tooltip>
-                                                              <TooltipTrigger asChild>
-                                                                <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
-                                                                  {subStyleSrc && (
-                                                                    <img src={subStyleSrc} alt={subStyleName ?? "Secondary"} className="w-5 h-5 rounded-full opacity-70" />
-                                                                  )}
-                                                                </div>
-                                                              </TooltipTrigger>
-                                                              {subStyleName && (
-                                                                <TooltipContent side="top" className="text-xs">
-                                                                  {subStyleName}
-                                                                </TooltipContent>
-                                                              )}
-                                                            </Tooltip>
-                                                          </TooltipProvider>
-                                                        );
-                                                      })()}
-                                                    </div>
-                                                  )}
-                                                </>
-                                              )}
-                                              {participant && (
-                                                <div className="flex ml-1">
-                                                  <div className="grid grid-cols-3 grid-rows-2 gap-x-0.5 gap-y-0 lg:gap-0.5">
-                                                    {itemKeys.map((key, index) => {
-                                                      const itemId = participant[key];
-                                                      return (
-                                                        <div
-                                                          key={index}
-                                                          className="group relative w-6 h-6 rounded-sm bg-[#0f0f0f] border border-[#2B2A2B]"
-                                                        >
-                                                          {typeof itemId === "number" && itemId > 0 && (
-                                                            <>
-                                                              <Link to={`/items/${itemId}`} className="cursor-clicker">
-                                                                <img
-                                                                  src={`${cdnBaseUrl()}/img/item/${itemId}.png`}
-                                                                  alt={`Item ${itemId}`}
-                                                                  className="w-full h-full rounded-sm"
-                                                                />
-                                                              </Link>
-                                                              <AnimatedOutline rx={2} />
-                                                            </>
-                                                          )}
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
-
-                                                  {typeof participant.item6 === "number" && participant.item6 > 0 && (
-                                                    <div className="hidden lg:flex items-center justify-center ml-1">
-                                                      <Link
-                                                        to={`/items/${participant.item6}`}
-                                                        className="cursor-clicker group relative w-6 h-6 block"
-                                                      >
-                                                        <div className="w-6 h-6 bg-[#0f0f0f] rounded-full">
-                                                          <img
-                                                            src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`}
-                                                            alt={`Trinket ${participant.item6}`}
-                                                            className="w-full h-full rounded-full"
-                                                          />
-                                                        </div>
-                                                        {/* rx=12 = w/2 (w-6 = 24px) → circle outline matching
-                                                            the trinket's rounded-full shape. */}
-                                                        <AnimatedOutline rx={12} />
-                                                      </Link>
-                                                    </div>
-                                                  )}
+                                            )}
+                                            {/* MVP/ACE — anchored to the champ portrait's top-left, all breakpoints */}
+                                            {isSelfMvpOrAce && (
+                                              <span
+                                                className={cn(
+                                                  "absolute -top-1 -left-1 z-20 px-1 rounded-[3px] text-[8px] leading-none shadow-[0_1px_6px_rgba(0,0,0,0.6)]",
+                                                  summonerInfo?.puuid === mvpWin ? "bg-pine text-jade" : "bg-[#3A2C45] text-[#C693F1]"
+                                                )}
+                                                style={{ lineHeight: '1', fontWeight: 700 }}
+                                              >
+                                                {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {participant && (
+                                            <>
+                                              <div className="flex flex-col gap-0.5">
+                                                <img src={summonerSpellUrl(participant.summoner1Id)} alt="Spell 1" className="h-6 w-6 rounded-sm" />
+                                                <img src={summonerSpellUrl(participant.summoner2Id)} alt="Spell 2" className="h-6 w-6 rounded-sm" />
+                                              </div>
+                                              {participant.perks?.styles && participant.perks.styles.length >= 2 && (
+                                                <div className="grid grid-rows-2 gap-0.5">
+                                                  {(() => {
+                                                    const keystoneId = participant.perks!.styles[0]?.selections?.[0]?.perk;
+                                                    const keystoneSrc = keystoneId ? getKeystoneIcon(keystoneId) : null;
+                                                    const keystoneName = keystoneId ? getKeystoneName(keystoneId) : null;
+                                                    return (
+                                                      <TooltipProvider delayDuration={150}>
+                                                        <Tooltip>
+                                                          <TooltipTrigger asChild>
+                                                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60">
+                                                              {keystoneSrc && <img src={keystoneSrc} alt={keystoneName ?? "Keystone"} className="h-5 w-5 rounded-full" />}
+                                                            </div>
+                                                          </TooltipTrigger>
+                                                          {keystoneName && <TooltipContent side="top" className="text-xs">{keystoneName}</TooltipContent>}
+                                                        </Tooltip>
+                                                      </TooltipProvider>
+                                                    );
+                                                  })()}
+                                                  {(() => {
+                                                    const subStyleId = participant.perks!.styles[1]?.style;
+                                                    const subStyleSrc = subStyleId ? getStyleIcon(subStyleId) : null;
+                                                    const subStyleName = subStyleId ? getStyleName(subStyleId) : null;
+                                                    return (
+                                                      <TooltipProvider delayDuration={150}>
+                                                        <Tooltip>
+                                                          <TooltipTrigger asChild>
+                                                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60">
+                                                              {subStyleSrc && <img src={subStyleSrc} alt={subStyleName ?? "Secondary"} className="h-5 w-5 rounded-full opacity-70" />}
+                                                            </div>
+                                                          </TooltipTrigger>
+                                                          {subStyleName && <TooltipContent side="top" className="text-xs">{subStyleName}</TooltipContent>}
+                                                        </Tooltip>
+                                                      </TooltipProvider>
+                                                    );
+                                                  })()}
                                                 </div>
                                               )}
-                                            </div>
-                                            { }
-                                            <div className="flex flex-col mt-2">
-                                              <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 w-full">
-                                                {(() => {
-                                                  const { className, style } = getKdaBackgroundStyle(kda);
-                                                  const isPerfect = kda === "Perfect";
-                                                  return (
-                                                    <div
-                                                      className={cn(
-                                                        "flex items-center justify-center h-7 w-[88px] text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
-                                                        className
-                                                      )}
-                                                      style={style}
-                                                    >
-                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.kills}</span>
-                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
-                                                      <span className={isPerfect ? "text-liquirice" : "text-red-400/80"}>{participant?.deaths}</span>
-                                                      <span className={cn("mx-[2px]", isPerfect ? "text-liquirice/50" : "text-flash/25")}>/</span>
-                                                      <span className={isPerfect ? "text-liquirice" : "text-flash/90"}>{participant?.assists}</span>
-                                                    </div>
-                                                  );
-                                                })()}
-                                                {/* MOBILE-ONLY LP pill — same box style as the KDA box,
-                                                    centered EXACTLY in the gap between it and the
-                                                    scoreboard (the flex-1 wrapper eats the space after
-                                                    the KDA box, justify-center centers the pill in it).
-                                                    Tracked (premium/elite) games; 0 LP is real (Aegis
-                                                    no-LP-loss) → shown neutral. */}
-                                                {typeof lpDelta === "number" && (
-                                                  <div className="lg:hidden flex-1 flex justify-center">
-                                                    <div className={cn(
-                                                      "flex items-center justify-center h-7 px-2.5 text-[14px] font-chakrapetch font-bold tabular-nums rounded-[3px] border tracking-wide",
-                                                      lpDelta > 0
-                                                        ? "text-[#00D992] border-[#00D992]/30 bg-[#00D992]/[0.08]"
-                                                        : lpDelta < 0
-                                                          ? "text-[#d63336] border-[#d63336]/30 bg-[#d63336]/[0.08]"
-                                                          : "text-flash/55 border-flash/20 bg-flash/[0.05]"
-                                                    )}>
-                                                      {lpDelta > 0 ? "+" : ""}{lpDelta}
-                                                      <span className="text-[9px] opacity-60 ml-1 font-jetbrains tracking-[0.1em]">LP</span>
-                                                    </div>
-                                                  </div>
-                                                )}
-                                                {/* KDA caption — stacked big value + tiny label,
-                                                    mirrors the scout matchcard look. */}
-                                                <div className="hidden lg:flex flex-col leading-tight ml-3 tabular-nums">
-                                                  <span className="font-chakrapetch font-bold tabular-nums text-flash/75 text-[13px]">
-                                                    {typeof kda === "number" ? kda.toFixed(2) : kda}
-                                                  </span>
-                                                  <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
-                                                    KDA
-                                                  </span>
-                                                </div>
-                                                {/* CS caption — same stack, value coloured by CS/min:
-                                                    >10 glowing jade, 8-10 jade, 6-8 citrine, else grey.
-                                                    Support roles are always neutral grey (their low CS
-                                                    isn't a performance signal). Mirrors CsDetailBox in
-                                                    components/matchcard.tsx. */}
-                                                {participant && (() => {
-                                                  const cs =
-                                                    (participant.totalMinionsKilled ?? 0) +
-                                                    (participant.neutralMinionsKilled ?? 0);
-                                                  const minutes =
-                                                    match.info.gameDuration > 0
-                                                      ? match.info.gameDuration / 60
-                                                      : 0;
-                                                  const csPerMin = minutes > 0 ? cs / minutes : 0;
-                                                  const roleUpper = (playerRole ?? "").toUpperCase();
-                                                  const support =
-                                                    roleUpper === "UTILITY" ||
-                                                    roleUpper === "SUPPORT" ||
-                                                    roleUpper === "SUP";
-                                                  let csValueClass = "text-flash/55";
-                                                  let csGlow: React.CSSProperties | undefined;
-                                                  if (!support) {
-                                                    if (csPerMin > 10) {
-                                                      csValueClass = "text-[#00ff9d]";
-                                                      csGlow = {
-                                                        textShadow:
-                                                          "0 0 10px rgba(0,255,157,0.7)",
-                                                      };
-                                                    } else if (csPerMin >= 8) {
-                                                      csValueClass = "text-[#00ff9d]";
-                                                    } else if (csPerMin >= 6) {
-                                                      csValueClass = "text-[#FFB615]";
-                                                    }
-                                                  }
-                                                  // Italian-style decimal for cs/min ("7,2");
-                                                  // thousands-grouped gold ("14,732").
-                                                  const csPerMinStr = csPerMin.toFixed(1).replace(".", ",");
-                                                  const goldStr =
-                                                    participant.goldEarned != null
-                                                      ? Math.round(participant.goldEarned).toLocaleString("en-US")
-                                                      : null;
-                                                  return (
-                                                    <TooltipProvider delayDuration={150}>
-                                                      <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                          <div className="hidden lg:flex flex-col leading-tight ml-4 tabular-nums cursor-default">
-                                                            <span
-                                                              className={cn(
-                                                                "font-chakrapetch font-bold text-[13px]",
-                                                                csValueClass
-                                                              )}
-                                                              style={csGlow}
-                                                            >
-                                                              {cs}
-                                                            </span>
-                                                            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
-                                                              CS
-                                                            </span>
-                                                          </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top" className="text-xs bg-liquirice/80">
-                                                          <div className="flex flex-col items-center gap-1.5 py-0.5">
-                                                            <span className="tabular-nums">{csPerMinStr} cs per minute</span>
-                                                            {goldStr && (
-                                                              <>
-                                                                <div className="h-px w-full bg-flash/20" />
-                                                                <span className="tabular-nums">{goldStr} gold</span>
-                                                              </>
-                                                            )}
-                                                          </div>
-                                                        </TooltipContent>
-                                                      </Tooltip>
-                                                    </TooltipProvider>
-                                                  );
-                                                })()}
-                                                {/* KP caption — same stack, value coloured by tier:
-                                                    ≥65% jade, ≥45% neutral flash, else red. Matches
-                                                    KpDetailBox in components/matchcard.tsx. */}
-                                                {participant && (() => {
-                                                  const team = participant.teamId === 100 ? team1 : team2;
-                                                  const teamKills = team.reduce((sum, p) => sum + p.kills, 0);
-                                                  const kp = teamKills > 0
-                                                    ? Math.round(((participant.kills + participant.assists) / teamKills) * 100)
-                                                    : 0;
-                                                  const kpValueClass =
-                                                    kp >= 65
-                                                      ? "text-jade/85"
-                                                      : kp >= 45
-                                                        ? "text-flash/75"
-                                                        : "text-[#d63336]/80";
-                                                  return (
-                                                    <TooltipProvider delayDuration={150}>
-                                                      <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                          <div className="hidden lg:flex flex-col leading-tight ml-4 tabular-nums cursor-default">
-                                                            <span className={cn("font-chakrapetch font-bold text-[13px]", kpValueClass)}>
-                                                              {kp}%
-                                                            </span>
-                                                            <span className="font-jetbrains tracking-[0.18em] uppercase text-flash/30 text-[9px]">
-                                                              KP
-                                                            </span>
-                                                          </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top" className="text-xs bg-liquirice/80">
-                                                          <span className="tabular-nums">{kp}% kill participation</span>
-                                                        </TooltipContent>
-                                                      </Tooltip>
-                                                    </TooltipProvider>
-                                                  );
-                                                })()}
-
-                                                <div className="ml-2">
-                                                </div>
-
-                                              </div>
-                                            </div>
-                                          </div>
-                                          <div className="w-[46%] lg:w-[44%] grid grid-cols-2 gap-1.5 lg:gap-4 mt-2 text-[8px] lg:text-[11px]">
-                                            <div className="min-w-0">
-                                              <ul className="space-y-0.5">
-                                                {team1.map((p) => {
-                                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                                  const riotName = p.riotIdGameName;
-                                                  const tag = p.riotIdTagline;
-                                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
-                                                  const isMvp = p.puuid === mvpWin;
-                                                  const isAce = p.puuid === mvpLose;
-                                                  const nameKey = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
-                                                  const isProPlayer = nameKey && proUsernames.has(nameKey);
-                                                  const isStreamerPlayer = nameKey && !isProPlayer && streamerUsernames.has(nameKey);
-
-                                                  return (
-                                                    <li key={p.puuid} className="flex items-center gap-1 min-w-0">
-                                                      <div className="relative w-4 h-4 shrink-0">
-                                                        <img
-                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
-                                                          alt={p.championName}
-                                                          className="w-4 h-4 rounded-sm"
-                                                        />
-                                                        {(isMvp || isAce) && (
-                                                          <span
-                                                            className={cn(
-                                                              "absolute -top-1 -right-1 text-[8px] px-0.5 rounded-sm z-10",
-                                                              isMvp && "bg-pine text-jade",
-                                                              isAce && "bg-[#3A2C45] text-[#C693F1]"
-                                                            )}
-                                                            style={{ lineHeight: '1', fontWeight: 600 }}
-                                                          >
-                                                            {isMvp ? "MVP" : "ACE"}
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                      {(isProPlayer || isStreamerPlayer) && (
-                                                        <span
-                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
-                                                          style={{
-                                                            background: isProPlayer
-                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
-                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
-                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
-                                                            boxShadow: isProPlayer
-                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
-                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
-                                                          }}
-                                                        >
-                                                          {isProPlayer ? "PRO" : "STR"}
-                                                        </span>
-                                                      )}
-                                                      <span className="min-w-0 truncate">
-                                                        {riotName && tag ? (
-                                                          <PlayerHoverCard
-                                                            riotId={showName}
-                                                            region={region!}
-                                                            championId={championMapReverse[p.championName]}
-                                                            profileIconId={p.profileIconId}
-                                                            patch={latestPatch}
-                                                            isCurrentUser={isCurrentUser}
-                                                            championMap={championMap}
-                                                          >
-                                                            {showName}
-                                                          </PlayerHoverCard>
-                                                        ) : (
-                                                          <span className="truncate">{showName}</span>
-                                                        )}
-                                                      </span>
-                                                    </li>
-                                                  );
-                                                })}
-                                              </ul>
-
-                                            </div>
-                                            <div className="min-w-0">
-                                              <ul className="space-y-0.5">
-                                                {team2.map((p) => {
-                                                  const isCurrentUser = p.puuid === summonerInfo?.puuid;
-                                                  const riotName = p.riotIdGameName;
-                                                  const tag = p.riotIdTagline;
-                                                  const showName = riotName ? `${riotName}#${tag}` : p.puuid;
-                                                  const isMvp = p.puuid === mvpWin;
-                                                  const isAce = p.puuid === mvpLose;
-                                                  const nameKey2 = riotName && tag ? `${riotName}#${tag}`.toLowerCase() : "";
-                                                  const isProPlayer = nameKey2 && proUsernames.has(nameKey2);
-                                                  const isStreamerPlayer = nameKey2 && !isProPlayer && streamerUsernames.has(nameKey2);
-
-                                                  return (
-                                                    <li key={p.puuid} className="flex items-center justify-end gap-1">
-                                                      <span className="min-w-0 truncate text-right">
-                                                        {riotName && tag ? (
-                                                          <PlayerHoverCard
-                                                            riotId={showName}
-                                                            region={region!}
-                                                            championId={championMapReverse[p.championName]}
-                                                            profileIconId={p.profileIconId}
-                                                            patch={latestPatch}
-                                                            isCurrentUser={isCurrentUser}
-                                                            championMap={championMap}
-                                                          >
-                                                            {showName}
-                                                          </PlayerHoverCard>
-                                                        ) : (
-                                                          <span className="truncate">{showName}</span>
-                                                        )}
-                                                      </span>
-                                                      {(isProPlayer || isStreamerPlayer) && (
-                                                        <span
-                                                          className="shrink-0 text-[8px] font-black leading-none px-[3px] py-[1px] rounded-[3px] tracking-wide"
-                                                          style={{
-                                                            background: isProPlayer
-                                                              ? "linear-gradient(135deg, #00d992, #00b8ff)"
-                                                              : "linear-gradient(135deg, #7b42a1, #a855c7)",
-                                                            color: isProPlayer ? "#040A0C" : "#e0d0f0",
-                                                            boxShadow: isProPlayer
-                                                              ? "0 0 6px rgba(0,217,146,0.5), 0 0 12px rgba(0,184,255,0.25)"
-                                                              : "0 0 6px rgba(123,66,161,0.4), 0 0 10px rgba(168,85,199,0.2)",
-                                                          }}
-                                                        >
-                                                          {isProPlayer ? "PRO" : "STR"}
-                                                        </span>
-                                                      )}
-                                                      <div className="relative w-4 h-4 shrink-0">
-                                                        <img
-                                                          src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(p.championName)}.png`}
-                                                          alt={p.championName}
-                                                          className="w-4 h-4 rounded-sm"
-                                                        />
-                                                        {(isMvp || isAce) && (
-                                                          <span
-                                                            className={cn(
-                                                              "absolute -top-1 -left-1 text-[8px] px-0.5 rounded-sm z-10",
-                                                              isMvp && "bg-pine text-jade",
-                                                              isAce && "bg-[#3A2C45] text-[#C693F1]"
-                                                            )}
-                                                            style={{ lineHeight: '1', fontWeight: 600 }}
-                                                          >
-                                                            {isMvp ? "MVP" : "ACE"}
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                    </li>
-                                                  );
-                                                })}
-                                              </ul>
-                                            </div>
-                                          </div>
+                                            </>
+                                          )}
                                         </div>
+
+                                        {/* 2 - the scoreline: big K/D/A with the ratio right under */}
+                                        <div className="flex min-w-[104px] shrink-0 flex-col items-center leading-none">
+                                          {(() => {
+                                            const isPerfect = kda === "Perfect";
+                                            return (
+                                              <div className="flex items-baseline font-chakrapetch text-[18px] font-bold tabular-nums tracking-wide">
+                                                <span className="text-flash/95">{participant?.kills}</span>
+                                                <span className="mx-1.5 text-[13px] text-flash/25">/</span>
+                                                <span className={isPerfect ? "text-jade" : "text-flash/50"}>{participant?.deaths}</span>
+                                                <span className="mx-1.5 text-[13px] text-flash/25">/</span>
+                                                <span className="text-flash/95">{participant?.assists}</span>
+                                              </div>
+                                            );
+                                          })()}
+                                          <span className="mt-1.5 font-jetbrains text-[9.5px] tabular-nums tracking-[0.14em] text-flash/45">
+                                            {typeof kda === "number" ? kda.toFixed(2) : kda}<span className="ml-1 uppercase text-flash/30">KDA</span>
+                                          </span>
+                                          {typeof lpDelta === "number" && (
+                                            <span className={cn(
+                                              "mt-1 font-chakrapetch text-[12px] font-bold tabular-nums",
+                                              lpDelta > 0 ? "text-[#00D992]" : lpDelta < 0 ? "text-[#d63336]" : "text-flash/55"
+                                            )}>
+                                              {lpDelta > 0 ? "+" : ""}{lpDelta} LP
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* 3 - stat trio: CS (tooltip cs/min+gold), KP, DMG */}
+                                        <div className="hidden shrink-0 items-center gap-5 lg:flex">
+                                          {participant && (() => {
+                                            const cs = (participant.totalMinionsKilled ?? 0) + (participant.neutralMinionsKilled ?? 0);
+                                            const minutes = match.info.gameDuration > 0 ? match.info.gameDuration / 60 : 0;
+                                            const csPerMin = minutes > 0 ? cs / minutes : 0;
+                                            const roleUpper = (playerRole ?? "").toUpperCase();
+                                            const support = roleUpper === "UTILITY" || roleUpper === "SUPPORT" || roleUpper === "SUP";
+                                            void support;
+                                            const csValueClass = "text-flash/75";
+                                            const csGlow: React.CSSProperties | undefined = undefined;
+                                            const csPerMinStr = csPerMin.toFixed(1).replace(".", ",");
+                                            const goldStr = participant.goldEarned != null ? Math.round(participant.goldEarned).toLocaleString("en-US") : null;
+                                            return (
+                                              <TooltipProvider delayDuration={150}>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="flex cursor-default flex-col leading-tight tabular-nums">
+                                                      <span className={cn("font-chakrapetch text-[13px] font-bold", csValueClass)} style={csGlow}>{cs}</span>
+                                                      <span className="font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/30">CS</span>
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent side="top" className="bg-liquirice/80 text-xs">
+                                                    <div className="flex flex-col items-center gap-1.5 py-0.5">
+                                                      <span className="tabular-nums">{csPerMinStr} cs per minute</span>
+                                                      {goldStr && (<><div className="h-px w-full bg-flash/20" /><span className="tabular-nums">{goldStr} gold</span></>)}
+                                                    </div>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            );
+                                          })()}
+                                          {participant && (() => {
+                                            const team = participant.teamId === 100 ? team1 : team2;
+                                            const teamKills = team.reduce((sum, p) => sum + p.kills, 0);
+                                            const kp = teamKills > 0 ? Math.round(((participant.kills + participant.assists) / teamKills) * 100) : 0;
+                                            const kpValueClass = "text-flash/75";
+                                            return (
+                                              <TooltipProvider delayDuration={150}>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="flex cursor-default flex-col leading-tight tabular-nums">
+                                                      <span className={cn("font-chakrapetch text-[13px] font-bold", kpValueClass)}>{kp}%</span>
+                                                      <span className="font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/30">KP</span>
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent side="top" className="bg-liquirice/80 text-xs">
+                                                    <span className="tabular-nums">{kp}% kill participation</span>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            );
+                                          })()}
+                                          {participant && (() => {
+                                            const dmg = participant.totalDamageDealtToChampions ?? 0;
+                                            const dmgStr = dmg >= 1000 ? `${(dmg / 1000).toFixed(1)}k` : String(dmg);
+                                            return (
+                                              <div className="flex cursor-default flex-col leading-tight tabular-nums" title={`${dmg.toLocaleString("en-US")} damage to champions`}>
+                                                <span className="font-chakrapetch text-[13px] font-bold text-flash/75">{dmgStr}</span>
+                                                <span className="font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/30">DMG</span>
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+
+                                        {/* 4 - items: one row on desktop, 3x2 on phones */}
+                                        {participant && (
+                                          <div className="flex shrink-0 items-center">
+                                            <div className="grid grid-cols-3 grid-rows-2 gap-0.5 lg:flex lg:items-center lg:gap-1">
+                                              {itemKeys.map((key, index) => {
+                                                const itemId = participant[key];
+                                                return (
+                                                  <div key={index} className="group relative h-6 w-6 rounded-sm border border-[#2B2A2B] bg-[#0f0f0f] lg:h-7 lg:w-7">
+                                                    {typeof itemId === "number" && itemId > 0 && (
+                                                      <>
+                                                        <Link to={`/items/${itemId}`} className="cursor-clicker">
+                                                          <img src={`${cdnBaseUrl()}/img/item/${itemId}.png`} alt={`Item ${itemId}`} className="h-full w-full rounded-sm" />
+                                                        </Link>
+                                                        <AnimatedOutline rx={2} />
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                            {typeof participant.item6 === "number" && participant.item6 > 0 && (
+                                              <div className="ml-1.5 hidden items-center justify-center lg:flex">
+                                                <Link to={`/items/${participant.item6}`} className="group relative block h-7 w-7 cursor-clicker">
+                                                  <div className="h-7 w-7 rounded-full bg-[#0f0f0f]">
+                                                    <img src={`${cdnBaseUrl()}/img/item/${participant.item6}.png`} alt={`Trinket ${participant.item6}`} className="h-full w-full rounded-full" />
+                                                  </div>
+                                                  <AnimatedOutline rx={14} />
+                                                </Link>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* 5 - lane opponent */}
+                                        {(() => {
+                                          if (!participant) return null;
+                                          const myPos = ((participant as any).teamPosition || (participant as any).individualPosition || "").toUpperCase();
+                                          const enemies = participant.teamId === 100 ? team2 : team1;
+                                          const opp = myPos ? enemies.find((e) => (((e as any).teamPosition || (e as any).individualPosition || "").toUpperCase()) === myPos) : null;
+                                          if (!opp) return null;
+                                          return (
+                                            <div className="hidden shrink-0 flex-col items-center gap-1.5 lg:flex">
+                                              <img
+                                                src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(opp.championName)}.png`}
+                                                alt={opp.championName}
+                                                title={opp.riotIdGameName ? `${opp.riotIdGameName}#${opp.riotIdTagline}` : opp.championName}
+                                                className="h-10 w-10 rounded-[4px] ring-1 ring-flash/25 shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+                                              />
+                                              <span className="font-jetbrains text-[9px] font-semibold uppercase tracking-[0.16em] text-flash/60">vs lane</span>
+                                            </div>
+                                          );
+                                        })()}
+
+                                        {/* 6 - IMPACT ring (the anchor) */}
+                                        {participant && (() => {
+                                          const all = match.info.participants as any[];
+                                          const myImpact = computeImpact(participant as any, match.info);
+                                          const place = 1 + all.filter((p) => p.puuid !== participant.puuid && computeImpact(p, match.info) > myImpact).length;
+                                          const tone = impactTone(myImpact);
+                                          const color = tone === "jade" ? "#00d992" : tone === "citrine" ? "#FFB615" : "#9aa0a4";
+                                          const R = 21;
+                                          const CIRC = 2 * Math.PI * R;
+                                          const ordStr = place === 1 ? "1st" : place === 2 ? "2nd" : place === 3 ? "3rd" : `${place}th`;
+                                          return (
+                                            <div className="relative hidden h-[56px] w-[56px] shrink-0 lg:block" title={`IMPACT ${myImpact} - ${ordStr} of 10`}>
+                                              <svg viewBox="0 0 56 56" className="h-full w-full -rotate-90">
+                                                <circle cx="28" cy="28" r={R} fill="none" stroke="rgba(215,216,217,0.1)" strokeWidth="3.5" />
+                                                <circle
+                                                  cx="28" cy="28" r={R} fill="none"
+                                                  stroke={color} strokeWidth="3.5" strokeLinecap="round"
+                                                  strokeDasharray={`${(CIRC * myImpact) / 100} ${CIRC}`}
+                                                  style={{ filter: `drop-shadow(0 0 6px ${color}66)` }}
+                                                />
+                                              </svg>
+                                              <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+                                                <span className="font-chakrapetch text-[15px] font-bold tabular-nums" style={{ color }}>{myImpact}</span>
+                                                <span className="mt-[2px] font-jetbrains text-[7px] uppercase tracking-[0.12em] text-flash/40">{ordStr}</span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
 
                                       {/* BADGE STRIP — only visible when analysis is open */}
@@ -3190,6 +2999,10 @@ export default function SummonerPage() {
                                 mePuuid={summonerInfo?.puuid ?? ""}
                                 region={region ?? "euw"}
                                 closing={closingMatchId === match.metadata.matchId}
+                                proUsernames={proUsernames}
+                                streamerUsernames={streamerUsernames}
+                                proNames={proNames}
+                                streamerNames={streamerNames}
                                 actions={
                                   <>
                                     <button
