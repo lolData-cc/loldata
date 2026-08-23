@@ -32,6 +32,9 @@ export function showCyberToast({
         description={description}
         tag={tag}
         variant={variant}
+        // The progress line runs for as long as the toast actually lives; it
+        // used to be fixed at 3s while callers pass 2s to 8s.
+        duration={duration}
         action={action ? {
           label: action.label,
           onClick: () => { action.onClick(); toast.dismiss(toastId); },

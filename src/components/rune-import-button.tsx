@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils"
  * There is no reliable way to tell from a browser whether the app is
  * installed: navigating to an unhandled protocol fails silently in every
  * engine, and the focus tricks people use to guess are wrong often enough to
- * be worse than saying nothing. So the requirement is stated up front rather
- * than detected, and the button never claims something happened.
+ * be worse than saying nothing. So the button never claims the import
+ * happened — only that the app was opened — and the requirement lives in the
+ * tooltip rather than as a caption that pushes the button off the edge.
  */
 type RunePage = {
   keystone: number
@@ -66,31 +67,26 @@ export default function RuneImportButton({
   }
 
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <button
-        type="button"
-        onClick={send}
-        title={`Set this page as ${champion} - LolData in your client`}
-        className={cn(
-          "group relative overflow-hidden rounded-[3px] px-3 py-1.5",
-          "font-chakrapetch text-[11px] font-bold uppercase tracking-[0.12em]",
-          "text-jade transition-colors cursor-pointer",
-          "bg-jade/[0.10] hover:bg-jade/[0.17]",
-        )}
-        // A left rail rather than an outline — the site does not do pale borders.
-        style={{ boxShadow: "inset 2px 0 0 0 #00d992" }}
-      >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-full"
-          style={{ background: "linear-gradient(90deg,transparent,rgba(0,217,146,0.22),transparent)" }}
-        />
-        <span className="relative">{sent ? "opening app" : "import runes"}</span>
-      </button>
-
-      <span className="font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/25">
-        needs the desktop app
-      </span>
-    </div>
+    <button
+      type="button"
+      onClick={send}
+      title={`Needs the loldata desktop app · sets this page as "${champion} - LolData" in your client`}
+      className={cn(
+        "group relative shrink-0 overflow-hidden rounded-[3px] px-3 py-1.5",
+        "font-chakrapetch text-[11px] font-bold uppercase tracking-[0.12em]",
+        "text-jade transition-colors cursor-pointer",
+        "bg-jade/[0.10] hover:bg-jade/[0.17]",
+        className,
+      )}
+      // A left rail rather than an outline — the site does not do pale borders.
+      style={{ boxShadow: "inset 2px 0 0 0 #00d992" }}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-full"
+        style={{ background: "linear-gradient(90deg,transparent,rgba(0,217,146,0.22),transparent)" }}
+      />
+      <span className="relative">{sent ? "opening app" : "import runes"}</span>
+    </button>
   )
 }

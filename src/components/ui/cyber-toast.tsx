@@ -1,7 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
-
+/**
+ * The site's toast.
+ *
+ * Rebuilt in the language the desktop overlay uses: Death Stranding's interface
+ * does not fade things in or flicker them, it BUILDS them. A rail draws itself,
+ * a marker snaps onto it, the title uncovers left to right, and the rest
+ * arrives after. Every step is short — the whole assembly is under 500ms,
+ * because a notification that takes a second to appear has spent a third of its
+ * life arriving.
+ *
+ * What went, and why: scanlines, a sweeping scan beam, a glitch flicker on the
+ * title, four bracket corners and a column of decorative dashes. That is arcade
+ * cyberpunk — busy on purpose. Death Stranding is the opposite: thin, precise,
+ * mostly empty. Nine decorations competing for attention is not a style, it is
+ * noise, and none of them said anything about the message.
+ *
+ * The progress line now tracks the REAL dismiss duration. It was hardcoded to
+ * 3s while callers pass anything from 2s to 8s, so it had been lying about how
+ * long you had to read.
+ */
 type CyberToastAction = {
   label: string
   onClick: () => void
@@ -14,6 +32,8 @@ type CyberToastProps = {
   variant?: "status" | "error"
   action?: CyberToastAction
   onDismiss?: () => void
+  /** Milliseconds the toast will actually live, so the line can be honest. */
+  duration?: number
 }
 
 export function CyberToast({
@@ -23,315 +43,157 @@ export function CyberToast({
   variant = "status",
   action,
   onDismiss,
+  duration = 3000,
 }: CyberToastProps) {
-  const [phase, setPhase] = useState<"hidden" | "glitch" | "visible">("hidden")
-
-  useEffect(() => {
-    // Phase 1: glitch-in (0ms → 50ms trigger, 400ms anim)
-    const t1 = setTimeout(() => setPhase("glitch"), 30)
-    // Phase 2: settle into visible (after glitch anim completes)
-    const t2 = setTimeout(() => setPhase("visible"), 450)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
-  }, [])
-
-  const isError = variant === "error"
-  const ac = isError ? "#ff6286" : "#00d992" // accent color (using site's error color)
-  const glow = isError ? "rgba(255,98,134,0.4)" : "rgba(0,217,146,0.4)"
-  const dimGlow = isError ? "rgba(255,98,134,0.08)" : "rgba(0,217,146,0.08)"
-  const midGlow = isError ? "rgba(255,98,134,0.15)" : "rgba(0,217,146,0.15)"
+  const error = variant === "error"
+  const ac = error ? "#ff6286" : "#00d992"
 
   return (
-    <div
-      className="relative font-mono select-none"
-      style={{
-        opacity: phase === "hidden" ? 0 : 1,
-        transform:
-          phase === "hidden"
-            ? "scaleY(0.8) skew(2deg, 2deg) translateY(-10px)"
-            : phase === "glitch"
-              ? "scaleY(1.02) skew(-0.5deg, -0.5deg) translateY(1px)"
-              : "scaleY(1) skew(0deg, 0deg) translateY(0)",
-        filter:
-          phase === "hidden"
-            ? "brightness(0.5) contrast(2)"
-            : phase === "glitch"
-              ? "brightness(1.15) contrast(1.3)"
-              : "brightness(1) contrast(1)",
-        transition:
-          phase === "hidden"
-            ? "none"
-            : phase === "glitch"
-              ? "all 0.15s cubic-bezier(0.16, 1, 0.3, 1)"
-              : "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-      }}
-    >
-      {/* ── Main container ── */}
-      <div
-        className="relative overflow-hidden w-[340px]"
+    <div className="ctd-in relative w-[340px] select-none">
+      {/* Feathered ground rather than a plate with a border: its alpha reaches
+          zero inside its own box, so there is no edge riding over the page. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -inset-3 blur-[10px]"
         style={{
-          background: "#040A0C",
-          border: `1px solid color-mix(in srgb, ${ac} 30%, transparent)`,
-          borderRadius: "2px",
-          boxShadow: `
-            0 0 30px ${dimGlow},
-            0 4px 20px rgba(0,0,0,0.6)
-          `,
+          background:
+            "radial-gradient(62% 68% at 50% 50%," +
+            " rgba(4,10,12,0.96) 0%," +
+            " rgba(4,10,12,0.82) 34%," +
+            " rgba(4,10,12,0.45) 52%," +
+            " rgba(4,10,12,0.14) 66%," +
+            " rgba(4,10,12,0) 78%)",
         }}
+      />
+
+      {/* The rail, drawing itself in from the left. pathLength=1 keeps the draw
+          in fractions rather than in the user units of a stretched viewBox. */}
+      <svg
+        aria-hidden
+        viewBox="0 0 340 10"
+        preserveAspectRatio="none"
+        className="absolute inset-x-0 top-0 h-[10px] w-full overflow-visible"
+        style={{ filter: `drop-shadow(0 0 5px ${ac}66)` }}
       >
-        {/* ── Left accent bar ── */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-[2px]"
-          style={{
-            background: ac,
-            boxShadow: `0 0 8px ${glow}, 0 0 20px ${dimGlow}`,
-          }}
+        <path
+          className="ctd-rail"
+          d="M 0 2 L 329 2 L 338 9"
+          fill="none"
+          stroke={ac}
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
+          opacity="0.9"
+          pathLength={1}
+          strokeDasharray={1}
         />
+        {/* Rotation on the group, scale on the rect — an animated transform
+            REPLACES an SVG transform attribute rather than composing with it,
+            which is how a diamond quietly becomes a square. */}
+        <g transform="rotate(45 16 2)">
+          <rect className="ctd-mark" x="12" y="-2" width="8" height="8" fill={ac} />
+        </g>
+      </svg>
 
-        {/* ── Scanlines overlay ── */}
-        <div
-          className="absolute inset-0 pointer-events-none z-[1]"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)",
-          }}
-        />
-
-        {/* ── Sweeping scan beam ── */}
-        <div
-          className="absolute inset-0 pointer-events-none z-[2]"
-          style={{
-            background: `linear-gradient(to bottom, transparent 0%, ${midGlow} 50%, transparent 100%)`,
-            backgroundSize: "100% 30px",
-            animation: "ct-scan 4s linear infinite",
-          }}
-        />
-
-        {/* ── HUD bracket corners ── */}
-        {/* Top-left */}
-        <div className="absolute top-0 left-0 w-4 h-4 z-[3]">
-          <div className="absolute top-0 left-0 w-full h-[2px]" style={{ background: ac }} />
-          <div className="absolute top-0 left-0 w-[2px] h-full" style={{ background: ac }} />
-        </div>
-        {/* Top-right */}
-        <div className="absolute top-0 right-0 w-4 h-4 z-[3]">
-          <div className="absolute top-0 right-0 w-full h-[2px]" style={{ background: ac }} />
-          <div className="absolute top-0 right-0 w-[2px] h-full" style={{ background: ac }} />
-        </div>
-        {/* Bottom-left */}
-        <div className="absolute bottom-0 left-0 w-4 h-4 z-[3]">
-          <div className="absolute bottom-0 left-0 w-full h-[2px]" style={{ background: ac }} />
-          <div className="absolute bottom-0 left-0 w-[2px] h-full" style={{ background: ac }} />
-        </div>
-        {/* Bottom-right */}
-        <div className="absolute bottom-0 right-0 w-4 h-4 z-[3]">
-          <div className="absolute bottom-0 right-0 w-full h-[2px]" style={{ background: ac }} />
-          <div className="absolute bottom-0 right-0 w-[2px] h-full" style={{ background: ac }} />
-        </div>
-
-        {/* ── Content ── */}
-        <div className="relative z-[5] px-5 pt-3 pb-4">
-
-          {/* Header row: ◈ :: TAG :: */}
-          <div
-            className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase mb-2.5"
-            style={{ color: `color-mix(in srgb, ${ac} 50%, transparent)` }}
+      <div className="relative pl-6 pr-4 pt-[14px]">
+        <div className="ctd-tag flex items-center gap-2.5">
+          <span
+            className="font-jetbrains text-[9px] uppercase leading-none tracking-[0.28em]"
+            style={{ color: ac }}
           >
-            <span style={{ color: ac, fontSize: "8px" }}>◈</span>
-            <span>::</span>
-            <span
-              className="px-1.5 py-[1px]"
-              style={{
-                color: ac,
-                background: dimGlow,
-                border: `1px solid color-mix(in srgb, ${ac} 30%, transparent)`,
-                borderRadius: "1px",
-                letterSpacing: "0.2em",
-              }}
-            >
-              {tag}
-            </span>
-            <span>::</span>
-            {/* Decorative dashes filling the row */}
-            <span
-              className="flex-1 h-[1px]"
-              style={{
-                background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 25%, transparent), transparent)`,
-              }}
-            />
-            <span style={{ fontSize: "8px", color: `color-mix(in srgb, ${ac} 30%, transparent)` }}>◆</span>
-          </div>
-
-          {/* Title */}
-          <div className="relative">
-            <p
-              className="text-[13px] font-medium tracking-[0.04em] leading-tight"
-              style={{ color: "#d7d8d9" }}
-            >
-              {title}
-            </p>
-
-            {/* Glitch flash on title — quick flicker */}
-            <p
-              className="absolute inset-0 text-[13px] font-medium tracking-[0.04em] leading-tight pointer-events-none"
-              style={{
-                color: ac,
-                opacity: 0.3,
-                clipPath: "inset(20% 0 50% 0)",
-                animation: "ct-glitch 5s infinite",
-              }}
-              aria-hidden="true"
-            >
-              {title}
-            </p>
-          </div>
-
-          {/* Description */}
-          {description && (
-            <>
-              {/* Mini separator */}
-              <div
-                className="w-16 h-[1px] mt-2 mb-1.5"
-                style={{
-                  background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 35%, transparent), transparent)`,
-                }}
-              />
-              <p
-                className="text-[11px] leading-relaxed tracking-[0.02em]"
-                style={{ color: "color-mix(in srgb, #d7d8d9 45%, transparent)" }}
-              >
-                {description}
-              </p>
-            </>
-          )}
-
-          {/* Action row */}
-          {(action || onDismiss) && (
-            <div className="flex items-center gap-2 mt-3">
-              {action && (
-                <button
-                  type="button"
-                  onClick={action.onClick}
-                  className="group/btn relative cursor-pointer select-none"
-                  style={{
-                    background: dimGlow,
-                    border: `1px solid color-mix(in srgb, ${ac} 40%, transparent)`,
-                    borderRadius: "2px",
-                    padding: "4px 12px",
-                    color: ac,
-                    fontSize: "10px",
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase" as const,
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = midGlow
-                    e.currentTarget.style.borderColor = ac
-                    e.currentTarget.style.boxShadow = `0 0 12px ${dimGlow}, 0 0 4px ${dimGlow}`
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = dimGlow
-                    e.currentTarget.style.borderColor = `color-mix(in srgb, ${ac} 40%, transparent)`
-                    e.currentTarget.style.boxShadow = "none"
-                  }}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span style={{ fontSize: "7px" }}>◈</span>
-                    {action.label}
-                  </span>
-                </button>
-              )}
-              {onDismiss && (
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  className="cursor-pointer"
-                  style={{
-                    background: "transparent",
-                    border: `1px solid color-mix(in srgb, #d7d8d9 15%, transparent)`,
-                    borderRadius: "2px",
-                    padding: "4px 10px",
-                    color: "color-mix(in srgb, #d7d8d9 40%, transparent)",
-                    fontSize: "10px",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase" as const,
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 30%, transparent)"
-                    e.currentTarget.style.color = "color-mix(in srgb, #d7d8d9 60%, transparent)"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 15%, transparent)"
-                    e.currentTarget.style.color = "color-mix(in srgb, #d7d8d9 40%, transparent)"
-                  }}
-                >
-                  Dismiss
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Right-edge data stream decoration ── */}
-        <div className="absolute top-3 right-3 flex flex-col gap-[3px] z-[5]">
-          {[7, 12, 5, 9, 4, 8, 6].map((w, i) => (
-            <div
-              key={i}
-              className="h-[1.5px] rounded-full"
-              style={{
-                width: `${w}px`,
-                marginLeft: "auto",
-                backgroundColor: `color-mix(in srgb, ${ac} ${20 + i * 5}%, transparent)`,
-                animation: `ct-flicker ${1.5 + i * 0.4}s ease-in-out infinite`,
-                animationDelay: `${i * 0.15}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* ── Bottom progress sweep ── */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] z-[4]">
-          <div
-            className="h-full"
-            style={{
-              background: `linear-gradient(90deg, ${ac}, color-mix(in srgb, ${ac} 40%, transparent))`,
-              animation: "ct-progress 3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-              animationDelay: "0.1s",
-              width: "0%",
-              boxShadow: `0 0 8px ${glow}`,
-            }}
+            {tag}
+          </span>
+          <span
+            aria-hidden
+            className="h-px flex-1"
+            style={{ background: `linear-gradient(90deg, ${ac}33, transparent)` }}
           />
         </div>
+
+        <p
+          className="ctd-title mt-2 font-chakrapetch text-[15px] font-bold leading-tight text-flash"
+          style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}
+        >
+          {title}
+        </p>
+
+        {description && (
+          <p className="ctd-body mt-1.5 font-chakrapetch text-[12px] leading-relaxed text-flash/45">
+            {description}
+          </p>
+        )}
+
+        {(action || onDismiss) && (
+          <div className="ctd-body mt-3 flex items-center gap-2 pb-1">
+            {action && (
+              <button
+                type="button"
+                onClick={action.onClick}
+                className="ctd-btn relative overflow-hidden rounded-[2px] px-3 py-1 font-chakrapetch text-[11px] font-bold uppercase tracking-[0.12em]"
+                style={{ color: ac, background: `${ac}1a`, boxShadow: `inset 2px 0 0 0 ${ac}` }}
+              >
+                {action.label}
+              </button>
+            )}
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="rounded-[2px] px-2.5 py-1 font-jetbrains text-[10px] uppercase tracking-[0.14em] text-flash/30 transition-colors hover:text-flash/60"
+              >
+                dismiss
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* The time you have left, drawn as the thing it is. Runs for the real
+            duration rather than a fixed three seconds. */}
+        <span
+          aria-hidden
+          className="ctd-timer absolute bottom-0 left-6 right-4 h-px origin-left"
+          style={{ background: `linear-gradient(90deg, ${ac}, ${ac}22)`, animationDuration: `${duration}ms` }}
+        />
       </div>
 
-      {/* ── Keyframes ── */}
       <style>{`
-        @keyframes ct-scan {
-          0%   { transform: translateY(-100%); }
-          100% { transform: translateY(100%); }
+        /* The card arrives from slightly above and settles. One movement. */
+        @keyframes ctd-arrive {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: none; }
         }
-
-        @keyframes ct-glitch {
-          0%, 100% { transform: translate(0); opacity: 0; }
-          8%       { transform: translate(-2px, 0); opacity: 0.4; }
-          10%      { transform: translate(3px, 0); opacity: 0.3; }
-          12%      { transform: translate(0); opacity: 0; }
-          48%      { transform: translate(0); opacity: 0; }
-          50%      { transform: translate(2px, -1px); opacity: 0.35; }
-          52%      { transform: translate(-1px, 1px); opacity: 0.25; }
-          54%      { transform: translate(0); opacity: 0; }
+        @keyframes ctd-draw   { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+        @keyframes ctd-snap {
+          0%   { opacity: 0; transform: scale(0.3); }
+          65%  { opacity: 1; transform: scale(1.18); }
+          100% { opacity: 1; transform: scale(1); }
         }
+        @keyframes ctd-wipe   { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 -2% 0 0); } }
+        @keyframes ctd-lift   { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        @keyframes ctd-timer  { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-        @keyframes ct-flicker {
-          0%, 100% { opacity: 0.3; }
-          50%      { opacity: 0.9; }
+        .ctd-in    { animation: ctd-arrive 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .ctd-rail  { animation: ctd-draw 340ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .ctd-mark  { animation: ctd-snap 260ms cubic-bezier(0.34, 1.56, 0.64, 1) 170ms both;
+                     transform-box: fill-box; transform-origin: center; }
+        .ctd-tag   { animation: ctd-lift 220ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
+        .ctd-title { animation: ctd-wipe 300ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both; }
+        .ctd-body  { animation: ctd-lift 240ms cubic-bezier(0.16, 1, 0.3, 1) 290ms both; }
+        .ctd-timer { animation-name: ctd-timer; animation-timing-function: linear;
+                     animation-fill-mode: both; animation-delay: 340ms; }
+
+        .ctd-btn::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          transform: translateX(-100%);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+          transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
         }
+        .ctd-btn:hover::after { transform: translateX(100%); }
 
-        @keyframes ct-progress {
-          to { width: 100%; }
+        @media (prefers-reduced-motion: reduce) {
+          .ctd-in, .ctd-rail, .ctd-mark, .ctd-tag, .ctd-title, .ctd-body { animation: none; }
+          .ctd-btn::after { display: none; }
         }
       `}</style>
     </div>
