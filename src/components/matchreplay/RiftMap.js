@@ -338,7 +338,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
                                         left: `${nx * 100}%`, top: `${ny * 100}%`,
                                         transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
                                         color: tint,
-                                    }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[6px] opacity-50", style: { background: tint } }), _jsx(Icon, { className: "relative w-3 h-3 drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" })] }) }, w.id));
+                                    }, children: _jsxs("div", { className: "relative", children: [_jsx("div", { className: "absolute inset-0 rounded-full blur-[6px] opacity-50", style: { background: tint } }), _jsx(Icon, { className: "relative w-3 h-3 drop-shadow-[0_0_3px_rgba(var(--c-shadow),0.8)]" })] }) }, w.id));
                             }), buildingFlashes.map((b) => {
                                 const { nx, ny } = toMapNorm({ x: b.x, y: b.y });
                                 const winner = b.loserTeam === 100 ? "#d63336" : "#5BA8E6";
@@ -365,7 +365,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
                                                 transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
                                                 color: tint,
                                                 opacity: fade,
-                                            }, children: _jsx(SkullIcon, { className: "w-4 h-4 drop-shadow-[0_0_4px_rgba(0,0,0,0.9)]" }) })] }, k.id));
+                                            }, children: _jsx(SkullIcon, { className: "w-4 h-4 drop-shadow-[0_0_4px_rgba(var(--c-shadow),0.9)]" }) })] }, k.id));
                             }), objFlashes.map((o) => {
                                 const { nx, ny } = toMapNorm({ x: o.x, y: o.y });
                                 const fade = 1 - o.age / OBJ_FLASH_MS;
@@ -384,7 +384,7 @@ export function RiftMap({ timeline, staticMatch, timeMs, focusedPid, hiddenPids,
                                                 transform: "translate(-50%, -50%) scale(var(--inv-sx, 1), var(--inv-sy, 1))",
                                                 color: tint,
                                                 opacity: fade,
-                                            }, children: _jsx(Icon, { className: "w-5 h-5 drop-shadow-[0_0_6px_rgba(0,0,0,0.9)]" }) })] }, o.id));
+                                            }, children: _jsx(Icon, { className: "w-5 h-5 drop-shadow-[0_0_6px_rgba(var(--c-shadow),0.9)]" }) })] }, o.id));
                             }), goldFlashes.map((g) => {
                                 const { nx, ny } = toMapNorm({ x: g.x, y: g.y });
                                 const fade = 1 - g.age / GOLD_FLASH_MS;

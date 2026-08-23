@@ -1,0 +1,162 @@
+"use client";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+// /leaderboards — the apex ladder (Master+) per region/queue, rebuilt in the
+// current loldata language: structured hero (mono eyebrow + chakrapetch title
+// + jade aura + apex cutoff chips), a TOP-3 podium in glass, and the table
+// inside the site's bright glass container. Data flow unchanged:
+// POST /api/leaderboard {region, queue, page} → entries + cutoffs.
+import { useEffect, useState } from "react";
+import { API_BASE_URL, cdnBaseUrl } from "@/config";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { getRankImage } from "@/utils/rankIcons";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { DiamondButton } from "@/components/ui/diamond-button";
+const REGIONS = ["EUW", "NA", "KR"];
+const QUEUES = [
+    { key: "RANKED_SOLO_5x5", label: "SOLO/DUO" },
+    { key: "RANKED_FLEX_SR", label: "FLEX" },
+];
+const PAGE_SIZE = 25;
+// glass surface — same recipe as the dashboard cards (bright hairline on the
+// near-black page, no visible white border)
+const glass = "relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.10),inset_0_1px_0_rgba(255,255,255,0.07)]";
+// podium metals
+const MEDALS = [
+    { ring: "ring-[#FFB615]/60", text: "text-[#FFB615]", glow: "shadow-[0_0_30px_rgba(255,182,21,0.10)]", label: "text-[#FFB615]" },
+    { ring: "ring-slate-300/50", text: "text-slate-300", glow: "shadow-[0_0_24px_rgba(203,213,225,0.07)]", label: "text-slate-300" },
+    { ring: "ring-orange-400/50", text: "text-orange-400", glow: "shadow-[0_0_24px_rgba(251,146,60,0.08)]", label: "text-orange-400" },
+];
+const wrColor = (wr) => wr >= 70 ? "text-orange-400" : wr >= 60 ? "text-jade" : wr >= 52 ? "text-flash/55" : "text-red-400/60";
+function splitNametag(r) {
+    const nt = r.nametag ?? r.summonerName ?? "Unknown";
+    return nt.includes("#") ? nt.split("#") : [nt, ""];
+}
+function TalentChip({ r }) {
+    if (r.isPro)
+        return (_jsx("span", { className: "text-[7px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wider uppercase shrink-0", style: { background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }, children: "PRO" }));
+    if (r.isStreamer)
+        return (_jsx("span", { className: "text-[7px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wider uppercase shrink-0", style: { background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }, children: "STRM" }));
+    return null;
+}
+function RecordBar({ wins, losses, winrate }) {
+    const total = wins + losses;
+    return (_jsxs("div", { children: [_jsxs("div", { className: "flex items-center justify-between mb-1", children: [_jsxs("span", { className: "text-[10px] font-mono text-jade/70 tabular-nums", children: [wins, "W"] }), _jsxs("span", { className: "text-[10px] font-mono text-red-400/50 tabular-nums", children: [losses, "L"] })] }), _jsx("div", { className: "relative h-[3px] rounded-[1px] overflow-hidden", style: { background: "rgba(239,68,68,0.10)" }, children: _jsx("div", { className: "absolute inset-y-0 left-0 rounded-[1px] transition-all duration-700 ease-out", style: {
+                        width: `${total > 0 ? (wins / total) * 100 : 50}%`,
+                        background: winrate >= 60
+                            ? "linear-gradient(90deg, rgba(0,217,146,0.35), rgba(0,217,146,0.65))"
+                            : winrate >= 52
+                                ? "linear-gradient(90deg, rgba(0,217,146,0.2), rgba(0,217,146,0.45))"
+                                : "linear-gradient(90deg, rgba(215,216,217,0.12), rgba(215,216,217,0.28))",
+                        boxShadow: winrate >= 55 ? "0 0 6px rgba(0,217,146,0.25)" : "none",
+                    } }) })] }));
+}
+export default function LeaderboardPage() {
+    const [region, setRegion] = useState("EUW");
+    const [queue, setQueue] = useState("RANKED_SOLO_5x5");
+    const [loading, setLoading] = useState(false);
+    const [rows, setRows] = useState([]);
+    const [error, setError] = useState(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const navigate = useNavigate();
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    const [keyToName, setKeyToName] = useState({});
+    const [cutoffs, setCutoffs] = useState(null);
+    useEffect(() => {
+        fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
+            .then(r => r.json())
+            .then(data => {
+            const map = {};
+            for (const c of Object.values(data?.data ?? {}))
+                map[c.key] = c.id;
+            setKeyToName(map);
+        })
+            .catch(() => { });
+    }, []);
+    useEffect(() => {
+        const onScroll = () => setShowBackToTop(window.scrollY > 400);
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+    async function load(p = page) {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/leaderboard`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ region, queue, page: p, pageSize: PAGE_SIZE, enrich: true }),
+            });
+            if (res.status === 429) {
+                setError("Rate limited — try again shortly");
+                setRows([]);
+                return;
+            }
+            if (!res.ok) {
+                setError("Failed to load rankings");
+                setRows([]);
+                return;
+            }
+            const data = await res.json();
+            setRows(data.entries || []);
+            setTotalPages(data.totalPages || 1);
+            setPage(data.page || p);
+            if (data.cutoffs)
+                setCutoffs(data.cutoffs);
+        }
+        catch {
+            setError("Network error");
+            setRows([]);
+        }
+        finally {
+            setLoading(false);
+        }
+    }
+    useEffect(() => { load(1); }, [region, queue]);
+    useEffect(() => {
+        document.title = `${region} Leaderboards - lolData`;
+        return () => { document.title = "lolData"; };
+    }, [region]);
+    const handlePlayerClick = (r) => {
+        const nametag = r.nametag ?? r.summonerName;
+        if (!nametag)
+            return;
+        const [name, tag] = nametag.includes("#") ? nametag.split("#") : [nametag, region];
+        navigate(`/summoners/${region.toLowerCase()}/${encodeURIComponent(name)}-${encodeURIComponent(tag || region)}`);
+    };
+    const champIcon = (championId) => {
+        const champName = keyToName[String(championId)] ?? String(championId);
+        return `${cdnBaseUrl()}/img/champion/${champName}.png`;
+    };
+    const podium = page === 1 && !loading && !error ? rows.slice(0, 3) : [];
+    const tableRows = page === 1 ? rows.slice(podium.length ? 3 : 0) : rows;
+    // shared row grid — rank | icon | player | rank+LP | record | champs | WR.
+    // The table body scrolls horizontally under ~860px so the player name never
+    // collapses (fixed columns would otherwise eat the whole 1fr).
+    const rowGrid = "grid grid-cols-[40px_40px_minmax(180px,1fr)_116px_120px_96px_52px] items-center gap-x-2.5";
+    return (_jsxs("div", { className: "min-h-[70vh]", children: [_jsxs("div", { className: "relative w-screen left-1/2 -translate-x-1/2 -mt-20 h-[340px] overflow-hidden", children: [_jsx("img", { src: "/img/Leaderboards.jpg", alt: "", className: "absolute inset-0 w-full h-full object-cover select-none", style: { objectPosition: "center 12%" }, draggable: false }), _jsx("div", { className: "absolute inset-0 bg-liquirice/75" }), _jsx("div", { className: "absolute -top-1/3 right-[-6%] w-[55%] h-[160%] pointer-events-none", style: { background: "radial-gradient(closest-side, rgba(0,217,146,0.13), rgba(0,217,146,0.04) 55%, transparent 75%)" } }), _jsx("div", { className: "absolute inset-0 pointer-events-none opacity-[0.5]", style: {
+                            backgroundImage: "linear-gradient(rgba(0,217,146,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,217,146,0.05) 1px, transparent 1px)",
+                            backgroundSize: "44px 44px",
+                            maskImage: "radial-gradient(120% 130% at 60% 40%, #000 20%, transparent 78%)",
+                            WebkitMaskImage: "radial-gradient(120% 130% at 60% 40%, #000 20%, transparent 78%)",
+                        } }), _jsx("div", { className: "absolute inset-0 pointer-events-none opacity-[0.04]", style: { backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.14) 2px, rgba(255,255,255,0.14) 4px)" } }), _jsx("div", { className: "absolute top-0 inset-x-0 h-16 pointer-events-none bg-gradient-to-b from-liquirice to-transparent" }), _jsx("div", { className: "absolute bottom-0 inset-x-0 h-28 pointer-events-none bg-gradient-to-t from-liquirice to-transparent" }), _jsx("div", { className: "absolute bottom-8 left-1/2 -translate-x-1/2 w-[65%] min-[2560px]:w-[55%] z-10", children: _jsxs("div", { className: "flex flex-wrap items-end justify-between gap-x-8 gap-y-5", children: [_jsxs("div", { className: "min-w-0", children: [_jsxs("p", { className: "text-[10px] font-mono text-jade/55 tracking-[0.45em] uppercase mb-2.5 flex items-center gap-2", children: [_jsx("span", { className: "inline-block w-1.5 h-1.5 rotate-45 bg-jade/70 shadow-[0_0_8px_rgba(0,217,146,0.8)]" }), "RANKED LADDER \u00B7 MASTER+"] }), _jsxs("h1", { className: "font-chakrapetch font-bold uppercase leading-none text-flash/95 text-[32px] sm:text-[44px] md:text-[52px] tracking-[0.04em]", children: ["Leader", _jsx("span", { className: "text-jade", children: "boards" })] }), _jsxs("div", { className: "mt-3.5 flex flex-wrap items-center gap-2", children: [_jsxs("span", { className: "inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(255,182,21,0.22)]", children: [_jsx("img", { src: getRankImage("CHALLENGER"), alt: "", className: "w-3.5 h-3.5 object-contain" }), _jsx("span", { className: "text-[9px] font-mono tracking-[0.14em] text-flash/45 uppercase", children: "Chall. cutoff" }), _jsx("span", { className: "text-[11px] font-chakrapetch font-bold text-[#FFB615]/90 tabular-nums", children: cutoffs?.challenger != null ? `${cutoffs.challenger.toLocaleString()} LP` : "—" })] }), _jsxs("span", { className: "inline-flex items-center gap-1.5 rounded-[3px] bg-filmdark/45 backdrop-blur-sm px-2 py-1 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.20)]", children: [_jsx("img", { src: getRankImage("GRANDMASTER"), alt: "", className: "w-3.5 h-3.5 object-contain" }), _jsx("span", { className: "text-[9px] font-mono tracking-[0.14em] text-flash/45 uppercase", children: "GM cutoff" }), _jsx("span", { className: "text-[11px] font-chakrapetch font-bold text-red-300/85 tabular-nums", children: cutoffs?.grandmaster != null ? `${cutoffs.grandmaster.toLocaleString()} LP` : "—" })] })] })] }), _jsxs("div", { className: "flex items-center gap-2.5", children: [_jsx("div", { className: "relative flex rounded-[4px] bg-black/50 backdrop-blur-md p-0.5 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.10)]", children: QUEUES.map((q) => (_jsxs("button", { onClick: () => setQueue(q.key), className: cn("relative z-10 px-4 py-2 text-[9px] font-mono tracking-[0.15em] uppercase transition-colors duration-200 rounded-[3px] cursor-clicker", queue === q.key ? "text-jade" : "text-flash/30 hover:text-flash/55"), children: [queue === q.key && (_jsx(motion.div, { layoutId: "queue-pill", className: "absolute inset-0 rounded-[3px] bg-jade/10 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.35),0_0_14px_rgba(0,217,146,0.12)]", transition: { type: "spring", stiffness: 400, damping: 30 } })), _jsx("span", { className: "relative z-10", children: q.label })] }, q.key))) }), _jsx("div", { className: "relative flex rounded-[4px] bg-black/50 backdrop-blur-md p-0.5 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.10)]", children: REGIONS.map((r) => (_jsxs("button", { onClick: () => setRegion(r), className: cn("relative z-10 px-4 py-2 text-[9px] font-mono tracking-[0.15em] uppercase transition-colors duration-200 rounded-[3px] cursor-clicker", region === r ? "text-jade" : "text-flash/30 hover:text-flash/55"), children: [region === r && (_jsx(motion.div, { layoutId: "region-pill", className: "absolute inset-0 rounded-[3px] bg-jade/10 shadow-[inset_0_0_0_1px_rgba(0,217,146,0.35),0_0_14px_rgba(0,217,146,0.12)]", transition: { type: "spring", stiffness: 400, damping: 30 } })), _jsx("span", { className: "relative z-10", children: r })] }, r))) })] })] }) })] }), _jsxs("div", { className: "w-full pb-16", children: [error && (_jsx("div", { className: "mt-6 rounded-md bg-red-500/[0.06] px-4 py-3 text-red-300/90 text-[12px] font-mono shadow-[inset_0_0_0_1px_rgba(239,68,68,0.25)]", children: error })), loading && page === 1 && (_jsx("div", { className: "mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4", children: [0, 1, 2].map((i) => (_jsx("div", { className: cn(glass, "h-[152px] animate-pulse") }, i))) })), podium.length === 3 && (_jsx("div", { className: "mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4", children: podium.map((r, i) => {
+                            const medal = MEDALS[i];
+                            const [name, tag] = splitNametag(r);
+                            return (_jsxs(motion.button, { type: "button", initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35, delay: i * 0.07, ease: [0.22, 1, 0.36, 1] }, onClick: () => handlePlayerClick(r), className: cn(glass, medal.glow, "group text-left px-5 py-4 cursor-clicker transition-transform duration-300 hover:-translate-y-1", "border border-jade/20 hover:border-jade/35"), children: [_jsx("span", { className: cn("absolute top-1/2 -translate-y-1/2 right-3 font-chakrapetch font-bold text-[68px] leading-none opacity-[0.09] select-none pointer-events-none", medal.text), children: r.rank }), _jsxs("div", { className: "relative z-10 flex items-center gap-3.5", children: [_jsx("div", { className: cn("relative w-14 h-14 rounded-[6px] overflow-hidden shrink-0 ring-1", medal.ring), children: _jsx("img", { src: `${cdnBaseUrl()}/img/profileicon/${r.profileIconId ?? 29}.png`, alt: "", className: "w-full h-full object-cover", draggable: false }) }), _jsxs("div", { className: "min-w-0", children: [_jsxs("div", { className: "flex items-center gap-1.5 mb-0.5", children: [_jsxs("span", { className: cn("font-chakrapetch font-bold text-[12px] tabular-nums", medal.label), children: ["#", r.rank] }), _jsx(TalentChip, { r: r })] }), _jsxs("p", { className: "font-chakrapetch font-semibold text-[15px] text-flash/90 truncate group-hover:text-jade transition-colors", children: [name, _jsxs("span", { className: "text-flash/25 font-normal text-[11px] ml-1", children: ["#", tag] })] }), _jsxs("div", { className: "flex items-center gap-1.5 mt-1", children: [_jsx("img", { src: getRankImage(r.tier), alt: r.tier, className: "w-4 h-4 object-contain" }), _jsx("span", { className: "font-chakrapetch font-bold text-[15px] text-flash/85 tabular-nums", children: r.leaguePoints.toLocaleString() }), _jsx("span", { className: "text-[9px] font-mono text-flash/30", children: "LP" }), _jsxs("span", { className: cn("ml-auto text-[11px] font-mono font-semibold tabular-nums", wrColor(r.winrate)), children: [r.winrate, "%"] })] })] })] }), _jsxs("div", { className: "relative z-10 mt-3.5 flex items-center gap-4", children: [_jsx("div", { className: "flex-1 min-w-0", children: _jsx(RecordBar, { wins: r.wins, losses: r.losses, winrate: r.winrate }) }), _jsx("div", { className: "flex gap-1 shrink-0", children: (r.topChampions ?? []).slice(0, 3).map((c, ci) => (_jsx("img", { src: champIcon(c.championId), alt: "", className: "w-6 h-6 rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]", onError: (e) => { e.currentTarget.style.display = "none"; } }, ci))) })] })] }, r.puuid ?? r.rank));
+                        }) })), _jsx("div", { className: cn(glass, "mt-4"), children: _jsx("div", { className: "overflow-x-auto no-scrollbar", children: _jsxs("div", { className: "min-w-[820px]", children: [_jsxs("div", { className: cn(rowGrid, "px-5 py-2.5 text-[8px] font-mono text-flash/30 tracking-[0.22em] uppercase border-b border-flash/[0.06]"), children: [_jsx("span", { className: "text-center", children: "#" }), _jsx("span", {}), _jsx("span", { children: "Player" }), _jsx("span", { className: "text-center", children: "Rank" }), _jsx("span", { className: "text-center", children: "Record" }), _jsx("span", { className: "text-center", children: "Top Champs" }), _jsx("span", { className: "text-right", children: "WR" })] }), loading
+                                        ? Array.from({ length: PAGE_SIZE }).map((_, i) => (_jsxs("div", { className: cn(rowGrid, "px-5 py-3 border-b border-flash/[0.04]"), children: [_jsx(Skeleton, { className: "w-6 h-4 bg-flash/5 mx-auto" }), _jsx(Skeleton, { className: "w-9 h-9 rounded-[4px] bg-flash/5" }), _jsx(Skeleton, { className: "h-4 w-40 bg-flash/5" }), _jsx(Skeleton, { className: "w-20 h-4 bg-flash/5 mx-auto" }), _jsx(Skeleton, { className: "w-20 h-4 bg-flash/5 mx-auto" }), _jsxs("div", { className: "flex gap-1 justify-center", children: [_jsx(Skeleton, { className: "w-6 h-6 rounded-full bg-flash/5" }), _jsx(Skeleton, { className: "w-6 h-6 rounded-full bg-flash/5" }), _jsx(Skeleton, { className: "w-6 h-6 rounded-full bg-flash/5" })] }), _jsx(Skeleton, { className: "w-10 h-4 bg-flash/5 ml-auto" })] }, i)))
+                                        : tableRows.map((r, i) => {
+                                            const [name, tag] = splitNametag(r);
+                                            return (_jsxs(motion.div, { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.25, delay: Math.min(i, 20) * 0.015, ease: "easeOut" }, onClick: () => handlePlayerClick(r), className: cn(rowGrid, "group relative px-5 py-3 cursor-clicker transition-colors duration-200", "border-b border-flash/[0.04] last:border-b-0", "hover:bg-jade/[0.03]"), children: [_jsx("span", { className: "absolute left-0 top-0 bottom-0 w-[2px] bg-jade/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200" }), _jsx("span", { className: "text-center font-chakrapetch font-bold tabular-nums text-[13px] text-flash/30 group-hover:text-flash/55 transition-colors", children: r.rank }), _jsx("div", { className: "relative w-9 h-9 rounded-[4px] overflow-hidden shrink-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] transition-transform duration-300 group-hover:scale-105", children: _jsx("img", { src: `${cdnBaseUrl()}/img/profileicon/${r.profileIconId ?? 29}.png`, alt: "", className: "w-full h-full object-cover", draggable: false }) }), _jsxs("div", { className: "min-w-0 flex items-center gap-2", children: [_jsx(TalentChip, { r: r }), _jsxs("span", { className: "text-[13px] font-chakrapetch text-flash/80 truncate group-hover:text-flash transition-colors duration-200", children: [name, _jsxs("span", { className: "text-flash/20 text-[11px] ml-1", children: ["#", tag] })] })] }), _jsxs("div", { className: "flex items-center gap-2 justify-center", children: [_jsx("img", { src: getRankImage(r.tier), alt: r.tier, className: "w-6 h-6 object-contain transition-transform duration-300 group-hover:scale-110" }), _jsxs("div", { children: [_jsx("span", { className: "font-chakrapetch font-bold tabular-nums text-[14px] text-flash/80", children: r.leaguePoints.toLocaleString() }), _jsx("span", { className: "text-[9px] font-mono text-flash/25 ml-0.5", children: "LP" })] })] }), _jsx(RecordBar, { wins: r.wins, losses: r.losses, winrate: r.winrate }), _jsx("div", { className: "flex gap-1 justify-center", children: (r.topChampions ?? []).slice(0, 3).map((c, ci) => (_jsx("img", { src: champIcon(c.championId), alt: "", className: "w-7 h-7 rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-transform duration-200 hover:scale-110", onError: (e) => { e.currentTarget.style.display = "none"; } }, ci))) }), _jsxs("span", { className: cn("text-right text-[12px] font-mono font-semibold tabular-nums", wrColor(r.winrate)), style: r.winrate >= 70 ? { textShadow: "0 0 8px rgba(251,146,60,0.6)" } : undefined, children: [r.winrate, "%"] })] }, `${r.puuid ?? r.summonerId}-${r.rank}`));
+                                        })] }) }) }), !loading && totalPages > 1 && (_jsxs("div", { className: "mt-8 flex justify-center items-center gap-1.5", children: [_jsx("button", { disabled: page <= 1, onClick: () => load(page - 1), className: "px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-filmlight/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker", children: "PREV" }), Array.from({ length: Math.min(7, totalPages) }).map((_, idx) => {
+                                const startPage = Math.max(1, Math.min(page - 3, totalPages - 6));
+                                const p = startPage + idx;
+                                if (p > totalPages)
+                                    return null;
+                                return (_jsx("button", { onClick: () => load(p), className: cn("w-9 h-9 text-[11px] font-chakrapetch rounded-[3px] transition-all duration-200 cursor-clicker", p === page
+                                        ? "bg-jade/10 text-jade shadow-[inset_0_0_0_1px_rgba(0,217,146,0.35),0_0_12px_rgba(0,217,146,0.15)]"
+                                        : "text-flash/30 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] hover:text-flash/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]"), children: p }, p));
+                            }), _jsx("button", { disabled: page >= totalPages, onClick: () => load(page + 1), className: "px-4 py-2.5 text-[9px] font-mono tracking-[0.12em] uppercase rounded-[3px] bg-filmlight/[0.03] text-flash/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)] hover:text-jade hover:shadow-[inset_0_0_0_1px_rgba(0,217,146,0.30)] disabled:opacity-15 transition-all cursor-clicker", children: "NEXT" })] }))] }), _jsx(AnimatePresence, { children: showBackToTop && (_jsx(motion.div, { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 20 }, className: "fixed bottom-10 right-10 z-50", children: _jsx(DiamondButton, { icon: "top", label: "TOP", onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }) }) })) })] }));
+}

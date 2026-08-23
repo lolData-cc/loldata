@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export function FullscreenSeparator() {
+    return (_jsxs("div", { className: "w-full pointer-events-none mt-32", children: [_jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" }), _jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" }), _jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" }), _jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" }), _jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" }), _jsx("div", { className: "h-[1px] my-[50px] bg-gradient-to-r from-transparent via-flash/20 to-transparent" })] }));
+}
