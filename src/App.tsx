@@ -10,6 +10,7 @@ import SummonerPage from "@/pages/summonerpage"
 import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
 import DesktopAuthPage from "@/pages/desktopauth"
+import DownloadPage from "@/pages/downloadpage"
 import LearnPage from "@/pages/learnpage"
 import ExplorerPage from "@/pages/explorerpage"
 import ImprovementTreePage from "@/pages/improvementtreepage"
@@ -234,6 +235,7 @@ function App() {
               {/* Not behind AuthGuard: it has to be able to SAY you are signed
                   out rather than bounce you into a loop back through login. */}
               <Route path="/desktop-auth" element={<DesktopAuthPage />} />
+              <Route path="/download" element={<DownloadPage />} />
               <Route
                 path="/learn"
                 element={
