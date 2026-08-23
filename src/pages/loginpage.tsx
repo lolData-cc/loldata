@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { showCyberToast } from "@/lib/toast-utils"
 import { SITE_URL, API_BASE_URL } from "@/config"
 import { redirectFromUrl, stashRedirect } from "@/lib/authRedirect"
+import { stashDesktopLogin } from "@/lib/desktopHandoff"
 import {
   Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog"
@@ -218,6 +219,7 @@ export default function LoginPage() {
     if (discordLoading) return
     setDiscordLoading(true)
     stashRedirect() // remember the desired route across the OAuth round-trip
+    stashDesktopLogin() // …and that this login came from the desktop app
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { scopes: "identify email", redirectTo: `${SITE_URL}/auth/callback` },

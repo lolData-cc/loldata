@@ -9,7 +9,14 @@
 // from the URL. OAuth leaves the page (provider round-trip), so we stash the
 // target in localStorage before redirecting and the /auth/callback consumes it.
 
+import { isDesktopLogin } from "./desktopHandoff";
+
 const KEY = "postLoginRedirect";
+
+// Where a desktop sign-in lands. Handled here rather than at each call site
+// because there are three ways to log in — password, OTP and OAuth — and one
+// of them forgetting would be a sign-in that silently never reaches the app.
+const DESKTOP = "/desktop-auth";
 
 // Only ever honour same-origin absolute paths — never an external URL (open-redirect guard).
 function safe(p: string | null | undefined): string | null {
@@ -18,6 +25,7 @@ function safe(p: string | null | undefined): string | null {
 
 /** Read ?redirect= from the current URL, falling back to the dashboard. */
 export function redirectFromUrl(): string {
+  if (isDesktopLogin()) return DESKTOP;
   return safe(new URLSearchParams(window.location.search).get("redirect")) ?? "/dashboard";
 }
 
@@ -32,5 +40,8 @@ export function stashRedirect(): void {
 export function consumeStashedRedirect(): string {
   const r = localStorage.getItem(KEY);
   localStorage.removeItem(KEY);
+  // Checked before the stashed path: a desktop sign-in should reach the app
+  // even when AuthGuard had stashed somewhere else first.
+  if (isDesktopLogin()) return DESKTOP;
   return safe(r) ?? "/dashboard";
 }

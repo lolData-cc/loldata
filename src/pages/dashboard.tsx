@@ -133,10 +133,12 @@ export default function DashboardPage() {
     <div className="font-jetbrains subpixel-antialiased bg-liquirice text-flash w-full h-screen grid grid-rows-[64px,1fr] md:grid-rows-[auto,1fr] overflow-hidden">
       {/* riga 1: navbar */}
       <div className="w-full">
-        <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto">
-          <Navbar />
-          <Separator className="bg-flash/20 mt-0 w-full" />
-        </div>
+        {/* Full width, with the bar itself holding the 65% inset — the same
+            way the homepage does it. Wrapping it in a 65% column instead made
+            the navbar's own px-4 apply inside that column, so the dashboard's
+            content sat 32px narrower than the homepage's. */}
+        <Navbar columnInset />
+        <Separator className="bg-flash/20 mt-0 w-full" />
       </div>
 
       {/* mobile section picker — a bottom bar that rises up to choose a section (phone only) */}

@@ -9,6 +9,7 @@ import { Footer } from "@/components/footer"
 import SummonerPage from "@/pages/summonerpage"
 import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
+import DesktopAuthPage from "@/pages/desktopauth"
 import LearnPage from "@/pages/learnpage"
 import ExplorerPage from "@/pages/explorerpage"
 import ImprovementTreePage from "@/pages/improvementtreepage"
@@ -30,7 +31,7 @@ if (typeof window !== "undefined") {
 // #region contexts
 import { AuthProvider } from "@/context/authcontext"
 import ItemPage from "./pages/itempage";
-import ChampionPage from "./pages/championpage";
+import ChampionsIndexPage from "./pages/championsindexpage";
 import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
 import PatchNotesPage from "./pages/patchnotespage";
@@ -43,6 +44,7 @@ import WordShiftOnScroll from "./components/features1";
 import { SummonerShowcase } from "./components/home/SummonerShowcase";
 import { CoachShowcase } from "./components/home/CoachShowcase";
 import { ReplayShowcase } from "./components/home/ReplayShowcase";
+import { DesktopShowcase } from "./components/home/DesktopShowcase";
 import SearchDialogMock from "./components/searchdialogmock";
 import { Button } from "./components/ui/button";
 import { Jax } from "./components/areyouwithus";
@@ -99,6 +101,7 @@ function HomePage() {
           {/* Product showcases, in the hero's language */}
           <CoachShowcase />
           <ReplayShowcase />
+          <DesktopShowcase />
 
           {/* Membership CTA → inline pricing slide-swap.
               Jax is a fixed-height full-bleed panel with no vertical padding,
@@ -209,7 +212,12 @@ function App() {
                   title: "font-jetbrains !text-flash/40 ",
                   description: "font-geist !text-flash",
                   actionButton: "!bg-jade/20 uppercase font-jetbrains",
-                  toast: "!bg-liquirice !border-flash/20",
+                  // Transparent and border-less: every toast on this site is a
+                  // custom one that paints its own raised surface. The old
+                  // !bg-liquirice was the SAME colour as the page, so a toast
+                  // had no ground at all, and !border-flash/20 was a pale
+                  // outline — the one border the design system rules out.
+                  toast: "!bg-transparent !border-0 !shadow-none !p-0",
                 },
               }}
             />
@@ -223,6 +231,9 @@ function App() {
               <Route path="/summoners/:region/:slug" element={<RootLayout><SummonerPage /></RootLayout>} />
               <Route path="/players/:slug" element={<RootLayout><PlayerProfilePage /></RootLayout>} />
               <Route path="/dashboard/:tab?" element={<AuthGuard ><DashboardPage /></AuthGuard >} />
+              {/* Not behind AuthGuard: it has to be able to SAY you are signed
+                  out rather than bounce you into a loop back through login. */}
+              <Route path="/desktop-auth" element={<DesktopAuthPage />} />
               <Route
                 path="/learn"
                 element={
@@ -251,7 +262,7 @@ function App() {
               <Route path="/champions/:champId/:tab?" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/matches/:matchId" element={<MatchPage />} />
-              <Route path="/champions" element={<ChampionPage />} />
+              <Route path="/champions" element={<RootLayout><ChampionsIndexPage /></RootLayout>} />
               <Route path="/leaderboards" element={<RootLayout><LeaderboardPage /></RootLayout>} />
               <Route path="/tierlist/:role?" element={<RootLayout><TierlistPage /></RootLayout>} />
               <Route path="/items/:itemId" element={<RootLayout><ItemPage /></RootLayout>} />

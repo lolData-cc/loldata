@@ -24,6 +24,15 @@ type NavbarProps = {
    *  to the 65% column via padding. Used on the champion page so the glass strip
    *  doesn't show squared edges over the full-bleed splash hero. */
   fullBleed?: boolean;
+  /** Same 65% content inset as the floating modes, but WITHOUT floating — for
+   *  pages that keep the bar in normal flow.
+   *
+   *  Without it those pages wrap the navbar in a 65% column instead, and the
+   *  bar's own px-4 then applies INSIDE that column: measured at 1500px, the
+   *  content came out 32px narrower and 16px further in than the homepage's.
+   *  The floating modes do not have that problem because their padding replaces
+   *  the px-4 rather than adding to it. */
+  columnInset?: boolean;
 }
 
 // ── Mobile menu nav items ──
@@ -34,7 +43,7 @@ const NAV_ITEMS = [
   { label: "LEARN", icon: BookOpen, to: "/learn" as const, action: null },
 ] as const
 
-export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = false }: NavbarProps) {
+export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = false, columnInset = false }: NavbarProps) {
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
@@ -102,13 +111,21 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = f
     // hero on scroll and flashes white.
     "flex items-center w-full h-16 z-50 px-3 sm:px-4 md:px-4 md:py-2 justify-between transform-gpu isolate [backface-visibility:hidden]"
 
-  const position = fullBleed
-    // Full viewport width so the glass strip never shows squared edges over the
-    // splash; xl+ padding (=(100-65)/2) keeps the content aligned to the 65%
-    // column below (and (100-55)/2 at the ≥2560px breakpoint).
+  // Both floating modes span the FULL viewport, and both pull their content back
+  // to the 65% column with padding — (100-65)/2 = 17.5%, and (100-55)/2 = 22.5%
+  // at the >=2560px breakpoint.
+  //
+  // The sticky mode used to be `xl:w-[65%] mx-auto`, which sized the BAR to the
+  // column instead of only its contents. Since the bar carries the tint and the
+  // blur, the glass strip stopped dead at 17.5% from each edge and the page
+  // scrolled past in the open on either side of it. Width is the wrong tool: it
+  // moves the background as well as the words.
+  const position = floating
     ? "fixed top-0 left-0 right-0 w-full xl:px-[17.5%] min-[2560px]:px-[22.5%]"
-    : sticky
-      ? "fixed bg-transparent xl:w-[65%] min-[2560px]:w-[55%] mx-auto"
+    : columnInset
+      // The same inset, applied to the BAR so it replaces px-4 instead of
+      // stacking with it — which is the whole reason the two disagreed.
+      ? "fixed top-0 left-0 md:static w-full xl:px-[17.5%] min-[2560px]:px-[22.5%]"
       : "fixed top-0 left-0 md:static"
 
   // Mobile (< md): keep the navbar barely-there — heavy blur + low

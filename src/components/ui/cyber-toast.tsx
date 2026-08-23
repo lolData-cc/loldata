@@ -49,20 +49,22 @@ export function CyberToast({
   const ac = error ? "#ff6286" : "#00d992"
 
   return (
-    <div className="ctd-in relative w-[340px] select-none">
-      {/* Feathered ground rather than a plate with a border: its alpha reaches
-          zero inside its own box, so there is no edge riding over the page. */}
+    <div className="ctd-in relative w-[340px] select-none pb-3">
+      {/* A RAISED surface, not a darkened one.
+          The overlay version feathers dark into the game behind it, which works
+          because the game is bright. On the site the page is already #040A0C,
+          so darkening it separated nothing — the toast and the background were
+          the same colour, which is exactly how it read. Lifted a few points
+          instead, with a jade hairline and a real shadow underneath: no pale
+          border anywhere, which the design system rules out. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -inset-3 blur-[10px]"
+        className="pointer-events-none absolute inset-0 rounded-[3px]"
         style={{
-          background:
-            "radial-gradient(62% 68% at 50% 50%," +
-            " rgba(4,10,12,0.96) 0%," +
-            " rgba(4,10,12,0.82) 34%," +
-            " rgba(4,10,12,0.45) 52%," +
-            " rgba(4,10,12,0.14) 66%," +
-            " rgba(4,10,12,0) 78%)",
+          background: "linear-gradient(180deg, #0d181b 0%, #091214 100%)",
+          boxShadow:
+            `inset 0 0 0 1px ${ac}22, 0 1px 0 0 rgba(255,255,255,0.02) inset,` +
+            " 0 12px 28px -8px rgba(0,0,0,0.85), 0 2px 8px rgba(0,0,0,0.6)",
         }}
       />
 
