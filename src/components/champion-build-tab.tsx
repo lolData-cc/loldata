@@ -16,6 +16,7 @@ import { PatchTag } from "@/components/patch-tag"
 import { cn } from "@/lib/utils"
 import RuneImportButton from "@/components/rune-import-button"
 import BuildImportButton from "@/components/build-import-button"
+import DesktopAppPromo from "@/components/desktop-app-promo"
 
 const FILTER_REGIONS: { key: string; label: string }[] = [
   { key: "euw1", label: "EUW" }, { key: "na1", label: "NA" }, { key: "kr", label: "KR" },
@@ -1474,7 +1475,13 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
         <div className="mt-8 space-y-4">
           <PerformanceSection s={statsData} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            <LaningSection s={statsData} vsName={vs?.name ?? statsData.vs} />
+            {/* Stacked so the promo fills the run-off under Laning that the
+                taller chart leaves beside it — space that was empty, not space
+                taken from something the reader came for. */}
+            <div className="space-y-4">
+              <LaningSection s={statsData} vsName={vs?.name ?? statsData.vs} />
+              <DesktopAppPromo champion={champ.name} />
+            </div>
             {statsData.gameLength && <GameLengthChart data={statsData.gameLength} />}
           </div>
         </div>
