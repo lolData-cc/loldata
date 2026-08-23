@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { CyberTip } from "@/components/explorer/CyberTip"
 import { PatchTag } from "@/components/patch-tag"
 import { cn } from "@/lib/utils"
+import RuneImportButton from "@/components/rune-import-button"
 
 const FILTER_REGIONS: { key: string; label: string }[] = [
   { key: "euw1", label: "EUW" }, { key: "na1", label: "NA" }, { key: "kr", label: "KR" },
@@ -70,7 +71,23 @@ type BuildResp = {
   items: { boots: Item[]; core: Item[]; situational: Item[]; support?: Item[]; jungle?: Item[] }
   topPlayers: Player[]
   availableRoles?: { role: string; games: number }[]
+  junglePath?: JunglePath | null
 }
+
+/** Camp codes are normalised server-side to the player's own half:
+ *  1-6 = own Blue/Gromp/Wolves/Raptors/Red/Krugs, 7-12 = the enemy mirror. */
+type JungleBack = {
+  atSeconds: number
+  sample: number
+  items: { id: number; pct: number }[]
+}
+type JungleRoute = { route: number[]; games: number; winrate: number; back?: JungleBack | null }
+
+// Below this a component is a one-off somebody happened to buy, not the reason
+// the clear was cut short.
+const BACK_ITEM_MIN_PCT = 10
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+type JunglePath = { totalGames: number; routes: JungleRoute[] }
 
 const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n))
 function wrClass(wr: number) {
@@ -105,12 +122,15 @@ const SHARD_ROWS: { id: number; icon: string; name: string }[][] = [
   ],
 ]
 
-function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
+function SectionTitle({ children, hint, action }: { children: React.ReactNode; hint?: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-3">
       <h3 className="text-[11px] font-chakrapetch font-bold uppercase tracking-[0.22em] text-jade/70 whitespace-nowrap">{children}</h3>
       {hint && <span className="text-[11px] font-chakrapetch font-medium tracking-wide text-flash/55 whitespace-nowrap truncate">{hint}</span>}
       <span className="h-px flex-1 bg-gradient-to-r from-jade/15 to-transparent" />
+      {/* an action rides the rule rather than sitting under the section, so it
+          reads as belonging to this block and not to the one below */}
+      {action}
     </div>
   )
 }
@@ -427,58 +447,214 @@ function LaningSection({ s, vsName }: { s: StatsResp; vsName?: string | null }) 
   )
 }
 
-// Win rate vs game length — custom SVG line chart (5-min buckets from 15 min),
-// 50% reference line, points coloured by above/below even.
+/** Monotone cubic interpolation (Fritsch-Carlson). A plain polyline made the
+ *  trend look like a series of decisions; a Catmull-Rom spline would smooth it
+ *  but overshoot, inventing peaks and dips the data never had. Monotone is the
+ *  one that curves without ever leaving the range of its own points. */
+function smoothPath(pts: { x: number; y: number }[]): string {
+  const n = pts.length
+  if (n < 2) return ""
+  if (n === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`
+
+  const dx: number[] = [], dy: number[] = [], slope: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1].x - pts[i].x
+    dy[i] = pts[i + 1].y - pts[i].y
+    slope[i] = dy[i] / dx[i]
+  }
+  const m: number[] = [slope[0]]
+  for (let i = 1; i < n - 1; i++) {
+    if (slope[i - 1] * slope[i] <= 0) m[i] = 0
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1]
+      const w2 = dx[i] + 2 * dx[i - 1]
+      m[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i])
+    }
+  }
+  m[n - 1] = slope[n - 2]
+
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`
+  for (let i = 0; i < n - 1; i++) {
+    const c1x = pts[i].x + dx[i] / 3
+    const c1y = pts[i].y + (m[i] * dx[i]) / 3
+    const c2x = pts[i + 1].x - dx[i] / 3
+    const c2y = pts[i + 1].y - (m[i + 1] * dx[i]) / 3
+    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${pts[i + 1].x.toFixed(2)} ${pts[i + 1].y.toFixed(2)}`
+  }
+  return d
+}
+
+/** Win rate against game length.
+ *
+ *  Built around the 50% line rather than around the numbers: that line is the
+ *  whole question, so it is the spine of the chart and everything else reads as
+ *  a departure from it. The band between the curve and the spine is filled jade
+ *  where the champion is winning and red where it is losing, with one clip per
+ *  side of the line, so the fill changes colour exactly where the curve crosses
+ *  even rather than at the nearest bucket boundary.
+ *
+ *  The strip along the bottom is how many games sit behind each bucket. It used
+ *  to be reachable only by hovering a 3px dot, which hid the one thing that says
+ *  whether the tail of the curve can be trusted at all. */
 function GameLengthChart({ data }: { data: GameLengthBucket[] }) {
+  const [hover, setHover] = useState<number | null>(null)
   const present = data.map((d, i) => ({ ...d, i })).filter((d) => d.winrate != null && d.games > 0)
   if (present.length < 2) return null
-  const W = 460, H = 165, padL = 34, padR = 14, padT = 16, padB = 26
-  const plotW = W - padL - padR, plotH = H - padT - padB
-  const wrs = present.map((d) => d.winrate!)
-  let lo = Math.floor(Math.min(...wrs, 50) - 1)
-  let hi = Math.ceil(Math.max(...wrs, 50) + 1)
-  if (hi - lo < 5) { const c = (hi + lo) / 2; lo = Math.floor(c - 2.5); hi = Math.ceil(c + 2.5) }
+
+  const W = 520, H = 208
+  const padL = 42, padR = 18, padT = 24
+  const stripH = 14, labelH = 16, gap = 10
+  const padB = stripH + labelH + gap
+  const plotW = W - padL - padR
+  const plotH = H - padT - padB
+
+  // Always keep 50 inside the range, and pad it out so a flat champion does not
+  // get its noise magnified into a mountain range.
+  const wrs = present.map((d) => d.winrate as number)
+  const rawLo = Math.min(...wrs, 50)
+  const rawHi = Math.max(...wrs, 50)
+  const span = Math.max(rawHi - rawLo, 4)
+  const mid = (rawHi + rawLo) / 2
+  const lo = mid - span * 0.72
+  const hi = mid + span * 0.72
+
   const n = data.length
-  const mapX = (i: number) => padL + (i / (n - 1)) * plotW
+  const mapX = (i: number) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW)
   const mapY = (wr: number) => padT + (1 - (wr - lo) / (hi - lo)) * plotH
   const y50 = mapY(50)
-  const line = present.map((d, k) => `${k === 0 ? "M" : "L"} ${mapX(d.i).toFixed(1)} ${mapY(d.winrate!).toFixed(1)}`).join(" ")
-  const baseY = padT + plotH
-  const area = `${line} L ${mapX(present[present.length - 1].i).toFixed(1)} ${baseY} L ${mapX(present[0].i).toFixed(1)} ${baseY} Z`
+  const plotBottom = padT + plotH
+
+  const pts = present.map((d) => ({ x: mapX(d.i), y: mapY(d.winrate as number) }))
+  const curve = smoothPath(pts)
+  const band = `${curve} L ${pts[pts.length - 1].x.toFixed(2)} ${y50.toFixed(2)} L ${pts[0].x.toFixed(2)} ${y50.toFixed(2)} Z`
+
+  const maxGames = Math.max(...data.map((d) => d.games))
+  const first = present[0]
+  const last = present[present.length - 1]
+  const swing = (last.winrate as number) - (first.winrate as number)
+  const colBand = plotW / Math.max(1, n - 1)
+
   return (
     <div>
       <SectionTitle hint="win rate by game duration">Win Rate by Game Length</SectionTitle>
-      <div className="rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)] p-3 sm:p-4">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+      <div className="rounded-[4px] bg-[rgba(6,12,14,0.55)] ring-1 ring-jade/15 p-3 sm:p-4">
+        {/* The trend stated, not only drawn. */}
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-chakrapetch text-[19px] font-bold tabular-nums text-flash/90">
+            {(first.winrate as number).toFixed(1)}%
+          </span>
+          <span className="font-jetbrains text-[10px] text-flash/25">{first.label}</span>
+          <span className="text-flash/20">&rarr;</span>
+          <span className={cn(
+            "font-chakrapetch text-[19px] font-bold tabular-nums",
+            (last.winrate as number) >= 50 ? "text-jade" : "text-[#ff6286]"
+          )}>
+            {(last.winrate as number).toFixed(1)}%
+          </span>
+          <span className="font-jetbrains text-[10px] text-flash/25">{last.label}</span>
+          <span className={cn(
+            "ml-auto rounded-[3px] px-2 py-[3px] font-jetbrains text-[10px] uppercase tracking-[0.14em]",
+            swing >= 0 ? "bg-jade/[0.10] text-jade/85" : "bg-[#ff6286]/[0.10] text-[#ff6286]/85"
+          )}>
+            {swing >= 0 ? "+" : ""}{swing.toFixed(1)} over the game
+          </span>
+        </div>
+
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full h-auto"
+          role="img"
+          aria-label={`Win rate by game length, from ${(first.winrate as number).toFixed(1)} percent at ${first.label} minutes to ${(last.winrate as number).toFixed(1)} percent at ${last.label}`}
+        >
           <defs>
-            <linearGradient id="wrlArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(0,217,146,0.20)" />
-              <stop offset="100%" stopColor="rgba(0,217,146,0)" />
+            <linearGradient id="wrlUp" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="rgba(0,217,146,0.04)" />
+              <stop offset="100%" stopColor="rgba(0,217,146,0.34)" />
             </linearGradient>
+            <linearGradient id="wrlDown" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(255,98,134,0.04)" />
+              <stop offset="100%" stopColor="rgba(255,98,134,0.30)" />
+            </linearGradient>
+            {/* One clip per side of the spine, so the fill changes colour exactly
+                where the curve crosses even, not at a bucket boundary. */}
+            <clipPath id="wrlAbove"><rect x="0" y="0" width={W} height={y50} /></clipPath>
+            <clipPath id="wrlBelow"><rect x="0" y={y50} width={W} height={H - y50} /></clipPath>
+            <filter id="wrlGlow" x="-20%" y="-40%" width="140%" height="180%">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
           </defs>
-          {/* 50% reference */}
-          <line x1={padL} y1={y50} x2={W - padR} y2={y50} stroke="rgba(215,216,217,0.16)" strokeWidth="1" strokeDasharray="4 4" />
-          <text x={padL - 7} y={y50 + 3.5} textAnchor="end" fill="rgba(215,216,217,0.35)" style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>50%</text>
-          <text x={padL - 7} y={mapY(hi) + 3.5} textAnchor="end" fill="rgba(215,216,217,0.22)" style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>{hi}%</text>
-          <text x={padL - 7} y={mapY(lo) + 3.5} textAnchor="end" fill="rgba(215,216,217,0.22)" style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>{lo}%</text>
-          {/* area + line */}
-          <path d={area} fill="url(#wrlArea)" />
-          <path d={line} fill="none" stroke="#00d992" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-          {/* points + labels */}
+
+          {/* the spine */}
+          <line x1={padL} y1={y50} x2={W - padR} y2={y50} stroke="rgba(0,217,146,0.30)" strokeWidth="1" />
+          <text x={padL - 8} y={y50 + 3.5} textAnchor="end" fill="rgba(0,217,146,0.55)"
+                style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.1em" }}>EVEN</text>
+          <text x={padL - 8} y={padT + 4} textAnchor="end" fill="rgba(215,216,217,0.22)"
+                style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}>{hi.toFixed(0)}%</text>
+          <text x={padL - 8} y={plotBottom + 3} textAnchor="end" fill="rgba(215,216,217,0.22)"
+                style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}>{lo.toFixed(0)}%</text>
+
+          <path d={band} fill="url(#wrlUp)" clipPath="url(#wrlAbove)" />
+          <path d={band} fill="url(#wrlDown)" clipPath="url(#wrlBelow)" />
+          <path d={curve} fill="none" stroke="#00d992" strokeWidth="2.25" strokeLinejoin="round"
+                strokeLinecap="round" filter="url(#wrlGlow)" opacity="0.95" />
+
+          {present.map((d) => {
+            const x = mapX(d.i)
+            const y = mapY(d.winrate as number)
+            const good = (d.winrate as number) >= 50
+            const on = hover === d.i
+            return (
+              <g key={d.label}>
+                {on && (
+                  <line x1={x} y1={padT - 6} x2={x} y2={plotBottom} stroke="rgba(215,216,217,0.16)" strokeWidth="1" />
+                )}
+                <circle cx={x} cy={y} r={on ? 5 : 3.4} fill={good ? "#00d992" : "#ff6286"}
+                        stroke="#040A0C" strokeWidth="1.6" style={{ transition: "r 160ms ease" }} />
+                <text x={x} y={good ? y - 11 : y + 17} textAnchor="middle"
+                      fill={good ? "rgba(0,217,146,0.95)" : "rgba(255,98,134,0.95)"}
+                      style={{ fontSize: 11, fontFamily: "Chakra Petch, sans-serif", fontWeight: 700 }}>
+                  {(d.winrate as number).toFixed(1)}
+                </text>
+              </g>
+            )
+          })}
+
+          {/* Sample size: the confidence behind each bucket, previously hidden
+              inside a tooltip on a 3px dot. */}
+          {data.map((d, i) => {
+            const bw = Math.max(10, (plotW / n) * 0.5)
+            const h = maxGames > 0 ? Math.max(1.5, (d.games / maxGames) * stripH) : 0
+            const yTop = plotBottom + gap + (stripH - h)
+            return (
+              <rect key={`s-${d.label}`} x={mapX(i) - bw / 2} y={yTop} width={bw} height={h} rx="1"
+                    fill={hover === i ? "rgba(0,217,146,0.55)" : "rgba(0,217,146,0.20)"}
+                    style={{ transition: "fill 160ms ease" }} />
+            )
+          })}
+
           {data.map((d, i) => (
-            <g key={d.label}>
-              {d.winrate != null && d.games > 0 && (
-                <>
-                  <circle cx={mapX(i)} cy={mapY(d.winrate)} r="3.6" fill={d.winrate >= 50 ? "#00d992" : "#ff6286"} stroke="#040A0C" strokeWidth="1.5">
-                    <title>{`${d.label} min · ${d.winrate.toFixed(1)}% WR · ${d.games.toLocaleString()} games`}</title>
-                  </circle>
-                  <text x={mapX(i)} y={mapY(d.winrate) - 9} textAnchor="middle" fill={d.winrate >= 50 ? "rgba(0,217,146,0.9)" : "rgba(255,98,134,0.9)"} style={{ fontSize: 11, fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700 }}>{d.winrate.toFixed(1)}</text>
-                </>
-              )}
-              <text x={mapX(i)} y={H - 12} textAnchor="middle" fill="rgba(215,216,217,0.4)" style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>{d.label}</text>
-            </g>
+            <text key={`l-${d.label}`} x={mapX(i)} y={H - 3} textAnchor="middle"
+                  fill={hover === i ? "rgba(215,216,217,0.75)" : "rgba(215,216,217,0.38)"}
+                  style={{ fontSize: 9.5, fontFamily: "JetBrains Mono, monospace", transition: "fill 160ms ease" }}>
+              {d.label}
+            </text>
+          ))}
+
+          {/* Full-height hit targets: a 3px dot is not a pointer target. */}
+          {data.map((d, i) => (
+            <rect key={`h-${d.label}`} x={mapX(i) - colBand / 2} y={0} width={colBand} height={H}
+                  fill="transparent"
+                  onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <title>{`${d.label} min - ${d.winrate == null ? "no data" : `${d.winrate.toFixed(1)}% WR`} - ${d.games.toLocaleString()} games`}</title>
+            </rect>
           ))}
         </svg>
+
+        <p className="mt-2 font-chakrapetch text-[9px] leading-snug text-flash/25">
+          Bars under the axis are games per bucket &mdash; the tail of the curve is only
+          as trustworthy as the bar beneath it.
+        </p>
       </div>
     </div>
   )
@@ -498,6 +674,322 @@ function skillPriorityHint(priority: number[]) {
   return priority.length >= 2 ? `max ${priority.map((s) => k[s]).join(" › ")}` : undefined
 }
 // Compact, monochrome (jade/gray) skill grid sized for the sidebar column.
+/* --- Jungle pathing -------------------------------------------------------
+   Drawn on the real Summoner's Rift minimap.
+
+   Routes arrive normalised to the player's own half (1-6 own, 7-12 enemy), so
+   the map is always shown from the blue side: "own" camps sit bottom-left,
+   "enemy" top-right. That is a deliberate re-projection, not the literal side
+   played - it is what makes a red-team clear and its blue-team mirror read as
+   the same route.
+
+   The route comes from per-minute positions, NOT camp kill events: Riot
+   publishes none for normal camps and frames are 60s apart. So a drawn route
+   is "the camps this jungler was seen at, in order" and can be shorter than
+   the clear really was. The caption says so rather than implying precision the
+   data does not have. */
+
+// Game-space camp coordinates: own half first, then the enemy mirror.
+const CAMP_POS: [number, number][] = [
+  [3821, 8106], [2178, 8410], [3906, 6438], [7420, 5399], [7815, 4052], [8283, 2599],
+  [11071, 6969], [12736, 6663], [10983, 8508], [7442, 9663], [7080, 10998], [6489, 12442],
+]
+const CAMP_NAMES = ["Blue", "Gromp", "Wolves", "Raptors", "Red", "Krugs"] as const
+
+// The real in-game monster portraits (Community Dragon character HUD art),
+// mirrored into our own /public so the page never depends on a third-party
+// host at runtime. Order matches CAMP_NAMES.
+const CAMP_ICONS = [
+  "/img/jungle/blue.png",
+  "/img/jungle/gromp.png",
+  "/img/jungle/wolves.png",
+  "/img/jungle/raptors.png",
+  "/img/jungle/red.png",
+  "/img/jungle/krugs.png",
+] as const
+const campIcon = (code: number) => CAMP_ICONS[(code - 1) % 6]
+
+// The Rift spans ~14870 x 14980 game units. Game Y grows upward and SVG Y grows
+// downward, hence the flip.
+const MAP_W = 14870
+const MAP_H = 14980
+
+/** Routes are stored own/enemy, not blue/red — so which half of the map "own"
+ *  lands on is a pure display choice. Viewing as RED simply swaps the two
+ *  halves (codes 1-6 <-> 7-12); the data is identical, it is the same clear
+ *  seen from the other side of the map. */
+const forSide = (code: number, side: "blue" | "red"): number =>
+  side === "blue" ? code : code <= 6 ? code + 6 : code - 6
+
+const toSvg = (code: number, side: "blue" | "red"): { x: number; y: number } => {
+  const [gx, gy] = CAMP_POS[forSide(code, side) - 1]
+  return { x: (gx / MAP_W) * 1000, y: (1 - gy / MAP_H) * 1000 }
+}
+const campName = (code: number) => CAMP_NAMES[(code - 1) % 6]
+const isEnemyCamp = (code: number) => code > 6
+
+// Radius in viewBox units (the map is a 1000x1000 viewBox). 26 rendered ~19px
+// across and was unreadable; 58 rendered ~49px and swallowed the map. 40 lands
+// at ~34px on the 420px map — the monster is recognisable and the jungle around
+// it still is too.
+const R_NODE = 40
+
+/** Blue / red side, as a pill straddling the top edge of the map - the same
+ *  half-in-half-out anchoring the champion level badge uses on a match card.
+ *
+ *  A sliding thumb rather than two buttons swapping colour: the switch then
+ *  reads as one control moving, and the eye can follow which side is selected
+ *  instead of re-reading both labels.
+ *
+ *  Fixed height so the map can offset it by exactly half. grid-cols-2 makes the
+ *  two cells equal despite "blue" and "red" being different lengths, which is
+ *  what lets the thumb be a plain 50% and land dead on the second cell.
+ */
+function SideSwitch({
+  side,
+  onChange,
+}: {
+  side: "blue" | "red"
+  onChange: (s: "blue" | "red") => void
+}) {
+  return (
+    <div className="relative grid grid-cols-2 h-[22px] rounded-full p-[3px] bg-liquirice ring-1 ring-flash/[0.07] shadow-[0_3px_12px_rgba(0,0,0,0.7)]">
+      {/* translate-x-full moves the thumb by its OWN width - exactly one cell -
+          so the travel stays correct at any pill width. */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-[3px] left-[3px] w-[calc(50%-3px)] rounded-full",
+          "transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          side === "red"
+            ? "translate-x-full bg-[#e0503f]/30"
+            : "translate-x-0 bg-[#5BA8E6]/30"
+        )}
+      />
+      {(["blue", "red"] as const).map((sd) => (
+        <button
+          key={sd}
+          type="button"
+          onClick={() => onChange(sd)}
+          aria-pressed={side === sd}
+          className={cn(
+            "relative z-10 flex items-center justify-center rounded-full cursor-clicker select-none",
+            "font-jetbrains text-[9px] leading-none uppercase tracking-[0.16em]",
+            // All-caps has no descender, so flex centring - which works off the
+            // full line metrics - parks the glyphs 1px high (measured: 3.5px of
+            // ink above, 5.5px below, in a 16px box). Against items-center a 2px
+            // top pad shrinks the content box and moves it down by exactly 1px.
+            // The trailing letter-space that tracking adds after the last glyph
+            // pulls the word left by half a space; pl compensates by the same.
+            "pt-[2px] pl-[calc(0.75rem+0.08em)] pr-3",
+            "transition-colors duration-300",
+            side === sd
+              ? sd === "blue" ? "text-[#bcdcf8]" : "text-[#ffc0b6]"
+              : "text-flash/35 hover:text-flash/60"
+          )}
+        >
+          {sd}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function JunglePathPanel({ data }: { data: JunglePath }) {
+  const [sel, setSel] = useState(0)
+  const [side, setSide] = useState<"blue" | "red">("blue")
+  const route = data.routes[sel]?.route ?? []
+  const pts = route.filter((c) => c >= 1 && c <= 12).map((c) => toSvg(c, side))
+
+  return (
+    <div className="mt-8">
+      <SectionTitle>Jungle Pathing</SectionTitle>
+      <div className="rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)] p-4">
+        <div className="flex flex-col lg:flex-row gap-5">
+          {/* the map */}
+          <div className="relative w-full max-w-[420px] mx-auto lg:mx-0 shrink-0">
+          {/* The clip lives on the inner box: a pill hung on the outer one can
+              overhang the edge, which the map's own overflow-hidden would eat. */}
+          <div className="relative aspect-square rounded-[4px] overflow-hidden ring-1 ring-jade/15">
+            <img
+              src={`${cdnBaseUrl()}/img/map/map11.png`}
+              alt="Summoner's Rift"
+              className="absolute inset-0 w-full h-full object-cover opacity-55"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-liquirice/35" />
+            <svg viewBox="0 0 1000 1000" className="absolute inset-0 w-full h-full">
+              {/* every camp, dimmed - the route reads against the whole jungle */}
+              {CAMP_POS.map((_, i) => {
+                const p = toSvg(i + 1, side)
+                return (
+                  <circle
+                    key={i}
+                    cx={p.x}
+                    cy={p.y}
+                    r={13}
+                    fill="none"
+                    stroke={isEnemyCamp(i + 1) ? "rgba(224,80,63,0.32)" : "rgba(0,217,146,0.32)"}
+                    strokeWidth={3}
+                  />
+                )
+              })}
+
+              {pts.length > 1 && (
+                <polyline
+                  points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke="rgb(0,217,146)"
+                  strokeWidth={5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeDasharray="13 10"
+                  opacity={0.9}
+                />
+              )}
+              {/* One clip per node: an SVG <image> is rectangular, so the
+                  portrait has to be masked to a circle to sit in the ring. */}
+              <defs>
+                {pts.map((p, i) => (
+                  <clipPath key={i} id={`jp-clip-${i}`}>
+                    <circle cx={p.x} cy={p.y} r={R_NODE - 2} />
+                  </clipPath>
+                ))}
+              </defs>
+              {pts.map((p, i) => (
+                <g key={i}>
+                  <circle cx={p.x} cy={p.y} r={R_NODE} fill="rgba(4,10,12,0.92)" />
+                  <image
+                    href={campIcon(route[i])}
+                    x={p.x - (R_NODE - 2)}
+                    y={p.y - (R_NODE - 2)}
+                    width={(R_NODE - 2) * 2}
+                    height={(R_NODE - 2) * 2}
+                    clipPath={`url(#jp-clip-${i})`}
+                    preserveAspectRatio="xMidYMid slice"
+                  />
+                  <circle cx={p.x} cy={p.y} r={R_NODE} fill="none" stroke="rgb(0,217,146)" strokeWidth={4} />
+                  {/* order badge — which camp came first still matters */}
+                  <circle cx={p.x + R_NODE * 0.78} cy={p.y - R_NODE * 0.78} r={R_NODE * 0.34} fill="rgb(0,217,146)" />
+                  <text
+                    x={p.x + R_NODE * 0.78}
+                    y={p.y - R_NODE * 0.78 + R_NODE * 0.12}
+                    textAnchor="middle"
+                    fontSize={R_NODE * 0.46}
+                    fontWeight="700"
+                    fill="#040A0C"
+                    fontFamily="chakrapetch, sans-serif"
+                  >
+                    {i + 1}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          </div>
+            {/* Centred with flex, never a transform: a half-pixel translate on a
+                text-bearing box parks it on a compositing layer and blurs it. */}
+            <div className="absolute inset-x-0 -top-[11px] z-20 flex justify-center pointer-events-none">
+              <div className="pointer-events-auto">
+                <SideSwitch side={side} onChange={setSide} />
+              </div>
+            </div>
+          </div>
+
+          {/* the routes */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <span className="text-[9px] uppercase tracking-[0.18em] text-flash/30 font-chakrapetch">
+                Most played clears - {fmt(data.totalGames)} games
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {data.routes.map((r, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSel(i)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-[4px] px-2.5 py-2 text-left transition-colors cursor-clicker",
+                    i === sel ? "bg-jade/[0.10]" : "bg-flash/[0.02] hover:bg-flash/[0.05]"
+                  )}
+                >
+                  <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    {r.route.map((code, j) => (
+                      <span key={j} className="flex items-center gap-1.5">
+                        {j > 0 && <span className="text-flash/20 text-[10px]">-&gt;</span>}
+                        <span
+                          className={cn(
+                            "flex items-center gap-1 pl-1 pr-1.5 py-[2px] rounded-[3px] text-[10px] font-chakrapetch font-semibold whitespace-nowrap",
+                            isEnemyCamp(code) ? "bg-[#e0503f]/[0.13] text-[#ff9c8f]" : "bg-jade/[0.10] text-jade/90"
+                          )}
+                          title={isEnemyCamp(code) ? "Enemy jungle" : "Own jungle"}
+                        >
+                          <img src={campIcon(code)} alt="" className="w-4 h-4 rounded-full" loading="lazy" />
+                          {campName(code)}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                  {(() => {
+                    // Some clears are deliberately cut short to reset and buy a
+                    // component - the point of the route, and invisible in the
+                    // final build because the component is gone by then. Citrine
+                    // rather than jade so it reads as a different kind of thing
+                    // from the camps above it.
+                    const items = (r.back?.items ?? []).filter((it) => it.pct >= BACK_ITEM_MIN_PCT)
+                    if (!r.back || items.length === 0) return null
+                    return (
+                      <div
+                        className="flex items-center gap-1.5 flex-wrap"
+                        title={`${r.back.sample} games with a recorded reset`}
+                      >
+                        <span className="text-[9px] font-jetbrains uppercase tracking-[0.14em] text-citrine/55">
+                          reset {mmss(r.back.atSeconds)}
+                        </span>
+                        {items.map((it) => (
+                          <span
+                            key={it.id}
+                            className="flex items-center gap-1 rounded-[3px] bg-citrine/[0.09] pl-[2px] pr-1.5 py-[1px]"
+                          >
+                            <img
+                              src={`${cdnBaseUrl()}/img/item/${it.id}.png`}
+                              alt=""
+                              className="w-4 h-4 rounded-[2px]"
+                              loading="lazy"
+                            />
+                            <span className="text-[9.5px] font-chakrapetch font-semibold tabular-nums text-citrine/85">
+                              {Math.round(it.pct)}%
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                  </div>
+                  <span className="text-[10px] font-jetbrains text-flash/35 tabular-nums shrink-0">{fmt(r.games)}</span>
+                  <span className={cn("text-[11px] font-chakrapetch font-bold tabular-nums shrink-0 w-[46px] text-right", wrClass(r.winrate))}>
+                    {r.winrate.toFixed(1)}%
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="text-[9px] font-chakrapetch text-flash/25 mt-3 leading-snug max-w-[70ch]">
+              Reconstructed from minute-by-minute positions - Riot publishes no event for
+              normal camps, so a route lists the camps the jungler was seen at, not every
+              camp cleared. Green chips are the jungler's own half, red the enemy's; the
+              side switch mirrors the same route onto the other half of the map. A
+              reset line marks clears that end at the shop - the median time it
+              happens and what gets bought there - which is why a short clear can
+              be the plan rather than an interrupted one.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SkillOrderChart({ data }: { data: SkillOrder | null }) {
   const ready = !!data && data.sample >= 30
   return (
@@ -718,7 +1210,18 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
 
         {/* ── CENTER: the standard rune page ── */}
         <section className="order-1 lg:order-2 flex flex-col">
-          <SectionTitle hint={hasPrecise && page ? `${fmt(page.games)} games · ${page.winrate.toFixed(1)}% WR` : undefined}>Runes</SectionTitle>
+          <SectionTitle
+            hint={hasPrecise && page ? `${fmt(page.games)} games · ${page.winrate.toFixed(1)}% WR` : undefined}
+            action={
+              hasPrecise ? (
+                // The page currently on screen, not the most played one — the
+                // sidebar lets you pick a variant.
+                <RuneImportButton champion={champ.name} patch={patch ?? patches[0] ?? null} page={page} />
+              ) : undefined
+            }
+          >
+            Runes
+          </SectionTitle>
           {hasPrecise && page ? (
             <AnimatePresence mode="wait">
               <motion.div
@@ -949,6 +1452,8 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
           </div>
         </div>
       )}
+
+      {data.junglePath && <JunglePathPanel data={data.junglePath} />}
     </div>
   )
 }
