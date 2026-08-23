@@ -1481,7 +1481,11 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="flex flex-col gap-4">
               <LaningSection s={statsData} vsName={vs?.name ?? statsData.vs} />
-              <DesktopAppPromo champion={champ.name} className="min-h-[118px] flex-1" />
+              <DesktopAppPromo
+                champion={champ.name}
+                championId={champ.id}
+                className="min-h-[118px] flex-1"
+              />
             </div>
             {statsData.gameLength && <GameLengthChart data={statsData.gameLength} />}
           </div>
