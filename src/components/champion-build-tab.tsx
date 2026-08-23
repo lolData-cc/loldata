@@ -1474,13 +1474,14 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
       {statsData?.stats && statsData.stats.games > 0 && (
         <div className="mt-8 space-y-4">
           <PerformanceSection s={statsData} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            {/* Stacked so the promo fills the run-off under Laning that the
-                taller chart leaves beside it — space that was empty, not space
-                taken from something the reader came for. */}
-            <div className="space-y-4">
+          {/* NOT items-start. The cells stretch to the taller of the two so the
+              promo can be told to fill whatever the Laning panel leaves — the
+              run-off is a different size for every champion, and a promo with a
+              fixed height fits exactly one of them. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-4">
               <LaningSection s={statsData} vsName={vs?.name ?? statsData.vs} />
-              <DesktopAppPromo champion={champ.name} />
+              <DesktopAppPromo champion={champ.name} className="min-h-[118px] flex-1" />
             </div>
             {statsData.gameLength && <GameLengthChart data={statsData.gameLength} />}
           </div>

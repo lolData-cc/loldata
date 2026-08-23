@@ -4,22 +4,25 @@ import { cn } from "@/lib/utils"
 /**
  * The desktop app, promoted where the Build page has room for it.
  *
- * ⚠️ Sized to FIT the run-off under Laning that the taller win-rate chart
- * leaves beside it — about 130px. That is the whole point: it fills space that
- * was already empty. A first pass at 269px overshot and simply moved the gap to
- * the other column, which is worse than leaving it alone, because an advert
- * that lengthens the page makes the page worse at the job the reader came for.
+ * ⚠️ It FILLS the run-off under Laning rather than being sized to it. That gap
+ * is a different height for every champion — the Laning panel grows a row in a
+ * matchup, the chart does not — so a fixed height fits exactly one of them. The
+ * caller stretches it; this only has to look right at any height.
  *
- * So it is one row, and it says what the app DOES with the page you are already
- * reading rather than describing itself. Anything that needs a second paragraph
- * does not belong in a gap.
+ * A first pass at a fixed 269px overshot and moved the gap to the other column,
+ * which is worse than leaving it: an advert that lengthens the page makes the
+ * page worse at the job the reader came for.
+ *
+ * It says what the app DOES with the page you are already reading rather than
+ * describing itself. Anything that needs a second paragraph does not belong in
+ * a gap.
  */
 export default function DesktopAppPromo({ champion, className }: { champion?: string; className?: string }) {
   return (
     <Link
       to="/download"
       className={cn(
-        "group relative flex items-center gap-4 overflow-hidden rounded-lg px-4 py-3.5",
+        "group relative flex items-center gap-4 overflow-hidden rounded-lg px-4 py-4",
         "border border-jade/20 bg-[rgba(6,12,14,0.5)]",
         "transition-colors hover:border-jade/35",
         className,
