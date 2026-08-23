@@ -15,6 +15,7 @@ import { CyberTip } from "@/components/explorer/CyberTip"
 import { PatchTag } from "@/components/patch-tag"
 import { cn } from "@/lib/utils"
 import RuneImportButton from "@/components/rune-import-button"
+import BuildImportButton from "@/components/build-import-button"
 
 const FILTER_REGIONS: { key: string; label: string }[] = [
   { key: "euw1", label: "EUW" }, { key: "na1", label: "NA" }, { key: "kr", label: "KR" },
@@ -249,7 +250,10 @@ function RunePageTree({ page, trees, perkWr }: { page: RunePage; trees: RuneTree
 //    energy-flowing jade line, alternatives stacked under each step. ──
 type PathStep = { item: number; winrate: number; games: number; ord?: number; isBoots?: boolean; alts: { item: number; winrate: number; games: number }[] }
 
-function BuildPathStrip({ path, boots, bootsSlot, names }: { path: BuildPathSlot[]; boots?: Item; bootsSlot?: number | null; names: Record<number, string> }) {
+// The sequence the strip draws — shared with the desktop import button so the
+// app receives exactly the order that is on screen, rather than a second
+// opinion assembled from the same data.
+export function buildPathSteps(path: BuildPathSlot[], boots?: Item, bootsSlot?: number | null): PathStep[] {
   // Dedup legendaries into a coherent sequence: each slot takes its most-common
   // item not already used (you can't build the same item twice).
   const used = new Set<number>()
@@ -269,6 +273,11 @@ function BuildPathStrip({ path, boots, bootsSlot, names }: { path: BuildPathSlot
     const idx = Math.min(bootsSlot - 1, steps.length)
     steps.splice(idx, 0, { item: boots.item_id, winrate: boots.winrate, games: boots.games ?? 0, isBoots: true, alts: [] })
   }
+  return steps
+}
+
+function BuildPathStrip({ path, boots, bootsSlot, names }: { path: BuildPathSlot[]; boots?: Item; bootsSlot?: number | null; names: Record<number, string> }) {
+  const steps = buildPathSteps(path, boots, bootsSlot)
   return (
     <div className="flex items-start gap-0 overflow-x-auto pb-2">
       {steps.map((s, i) => (
@@ -1259,7 +1268,25 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
           {/* BUILD PATH under the runes */}
           {(path.length > 0 || data.items.core.length > 0) && (
             <div className="mt-6 flex-1 flex flex-col">
-              <SectionTitle hint={path.length > 0 ? "step by step" : "by priority"}>Build Path</SectionTitle>
+              <SectionTitle
+                hint={path.length > 0 ? "step by step" : "by priority"}
+                action={
+                  // The order on screen, runes included when the page is complete —
+                  // one click saves the whole thing as your profile for this champion.
+                  <BuildImportButton
+                    champion={champ.name}
+                    patch={patch ?? patches[0] ?? null}
+                    items={
+                      path.length > 0
+                        ? buildPathSteps(path, data.items.boots[0], data.bootsSlot).map((s) => s.item)
+                        : data.items.core.map((it) => it.item_id)
+                    }
+                    page={page}
+                  />
+                }
+              >
+                Build Path
+              </SectionTitle>
               <div className="flex-1 flex flex-col justify-center rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)] p-4">
                 {path.length > 0 ? (
                   <BuildPathStrip path={path} boots={data.items.boots[0]} bootsSlot={data.bootsSlot} names={names} />
