@@ -469,6 +469,209 @@ function RadialWheel({ items, onConfirm }: { items: ChampItem[]; onConfirm: (ite
 // SheetChampionPicker (sidebar a 5 sezioni)
 // ─────────────────────────────────────────────────────────────
 
+/* ── Favourites ────────────────────────────────────────────────────────────
+   Held locally: this is a per-browser shelf, not account state, so it needs no
+   round trip and works logged out. The custom event keeps every mounted picker
+   (desktop sheet + mobile overlay can both exist) in step, and `storage` keeps
+   other tabs in step — neither fires in the tab that wrote, hence both. */
+const FAV_KEY = "champFavourites";
+const FAV_EVENT = "champFavourites:changed";
+
+function readFavourites(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function useFavourites() {
+  const [favs, setFavs] = React.useState<string[]>(readFavourites);
+
+  React.useEffect(() => {
+    const sync = () => setFavs(readFavourites());
+    window.addEventListener(FAV_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(FAV_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  const toggle = React.useCallback((id: string) => {
+    const next = readFavourites();
+    const i = next.indexOf(id);
+    if (i >= 0) next.splice(i, 1);
+    else next.unshift(id); // newest first — the shelf reads as a recency stack
+    localStorage.setItem(FAV_KEY, JSON.stringify(next.slice(0, 40)));
+    window.dispatchEvent(new Event(FAV_EVENT));
+    return i < 0; // true when it was just added
+  }, []);
+
+  return { favs, toggle };
+}
+
+// Long enough not to fire on a normal click, short enough not to feel stuck.
+const HOLD_MS = 620;
+
+/** One champion. A tap selects; a press-and-hold saves.
+ *
+ *  The progress ring is a CSS transition on stroke-dashoffset, not a timer
+ *  redrawing every frame: the compositor interpolates it, so it stays smooth
+ *  even while the grid scrolls, and releasing early just transitions back. */
+function ChampTile({
+  c,
+  role,
+  isFav,
+  onPick,
+  onHoldComplete,
+}: {
+  c: ChampItem;
+  role: string;
+  isFav: boolean;
+  onPick: () => void;
+  onHoldComplete: () => void;
+}) {
+  const [holding, setHolding] = React.useState(false);
+  const [burst, setBurst] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fired = React.useRef(false);
+
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  React.useEffect(() => clear, []);
+
+  const start = () => {
+    fired.current = false;
+    setHolding(true);
+    clear();
+    timer.current = setTimeout(() => {
+      fired.current = true;
+      setHolding(false);
+      setBurst(true);
+      setTimeout(() => setBurst(false), 480);
+      onHoldComplete();
+    }, HOLD_MS);
+  };
+
+  const end = () => {
+    clear();
+    setHolding(false);
+  };
+
+  return (
+    <button
+      key={`${role}-${c.id}`}
+      type="button"
+      className="relative w-full flex flex-col items-center gap-1 group cursor-clicker select-none"
+      // A completed hold must not also fire the click, or saving would select
+      // the champion and close the sheet.
+      onClick={() => { if (!fired.current) onPick(); }}
+      onPointerDown={start}
+      onPointerUp={end}
+      onPointerLeave={end}
+      onPointerCancel={end}
+      onContextMenu={(e) => e.preventDefault()}
+      title={isFav ? `${c.label} · hold to unsave` : `${c.label} · hold to save`}
+    >
+      <div className="relative w-full max-w-[46px] aspect-square mx-auto">
+        {/* artwork */}
+        <div
+          className={cn(
+            "absolute inset-0 rounded-[5px] overflow-hidden bg-jade/10 cp-art",
+            holding && "cp-art-holding"
+          )}
+        >
+          <img
+            src={c.image}
+            alt={c.label}
+            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.12]"
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+          {/* it darkens as it is held, so the trace reads against it */}
+          <div
+            className="absolute inset-0 bg-liquirice transition-opacity duration-300"
+            style={{ opacity: holding ? 0.34 : 0 }}
+          />
+        </div>
+
+        {/* Outline. ALWAYS mounted — see the CSS note. pathLength normalises the
+            perimeter to 100 so the offset is simply a percentage, whatever the
+            box measures. */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+          viewBox="0 0 46 46"
+          aria-hidden
+        >
+          {/* resting edge */}
+          <rect
+            x="1" y="1" width="44" height="44" rx="5"
+            fill="none"
+            stroke={isFav ? "rgba(0,217,146,0.55)" : "rgba(255,255,255,0.10)"}
+            strokeWidth="1.5"
+            className="transition-[stroke] duration-300"
+          />
+          {/* the trace */}
+          <rect
+            x="1" y="1" width="44" height="44" rx="5"
+            fill="none"
+            stroke="rgb(0,217,146)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray="100"
+            strokeDashoffset={holding ? 0 : 100}
+            style={{
+              transition: holding
+                ? `stroke-dashoffset ${HOLD_MS}ms linear, opacity 120ms ease`
+                : "stroke-dashoffset 260ms cubic-bezier(0.22,1,0.36,1), opacity 260ms ease",
+              opacity: holding ? 1 : 0,
+              filter: "drop-shadow(0 0 5px rgba(0,217,146,0.85))",
+            }}
+          />
+          {/* completion bloom */}
+          {burst && (
+            <rect
+              x="1" y="1" width="44" height="44" rx="5"
+              fill="none"
+              stroke="rgb(0,217,146)"
+              strokeWidth="2"
+              className="cp-bloom"
+            />
+          )}
+        </svg>
+
+        {/* saved marker */}
+        {/* Sits INSIDE the tile: Radix AccordionContent clips with overflow-hidden
+            to animate its height, so a badge on a negative offset loses its top
+            edge. The star is an SVG path — a text glyph at this size renders as
+            an unreadable smudge. */}
+        {isFav && (
+          <span
+            key={`badge-${c.id}`}
+            className="cp-badge absolute top-[2px] right-[2px] w-[13px] h-[13px] rounded-full bg-jade grid place-items-center shadow-[0_0_6px_rgba(0,217,146,0.7)] ring-1 ring-liquirice"
+            aria-hidden
+          >
+            <svg viewBox="0 0 24 24" className="w-[8px] h-[8px]" fill="#040A0C">
+              <path d="M12 2.6l2.62 5.94 6.38.57-4.82 4.28 1.43 6.31L12 16.4l-5.61 3.3 1.43-6.31L3 9.11l6.38-.57z" />
+            </svg>
+          </span>
+        )}
+      </div>
+
+      <span className={cn("w-full text-center text-[10px] leading-tight truncate px-0.5", isFav ? "text-jade/80" : "text-flash/60")}>
+        {champDisplayName(c.id)}
+      </span>
+    </button>
+  );
+}
+
 const ROLES: Role[] = ["TOP", "JNG", "MID", "ADC", "SUP"];
 
 const ROLE_SETS: Record<Role, Set<string>> = {
@@ -501,19 +704,49 @@ function useRoleChamps(): Record<Role, string[]> | null {
       )
     ).then((results) => {
       if (cancelled) return;
-      const acc: Record<Role, { name: string; games: number }[]> = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] };
+      // Games per champion per role, so a champion can be judged against its
+      // OWN play pattern rather than against the size of the role.
+      const byChamp = new Map<string, Partial<Record<Role, number>>>();
       let any = false;
       for (const d of results) {
         if (!d?.champions?.length) continue;
         for (const c of d.champions) {
           const role = BOX_ROLE_TO_PICKER[c.role as string];
-          if (role && c.champion_name) {
-            acc[role].push({ name: String(c.champion_name), games: Number(c.games) || 0 });
-            any = true;
-          }
+          if (!role || !c.champion_name) continue;
+          const name = String(c.champion_name);
+          const rec = byChamp.get(name) ?? {};
+          rec[role] = (rec[role] ?? 0) + (Number(c.games) || 0);
+          byChamp.set(name, rec);
+          any = true;
         }
       }
       if (!any) return; // every fetch failed → keep the hardcoded fallback
+
+      // A champion belongs to a role when a meaningful share of ITS games are
+      // played there — not merely because the role has a non-zero count.
+      // Without this the tier list put Maokai, Sejuani, Zilean and Akshan in
+      // TOP on 9-15% of their games, and TOP listed 134 champions.
+      //
+      // The split is bimodal, which is why the exact cut barely matters: real
+      // role players sit at 55-92% (Garen 91, Sett 92, Aatrox 73) and off-role
+      // noise at under 15%. 18% keeps the genuine flex picks — Pantheon TOP 31%,
+      // Akali 28%, Elise SUPPORT 31%, Maokai JUNGLE 23% — and drops the rest.
+      const ROLE_SHARE_MIN = 0.18;
+      const acc: Record<Role, { name: string; games: number }[]> = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] };
+      for (const [name, rec] of byChamp) {
+        const total = ROLES.reduce((n, r) => n + (rec[r] ?? 0), 0);
+        if (total <= 0) continue;
+        // Every champion keeps its single best role no matter how thin the
+        // spread, so nobody can end up unpickable in every shelf.
+        let bestRole: Role = ROLES[0];
+        for (const r of ROLES) if ((rec[r] ?? 0) > (rec[bestRole] ?? 0)) bestRole = r;
+        for (const r of ROLES) {
+          const g = rec[r] ?? 0;
+          if (g > 0 && (g / total >= ROLE_SHARE_MIN || r === bestRole)) {
+            acc[r].push({ name, games: g });
+          }
+        }
+      }
       const out = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] } as Record<Role, string[]>;
       for (const role of ROLES) out[role] = acc[role].sort((a, b) => b.games - a.games).map((x) => x.name);
       // Safety net: any champ the snapshot omits entirely (brand-new, or <200
@@ -552,6 +785,7 @@ function ChampionPickerContent({
 
   const term = q.trim().toLowerCase();
   const roleChamps = useRoleChamps();
+  const { favs, toggle } = useFavourites();
 
   const grouped = React.useMemo(() => {
     const base: Record<Role, ChampItem[]> = {
@@ -579,14 +813,33 @@ function ChampionPickerContent({
     return base;
   }, [items, term, roleChamps]);
 
+  // Saved champions, in save order, filtered by the same search term as the
+  // role shelves so the whole sheet responds to typing as one surface.
+  const favChamps = React.useMemo(() => {
+    const byId = new Map(items.map((c) => [c.id, c] as const));
+    return favs
+      .map((id) => byId.get(id))
+      .filter((c): c is ChampItem => !!c)
+      .filter((c) => {
+        if (!term) return true;
+        const display = champDisplayName(c.id).toLowerCase();
+        return c.label.toLowerCase().includes(term) || c.id.toLowerCase().includes(term) || display.includes(term);
+      });
+  }, [items, favs, term]);
+
   return (
     <>
       {/* HEADER (hidden on mobile where the top bar already shows it) */}
       {!hideHeader && (
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
-            CHAMPION PICKER
-          </span>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex flex-col gap-[3px]">
+            <span className="text-[11px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
+              CHAMPION PICKER
+            </span>
+            <span className="text-[9px] font-jetbrains text-jade/50 tracking-[0.22em] uppercase">
+              tap + hold to save
+            </span>
+          </div>
           <button
             type="button"
             className="text-[11px] text-flash/50 hover:text-flash/80 cursor-clicker font-jetbrains"
@@ -622,7 +875,37 @@ function ChampionPickerContent({
 
       {/* ROLE ACCORDION */}
       <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide">
-        <Accordion type="multiple" defaultValue={ROLES} className="space-y-3">
+        <Accordion type="multiple" defaultValue={["FAV", ...ROLES]} className="space-y-3">
+          {favChamps.length > 0 && (
+            <AccordionItem value="FAV" className="border border-jade/25 rounded-sm px-2 bg-jade/[0.03]">
+              <AccordionTrigger className="flex items-center justify-between py-2 hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-jetbrains text-jade/80 tracking-[0.18em] uppercase">
+                    FAVORITES
+                  </span>
+                </div>
+                <span className="text-[10px] text-jade/45">
+                  {favChamps.length} champion{favChamps.length !== 1 ? "s" : ""}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-3 pt-2.5">
+                <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 sm:gap-3">
+                  {favChamps.map((c) => (
+                    <div key={`fav-${c.id}`} className="cp-enter">
+                      <ChampTile
+                        c={c}
+                        role="fav"
+                        isFav
+                        onPick={() => { onConfirm(c); onClose(); }}
+                        onHoldComplete={() => toggle(c.id)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
           {ROLES.map((role) => {
             const champs = grouped[role];
             if (!champs || champs.length === 0) return null;
@@ -644,29 +927,17 @@ function ChampionPickerContent({
                     {champs.length} champion{champs.length !== 1 ? "s" : ""}
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="pb-3 pt-1">
+                <AccordionContent className="pb-3 pt-2.5">
                   <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 sm:gap-3">
                     {champs.map((c) => (
-                      <button
+                      <ChampTile
                         key={`${role}-${c.id}`}
-                        type="button"
-                        className="flex flex-col items-center gap-1 group cursor-clicker"
-                        onClick={() => { onConfirm(c); onClose(); }}
-                      >
-                        <div className="bg-jade/10 rounded-[3px] p-[2px] border border-flash/10 group-hover:border-jade/50 transition-colors">
-                          <img
-                            src={c.image}
-                            alt={c.label}
-                            title={c.label}
-                            className="w-10 h-10 rounded-[3px] object-cover transition-transform group-hover:scale-110"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </div>
-                        <span className="text-[10px] text-flash/60 truncate max-w-[64px]">
-                          {champDisplayName(c.id)}
-                        </span>
-                      </button>
+                        c={c}
+                        role={role}
+                        isFav={favs.includes(c.id)}
+                        onPick={() => { onConfirm(c); onClose(); }}
+                        onHoldComplete={() => toggle(c.id)}
+                      />
                     ))}
                   </div>
                 </AccordionContent>

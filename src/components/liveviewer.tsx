@@ -4,7 +4,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useEffect, useState } from "react"
-import { formatChampName } from "@/utils/formatchampname"
 import { getRankImage } from "@/utils/rankIcons"
 import { API_BASE_URL, cdnBaseUrl } from "@/config"
 import { RoleTopIcon, RoleJungleIcon, RoleMidIcon, RoleAdcIcon, RoleSupportIcon } from "@/components/ui/roleicons"
@@ -145,7 +144,7 @@ function HexPortrait({ champ, side, focused, role, otp, filled }: {
         <span aria-hidden className="absolute inset-[4px] overflow-hidden" style={{ clipPath: HEX }}>
           {champ ? (
             <img
-              src={`${cdnBaseUrl()}/img/champion/${formatChampName(champ)}.png`}
+              src={`${cdnBaseUrl()}/img/champion/${champ}.png`}
               alt=""
               className="h-full w-full scale-[1.12] object-cover"
               draggable={false}
@@ -211,7 +210,7 @@ function MobileRow({ p, side, role, focusedRiotId, rank, pStats, championMap, on
     )}>
       <div className="relative shrink-0">
         <img
-          src={championMap[p.championId] ? `${cdnBaseUrl()}/img/champion/${formatChampName(championMap[p.championId])}.png` : undefined}
+          src={championMap[p.championId] ? `${cdnBaseUrl()}/img/champion/${championMap[p.championId]}.png` : undefined}
           alt=""
           className={cn(
             "h-9 w-9 rounded-[4px] ring-1",
@@ -487,9 +486,18 @@ export function LiveViewer({ puuid, riotId, region, controlledOpen, onControlled
 
         const champRes = await fetch(`${cdnBaseUrl()}/data/en_US/champion.json`)
         const champData = await champRes.json()
+        // Store champ.id (the DDragon id) rather than champ.name. The id IS the
+        // asset filename and it is also what the box stores in
+        // participants.champion_name, so the icon URL and the stats lookup both
+        // stop depending on guessing a filename from a display name.
+        //
+        // formatChampName() did that guessing and got six champions wrong:
+        // K'Sante -> Ksante (file is KSante), Kog'Maw -> Kogmaw (KogMaw),
+        // Rek'Sai -> Reksai (RekSai), Wukong -> Wukong (MonkeyKing),
+        // Renata Glasc -> RenataGlasc (Renata), Nunu & Willump -> Nunu&Willump.
         const idToName: Record<number, string> = {}
         Object.values(champData.data).forEach((champ: any) => {
-          idToName[parseInt(champ.key)] = champ.name
+          idToName[parseInt(champ.key)] = champ.id
         })
         setChampionMap(idToName)
 

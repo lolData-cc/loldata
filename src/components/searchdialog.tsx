@@ -643,7 +643,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
       <DialogContent
         className={cn(
-          "w-[95vw] max-w-[500px] bg-transparent shadow-none border-none p-0",
+          "sd-dialog w-[95vw] max-w-[500px] bg-transparent shadow-none border-none p-0",
           "top-[9vh] translate-y-0",
           "[&>button]:hidden"
         )}
@@ -723,14 +723,14 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             >
               <DialogTitle className="sr-only">Search a player</DialogTitle>
 
-              {/* Header row */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1 h-4 bg-jade rounded-full shadow-[0_0_10px_rgba(0,217,146,0.45)]" />
-                  <span className="text-[12px] font-jetbrains text-flash/60 tracking-[0.22em] uppercase">
-                    Player Search
-                  </span>
-                </div>
+              {/* Header — a titled rule rather than a label floating on its own,
+                  so the eye is led from the name straight into the field. */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-[2px] h-3 bg-jade/70 shrink-0" />
+                <span className="text-[10px] font-jetbrains text-flash/40 tracking-[0.24em] uppercase whitespace-nowrap">
+                  Player Search
+                </span>
+                <span className="flex-1 h-[1px] bg-gradient-to-r from-jade/14 to-transparent" />
                 <SavedProfiles onClick={showSavedProfilesList} />
               </div>
 
@@ -740,10 +740,13 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   e.preventDefault()
                   handleSubmit()
                 }}
-                className="flex items-stretch gap-2"
+                // Input and region share one surface: two boxes with a gap read
+                // as a form, one field reads as an instrument.
+                className="sd-field flex items-stretch rounded-md bg-filmlight/[0.035] overflow-hidden"
               >
                 {/* Input */}
                 <label className="relative flex-1">
+                  <span className="sd-tick" aria-hidden />
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-flash/25 pointer-events-none" />
                   <input
                     ref={inputRef}
@@ -768,46 +771,54 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     placeholder="Username#TAG"
                     spellCheck={false}
                     autoComplete="off"
+                    // Chrome now lives on the shared .sd-field wrapper — the
+                    // input itself is just transparent type on it.
                     className={cn(
-                      "w-full h-12 bg-filmlight/[0.03] border border-hairline/[0.06] rounded-sm",
+                      "w-full h-12 bg-transparent border-0",
                       "pl-10 pr-3 text-[14px] font-jetbrains text-flash",
                       "placeholder:text-flash/20",
-                      "focus:outline-none focus:border-jade/30",
-                      "transition-colors duration-200"
+                      "focus:outline-none focus:ring-0"
                     )}
-                  />
-                  {/* Animated jade underline */}
-                  <div
-                    className={cn(
-                      "absolute bottom-0 left-0 h-[1px] bg-jade/50",
-                      "transition-all duration-[400ms]"
-                    )}
-                    style={{ width: input.length > 0 ? "100%" : "0%" }}
                   />
                 </label>
+
+                {/* Seam between the two zones of the field. */}
+                <span aria-hidden className="my-2.5 w-[1px] shrink-0 bg-jade/15" />
 
                 {/* Region — compact dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger
+                    // Quiet by default: a filled jade chip fought the input for
+                    // attention when the input is the thing you came here to use.
                     className={cn(
-                      "h-12 px-3.5 rounded-sm cursor-clicker outline-none shrink-0",
+                      "group relative h-12 pl-4 pr-3.5 cursor-clicker outline-none shrink-0",
                       "font-chakrapetch text-[11px] tracking-[0.18em] uppercase",
                       "flex items-center gap-1.5",
-                      "border text-jade bg-jade/10 border-jade/30",
-                      "hover:bg-jade/15 transition-all duration-200",
-                      "data-[state=open]:bg-jade/15 data-[state=open]:shadow-[0_0_18px_rgba(0,217,146,0.18)]"
+                      "text-flash/55 hover:text-jade transition-colors duration-200",
+                      "data-[state=open]:text-jade"
                     )}
                   >
-                    {region}
-                    <ChevronDown className="w-3 h-3 opacity-70 transition-transform duration-200 data-[state=open]:rotate-180" />
+                    {/* The fill is INSET to the same 8px the separator is, and
+                        rounded. Edge-to-edge it ran past both ends of the
+                        divider, so the two shapes read as colliding rather
+                        than as a control sitting inside the field. */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-2.5 left-1 right-1 rounded-[4px] transition-colors duration-200",
+                        "group-hover:bg-jade/[0.09] group-data-[state=open]:bg-jade/[0.13]"
+                      )}
+                    />
+                    <span className="relative">{region}</span>
+                    <ChevronDown className="relative w-3 h-3 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
                     sideOffset={6}
                     className={cn(
-                      "min-w-[120px] p-1 border border-hairline/10",
-                      "bg-black/85 backdrop-blur-xl saturate-150",
-                      "shadow-[0_16px_44px_rgba(var(--c-shadow),0.7),inset_0_0_0_0.5px_rgba(255,255,255,0.05)]"
+                      "min-w-[128px] p-1 rounded-md border border-jade/20",
+                      "bg-black/88 backdrop-blur-xl saturate-150",
+                      "shadow-[0_18px_48px_rgba(var(--c-shadow),0.75),0_0_24px_rgba(0,217,146,0.07)]"
                     )}
                   >
                     {REGIONS.map((r) => {
@@ -816,12 +827,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                         <DropdownMenuItem
                           key={r}
                           onClick={() => setRegion(r)}
+                          // A left tick marks the current region, so the choice
+                          // is readable without relying on the tint alone.
                           className={cn(
-                            "cursor-clicker rounded-sm px-3 py-1.5",
+                            "cursor-clicker rounded-[3px] pl-3 pr-3 py-1.5 border-l-2",
                             "font-chakrapetch text-[11px] tracking-[0.18em] uppercase",
                             "focus:bg-jade/10 focus:text-jade",
                             "transition-colors duration-150",
-                            active ? "text-jade bg-jade/[0.08]" : "text-flash/50"
+                            active
+                              ? "text-jade bg-jade/[0.08] border-jade"
+                              : "text-flash/50 border-transparent hover:border-jade/30"
                           )}
                         >
                           {r}
@@ -831,6 +846,44 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </form>
+
+              {/* Status line — mounted only while the console is actually
+                  doing something. An idle row saying "awaiting input" is a
+                  label for a state the user can already see. */}
+              <AnimatePresence initial={false}>
+                {panelState && (
+                  <motion.div
+                    key="status"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22, ease: EASE_OUT }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3.5 pt-3 border-t border-jade/10 flex items-center justify-between gap-3">
+                      <span
+                        className={cn(
+                          "font-jetbrains text-[9px] tracking-[0.2em] lowercase",
+                          panelState === "loading" && "text-flash/35",
+                          panelState === "results" && "text-jade/70",
+                          panelState === "empty" && "text-flash/35"
+                        )}
+                      >
+                        {panelState === "loading"
+                          ? "searching"
+                          : panelState === "results"
+                            ? `${displaySuggestions.length} ${displaySuggestions.length === 1 ? "result" : "results"}`
+                            : "no result"}
+                      </span>
+                      {panelState === "results" && (
+                        <span className="font-jetbrains text-[9px] tracking-[0.18em] lowercase text-flash/20 hidden sm:inline">
+                          ↵ to open
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
 

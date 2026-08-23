@@ -199,6 +199,355 @@ html.light .theme-dark .match-bluewin { background: transparent; box-shadow: non
 .match-card-collapsed {
   cursor: url("/cursors/clicker.svg") 16 6, pointer;
 }
+
+/* ── A match that arrived from the UPDATE button ──────────────────────────
+   Only the genuinely new cards animate: a soft refresh must leave the rest of
+   the list exactly where the eye left it. Settles at transform:none so the
+   card does not keep a compositing layer (which would soften its text). */
+@keyframes spNewMatch {
+  from { opacity: 0; transform: translateY(-12px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.sp-new-match {
+  animation: spNewMatch 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-new-match { animation: none; }
+}
+
+/* ── Champion picker: tap-and-hold to favourite ───────────────────────────
+   The hold is a CSS transition on stroke-dashoffset of an outline that traces
+   the tile. The element is ALWAYS mounted, never conditionally rendered: a
+   transition cannot animate a value the element was born with, so mounting it
+   already at the end state made the trace snap instead of draw. */
+
+/* Completion: the outline blooms outward and dissolves. */
+@keyframes cpBloom {
+  0%   { transform: scale(1);    opacity: 0.85; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+.cp-bloom {
+  animation: cpBloom 460ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center;
+}
+
+/* The star lands with a little overshoot rather than appearing. */
+@keyframes cpBadgePop {
+  0%   { transform: scale(0) rotate(-40deg); opacity: 0; }
+  60%  { transform: scale(1.25) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg);   opacity: 1; }
+}
+.cp-badge {
+  animation: cpBadgePop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* A favourite entering the FAVORITES shelf. */
+@keyframes cpEnter {
+  from { opacity: 0; transform: translateY(6px) scale(0.86); }
+  to   { opacity: 1; transform: none; }
+}
+.cp-enter {
+  animation: cpEnter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The tile itself: it sinks under the finger and lifts back on release. */
+.cp-art {
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 260ms ease;
+}
+.cp-art-holding {
+  transform: scale(0.9);
+  filter: brightness(1.2) saturate(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-bloom, .cp-badge, .cp-enter { animation: none; }
+  .cp-art, .cp-art-holding { transition: none; transform: none; }
+}
+
+/* ── Search dialog: CRT power-OFF ─────────────────────────────────────────
+   The shadcn DialogContent closes with slide-out-to-top + fade, which has
+   nothing to do with how this dialog opens (a CRT slit powering on). This
+   plays that same geometry backwards: full -> horizontal slit -> point.
+
+   The class is doubled to raise specificity above the tailwindcss-animate
+   utilities on the same element, which are also class+attribute — same
+   weight, so source order alone would be a coin flip.
+
+   Deliberately NO transform in the keyframes: DialogContent is centred with
+   translate-x-[-50%], and a `transform: scale()` here would replace that and
+   snap the dialog sideways as it closes. clip-path carries the whole effect. */
+@keyframes sdPowerOff {
+  0% {
+    clip-path: inset(0% 0% 0% 0%);
+    opacity: 1;
+  }
+  /* Mirrors the opening's 0.32 breakpoint, flipped: most of the close is the
+     vertical collapse, then the slit snaps shut. */
+  68% {
+    clip-path: inset(48% 0% 48% 0%);
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(49.6% 49.6% 49.6% 49.6%);
+    opacity: 0;
+  }
+}
+
+/* The jade line that flashes as the slit snaps shut — the closing echo of the
+   zap that races outward on open. */
+@keyframes sdZapOut {
+  0%, 45%  { opacity: 0; transform: scaleX(1); }
+  70%      { opacity: 1; transform: scaleX(1); }
+  100%     { opacity: 0; transform: scaleX(0.06); }
+}
+
+.sd-dialog.sd-dialog[data-state="closed"] {
+  animation: sdPowerOff 240ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.sd-dialog.sd-dialog[data-state="closed"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  z-index: 30;
+  pointer-events: none;
+  transform-origin: center;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 217, 146, 0.95) 12%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(0, 217, 146, 0.95) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 18px rgba(0, 217, 146, 1), 0 0 36px rgba(0, 217, 146, 0.5);
+  animation: sdZapOut 240ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-dialog.sd-dialog[data-state="closed"] {
+    animation: none;
+    opacity: 0;
+  }
+  .sd-dialog.sd-dialog[data-state="closed"]::after { display: none; }
+}
+
+/* ── Search dialog field ──────────────────────────────────────────────────
+   Input and region picker share ONE surface instead of sitting as two boxes
+   with a gap between them, so the row reads as a single instrument. Same
+   traced-outline technique as the match card: a layer filled with the accent,
+   masked down to its 1px padding ring, inheriting the radius. */
+.sd-field {
+  position: relative;
+  transition: box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sd-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  padding: 1px;
+  border-radius: inherit;
+  background: rgba(0, 217, 146, 0.11);
+  transition: background-color 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+}
+/* The whole field lights on focus — no separate focus ring, no border colour
+   swap that only covers the input half. */
+.sd-field:focus-within::before {
+  background: rgba(0, 217, 146, 0.55);
+}
+.sd-field:focus-within {
+  box-shadow: 0 0 26px rgba(0, 217, 146, 0.10);
+}
+
+/* Leading tick, same idiom as the scoreboard rows: short at rest, full when
+   the caret is in the field. */
+.sd-tick {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 34%;
+  transform: translateY(-50%);
+  background: rgba(0, 217, 146, 0.28);
+  transition:
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 260ms ease,
+    box-shadow 260ms ease;
+}
+.sd-field:focus-within .sd-tick {
+  height: 72%;
+  background: rgb(0, 217, 146);
+  box-shadow: 0 0 10px rgba(0, 217, 146, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-field,
+  .sd-field::before,
+  .sd-tick { transition: none; }
+}
+
+/* ── Match card surface ───────────────────────────────────────────────────
+   Same vocabulary as the expanded scoreboard below it (1px traced outline +
+   lit accent edge + hover sheen), so card and panel read as one instrument
+   rather than two stacked styles. Accent comes in as --mc-accent, an "r,g,b"
+   triplet. Corners stay softly rounded — the outline follows the radius. */
+.mc-card {
+  transition: box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 1px outline hugging the card. `border` would sit inside the padding box and
+   fight the glass background, so the layer is filled with the accent and
+   masked down to its 1px padding ring, inheriting the radius exactly. */
+.mc-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  padding: 1px;
+  border-radius: inherit;
+  background: rgba(var(--mc-accent, 0, 217, 146), 0.28);
+  transition: background-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+}
+.mc-card:hover::before {
+  background: rgba(var(--mc-accent, 0, 217, 146), 0.62);
+}
+
+/* Sheen on hover. On a pseudo-element, never the card: a transform on the card
+   promotes the whole subtree to its own compositing layer and softens every
+   glyph inside it while hovered. */
+.mc-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-120%, 0, 0);
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(var(--mc-accent, 0, 217, 146), 0.11) 50%,
+    transparent 62%
+  );
+  transition:
+    transform 780ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+.mc-card:hover::after {
+  opacity: 1;
+  transform: translate3d(120%, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-card::after { display: none; }
+  .mc-card,
+  .mc-card::before { transition: none; }
+}
+
+/* ── Expanded match panel: scoreboard chrome ──────────────────────────────
+   Scoped to the .mx-* classes used only by MatchExpand, so nothing here can
+   reach the match cards themselves. Each block sets --mx-accent inline as an
+   "r,g,b" triplet (blue side / red side / jade for you). */
+.mx-team {
+  position: relative;
+}
+
+/* 1px outline hugging the block, filled with the accent and masked down to its
+   1px padding ring so it inherits the rounded corners exactly. */
+.mx-team::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  padding: 1px;
+  border-radius: inherit;
+  background: rgba(var(--mx-accent, 91, 168, 230), 0.30);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+}
+
+/* One sheen crossing the block on hover. It lives on the team wrapper, which
+   already clips its children — a sweep on the rows themselves would need
+   overflow:hidden there, and that would chop the champion level badge that
+   deliberately hangs outside its corner. */
+.mx-team::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-120%, 0, 0);
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(var(--mx-accent, 91, 168, 230), 0.10) 50%,
+    transparent 62%
+  );
+  transition:
+    transform 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+.mx-team:hover::after {
+  opacity: 1;
+  transform: translate3d(120%, 0, 0);
+}
+
+/* Player row: a lit tick on the leading edge instead of a boxed outline. */
+.mx-row {
+  position: relative;
+  transition: background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mx-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 38%;
+  transform: translateY(-50%);
+  background: rgba(var(--mx-accent, 91, 168, 230), 0.45);
+  transition:
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 260ms ease,
+    box-shadow 260ms ease;
+}
+.mx-row:hover::before {
+  height: 82%;
+  background: rgb(var(--mx-accent, 91, 168, 230));
+  box-shadow: 0 0 8px rgba(var(--mx-accent, 91, 168, 230), 0.75);
+}
+/* Your own row stays lit without needing a hover. */
+.mx-row-me::before {
+  height: 82%;
+  background: rgb(var(--mx-accent, 0, 217, 146));
+  box-shadow: 0 0 10px rgba(var(--mx-accent, 0, 217, 146), 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-team::after { display: none; }
+  .mx-row,
+  .mx-row::before { transition: none; }
+}
 /* Fade-in for the action strip in the scout-lobby MatchCard. The strip
    is mounted only when expanded, so we just need an entry animation. */
 @keyframes matchActionFadeIn {
@@ -670,3 +1019,235 @@ body.modal-frozen #root *::after {
     animation: scoutMatchShine 1.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+
+/* ── Profile actions: UPDATE / ANALYZE ─────────────────────────────────────
+   One component drives both so they cannot drift apart. The pair they replace
+   used MIRRORED corner notches — update cut top-left, analyze cut top-right —
+   which side by side read as a mistake rather than a set. Here the accent rail
+   runs the same way on both, borrowing the match card's language, and only the
+   colour separates them.
+
+   --acc is an "R G B" triple rather than a colour so every layer can take its
+   own alpha; the component sets it per variant. */
+.act-btn {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid rgb(var(--acc) / 0.30);
+    border-radius: 3px;
+    background-color: #070E10;
+    color: rgb(var(--acc) / 0.9);
+    transition: border-color 260ms ease, background-color 260ms ease, color 260ms ease;
+}
+
+/* the rail — the signature, and the only thing that grows on hover */
+.act-btn::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgb(var(--acc) / 0.75);
+    transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 260ms ease,
+                box-shadow 260ms ease;
+}
+
+/* wash anchored to the rail, so the button reads as lit from that edge */
+.act-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgb(var(--acc) / 0.12), rgb(var(--acc) / 0) 62%);
+    opacity: 0.7;
+    transition: opacity 260ms ease;
+}
+
+.act-btn:hover:not(:disabled) {
+    border-color: rgb(var(--acc) / 0.6);
+    background-color: rgb(var(--acc) / 0.06);
+    color: rgb(var(--acc));
+}
+.act-btn:hover:not(:disabled)::before {
+    width: 3px;
+    background: rgb(var(--acc));
+    box-shadow: 0 0 10px rgb(var(--acc) / 0.75);
+}
+.act-btn:hover:not(:disabled)::after { opacity: 1; }
+.act-btn:active:not(:disabled) { background-color: rgb(var(--acc) / 0.11); }
+
+.act-btn:focus-visible {
+    outline: 1px solid rgb(var(--acc) / 0.7);
+    outline-offset: 1px;
+}
+
+/* Cooldown / locked: still legible, plainly not actionable. Dimming inside the
+   accent rather than greying out keeps it in palette. */
+.act-btn[data-state="muted"] {
+    border-color: rgb(var(--acc) / 0.16);
+    color: rgb(var(--acc) / 0.42);
+}
+.act-btn[data-state="muted"]::before {
+    background: rgb(var(--acc) / 0.28);
+    box-shadow: none;
+}
+.act-btn[data-state="muted"]::after { opacity: 0.3; }
+
+/* A muted button can still be live — locked ANALYZE opens the paywall — so it
+   answers the cursor, just without pretending to be available. */
+.act-btn[data-state="muted"]:hover:not(:disabled) {
+    border-color: rgb(var(--acc) / 0.34);
+    background-color: rgb(var(--acc) / 0.04);
+    color: rgb(var(--acc) / 0.66);
+}
+.act-btn[data-state="muted"]:hover:not(:disabled)::before {
+    width: 2px;
+    background: rgb(var(--acc) / 0.5);
+    box-shadow: none;
+}
+.act-btn[data-state="muted"]:hover:not(:disabled)::after { opacity: 0.45; }
+.act-btn[data-state="muted"]:hover:not(:disabled) .act-sweep { animation: none; opacity: 0; }
+
+/* One-shot sweep on hover. Its own element, never the label's container: a
+   lingering transform on text leaves it on a compositing layer and blurry. */
+@keyframes actSweep {
+    from { transform: translateX(-140%) skewX(-14deg); }
+    to   { transform: translateX(360%) skewX(-14deg); }
+}
+.act-sweep {
+    opacity: 0;
+    transform: translateX(-140%) skewX(-14deg);
+}
+.act-btn:hover:not(:disabled) .act-sweep {
+    opacity: 1;
+    animation: actSweep 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cooldown drain along the bottom edge — the remaining wait as a quantity, not
+   just a number to read. */
+.act-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    z-index: 5;
+    background: rgb(var(--acc) / 0.55);
+    transition: width 1s linear;
+}
+
+/* In-flight. The buttons carry no glyph, so there is nothing to spin: the wait
+   goes on the bottom edge instead, the same band the cooldown drains along. */
+@keyframes actIndeterminate {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(420%); }
+}
+.act-indeterminate {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 24%;
+    z-index: 5;
+    background: rgb(var(--acc) / 0.7);
+    animation: actIndeterminate 1000ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .act-btn, .act-btn::before, .act-btn::after, .act-progress { transition: none; }
+    .act-btn:hover:not(:disabled) .act-sweep { animation: none; opacity: 0; }
+    .act-indeterminate { animation: none; width: 100%; opacity: 0.5; }
+}
+
+/* ── Champion section bar ──────────────────────────────────────────────────
+   The active tab used to be a flat rectangle of jade behind the label, which
+   read as a box stuck to the bar. It is now light RISING from the rail: a
+   radial gradient anchored at the bottom centre, fading to nothing before it
+   reaches any edge. Nothing about it is straight except the rail itself, which
+   is meant to be. */
+.champ-tab-glow {
+    background: radial-gradient(
+        118% 100% at 50% 100%,
+        rgba(0, 217, 146, 0.20) 0%,
+        rgba(0, 217, 146, 0.07) 42%,
+        rgba(0, 217, 146, 0) 100%
+    );
+}
+
+/* The same shape, neutral and much fainter, for a tab under the cursor. */
+.champ-tab-hover {
+    background: radial-gradient(
+        118% 100% at 50% 100%,
+        rgba(215, 216, 217, 0.11) 0%,
+        rgba(215, 216, 217, 0.035) 42%,
+        rgba(215, 216, 217, 0) 100%
+    );
+    opacity: 0;
+    transition: opacity 220ms ease;
+}
+.champ-tab:hover .champ-tab-hover { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+    .champ-tab-hover { transition: none; }
+}
+
+/* ── Desktop-app call to action ────────────────────────────────────────────
+   The body is near-black, like the COMING SOON pill it wears, and the only
+   colour is a single light running the perimeter. Minimal because it is one
+   thin line; inviting because the eye follows it round.
+
+   Built by spinning a conic gradient behind the button and covering all but a
+   1px margin of it with the body — so the "border" is the part of the spinning
+   gradient that still shows. Rotated with a transform rather than an animated
+   `@property` angle, which needs registered custom properties to interpolate
+   and silently steps instead of sweeping where they are unsupported. */
+@keyframes dlOrbit {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.dl-cta {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 4px;
+    /* the resting edge, visible everywhere the running light is not */
+    background: rgba(0, 217, 146, 0.22);
+}
+
+.dl-cta__orbit {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* square and wider than the button's diagonal, or the light would vanish
+       across the corners as it swept past them */
+    width: 190%;
+    aspect-ratio: 1 / 1;
+    background: conic-gradient(
+        from 0deg,
+        rgba(0, 217, 146, 0) 0%,
+        rgba(0, 217, 146, 0) 58%,
+        rgba(0, 217, 146, 0.35) 70%,
+        #00d992 78%,
+        rgba(0, 217, 146, 0.35) 86%,
+        rgba(0, 217, 146, 0) 96%,
+        rgba(0, 217, 146, 0) 100%
+    );
+    animation: dlOrbit 3.8s linear infinite;
+}
+
+.dl-cta__body {
+    position: absolute;
+    inset: 1px;
+    border-radius: 3px;
+    background: #050b0d;
+}
+
+.dl-cta:disabled {
+    cursor: not-allowed !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dl-cta__orbit { animation: none; }
+}

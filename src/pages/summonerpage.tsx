@@ -84,6 +84,40 @@ const itemKeys: (keyof Participant)[] = [
 
 
 
+/** MVP (best score on the winning team) / ACE (best on the losing team),
+ *  stamped on the top-left of whichever portrait the collapsed card shows.
+ *
+ *  The card only draws two of the ten players — you and your lane opponent —
+ *  so this renders for those two and nothing else; a puuid with no portrait
+ *  here has no corner to anchor to. */
+function MvpAceBadge({
+  puuid,
+  mvpWin,
+  mvpLose,
+}: {
+  puuid?: string | null;
+  mvpWin?: string;
+  mvpLose?: string;
+}) {
+  if (!puuid) return null;
+  const isMvp = puuid === mvpWin;
+  const isAce = puuid === mvpLose;
+  if (!isMvp && !isAce) return null;
+  return (
+    <span
+      aria-hidden
+      title={isMvp ? "MVP - best score on the winning team" : "ACE - best score on the losing team"}
+      className={cn(
+        "pointer-events-none absolute -left-1 -top-1 z-20 rounded-[3px] px-1 py-[2px]",
+        "font-bold leading-none text-[8px] shadow-[0_1px_6px_rgba(0,0,0,0.6)]",
+        isMvp ? "bg-pine text-jade" : "bg-[#3A2C45] text-[#C693F1]"
+      )}
+    >
+      {isMvp ? "MVP" : "ACE"}
+    </span>
+  );
+}
+
 function getMatchTimestamp(m: MatchWithWin["match"]["info"]) {
   return m.gameEndTimestamp ?? m.gameStartTimestamp ?? m.gameCreation;
 }
@@ -183,6 +217,26 @@ export default function SummonerPage() {
     }
   }
   const [loading, setLoading] = useState(false)
+  // Deliberately separate from `loading`. `loading` gates the skeletons and the
+  // boot overlay, so reusing it for the UPDATE button would tear the page down
+  // and rebuild it — which is exactly what UPDATE should not do.
+  const [refreshing, setRefreshing] = useState(false)
+  // Match ids that arrived in the last soft refresh, so only those animate in.
+  const [freshMatchIds, setFreshMatchIds] = useState<Set<string>>(new Set())
+  // Mirrors `matches` so a merge can read the current list without a functional
+  // updater. React state updaters must be PURE — calling setFreshMatchIds from
+  // inside one is what blanked the page.
+  const matchesRef = useRef<MatchWithWin[]>([])
+
+  useEffect(() => { matchesRef.current = matches }, [matches])
+
+  // The highlight is a one-shot: clear it after the entrance so an unrelated
+  // re-render (a filter change, a hover) cannot make old cards fly in again.
+  useEffect(() => {
+    if (freshMatchIds.size === 0) return
+    const t = window.setTimeout(() => setFreshMatchIds(new Set()), 900)
+    return () => window.clearTimeout(t)
+  }, [freshMatchIds])
   const [onCooldown, setOnCooldown] = useState(false)
   const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
@@ -960,7 +1014,17 @@ export default function SummonerPage() {
     return () => document.removeEventListener("contextmenu", handler);
   }, []);
 
-  async function refreshData() {
+  /**
+   * @param soft  UPDATE-button refresh: keep everything on screen, swap the
+   *              numbers underneath and slide in whatever is new.
+   *
+   * The hard path wipes state first, which is right on first load (there is
+   * nothing to preserve and the skeletons explain the wait) and wrong on a
+   * refresh: nulling summonerInfo re-arms the boot overlay, emptying matches
+   * re-arms the skeletons, and the filter resets throw away the champion/queue/
+   * role the user had chosen.
+   */
+  async function refreshData(soft = false) {
 
     if (!region) {
       console.error("— Region mancante in refreshData")
@@ -969,32 +1033,39 @@ export default function SummonerPage() {
 
     if (!name || !tag) return
 
-    setLoading(true)
-    setSummonerInfo(null);
-    setMatches([]);
-    setTopChampionsSeason([]);
-    setSplitTotals(null);
-    setTopChampionsSolo([]);
-    setTopChampionsFlex([]);
-    setHasMore(true);
-    setNextOffset(0);
-    setIsLoadingMore(false);
-    setIsIngesting(false);
-    setSelectedChampion(null);
-    setSelectedQueue("All" as QueueType);
-    setSelectedResult("all");
-    setSelectedRole(null);
-    setRankQueueView("solo");
+    if (soft) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+      setSummonerInfo(null);
+      setMatches([]);
+      setTopChampionsSeason([]);
+      setSplitTotals(null);
+      setTopChampionsSolo([]);
+      setTopChampionsFlex([]);
+      setHasMore(true);
+      setNextOffset(0);
+      setIsLoadingMore(false);
+      setIsIngesting(false);
+      setSelectedChampion(null);
+      setSelectedQueue("All" as QueueType);
+      setSelectedResult("all");
+      setSelectedRole(null);
+      setRankQueueView("solo");
+    }
 
     try {
       // Fire summoner info and matches in parallel — summoner endpoint
       // no longer blocks on match ingestion, so both can run concurrently
       const [summonerResult] = await Promise.all([
         fetchSummonerInfo(name, tag, region),
-        fetchMatches(name, tag, region, 0, false),
+        fetchMatches(name, tag, region, 0, false, 20, soft),
       ])
 
       if (!summonerResult.found) {
+        // Same reasoning as the catch below: never evict a working page
+        // because a refresh came back empty.
+        if (soft) { setRefreshing(false); return }
         navigate("/404", {
           state: {
             message: "Summoner not found",
@@ -1009,7 +1080,7 @@ export default function SummonerPage() {
       // any additional matches ingested in background
       setTimeout(async () => {
         try {
-          await fetchMatches(name, tag, region, 0, false);
+          await fetchMatches(name, tag, region, 0, false, 20, soft);
         } catch {}
       }, 3000);
 
@@ -1055,6 +1126,13 @@ export default function SummonerPage() {
       }).catch(console.error)
     } catch (err) {
       console.error("— Error loading summoner data:", err)
+      // On a soft refresh the page is already showing good data. Bouncing to
+      // /404 because a background refresh hiccuped throws away everything the
+      // user was looking at — leave the page alone and let them retry.
+      if (soft) {
+        setRefreshing(false)
+        return
+      }
       navigate("/404", {
         state: {
           message: "Summoner not found",
@@ -1065,7 +1143,8 @@ export default function SummonerPage() {
       return
     }
 
-    setLoading(false)
+    if (soft) setRefreshing(false)
+    else setLoading(false)
   }
 
   function LoadingSquares() {
@@ -1109,7 +1188,7 @@ export default function SummonerPage() {
   // Loads 20 at once (backend caps a single page at 20) so the LOLDATA Score
   // — computed on the latest 20 games — is stable from the first paint instead
   // of drifting as more matches stream in.
-  async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false, limit = 20) {
+  async function fetchMatches(name: string, tag: string, region: string, offset = 0, append = false, limit = 20, merge = false) {
     const res = await fetch(`${API_BASE_URL}/api/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1120,15 +1199,46 @@ export default function SummonerPage() {
     // Track ingestion state — keep polling while backend says ingesting
     setIsIngesting(Boolean(data.ingesting));
 
-    setHasMore(Boolean(data.hasMore));
-    setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
+    if (!merge) {
+      setHasMore(Boolean(data.hasMore));
+      setNextOffset(Number(data.nextOffset ?? (offset + (data.matches?.length ?? 0))));
+    }
 
     setTopChampions(data.topChampions || []);
 
     // Always update matches if we got any (even partial during ingestion)
     if (data.matches && data.matches.length > 0) {
-      if (append) {
-        setMatches(prev => [...prev, ...data.matches]);
+      if (merge) {
+        // Keep what is on screen and splice in only genuinely new games, so the
+        // list never blanks and the scroll position survives. Computed against
+        // the ref, NOT inside a setMatches updater: an updater that calls
+        // another setter is impure and tears the tree down.
+        const seen = new Set(
+          matchesRef.current.map((m: any) => m?.metadata?.matchId).filter(Boolean)
+        );
+        const incoming = ((data.matches ?? []) as any[]).filter(
+          (m) => m?.metadata?.matchId && !seen.has(m.metadata.matchId)
+        );
+        if (incoming.length > 0) {
+          // Second dedupe against `prev`: the ref only catches up on commit, so
+          // two refreshes in quick succession could otherwise prepend the same
+          // game twice - and matchId is the list key.
+          setMatches(prev => {
+            const have = new Set(prev.map((m: any) => m?.metadata?.matchId));
+            const add = incoming.filter((m) => !have.has(m.metadata.matchId));
+            return add.length > 0 ? [...add, ...prev] : prev;
+          });
+          setFreshMatchIds(new Set(incoming.map((m: any) => m.metadata.matchId)));
+          // Slide the pagination window by however many games we spliced in,
+          // otherwise the next "load more" re-requests rows we already show.
+          setNextOffset(prev => prev + incoming.length);
+        }
+      } else if (append) {
+        setMatches(prev => {
+          const have = new Set(prev.map((m: any) => m?.metadata?.matchId));
+          const add = (data.matches as any[]).filter((m) => !have.has(m?.metadata?.matchId));
+          return add.length > 0 ? [...prev, ...add] : prev;
+        });
       } else {
         setMatches(data.matches);
       }
@@ -2199,8 +2309,8 @@ export default function SummonerPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-1">
                     <UpdateButton
-                      onClick={refreshData}
-                      loading={loading}
+                      onClick={() => refreshData(true)}
+                      loading={refreshing}
                       cooldown={onCooldown}
                       cooldownSeconds={cooldownSeconds}
                     />
@@ -2563,7 +2673,8 @@ export default function SummonerPage() {
                               className={cn(
                                 expandedMatchId === match.metadata.matchId
                                   ? "match-card-expanded"
-                                  : clickToExpand ? "match-card-collapsed" : "match-card-group"
+                                  : clickToExpand ? "match-card-collapsed" : "match-card-group",
+                                freshMatchIds.has(match.metadata.matchId) && "sp-new-match"
                               )}
                               onClick={(e) => {
                                 // Don't toggle if clicking a button/link inside
@@ -2580,8 +2691,18 @@ export default function SummonerPage() {
                               }}
                             >
                             <li
+                              // Drives the chamfer outline, the hover sheen and
+                              // the win/loss rail from one value instead of a
+                              // four-way branch in every rule.
+                              style={{
+                                ["--mc-accent" as any]: isRemake
+                                  ? "245,166,35"
+                                  : win
+                                    ? (blueWinTint ? "91,168,230" : "0,209,141")
+                                    : "201,50,50",
+                              }}
                               className={cn(
-                                "relative z-[2] overflow-hidden rounded-md p-2 text-flash transition cursor-clicker",
+                                "mc-card relative z-[2] overflow-hidden rounded-md p-2 text-flash cursor-clicker",
                                 // Win/loss backgrounds: no more flat green/red slabs — a deep,
                                 // desaturated wash that's strongest at the coloured left border
                                 // and dies into neutral glass within ~40% of the card (dpm-style
@@ -2658,16 +2779,23 @@ export default function SummonerPage() {
 
 
 
-                                  {/* — BORDO COLORATO */}
+                                  {/* — RAIL: the same lit leading edge the
+                                      scoreboard rows use, at full height. The
+                                      short brighter cap marks the top of the run. */}
                                   <div
-                                    className={cn(
-                                      "absolute left-0 top-0 h-full w-1 rounded-l-sm z-10",
-                                      isRemake
-                                        ? "bg-gradient-to-b from-[#f5a623] to-[#8a6010]"
-                                        : win
-                                          ? (blueWinTint ? "bg-gradient-to-b from-[#5BA8E6] to-[#1a3a5c]" : "bg-gradient-to-b from-[#00D18D] to-[#11382E]")
-                                          : "bg-gradient-to-b from-[#c93232] to-[#420909]"
-                                    )}
+                                    className="absolute left-0 top-0 z-10 h-full w-[2px]"
+                                    style={{
+                                      background: "rgb(var(--mc-accent))",
+                                      boxShadow: "0 0 9px rgba(var(--mc-accent),0.45)",
+                                      opacity: 0.8,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute left-0 top-0 z-10 h-6 w-[2px]"
+                                    style={{
+                                      background: "rgb(var(--mc-accent))",
+                                      boxShadow: "0 0 14px rgba(var(--mc-accent),0.85)",
+                                    }}
                                   />
 
                                   {/* — CONTENUTO INTERNO */}
@@ -2728,17 +2856,7 @@ export default function SummonerPage() {
                                               </div>
                                             )}
                                             {/* MVP/ACE — anchored to the champ portrait's top-left, all breakpoints */}
-                                            {isSelfMvpOrAce && (
-                                              <span
-                                                className={cn(
-                                                  "absolute -top-1 -left-1 z-20 px-1 rounded-[3px] text-[8px] leading-none shadow-[0_1px_6px_rgba(0,0,0,0.6)]",
-                                                  summonerInfo?.puuid === mvpWin ? "bg-pine text-jade" : "bg-[#3A2C45] text-[#C693F1]"
-                                                )}
-                                                style={{ lineHeight: '1', fontWeight: 700 }}
-                                              >
-                                                {summonerInfo?.puuid === mvpWin ? "MVP" : "ACE"}
-                                              </span>
-                                            )}
+                                            <MvpAceBadge puuid={summonerInfo?.puuid} mvpWin={mvpWin} mvpLose={mvpLose} />
                                           </div>
                                           {participant && (
                                             <>
@@ -2920,15 +3038,47 @@ export default function SummonerPage() {
                                           const enemies = participant.teamId === 100 ? team2 : team1;
                                           const opp = myPos ? enemies.find((e) => (((e as any).teamPosition || (e as any).individualPosition || "").toUpperCase()) === myPos) : null;
                                           if (!opp) return null;
+                                          // The lane is stamped on the portrait instead of
+                                          // spelled out underneath: the glyph already says
+                                          // "this is your opposite number in this role", and
+                                          // the label was costing a whole row of card height
+                                          // to repeat what the icon shows.
+                                          const laneMark: Record<string, React.ReactNode> = {
+                                            TOP: <RoleTopIcon className="h-full w-full" />,
+                                            JUNGLE: <RoleJungleIcon className="h-full w-full" />,
+                                            MIDDLE: <RoleMidIcon className="h-full w-full" />,
+                                            BOTTOM: <RoleAdcIcon className="h-full w-full" />,
+                                            UTILITY: <RoleSupportIcon className="h-full w-full" />,
+                                          };
+                                          const mark = laneMark[myPos] ?? null;
                                           return (
-                                            <div className="hidden shrink-0 flex-col items-center gap-1.5 lg:flex">
+                                            <div className="relative hidden h-10 w-10 shrink-0 lg:block">
                                               <img
                                                 src={`${cdnBaseUrl()}/img/champion/${normalizeChampName(opp.championName)}.png`}
                                                 alt={opp.championName}
-                                                title={opp.riotIdGameName ? `${opp.riotIdGameName}#${opp.riotIdTagline}` : opp.championName}
+                                                title={opp.riotIdGameName ? `${opp.riotIdGameName}#${opp.riotIdTagline} · ${myPos.toLowerCase()}` : opp.championName}
                                                 className="h-10 w-10 rounded-[4px] ring-1 ring-flash/25 shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
                                               />
-                                              <span className="font-jetbrains text-[9px] font-semibold uppercase tracking-[0.16em] text-flash/60">vs lane</span>
+                                              {/* The MVP is often the player across the lane, not
+                                                  you — before this the badge only ever appeared on
+                                                  your own portrait, so those games looked as if
+                                                  nobody had earned it. Top-left is free here: the
+                                                  lane glyph sits top-right. */}
+                                              <MvpAceBadge puuid={opp.puuid} mvpWin={mvpWin} mvpLose={mvpLose} />
+                                              {mark && (
+                                                <span
+                                                  aria-hidden
+                                                  // Opaque disc rather than a bare glyph with a
+                                                  // shadow: champion art runs from near-black to
+                                                  // near-white, and at this size a shadowed
+                                                  // outline still dissolved into the busy half of
+                                                  // the splashes. The disc gives the icon a fixed
+                                                  // ground, so it reads the same on every card.
+                                                  className="pointer-events-none absolute -right-[7px] -top-[7px] grid h-[19px] w-[19px] place-items-center rounded-full bg-liquirice shadow-[0_1px_5px_rgba(0,0,0,0.65)]"
+                                                >
+                                                  <span className="h-[12px] w-[12px] text-flash/90">{mark}</span>
+                                                </span>
+                                              )}
                                             </div>
                                           );
                                         })()}
@@ -3476,7 +3626,7 @@ export default function SummonerPage() {
 
               {/* Section 1: Actions */}
               {([
-                { icon: RotateCw, label: "Update Page", action: () => { refreshData(); }, disabled: loading || onCooldown },
+                { icon: RotateCw, label: "Update Page", action: () => { refreshData(true); }, disabled: refreshing || onCooldown },
                 { icon: Search, label: "Analyze Player", action: () => setAnalyzeOpen(true) },
                 { icon: BarChart3, label: "Season Stats", action: () => navigate(`/summoners/${region}/${name.replace(/\s+/g, "+")}-${tag}/season`) },
               ] as { icon: any; label: string; action: () => void; disabled?: boolean }[]).map((item) => (

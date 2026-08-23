@@ -338,11 +338,16 @@ export default function MatchExpand({
               return (
                 <div
                   key={team.teamId}
+                  // The side colour drives the chamfer outline, the hover sheen
+                  // and every row tick inside — one variable instead of a
+                  // blue/red branch in each rule.
+                  style={{
+                    ["--mx-accent" as any]:
+                      team.teamId === 100 ? "91,168,230" : "224,80,63",
+                  }}
                   className={cn(
-                    "rounded-[4px] ring-1 overflow-hidden",
-                    team.teamId === 100
-                      ? "bg-[#5BA8E6]/[0.07] ring-[#5BA8E6]/[0.14]"
-                      : "bg-[#e0503f]/[0.06] ring-[#e0503f]/[0.13]"
+                    "mx-team rounded-md overflow-hidden",
+                    team.teamId === 100 ? "bg-[#5BA8E6]/[0.07]" : "bg-[#e0503f]/[0.06]"
                   )}
                 >
                   {/* player rows — the side tint IS the team label */}
@@ -369,12 +374,17 @@ export default function MatchExpand({
                         <li
                           key={p.puuid}
                           className={cn(
-                            "grid items-center gap-x-3 px-2 py-[3px] rounded-[2px] ring-1 transition-colors",
+                            "mx-row grid items-center gap-x-3 pl-3 pr-2 py-[3px] rounded-[2px]",
                             isMe
-                              ? "bg-jade/[0.08] ring-jade/[0.13]"
-                              : "bg-filmlight/[0.028] ring-white/[0.04] hover:bg-filmlight/[0.055]"
+                              ? "mx-row-me bg-jade/[0.08]"
+                              : "bg-filmlight/[0.028] hover:bg-filmlight/[0.06]"
                           )}
-                          style={{ gridTemplateColumns: GRID[view] }}
+                          // Your own row overrides the side colour with jade so
+                          // you find yourself without reading a single name.
+                          style={{
+                            gridTemplateColumns: GRID[view],
+                            ...(isMe ? { ["--mx-accent" as any]: "0,217,146" } : null),
+                          }}
                         >
                           {/* identity */}
                           <div className="flex items-center gap-2 min-w-0">

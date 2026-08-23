@@ -2,12 +2,12 @@
 
 // src/pages/champion-detail-page.tsx
 import React, { useEffect, useMemo, useState } from "react"
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { cdnBaseUrl, cdnSplashUrl, getCdnVersion } from "@/config"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 // Champion stats are read from the match-data box (api2) — see config BOX_API_BASE_URL.
 import { BOX_API_BASE_URL as API_BASE_URL, normalizeChampSplash } from "@/config"
 import splashPositionMap from "@/converters/splashPositionMap"
@@ -16,6 +16,7 @@ import { ChampionMatchupsTab } from "@/components/champion-matchups-tab"
 import ChampionDuosTab from "@/components/champion-duos-tab"
 import ChampionBuildTab from "@/components/champion-build-tab"
 import { useSeo } from "@/hooks/useSeo";
+import { championSeo, championPath, TAB_LABEL, CHAMPION_TABS, type ChampionTab } from "@/lib/championSeo";
 import { GuidesTab } from "@/components/guide/guides-tab";
 import { useAuth } from "@/context/authcontext";
 import { DiamondButton } from "@/components/ui/diamond-button";
@@ -281,23 +282,19 @@ export default function ChampionDetailPage() {
     setPatch(getCdnVersion())
   }, [])
 
-  // per-tab SEO — unique title / meta / canonical per /champions/:id/:tab URL
-  const seoName = champ?.name ?? champId ?? "Champion"
-  const isSup = champ?.tags?.includes("Support")
-  const isAdc = champ?.tags?.includes("Marksman")
-  const duoLabel = isSup ? "ADC Duos" : isAdc ? "Supports" : "Duos"
-  const seoMeta =
-    activeTab === "duos"
-      ? { t: `Best ${duoLabel} for ${seoName} — Patch ${patch} | lolData`, d: `The best ${isSup ? "ADC carries" : isAdc ? "supports" : "duo partners"} to pair with ${seoName} in Patch ${patch}, ranked by confidence-weighted win rate from millions of ranked games.` }
-      : activeTab === "build"
-      ? { t: `${seoName} Build — Best Items & Runes — Patch ${patch} | lolData`, d: `The best build, items and runes for ${seoName} in Patch ${patch}, from millions of ranked games.` }
-      : activeTab === "counters"
-      ? { t: `${seoName} Counters & Best Matchups — Patch ${patch} | lolData`, d: `${seoName} counters and best / worst lane matchups in Patch ${patch}.` }
-      : { t: `${seoName} Build, Runes, Duos & Counters — Patch ${patch} | lolData`, d: `${seoName} guide: best build, runes, items, duos and counters from ranked games — Patch ${patch}.` }
+  // Per-tab SEO. The strings come from the shared builder, which the build-time
+  // prerender uses too, so the document Googlebot gets on its first pass and
+  // the one it gets after rendering say the same thing.
+  const seoMeta = championSeo({
+    name: champ?.name ?? champId ?? "Champion",
+    tags: champ?.tags,
+    tab: activeTab as ChampionTab,
+    patch,
+  })
   useSeo({
-    title: seoMeta.t,
-    description: seoMeta.d,
-    canonical: activeTab === "overview" ? `/champions/${champId}` : `/champions/${champId}/${activeTab}`,
+    title: seoMeta.title,
+    description: seoMeta.description,
+    canonical: championPath(champId ?? "", activeTab as ChampionTab),
   })
 
   // fetch champion data (case-insensitive URL support)
@@ -623,45 +620,71 @@ export default function ChampionDetailPage() {
       </div>
 
       {/* Body */}
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveGuide(null); navigate(`/champions/${champId}/${v}`, { replace: true }) }}>
-        {/* Cyber tab bar */}
-        <div className="relative mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
-          <TabsList className="bg-transparent p-0 gap-0 flex justify-start border-b border-flash/[0.06] min-w-0 w-max sm:w-full">
-            {[
-              { value: "overview", label: "Overview" },
-              { value: "build", label: "Build" },
-              { value: "duos", label: "Duos" },
-              { value: "counters", label: "Matchups" },
-              { value: "pros", label: "OTPs" },
-              { value: "guides", label: "Guides" },
-            ].map(({ value, label }) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className="
-                  relative px-3 sm:px-5 py-3 rounded-none whitespace-nowrap
-                  font-chakrapetch text-[11px] font-bold tracking-[0.2em] uppercase
-                  text-flash/30 hover:text-flash/60
-                  transition-colors duration-200
-                  data-[state=active]:text-jade
-                  data-[state=active]:bg-transparent
-                  data-[state=active]:shadow-none
-                  cursor-pointer
-                "
-              >
-                {label}
-                {/* Sliding underline — shared layoutId animates between tabs */}
-                {activeTab === value && (
-                  <motion.div
-                    layoutId="champ-tab-underline"
-                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-jade shadow-[0_0_8px_rgba(0,217,146,0.5)]"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+      {/* Controlled by the URL, not by Radix: each trigger IS the link, so the
+          tab a crawler can follow and the tab a click selects are one thing. */}
+      <Tabs value={activeTab}>
+        {/* ── Section bar ──────────────────────────────────────────────────
+            Plain links, deliberately NOT Radix triggers. With `asChild` Radix
+            concatenates ui/tabs' base classes onto the child with a plain
+            merge instead of tailwind-merge, so `text-sm font-normal` and
+            `data-[state=active]:bg-jade/20` survived alongside this bar's own
+            type and quietly won on stylesheet order. Owning the markup makes
+            that impossible. <Tabs> below still drives the panels.
+
+            Two shared layoutIds do the motion: a tinted chip that slides under
+            the active label and the rail beneath it. Both are their own
+            elements — never the text — because a transform parked on a text box
+            leaves it on a compositing layer and blurs it. */}
+        <nav
+          aria-label="Champion sections"
+          className="relative mb-6 overflow-x-auto overflow-y-hidden scrollbar-none"
+        >
+          <ul className="flex w-max min-w-full items-stretch border-b border-jade/[0.12]">
+            {CHAMPION_TABS.map((value) => {
+              const isActive = activeTab === value
+              return (
+                <li key={value} className="champ-tab relative shrink-0">
+                  {/* Neutral version of the same glow, for the tab under the
+                      cursor. Sits below the active one so the two never fight. */}
+                  {!isActive && <span aria-hidden className="champ-tab-hover pointer-events-none absolute inset-0" />}
+                  {isActive && (
+                    <>
+                      <motion.span
+                        aria-hidden
+                        layoutId="champ-tab-chip"
+                        className="champ-tab-glow pointer-events-none absolute inset-0"
+                        transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      />
+                      <motion.span
+                        aria-hidden
+                        layoutId="champ-tab-rail"
+                        className="absolute inset-x-0 bottom-0 h-[2px] bg-jade shadow-[0_0_10px_rgba(0,217,146,0.55)]"
+                        transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      />
+                    </>
+                  )}
+                  <Link
+                    // A real href. These were <button>s, which meant
+                    // /champions/<id>/build had no inbound link anywhere on the
+                    // site and no crawler could ever discover it.
+                    to={championPath(champId ?? "", value)}
+                    replace
+                    onClick={() => setActiveGuide(null)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "relative z-10 block whitespace-nowrap px-4 py-3 sm:px-5",
+                      "font-chakrapetch text-[11px] font-bold uppercase tracking-[0.2em]",
+                      "cursor-clicker select-none transition-colors duration-200",
+                      isActive ? "text-jade" : "text-flash/30 hover:text-flash/60"
+                    )}
+                  >
+                    {TAB_LABEL[value]}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
         <div className="space-y-4">
           <TabsContent value="overview">
             <ChampOverview champ={champ} />

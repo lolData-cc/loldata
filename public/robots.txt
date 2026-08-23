@@ -1,0 +1,20 @@
+# loldata.cc
+#
+# Cloudflare prepends its own managed block to this file. Before this file
+# existed the origin had nothing to serve at /robots.txt, so the SPA fallback
+# answered with index.html and the managed block ended up with a page of HTML
+# glued underneath it.
+
+User-agent: *
+Allow: /
+
+# Private, per-user or transient surfaces. Nothing here is useful in a search
+# result and several need a session to render at all.
+Disallow: /dashboard
+Disallow: /login
+Disallow: /auth/
+Disallow: /billing/
+Disallow: /overlay/
+Disallow: /scout
+
+Sitemap: https://loldata.cc/sitemap.xml

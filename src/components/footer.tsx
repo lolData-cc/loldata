@@ -42,7 +42,23 @@ export function Footer({ className = "" }: FooterProps) {
                         <motion.div className="text-xl md:text-2xl md:w-64" {...reveal(0.1)}>
                             The future of Improvement
                         </motion.div>
-                        <div className="grid grid-cols-3 gap-6 md:flex md:justify-between md:gap-24">
+                        <div className="grid grid-cols-2 gap-6 md:flex md:justify-between md:gap-16">
+                            {/* The site's content hubs. These are the only crawlable
+                                path to them from most pages: the navbar's CHAMPIONS
+                                item opens the picker sheet rather than navigating, so
+                                without this column /champions had no inbound link at
+                                all and nothing under it could be discovered. */}
+                            <motion.div className="flex flex-col text-sm gap-2" {...reveal(0.14)}>
+                                <span className="text-flash/20 ">
+                                    DATA
+                                </span>
+                                <ul className="flex flex-col gap-2 text-[13px] cursor-clicker">
+                                    <li><Link to="/champions" className="hover:text-flash/80">Champions</Link></li>
+                                    <li><Link to="/tierlist" className="hover:text-flash/80">Tier List</Link></li>
+                                    <li><Link to="/leaderboards" className="hover:text-flash/80">Leaderboards</Link></li>
+                                    <li><Link to="/patch-notes" className="hover:text-flash/80">Patch Notes</Link></li>
+                                </ul>
+                            </motion.div>
                             <motion.div className="flex flex-col text-sm gap-2" {...reveal(0.18)}>
                                 <span className="text-flash/20 ">
                                     PARTNERS
