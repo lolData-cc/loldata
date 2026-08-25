@@ -22,22 +22,45 @@ import { Navbar } from "@/components/navbar"
  * that cannot run this build cannot run the game it sits beside. Offering an
  * x86 download would be a second thing to build, host and test for nobody.
  */
-const FEED = "https://cdn2.loldata.cc/desktopapp"
+/**
+ * The app ships from GitHub Releases, so this asks GitHub what the newest one
+ * is. Same single source as the installed app's own updater — this page cannot
+ * fall a version behind a release, which is what every hand-maintained download
+ * page eventually does.
+ *
+ * ⚠️ The API, not the release asset. Reading `latest.yml` straight from
+ * `/releases/latest/download/` looks tidier and fails in the browser: that URL
+ * redirects to release-assets.githubusercontent.com, which sends NO
+ * `Access-Control-Allow-Origin`, so the fetch dies on CORS. The API sends `*`.
+ * The download link itself is fine either way — a link is a navigation, not a
+ * cross-origin read.
+ *
+ * Unauthenticated GitHub API calls are capped at 60/hour PER IP. That is per
+ * visitor's own browser, so it is one call out of their sixty.
+ */
+const RELEASE_API = "https://api.github.com/repos/lolData-cc/desktopapp/releases/latest"
 
-type Release = { version: string; file: string; size: number; releaseDate: string | null }
+type Release = { version: string; file: string; url: string; size: number; releaseDate: string | null }
 
-/** latest.yml is small and regular, so a few lines beat a YAML parser for one
- *  file. Anything unreadable becomes null and the page offers the download
- *  without the details, rather than showing nothing. */
-function parseLatest(text: string): Release | null {
-  const version = text.match(/^version:\s*(.+)$/m)?.[1]?.trim()
-  const file = text.match(/^path:\s*(.+)$/m)?.[1]?.trim()
-  if (!version || !file) return null
+/** Anything unreadable becomes null and the page offers no stale download,
+ *  rather than linking at a version that may not be there. */
+function parseRelease(data: unknown): Release | null {
+  const r = data as {
+    tag_name?: string
+    published_at?: string
+    assets?: { name?: string; size?: number; browser_download_url?: string }[]
+  }
+  // x64 only, deliberately — see above. The .exe is the only asset a person
+  // wants; latest.yml sits beside it for the updater.
+  const asset = r?.assets?.find((a) => a?.name?.endsWith(".exe") && a.browser_download_url)
+  const version = r?.tag_name?.replace(/^v/, "").trim()
+  if (!version || !asset?.name || !asset.browser_download_url) return null
   return {
     version,
-    file,
-    size: Number(text.match(/^\s+size:\s*(\d+)$/m)?.[1] ?? 0),
-    releaseDate: text.match(/^releaseDate:\s*'?([^'\n]+)'?$/m)?.[1]?.trim() ?? null,
+    file: asset.name,
+    url: asset.browser_download_url,
+    size: asset.size ?? 0,
+    releaseDate: r.published_at ?? null,
   }
 }
 
@@ -56,17 +79,17 @@ export default function DownloadPage() {
 
   useEffect(() => {
     const ctl = new AbortController()
-    fetch(`${FEED}/latest.yml`, { signal: ctl.signal, cache: "no-store" })
-      .then((r) => (r.ok ? r.text() : null))
-      .then((t) => {
-        const parsed = t ? parseLatest(t) : null
+    fetch(RELEASE_API, { signal: ctl.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const parsed = d ? parseRelease(d) : null
         if (parsed) { setRel(parsed); setState("ready") } else setState("unavailable")
       })
       .catch(() => { if (!ctl.signal.aborted) setState("unavailable") })
     return () => ctl.abort()
   }, [])
 
-  const href = rel ? `${FEED}/${rel.file}` : null
+  const href = rel?.url ?? null
   const mb = rel?.size ? (rel.size / 1048576).toFixed(0) : null
 
   // One timeline for the whole opening, so the parts arrive in a considered
