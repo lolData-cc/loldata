@@ -81,13 +81,13 @@ export default function DashboardPage() {
     if (!nametag) { setIconId(null); return }
     const [name, tag] = nametag.split("#")
     if (!name || !tag) return
-    supabase
-      .from("users")
-      .select("icon_id")
-      .eq("name", name)
-      .eq("tag", tag)
-      .single()
-      .then(({ data }) => { if (data?.icon_id) setIconId(data.icon_id) })
+    // ⚠️ Via l'API, non Supabase: `users` e' migrata sul box il 2026-08-28 e
+    //    la sua PostgREST non e' esposta a internet. Un fallimento lascia
+    //    l'icona di default, che e' gia' il comportamento previsto qui sotto.
+    fetch(`${API_BASE_URL}/api/user-icon?nametag=${encodeURIComponent(nametag)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.iconId) setIconId(d.iconId) })
+      .catch(() => {})
   }, [nametag])
 
   // Resolve avatar source

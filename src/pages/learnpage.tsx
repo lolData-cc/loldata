@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { API_BASE_URL } from "@/config"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/authcontext"
 import { supabase } from "@/lib/supabaseClient"
@@ -106,8 +107,12 @@ export default function LearnPage() {
         if (!nametag) { setIconId(null); return }
         const [name, tag] = nametag.split("#")
         if (!name || !tag) return
-        supabase.from("users").select("icon_id").eq("name", name).eq("tag", tag).single()
-            .then(({ data }) => { if (data?.icon_id) setIconId(data.icon_id) })
+        // ⚠️ Via l'API: `users` vive sul box dal 2026-08-28 e la sua
+        //    PostgREST non e' pubblica. Un errore lascia l'icona di default.
+        fetch(`${API_BASE_URL}/api/user-icon?nametag=${encodeURIComponent(nametag)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => { if (d?.iconId) setIconId(d.iconId) })
+            .catch(() => {})
     }, [nametag])
     const avatarSrc = avatarUrl ? avatarUrl : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
 
