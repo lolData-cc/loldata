@@ -76,11 +76,51 @@ function usable(h: number, s: number, l: number): Rgb {
   return hslToRgb(h, Math.min(0.85, Math.max(0.45, s)), Math.min(0.66, Math.max(0.5, l)));
 }
 
+/**
+ * The two dominant TONES of an image with no colour in it.
+ *
+ * Bucketed by lightness rather than hue, ignoring the extremes: pure black is
+ * usually the background and pure white usually a highlight, and neither says
+ * anything about the picture. The two are forced apart in lightness so the pair
+ * stays distinguishable, and kept at zero saturation — tinting a greyscale
+ * portrait would be inventing a colour it does not have.
+ */
+function tones(data: Uint8ClampedArray): Palette {
+  const BANDS = 10;
+  const w = new Array(BANDS).fill(0);
+  const sum = new Array(BANDS).fill(0);
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 200) continue;
+    const [, , l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    if (l < 0.08 || l > 0.95) continue;
+    const b = Math.min(BANDS - 1, Math.floor(l * BANDS));
+    w[b] += 1;
+    sum[b] += l;
+  }
+  const order = w.map((n, i) => ({ i, n })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+  if (!order.length) return EMPTY;
+
+  const lightOf = (i: number) => sum[i] / w[i];
+  const first = lightOf(order[0].i);
+  const second = order.slice(1).find((x) => Math.abs(lightOf(x.i) - first) >= 0.15);
+
+  // Spread across a band where both are legible on a near-black page, keeping
+  // which one was brighter.
+  const a = 0.78;
+  const b = 0.5;
+  const secondLight = second ? lightOf(second.i) : first < 0.5 ? 1 : 0;
+  const primary = hslToRgb(0, 0, first >= secondLight ? a : b);
+  const secondary = hslToRgb(0, 0, first >= secondLight ? b : a);
+  return { primary, secondary };
+}
+
 /** 24 buckets of 15°: fine enough to separate red from orange, coarse enough
  *  that one noisy pixel cannot invent a colour. */
 const BUCKETS = 24;
 
-function extract(img: HTMLImageElement): Palette {
+/** Exported so the extraction can be exercised directly on a known image,
+ *  rather than only through a profile that happens to have one. */
+export function extract(img: HTMLImageElement): Palette {
   const size = 32;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -97,6 +137,7 @@ function extract(img: HTMLImageElement): Palette {
     return EMPTY;
   }
 
+  let opaque = 0;
   const weight = new Array(BUCKETS).fill(0);
   const hueSum = new Array(BUCKETS).fill(0);
   const satSum = new Array(BUCKETS).fill(0);
@@ -105,6 +146,7 @@ function extract(img: HTMLImageElement): Palette {
   for (let i = 0; i < data.length; i += 4) {
     const alpha = data[i + 3];
     if (alpha < 200) continue;
+    opaque++;
     const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
     // Near-black, near-white and greys carry no identity — every icon has them,
     // so letting them win would give every player the same two buttons.
@@ -120,7 +162,19 @@ function extract(img: HTMLImageElement): Palette {
     .map((w, i) => ({ i, w }))
     .filter((x) => x.w > 0)
     .sort((a, b) => b.w - a.w);
-  if (!order.length) return EMPTY;
+
+  // ⚠️ A BLACK AND WHITE picture has no chromatic pixels at all, so every hue
+  // bucket is empty and the loop above finds nothing. Falling back to the fixed
+  // accents there is wrong: a monochrome portrait HAS two dominant colours,
+  // they are simply two tones. So they are read as tones and kept achromatic —
+  // the buttons come out silver, which is what the picture actually is.
+  //
+  // The threshold matters as much as the empty case: a greyscale portrait with
+  // one small coloured detail would otherwise hand both buttons the colour of
+  // that detail, which is not what anybody looking at the picture would call
+  // its palette. Under 4% chromatic weight the image reads as monochrome.
+  const chroma = order.reduce((n, x) => n + x.w, 0);
+  if (!order.length || chroma < opaque * 0.04) return tones(data);
 
   const at = (i: number) => ({
     h: hueSum[i] / weight[i],
