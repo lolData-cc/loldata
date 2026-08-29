@@ -6,6 +6,7 @@ export const UI_PREFS_KEYS = {
   enableColoredMatchBg: "lolData:enableColoredMatchBg",
   enableMatchCentering: "lolData:enableMatchCentering",
   hideRemakeMatches: "lolData:hideRemakeMatches",
+  showRanked5: "lolData:showRanked5",
   hideStatsBar: "lolData:hideStatsBar",
   statsBarVisibleStats: "lolData:statsBarVisibleStats",
   useContextMenuActions: "lolData:useContextMenuActions",
@@ -110,6 +111,27 @@ export function setEnableMatchCentering(value: boolean) {
   if (!w) return;
 
   w.localStorage.setItem(UI_PREFS_KEYS.enableMatchCentering, value ? "1" : "0");
+  w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
+}
+
+/**
+ * Ranked 5s on a profile. Default OFF.
+ *
+ * ⚠️ Opt-IN, so the absent key must read as false. It is a weekend-only queue
+ * on a separate ladder, and showing it unasked put a permanently "Unranked"
+ * third card beside the two ranks people actually came to read.
+ */
+export function getShowRanked5(): boolean {
+  const w = safeWindow();
+  if (!w) return false; // default: hidden
+  return w.localStorage.getItem(UI_PREFS_KEYS.showRanked5) === "1";
+}
+
+export function setShowRanked5(value: boolean) {
+  const w = safeWindow();
+  if (!w) return;
+
+  w.localStorage.setItem(UI_PREFS_KEYS.showRanked5, value ? "1" : "0");
   w.dispatchEvent(new Event("lolData:uiPrefsChanged"));
 }
 

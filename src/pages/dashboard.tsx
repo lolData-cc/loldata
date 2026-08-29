@@ -30,6 +30,7 @@ import { MatchGroupingPreference } from "@/components/matchgroupingpreference";
 import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference";
 import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
 import { HideRemakesPreference } from "@/components/hideremakespreference";
+import { Ranked5Preference } from "@/components/ranked5preference";
 import { StatsBarPreference } from "@/components/statsbarpreference";
 import { ContextMenuActionsPreference } from "@/components/contextmenuactionspreference";
 import { ClickToExpandPreference } from "@/components/clicktoexpandpreference";
@@ -345,6 +346,7 @@ export default function DashboardPage() {
                     <ColoredMatchBgPreference />
                     <MatchCenteringPreference />
                     <HideRemakesPreference />
+                    <Ranked5Preference />
                     <StatsBarPreference />
                     <ContextMenuActionsPreference />
                     <ClickToExpandPreference />

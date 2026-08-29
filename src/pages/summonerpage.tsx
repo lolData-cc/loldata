@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
 import { useDominantColors, rgbVar, PENDING_ACC } from "@/hooks/useDominantColors"
+import { useShowRanked5 } from "@/hooks/useShowRanked5"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -313,6 +314,7 @@ export default function SummonerPage() {
        ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId ?? 29}.png`)
     : null;
   const palette = useDominantColors(avatarForPalette);
+  const { enabled: showRanked5 } = useShowRanked5();
   // While the picture is still loading the pair stays neutral rather than
   // flashing the fixed accents and then changing colour under the cursor.
   // ⚠️ `!summonerInfo` counts as pending too. The hook can only be pending once
@@ -2172,7 +2174,12 @@ export default function SummonerPage() {
               const ranks = [
                 { key: "solo", label: "Solo/Duo", rank: summonerInfo?.rank ?? "Unranked", lp: summonerInfo?.lp ?? 0 },
                 { key: "flex", label: "Flex", rank: summonerInfo?.flexRank ?? "Unranked", lp: summonerInfo?.flexLp ?? 0 },
-                { key: "ranked5", label: "Ranked 5s", rank: summonerInfo?.ranked5Rank ?? "Unranked", lp: summonerInfo?.ranked5Lp ?? 0 },
+                // Off unless asked for: a weekend-only queue on its own ladder,
+                // which for most profiles is a third card reading "Unranked"
+                // beside the two people came to read.
+                ...(showRanked5
+                  ? [{ key: "ranked5", label: "Ranked 5s", rank: summonerInfo?.ranked5Rank ?? "Unranked", lp: summonerInfo?.ranked5Lp ?? 0 }]
+                  : []),
               ];
               return (
                 <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
