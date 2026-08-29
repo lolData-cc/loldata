@@ -19,11 +19,25 @@
 import { useEffect, useState } from "react";
 
 export type Rgb = [number, number, number];
-export type Palette = { primary: Rgb | null; secondary: Rgb | null };
+export type Palette = {
+  primary: Rgb | null;
+  secondary: Rgb | null;
+  /**
+   * True while there is still an image to wait for.
+   *
+   * ⚠️ An empty palette means two different things and callers must tell them
+   * apart: "not read yet" and "read, and there was nothing usable". Falling back
+   * to the fixed accents is right for the second and wrong for the first — it
+   * paints the button citrine during the skeleton and then swaps it for the
+   * player's colour, which reads as a flash of the wrong colour on every load.
+   */
+  pending: boolean;
+};
 
 const cache = new Map<string, Palette>();
 
-const EMPTY: Palette = { primary: null, secondary: null };
+const EMPTY: Palette = { primary: null, secondary: null, pending: false };
+const PENDING: Palette = { primary: null, secondary: null, pending: true };
 
 /** Same-origin and data URLs need no help; anything else gets the CORS variant. */
 function corsUrl(url: string): string {
@@ -111,7 +125,7 @@ function tones(data: Uint8ClampedArray): Palette {
   const secondLight = second ? lightOf(second.i) : first < 0.5 ? 1 : 0;
   const primary = hslToRgb(0, 0, first >= secondLight ? a : b);
   const secondary = hslToRgb(0, 0, first >= secondLight ? b : a);
-  return { primary, secondary };
+  return { primary, secondary, pending: false };
 }
 
 /** 24 buckets of 15°: fine enough to separate red from orange, coarse enough
@@ -201,7 +215,7 @@ export function extract(img: HTMLImageElement): Palette {
     // so the pair still reads as a pair drawn from one picture.
     : usable(first.h + 150, first.s, first.l);
 
-  return { primary, secondary };
+  return { primary, secondary, pending: false };
 }
 
 /**
@@ -211,12 +225,13 @@ export function extract(img: HTMLImageElement): Palette {
  * button that changes colour once.
  */
 export function useDominantColors(url: string | null | undefined): Palette {
-  const [palette, setPalette] = useState<Palette>(() => (url && cache.get(url)) || EMPTY);
+  const [palette, setPalette] = useState<Palette>(() => (url && cache.get(url)) || (url ? PENDING : EMPTY));
 
   useEffect(() => {
     if (!url) return setPalette(EMPTY);
     const hit = cache.get(url);
     if (hit) return setPalette(hit);
+    setPalette(PENDING);
 
     let alive = true;
     const img = new Image();
@@ -237,6 +252,16 @@ export function useDominantColors(url: string | null | undefined): Palette {
 
   return palette;
 }
+
+/**
+ * What the pair wears while the picture is still on its way.
+ *
+ * Not the fixed accents: those are the answer to "this picture has no usable
+ * colour", and using them for "we do not know yet" paints the button citrine
+ * through the whole skeleton and then swaps it — a flash of the wrong colour on
+ * every single page load. A neutral holds the shape without claiming a colour.
+ */
+export const PENDING_ACC = "132 140 145";
 
 /** "R G B", the form the accent CSS variables are written in. */
 export const rgbVar = (c: Rgb | null): string | undefined =>

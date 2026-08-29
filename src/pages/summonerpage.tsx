@@ -39,7 +39,7 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
-import { useDominantColors, rgbVar } from "@/hooks/useDominantColors"
+import { useDominantColors, rgbVar, PENDING_ACC } from "@/hooks/useDominantColors"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -305,12 +305,23 @@ export default function SummonerPage() {
    * citrine/jade the moment the picture cannot be read, so a CDN hiccup costs
    * the colour and nothing else.
    */
-  const avatarForPalette =
-    summonerInfo?.avatar_url
-    ?? (summonerInfo?.profileIconId != null
-        ? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId}.png`
-        : null);
+  // Mirrors the <img> beside these buttons exactly, including its own fallback
+  // to icon 29 — reading a different picture than the one on screen would give
+  // the pair colours the player cannot see the source of.
+  const avatarForPalette = summonerInfo
+    ? (summonerInfo.avatar_url
+       ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId ?? 29}.png`)
+    : null;
   const palette = useDominantColors(avatarForPalette);
+  // While the picture is still loading the pair stays neutral rather than
+  // flashing the fixed accents and then changing colour under the cursor.
+  // ⚠️ `!summonerInfo` counts as pending too. The hook can only be pending once
+  // it has a URL, and during the skeleton there is no summoner yet, so the URL
+  // is null and the pair would fall back to the fixed accents — which is the
+  // yellow flash this is here to stop.
+  const waiting = !summonerInfo || palette.pending;
+  const accUpdate = waiting ? PENDING_ACC : rgbVar(palette.primary);
+  const accAnalyze = waiting ? PENDING_ACC : rgbVar(palette.secondary);
   const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
@@ -2326,7 +2337,7 @@ export default function SummonerPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-1">
                     <UpdateButton
-                      accentRgb={rgbVar(palette.primary)}
+                      accentRgb={accUpdate}
                       onClick={() => refreshData(true)}
                       loading={refreshing}
                       cooldown={onCooldown}
@@ -2337,7 +2348,7 @@ export default function SummonerPage() {
                         puuid={summonerInfo.puuid}
                         region={region}
                         summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                        accentRgb={rgbVar(palette.secondary)}
+                        accentRgb={accAnalyze}
                         externalOpen={analyzeOpen}
                         onExternalOpenChange={setAnalyzeOpen}
                       />
