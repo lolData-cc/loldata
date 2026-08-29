@@ -6,6 +6,9 @@ import { ButtonHTMLAttributes, useEffect, useState } from "react"
 import { ActionButton } from "@/components/ui/actionbutton"
 
 type UpdateButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  /** Accent taken from the player's profile picture, as "R G B".
+   *  Rides the spread onto ActionButton, which prefers it over `accent`. */
+  accentRgb?: string
   loading?: boolean
   cooldown?: boolean
   cooldownSeconds?: number

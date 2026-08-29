@@ -39,6 +39,7 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
+import { useDominantColors, rgbVar } from "@/hooks/useDominantColors"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -294,6 +295,22 @@ export default function SummonerPage() {
   const [matchCtxMenu, setMatchCtxMenu] = useState<{ x: number; y: number; matchId: string; isJungler: boolean } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
+
+  /**
+   * The two colours the player's own profile picture is made of — the premium
+   * avatar when they have one, otherwise their summoner icon, which is exactly
+   * the image shown beside these buttons.
+   *
+   * UPDATE takes the first, ANALYZE the second. Both fall back to their fixed
+   * citrine/jade the moment the picture cannot be read, so a CDN hiccup costs
+   * the colour and nothing else.
+   */
+  const avatarForPalette =
+    summonerInfo?.avatar_url
+    ?? (summonerInfo?.profileIconId != null
+        ? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId}.png`
+        : null);
+  const palette = useDominantColors(avatarForPalette);
   const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
@@ -2309,6 +2326,7 @@ export default function SummonerPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-1">
                     <UpdateButton
+                      accentRgb={rgbVar(palette.primary)}
                       onClick={() => refreshData(true)}
                       loading={refreshing}
                       cooldown={onCooldown}
@@ -2319,6 +2337,7 @@ export default function SummonerPage() {
                         puuid={summonerInfo.puuid}
                         region={region}
                         summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                        accentRgb={rgbVar(palette.secondary)}
                         externalOpen={analyzeOpen}
                         onExternalOpenChange={setAnalyzeOpen}
                       />

@@ -817,10 +817,13 @@ export function PlayerAnalysisDialog({
   externalOpen,
   onExternalOpenChange,
   fill,
+  accentRgb,
 }: {
   puuid: string;
   region: string;
   summonerName: string;
+  /** The palette colour this button should wear, as "R G B". */
+  accentRgb?: string;
   externalOpen?: boolean;
   onExternalOpenChange?: (open: boolean) => void;
   /** Stretch the trigger to its container width (profile-card layout). */
@@ -1031,6 +1034,7 @@ export function PlayerAnalysisDialog({
       <div className={cn("relative inline-flex flex-col items-center", fill && "w-full")}>
         <ActionButton
           accent="jade"
+          accentRgb={accentRgb}
           label="ANALYZE"
           muted={isLocked}
           fill={fill}
@@ -1048,8 +1052,15 @@ export function PlayerAnalysisDialog({
           }}
         />
         {isFreeUser && usageChecked && !trialUsed && (
-          <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-mono tracking-[0.15em] text-citrine/60">
-            1 FREE TRIAL
+          /* In the flow, not floating.
+             It used to be an 8px line absolutely positioned 16px BELOW the
+             button, overlapping whatever sat under it and belonging to nothing.
+             Now it is a badge in the column the button already occupies: it
+             takes its own space, sits on the button's centre line, and reads as
+             a property of that button rather than as debris under it. */
+          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-[3px] border border-citrine/25 bg-citrine/[0.06] px-2 py-[3px] font-jetbrains text-[8.5px] uppercase leading-none tracking-[0.16em] text-citrine/80">
+            <span aria-hidden className="h-[3px] w-[3px] rotate-45 bg-citrine" />
+            one free analysis
           </span>
         )}
       </div>

@@ -19,6 +19,15 @@ export const ACTION_ACCENTS = {
 
 type ActionButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   accent?: keyof typeof ACTION_ACCENTS
+  /**
+   * An accent taken from somewhere else, as "R G B".
+   *
+   * Overrides `accent`. The summoner page passes the two dominant colours of
+   * the player's own profile picture, so the pair wears their palette instead
+   * of the fixed citrine/jade. Falls back to `accent` whenever the picture
+   * cannot be read — never leaves a button with no colour.
+   */
+  accentRgb?: string
   label: string
   /** blocks input and runs the bottom bar, but keeps the label — a button that
    *  swaps its text out mid-flight reads as broken */
@@ -36,6 +45,7 @@ const LABEL_W = "w-[62px]"
 
 export function ActionButton({
   accent = "jade",
+  accentRgb,
   label,
   loading,
   muted,
@@ -51,7 +61,7 @@ export function ActionButton({
       {...props}
       disabled={disabled || loading}
       data-state={muted ? "muted" : undefined}
-      style={{ ["--acc" as string]: ACTION_ACCENTS[accent], ...style } as CSSProperties}
+      style={{ ["--acc" as string]: accentRgb ?? ACTION_ACCENTS[accent], ...style } as CSSProperties}
       className={cn(
         "act-btn h-8 shrink-0 inline-flex items-center justify-center",
         fill ? "w-full" : "w-[104px]",
