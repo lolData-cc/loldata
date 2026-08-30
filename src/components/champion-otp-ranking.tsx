@@ -105,10 +105,18 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
   const { data, loading, error } = useChampionOtpRanking(championName, region);
   const navigate = useNavigate();
 
-  // One grid definition shared by the headings, the skeleton and the rows, so
-  // the three cannot drift apart into a misaligned table.
+  /**
+   * One grid shared by the skeleton and the real card, so the two cannot drift
+   * into a shape that shifts when the data lands.
+   *
+   * WARNING: this stopped being a TABLE. Eight columns of 11px text at one
+   * weight is a spreadsheet, and it was unreadable for the ordinary reason —
+   * nothing on the row was bigger than anything else, so there was no way in.
+   * A card leads with the player and their win rate, and lets the rest be
+   * small.
+   */
   const cols =
-    "grid grid-cols-[2rem_2rem_minmax(0,1fr)_5.5rem_3.5rem_3.5rem_3.5rem_5.5rem] items-center gap-2";
+    "grid grid-cols-[2.4rem_17rem_8.5rem_minmax(0,1fr)_7rem] items-center gap-4";
 
   return (
     <div className="space-y-3">
@@ -137,39 +145,35 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
         )}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-flash/10 bg-[rgba(6,12,14,0.5)]">
-        {/* Headings stay mounted through the load, so the table never appears
-            out of nothing — only the rows underneath change. */}
-        <div
-          className={cn(
-            cols,
-            "border-b border-flash/[0.06] px-3 py-2 font-jetbrains text-[9px] uppercase tracking-[0.18em] text-flash/25"
-          )}
-        >
-          <span className="text-center">#</span>
-          <span />
-          <span>Player</span>
-          <span className="text-center">Rank</span>
-          <span className="text-center">Win</span>
-          <span className="text-center">KDA</span>
-          <span className="text-center">Games</span>
-          <span className="text-center">Build</span>
-        </div>
-
+      {/* WARNING: NO light outline. A `border-flash/10` box drew a pale rectangle
+          around the one part of this page that should read as a list of people,
+          and this project does not put white lines around things. The rows are
+          separated by space and a jade hairline instead. */}
+      <div className="space-y-1.5">
         {loading && (
           /* The skeleton IS the row geometry, not an approximation of it: same
              grid, same heights, so nothing shifts when the data lands. */
           <div>
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className={cn(cols, "border-b border-flash/[0.04] px-3 py-2.5 last:border-0")}>
-                <Skeleton className="mx-auto h-3 w-3 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="h-7 w-7 rounded-full bg-flash/[0.05]" />
-                <Skeleton className="h-3 w-32 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="mx-auto h-5 w-16 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="mx-auto h-3 w-8 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="mx-auto h-3 w-8 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="mx-auto h-3 w-8 rounded-[2px] bg-flash/[0.05]" />
-                <Skeleton className="mx-auto h-6 w-14 rounded-[2px] bg-flash/[0.05]" />
+              <div
+                key={i}
+                className={cn(cols, "rounded-[4px] bg-[rgba(6,12,14,0.45)] px-3 py-3")}
+              >
+                <Skeleton className="mx-auto h-4 w-4 rounded-[2px] bg-flash/[0.05]" />
+                <div className="flex items-center gap-2.5">
+                  <Skeleton className="h-9 w-9 rounded-full bg-flash/[0.05]" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-40 rounded-[2px] bg-flash/[0.05]" />
+                    <Skeleton className="h-1.5 w-24 rounded-[1px] bg-flash/[0.05]" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-28 rounded-[2px] bg-flash/[0.05]" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-5 w-24 rounded-[2px] bg-flash/[0.05]" />
+                  <Skeleton className="h-[3px] w-full rounded-[1px] bg-flash/[0.05]" />
+                  <Skeleton className="h-2 w-40 rounded-[1px] bg-flash/[0.05]" />
+                </div>
+                <Skeleton className="mx-auto h-7 w-16 rounded-[2px] bg-flash/[0.05]" />
               </div>
             ))}
           </div>
@@ -211,119 +215,155 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
                 style={{ animationDelay: `${Math.min(i, 15) * 26}ms` }}
                 className={cn(
                   cols,
-                  "otp-row group cursor-clicker border-b border-flash/[0.04] px-3 py-2.5 transition-colors duration-200 last:border-0",
-                  "hover:bg-jade/[0.05]",
-                  p.rank <= 3 && "bg-jade/[0.025]"
+                  "otp-row group relative cursor-clicker rounded-[4px] px-3 py-3 transition-colors duration-200",
+                  "bg-[rgba(6,12,14,0.45)] hover:bg-jade/[0.055]",
+                  // The podium is lit from inside rather than outlined, so the
+                  // best three read as brighter and not as bordered.
+                  p.rank <= 3 && "bg-[rgba(0,217,146,0.045)]"
                 )}
               >
-                {/* The podium is a jade numeral, not a tinted box. */}
+                {/* The rail: the only thing marking the top three, and it is a
+                    line of light, not a box. */}
+                {p.rank <= 3 && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-1 left-0 w-[2px] rounded-full"
+                    style={{ background: "linear-gradient(180deg, #00d992, rgba(0,217,146,0.15))" }}
+                  />
+                )}
+
                 <span
                   className={cn(
-                    "text-center font-chakrapetch text-[12px] font-bold tabular-nums transition-colors duration-200",
-                    p.rank <= 3 ? "text-jade" : "text-flash/30 group-hover:text-flash/55"
+                    "text-center font-chakrapetch font-bold tabular-nums transition-colors duration-200",
+                    p.rank <= 3
+                      ? "text-[19px] text-jade"
+                      : "text-[14px] text-flash/30 group-hover:text-flash/55"
                   )}
                 >
                   {p.rank}
                 </span>
 
-                <img
-                  src={`${cdnBaseUrl()}/img/profileicon/${p.profileIconId ?? 29}.png`}
-                  alt=""
-                  loading="lazy"
-                  className="h-7 w-7 rounded-full object-cover ring-1 ring-inset ring-jade/15"
-                />
-
-                <div className="min-w-0">
-                  <span className="block truncate font-jetbrains text-[12px] text-flash/80 transition-colors duration-200 group-hover:text-flash">
-                    {p.name}
-                    <span className="text-flash/35">#{p.tag}</span>
-                  </span>
-                  <span className="font-jetbrains text-[9px] uppercase tracking-[0.16em] text-flash/30 tabular-nums">
-                    {p.champPlayrate}% playrate
-                  </span>
+                {/* WHO. The largest type on the row, because a list of players
+                    that leads with anything else is a list of numbers. */}
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <img
+                    src={`${cdnBaseUrl()}/img/profileicon/${p.profileIconId ?? 29}.png`}
+                    alt=""
+                    loading="lazy"
+                    className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-inset ring-jade/20"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-chakrapetch text-[15px] font-bold leading-tight text-flash/90 transition-colors duration-200 group-hover:text-flash">
+                      {p.name}
+                      <span className="font-jetbrains text-[11px] font-normal text-flash/30">#{p.tag}</span>
+                    </p>
+                    {/* The playrate as a LENGTH as well as a number: "44.6%" is
+                        read, a bar is seen, and the whole point of it is how
+                        much of their play is this one champion. */}
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="h-[3px] w-[52px] shrink-0 overflow-hidden rounded-full bg-flash/[0.07]">
+                        <span
+                          className="block h-full rounded-full bg-jade/60"
+                          style={{ width: `${Math.min(100, p.champPlayrate)}%` }}
+                        />
+                      </span>
+                      <span className="whitespace-nowrap font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/30 tabular-nums">
+                        {p.champPlayrate}% of {p.totalGames} games
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-1.5">
+                {/* RANK, as a word and not only as a score. "1998" alone says
+                    nothing to anyone who does not already know the ladder. */}
+                <div className="flex items-center gap-2">
                   <img
                     src={getRankImage(p.tier)}
                     alt={p.tier}
                     loading="lazy"
-                    className="h-5 w-5 shrink-0 object-contain"
+                    className="h-8 w-8 shrink-0 object-contain"
+                    style={{ filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.8))" }}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.visibility = "hidden";
                     }}
                   />
-                  <span
-                    className={cn(
-                      "font-jetbrains text-[11px] font-semibold tabular-nums",
-                      TIER_COLORS[p.tier] ?? "text-flash/55"
-                    )}
-                  >
-                    {p.lp}
-                  </span>
+                  <div className="min-w-0">
+                    <p
+                      className={cn(
+                        "truncate font-chakrapetch text-[12px] font-bold uppercase leading-none tracking-wide",
+                        TIER_COLORS[p.tier] ?? "text-flash/55"
+                      )}
+                    >
+                      {p.tier.toLowerCase()}
+                    </p>
+                    <p className="mt-1 font-jetbrains text-[10px] text-flash/35 tabular-nums">
+                      {p.lp} LP
+                    </p>
+                  </div>
                 </div>
 
-                <span
-                  className={cn(
-                    "text-center font-jetbrains text-[12px] font-semibold tabular-nums",
-                    p.champWinrate >= 60
-                      ? "text-jade"
-                      : p.champWinrate >= 52
-                        ? "text-flash/70"
-                        : "text-[#ff6286]"
-                  )}
-                >
-                  {p.champWinrate}%
-                </span>
-
-                <span
-                  className={cn(
-                    "text-center font-jetbrains text-[12px] font-semibold tabular-nums",
-                    p.kda >= 4
-                      ? "text-jade"
-                      : p.kda >= 3
-                        ? "text-[#FFB615]"
-                        : p.kda >= 2
-                          ? "text-flash/70"
-                          : "text-[#ff6286]"
-                  )}
-                >
-                  {p.kda >= 99 ? "Perfect" : p.kda.toFixed(1)}
-                </span>
-
-                <span className="text-center font-jetbrains text-[11px] text-flash/50 tabular-nums">
-                  {p.champGames}
-                </span>
-
-                {/* Build: what they open with and what they run, together — three
-                    small pictures say more here than three more columns would. */}
-                <div className="flex items-center justify-center gap-1">
-                  {p.firstItem ? (
-                    <img
-                      src={`${cdnBaseUrl()}/img/item/${p.firstItem}.png`}
-                      alt=""
-                      loading="lazy"
-                      className="h-6 w-6 rounded-[2px] ring-1 ring-inset ring-jade/15"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.visibility = "hidden";
-                      }}
+                {/* HOW THEY DO. The win rate is the headline of the row, with
+                    the same number drawn as a bar underneath it, and the record
+                    it is made of said plainly. */}
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className={cn(
+                        "font-chakrapetch text-[20px] font-bold leading-none tabular-nums",
+                        p.champWinrate >= 60
+                          ? "text-jade"
+                          : p.champWinrate >= 52
+                            ? "text-flash/85"
+                            : "text-[#ff6286]"
+                      )}
+                    >
+                      {p.champWinrate}
+                      <span className="text-[12px]">%</span>
+                    </span>
+                    <span className="font-jetbrains text-[10px] tracking-[0.06em] tabular-nums">
+                      <span className="text-jade/75">{p.champWins}W</span>
+                      <span className="text-flash/20"> · </span>
+                      <span className="text-[#ff6286]/75">{p.champGames - p.champWins}L</span>
+                    </span>
+                    <span className="ml-auto font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/25 tabular-nums">
+                      {p.champGames} games
+                    </span>
+                  </div>
+                  <span className="mt-1.5 block h-[3px] overflow-hidden rounded-full bg-[#ff6286]/25">
+                    <span
+                      className="block h-full rounded-full bg-jade"
+                      style={{ width: `${Math.min(100, Math.max(0, p.champWinrate))}%` }}
                     />
-                  ) : (
-                    <span className="w-6 text-center font-jetbrains text-[10px] text-flash/20">·</span>
-                  )}
+                  </span>
+                  <p className="mt-1.5 font-jetbrains text-[9.5px] uppercase tracking-[0.12em] text-flash/30 tabular-nums">
+                    <span className="text-flash/55">
+                      {p.kda >= 99 ? "perfect" : p.kda.toFixed(1)}
+                    </span>{" "}
+                    kda
+                    <span className="text-flash/15"> · </span>
+                    {p.avgKills.toFixed(1)}/{p.avgDeaths.toFixed(1)}/{p.avgAssists.toFixed(1)}
+                    <span className="text-flash/15"> · </span>
+                    <span className="text-flash/45">{p.avgCsPerMin.toFixed(1)}</span> cs/m
+                  </p>
+                </div>
+
+                {/* WHAT THEY RUN. Bigger than before: at 24px these are three
+                    pictures you can recognise, where at 16 they were three
+                    smudges nobody could name. */}
+                <div className="flex items-center justify-end gap-1.5">
                   {p.keystone ? (
                     <img
                       src={getKeystoneIconUrl(p.keystone)}
                       alt={KEYSTONE_NAMES[p.keystone] ?? ""}
                       title={KEYSTONE_NAMES[p.keystone] ?? ""}
                       loading="lazy"
-                      className="h-6 w-6 rounded-full"
+                      className="h-7 w-7 rounded-full"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.visibility = "hidden";
                       }}
                     />
                   ) : (
-                    <span className="w-6 text-center font-jetbrains text-[10px] text-flash/20">·</span>
+                    <span className="w-7 text-center font-jetbrains text-[10px] text-flash/15">·</span>
                   )}
                   {p.secondaryStyle ? (
                     <img
@@ -331,13 +371,27 @@ export function ChampionOtpRanking({ championName, latestPatch }: { championName
                       alt={STYLE_NAMES[p.secondaryStyle] ?? ""}
                       title={STYLE_NAMES[p.secondaryStyle] ?? ""}
                       loading="lazy"
-                      className="h-4 w-4 rounded-full opacity-55"
+                      className="h-5 w-5 rounded-full opacity-60"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.visibility = "hidden";
                       }}
                     />
                   ) : (
-                    <span className="w-4" />
+                    <span className="w-5" />
+                  )}
+                  {p.firstItem ? (
+                    <img
+                      src={`${cdnBaseUrl()}/img/item/${p.firstItem}.png`}
+                      alt=""
+                      title="First item"
+                      loading="lazy"
+                      className="h-7 w-7 rounded-[3px] ring-1 ring-inset ring-jade/20"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.visibility = "hidden";
+                      }}
+                    />
+                  ) : (
+                    <span className="w-7 text-center font-jetbrains text-[10px] text-flash/15">·</span>
                   )}
                 </div>
               </div>
