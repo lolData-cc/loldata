@@ -1125,11 +1125,55 @@ export default function ChampionBuildTab({ champ }: { champ: { id: string; key: 
 
   if (loading && !data)
     return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-40 rounded-lg bg-flash/[0.015] animate-pulse" />)}</div>
+
+  /**
+   * ⚠️ A FAILED MATCHUP IS NAMED, not reported as a broken tab.
+   *
+   * Picking an opponent takes the request off the precomputed path and onto a
+   * live scan of ~86M rows, which cannot finish inside the server's 15s
+   * statement timeout — measured: every VS request returns 500 at 15.1s, while
+   * the same request without one is a fast 200. Printing "Failed to load build"
+   * for that reads as "this page is broken" when the truth is narrower and the
+   * way out is one click away.
+   */
+  if (error && vs)
+    return (
+      <div className="px-4 py-12 text-center">
+        <p className="font-jetbrains text-[11px] uppercase tracking-[0.18em] text-[#ff6286]/80">
+          No build against {vs.name}
+        </p>
+        <p className="mx-auto mt-2 max-w-[46ch] font-chakrapetch text-[12.5px] leading-relaxed text-flash/35">
+          Matchup builds are computed on demand over every game ever recorded, and this one did not
+          finish in time. The build without an opponent is ready now.
+        </p>
+        <button
+          onClick={() => setVs(null)}
+          className="mt-4 rounded-[3px] bg-jade/10 px-3 py-1.5 font-jetbrains text-[10px] uppercase tracking-[0.18em] text-jade ring-1 ring-inset ring-jade/30 transition-colors hover:bg-jade/15 cursor-clicker"
+        >
+          Clear the matchup
+        </button>
+      </div>
+    )
   if (error || !data) return <div className="px-4 py-12 text-center text-[#ff6286]/80 text-sm">{error ?? "No build data"}</div>
 
   return (
-    <div className="font-jetbrains text-flash">
+    <div className="relative font-jetbrains text-flash" aria-busy={loading}>
       <style>{`@keyframes bIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}@keyframes flow{0%{transform:translateX(0)}100%{transform:translateX(400%)}}`}</style>
+      <style>{`.build-stale{opacity:.38;filter:saturate(.5);transition:opacity .2s,filter .2s}`}</style>
+
+      {/* ⚠️ The numbers underneath are the PREVIOUS cohort's, and while a new one
+          is being fetched they are not an answer to the question now being
+          asked. They used to sit there unchanged and unmarked for as long as
+          the request took — up to fifteen seconds for a matchup — so the tab
+          looked like it had simply ignored the click. */}
+      {loading && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center">
+          <span className="flex items-center gap-2 rounded-b-[3px] bg-[rgba(4,10,12,0.92)] px-3 py-1.5 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-jade/80 ring-1 ring-inset ring-jade/20">
+            <span className="block h-1.5 w-1.5 animate-pulse rounded-full bg-jade" />
+            updating
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5 mb-5">
         {buildRoles.length > 1 && (
