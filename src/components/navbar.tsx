@@ -126,7 +126,18 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = f
       // The same inset, applied to the BAR so it replaces px-4 instead of
       // stacking with it — which is the whole reason the two disagreed.
       ? "fixed top-0 left-0 md:static w-full xl:px-[17.5%] min-[2560px]:px-[22.5%]"
-      : "fixed top-0 left-0 md:static"
+      // ⚠️ `xl:px-0`, and this is the third mode's half of the same bug the
+      // comment on `columnInset` describes. Here the bar is STATIC inside
+      // RootLayout's 65% column, so the column has already done the insetting —
+      // and `md:px-4` from `base` then did it a second time. Measured at 1600px:
+      // the homepage's bar spans 280→1320, every other page's 296→1304. Thirty-
+      // two pixels narrower and sixteen further in, which is exactly what
+      // "the navbar shrinks when I leave the homepage" looks like.
+      //
+      // Only at xl, because that is where the column stops being `w-full` and
+      // starts being 65%. Below it the bar's own padding is the only inset
+      // there is, and removing it would push the logo against the edge.
+      : "fixed top-0 left-0 md:static xl:px-0"
 
   // Mobile (< md): keep the navbar barely-there — heavy blur + low
   // opacity so it reads as a faint glass strip over the splash hero
