@@ -102,7 +102,13 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen bg-liquirice text-flash overflow-x-hidden">
-      <Navbar columnInset />
+      {/* ⚠️ STICKY, where it used to be columnInset. That mode is `md:static`,
+          so on any desktop window the bar scrolled away with the page and the
+          only way back to the site was the browser's own back button. A page
+          whose whole job is to send you somewhere else must keep the way out
+          visible. The section below already carries its own top padding, so it
+          asks for no spacer. */}
+      <Navbar sticky addOffsetSpacer={false} />
 
       {/* ── the stage ─────────────────────────────────────────────────── */}
       <section ref={stage} className="relative px-6 xl:px-[17.5%] min-[2560px]:px-[22.5%] pt-28 pb-24">
@@ -237,6 +243,28 @@ export default function DownloadPage() {
         </div>
       </section>
 
+      {/* ── everything it does, in the order you meet it ──────────────── */}
+      <section className="px-6 xl:px-[17.5%] min-[2560px]:px-[22.5%] pb-28">
+        <Rule />
+        <h2 className="mt-10 max-w-[20ch] font-chakrapetch text-[34px] font-bold leading-[1.08] tracking-tight text-flash/90 sm:text-[42px]">
+          It is with you for the <span className="text-jade">whole game</span>.
+        </h2>
+        <p className="mt-4 max-w-[62ch] font-chakrapetch text-[14px] leading-relaxed text-flash/40">
+          Not a tab you remember to open. It wakes with the client, follows the game
+          you are actually in, and has already done the reading by the time you need it.
+        </p>
+
+        {/* ⚠️ Grouped by WHEN you meet each one, not by what part of the app it
+            lives in. A feature list ordered by architecture asks the reader to
+            hold a map of the software; ordered by the minute of the game it
+            happens in, it reads as the evening they are about to have. */}
+        <div className="mt-16 space-y-16">
+          {ACTS.map((act, i) => (
+            <Act key={act.when} act={act} index={i} />
+          ))}
+        </div>
+      </section>
+
       {/* ── what it does ──────────────────────────────────────────────── */}
       <section className="px-6 xl:px-[17.5%] min-[2560px]:px-[22.5%] pb-32">
         <div className="grid gap-y-12 gap-x-10 sm:grid-cols-3">
@@ -270,6 +298,196 @@ export default function DownloadPage() {
         </motion.p>
       </section>
     </div>
+  )
+}
+
+/**
+ * What the app does, in the order a game happens.
+ *
+ * ⚠️ Every line here is a thing that SHIPS. The temptation on a download page
+ * is to write the roadmap in the present tense; the cost of doing it is that
+ * the first evening disproves the page, and nothing else on it is believed
+ * afterwards.
+ */
+const ACTS: {
+  when: string
+  title: string
+  lead: string
+  items: { name: string; body: string }[]
+}[] = [
+  {
+    when: "champion select",
+    title: "The page you would have looked up, already open",
+    lead: "The moment you lock in, it knows the champion and the lane.",
+    items: [
+      {
+        name: "Five real rune pages",
+        body: "The pages people actually run on that champion IN THAT LANE, each with its win rate and how much of the sample it is. Never another lane's page — if there is no data for top, it says so instead of handing you the mid one.",
+      },
+      {
+        name: "Written into your client",
+        body: "One press and the page is in League's own rune list, ready to select. It never touches a page you made yourself.",
+      },
+      {
+        name: "The highest elo's own page",
+        body: "Beside the popular ones: the exact page the best one-trick on that champion and role is playing, with their name and rank on it.",
+      },
+      {
+        name: "Who you are against",
+        body: "Ranks over all ten cards on the loading screen, while there is still time to read them.",
+      },
+    ],
+  },
+  {
+    when: "in game",
+    title: "It talks to you on the HUD, and only when it matters",
+    lead: "Notices land in the game's own furniture. Nothing to alt-tab to.",
+    items: [
+      {
+        name: "Gold lead where the score is",
+        body: "A chevron and a number beside the kill counter, so the one question you keep asking is answered without opening the scoreboard.",
+      },
+      {
+        name: "Dragon and Baron, ninety seconds early",
+        body: "With who has taken which drakes so far — the part you forget by minute twenty.",
+      },
+      {
+        name: "Boots for THIS comp",
+        body: "The opening build, and boots advice read off what the enemy actually picked rather than the average game.",
+      },
+      {
+        name: "It notices when you go off-plan",
+        body: "Buy something that is not in your build and it stops reciting the plan, and asks instead what players who reached your ACTUAL inventory bought next.",
+      },
+    ],
+  },
+  {
+    when: "while you play",
+    title: "The game records itself, and marks its own highlights",
+    lead: "Starts when the game does, stops when it ends. You do nothing.",
+    items: [
+      {
+        name: "The window, never your screen",
+        body: "It captures the League window and nothing else you have open, and the overlay says it is recording at the start of every game — a notice that cannot be switched off.",
+      },
+      {
+        name: "A timeline of moments, not a scrub bar",
+        body: "Every kill, death and assist is a mark on the timeline. Hover one and it says death by Kha'Zix, with the champion's face. A teamfight collapses into a single pin that carries its count.",
+      },
+      {
+        name: "Game and Discord on separate channels",
+        body: "Recorded apart, so in the replay you can turn your friends down without touching the game. Your own microphone too, with the input and the level you choose.",
+      },
+      {
+        name: "A disk budget, not a mess",
+        body: "You set a size in gigabytes. Older recordings age out on their own, and anything you mark as kept never does.",
+      },
+    ],
+  },
+  {
+    when: "after the game",
+    title: "The post-mortem is open before you ask for it",
+    lead: "The recap arrives the second the game ends, and waits for you.",
+    items: [
+      {
+        name: "Every death is a button",
+        body: "Press one and the recording opens two seconds before it happened, so you see the fight that caused it rather than the moment you died.",
+      },
+      {
+        name: "The full board, as a page",
+        body: "Your last ranked and Clash games, and any of them opens into its whole scoreboard with the recording playing at the top.",
+      },
+      {
+        name: "Look up anyone in it",
+        body: "Click a row and the app pulls that player's real profile — rank, LP, this season's record — over the champion they played.",
+      },
+      {
+        name: "Your form, plainly",
+        body: "Win rate, KDA, CS a minute, vision a minute, hours played. The numbers you would go and calculate.",
+      },
+    ],
+  },
+  {
+    when: "when you want to know why",
+    title: "Two ways to interrogate the whole database",
+    lead: "The same match data the website runs on, without the website.",
+    items: [
+      {
+        name: "Ask it in words",
+        body: "lolData AI answers questions about your games, a matchup or a build, with the data behind it rather than a guess.",
+      },
+      {
+        name: "Or build the question yourself",
+        body: "The Explorer wires up a subject champion, allies, enemies, items and filters on a canvas, and runs it against every recorded game.",
+      },
+      {
+        name: "When an item is actually good",
+        body: "It shows how a item's win rate moves against enemy compositions — more AD, more assassins — and only calls a shift real when it survives a significance test.",
+      },
+      {
+        name: "What changed this patch",
+        body: "Win rate, KDA, CS and gold drawn across recent patches, with a plain verdict on which way it is going.",
+      },
+    ],
+  },
+]
+
+/** A hairline that starts at the left and dies before the right edge — the
+ *  same figure the app uses to open a panel. */
+const Rule = () => (
+  <span
+    aria-hidden
+    className="block h-px w-full"
+    style={{ background: "linear-gradient(90deg, rgba(0,217,146,0.5), rgba(0,217,146,0))" }}
+  />
+)
+
+/** One act of the game, and what the app does during it. */
+function Act({ act, index }: { act: (typeof ACTS)[number]; index: number }) {
+  const still = useReducedMotion()
+  const view = { once: true, margin: "-70px" } as const
+
+  return (
+    <motion.div
+      initial={still ? {} : { opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={view}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="grid gap-x-12 gap-y-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
+    >
+      <div>
+        {/* The minute of the game this belongs to, numbered — these ARE a
+            sequence, which is the one thing that earns a numeral. */}
+        <p className="font-jetbrains text-[9px] uppercase tracking-[0.24em] text-jade/60">
+          <span className="text-jade/30">{String(index + 1).padStart(2, "0")}</span>
+          <span className="mx-2 text-jade/20">/</span>
+          {act.when}
+        </p>
+        <h3 className="mt-3 max-w-[22ch] font-chakrapetch text-[21px] font-bold leading-[1.2] text-flash/85">
+          {act.title}
+        </h3>
+        <p className="mt-3 max-w-[36ch] font-chakrapetch text-[13px] leading-relaxed text-flash/35">
+          {act.lead}
+        </p>
+      </div>
+
+      <div className="grid gap-x-8 gap-y-7 sm:grid-cols-2">
+        {act.items.map((it) => (
+          <div key={it.name}>
+            <p className="flex items-baseline gap-2 font-chakrapetch text-[14px] font-bold leading-snug text-flash/80">
+              <span
+                aria-hidden
+                className="mt-[1px] block h-[6px] w-[6px] shrink-0 rotate-45 bg-jade/70"
+              />
+              {it.name}
+            </p>
+            <p className="mt-2 pl-[14px] font-chakrapetch text-[12.5px] leading-relaxed text-flash/35">
+              {it.body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
   )
 }
 

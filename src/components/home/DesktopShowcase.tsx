@@ -134,38 +134,31 @@ function DesktopCta() {
       to="/download"
       aria-label="Download the lolData desktop app for Windows"
       className={cn(
-        "group inline-flex items-center gap-3.5 rounded-[4px] px-6 py-3.5 cursor-clicker select-none",
-        "bg-jade/[0.07] ring-1 ring-inset ring-jade/30",
-        "transition-colors duration-200 hover:bg-jade/[0.13] hover:ring-jade/55"
+        "group inline-flex items-baseline gap-3 rounded-[3px] px-7 py-4 cursor-clicker select-none",
+        "bg-jade/[0.08] transition-colors duration-200 hover:bg-jade/[0.15]"
       )}
-      style={{ boxShadow: "0 16px 34px -24px rgba(0,217,146,0.5)" }}
+      /* ⚠️ NO OUTWARD GLOW. It had a jade drop shadow pooling underneath, and
+         this app already wrote the rule against that on its own volume panel:
+         hairline, square, and lit from the INSIDE. An outward coloured shadow
+         makes a flat control look stuck on top of the page rather than cut
+         into it, and it is the first thing that dates a button. */
+      style={{ boxShadow: "inset 0 0 0 1px rgba(0,217,146,0.30), inset 0 0 18px rgba(0,217,146,0.10)" }}
     >
-      {/* The glyph is a download, drawn: an arrow falling onto a tray. Thin
-          strokes, because that is how everything else in this app is drawn. */}
-      <svg
-        width="17"
-        height="17"
-        viewBox="0 0 17 17"
+      {/* ⚠️ NO ICON. The arrow-onto-a-tray was decoration doing a job the
+          sentence already does — the button literally says Download — and a
+          generic glyph beside explicit words is the look of an icon pack. What
+          is left is the mark this app actually draws everywhere else: a
+          rhombus, as a bullet rather than as a picture of anything. */}
+      <span
         aria-hidden
-        className="shrink-0 text-jade"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path
-          d="M8.5 1.5 V10.2 M5 7 l3.5 3.5 L12 7"
-          className="transition-transform duration-200 group-hover:translate-y-[2px]"
-        />
-        <path d="M2.5 12.4 v2.6 h12 v-2.6" opacity="0.75" />
-      </svg>
+        className="block h-[7px] w-[7px] shrink-0 translate-y-[-1px] rotate-45 bg-jade transition-transform duration-200 group-hover:rotate-[135deg]"
+      />
 
       <span className="flex flex-col items-start leading-none">
-        <span className="font-chakrapetch text-[14px] font-bold tracking-[0.06em] text-flash/95">
+        <span className="font-chakrapetch text-[15px] font-bold tracking-[0.05em] text-flash/95">
           Download for Windows
         </span>
-        <span className="mt-1.5 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">
+        <span className="mt-2 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">
           free
           <span className="mx-1.5 text-jade/40">·</span>
           <span className="text-citrine/70">beta</span>
