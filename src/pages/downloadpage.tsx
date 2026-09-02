@@ -138,7 +138,11 @@ function Callout({
   top: number
   /** A CSS length inside the specimen box — px or a percentage of it. */
   left: string
-  width: number
+  /** ⚠️ A LENGTH, not a number of pixels: the specimens are a fraction of the
+   *  column so that the gutter beside them always has room for the tag, and a
+   *  box measured in pixels stops matching what it frames the moment the window
+   *  is a different size. */
+  width: string
   height: number
   head: string
   body: string
@@ -150,7 +154,7 @@ function Callout({
   return (
     <span aria-hidden className="hidden lg:block">
       <Reticle style={{ left, top, width, height }} />
-      <Leader style={{ left: `calc(${left} + ${width}px)`, right: -34, top }} />
+      <Leader style={{ left: `calc(${left} + ${width})`, right: -34, top }} />
       <Tag head={head} body={body} style={{ left: "calc(100% + 42px)", top: top - 13 }} />
     </span>
   )
@@ -490,7 +494,7 @@ export default function DownloadPage() {
           </div>
         ))}
 
-        <div className="absolute inset-x-0 bottom-[12%] px-6 text-center xl:px-[12%]">
+        <div className="absolute inset-x-0 bottom-[12%] px-6 text-center xl:px-[17.5%] min-[2560px]:px-[22.5%]">
           <motion.h1
             {...step(0)}
             className="mx-auto max-w-[17ch] font-chakrapetch text-[clamp(38px,7vw,86px)] font-bold leading-[0.94] tracking-tight text-flash"
@@ -571,35 +575,7 @@ export default function DownloadPage() {
         <MatchesSpecimen cdn={cdn} />
       </Subject>
 
-      {/* ───────────────── the notes ───────────────── */}
-      <section className="px-6 pb-24 pt-4 xl:px-[12%]">
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          className="grid gap-x-12 gap-y-9 sm:grid-cols-3"
-        >
-          {NOTES.map((n) => (
-            <motion.div key={n.head} variants={upSm}>
-              <span
-                aria-hidden
-                className="mb-4 block h-px w-full"
-                style={{ background: "linear-gradient(90deg, rgba(0,217,146,0.45), rgba(0,217,146,0))" }}
-              />
-              <p className="font-jetbrains text-[9px] uppercase tracking-[0.22em] text-jade/70">{n.head}</p>
-              <p className="mt-3 max-w-[38ch] font-chakrapetch text-[13px] leading-relaxed text-flash/40">{n.body}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        <p className="mt-14 max-w-[64ch] font-jetbrains text-[9px] uppercase leading-[2] tracking-[0.2em] text-flash/22">
-          The app never asks for your password — signing in opens your browser. It reads the League
-          client the way Riot allows, and shows only what you could already see yourself.
-        </p>
-      </section>
-
-      <Footer className="px-6 pb-10 xl:px-[12%]" />
+      <Footer className="px-6 pb-10 xl:px-[17.5%] min-[2560px]:px-[22.5%]" />
     </div>
   )
 }
@@ -632,23 +608,6 @@ const ANNOTATIONS = [
   },
 ]
 
-const NOTES = [
-  {
-    head: "it updates itself",
-    body:
-      "New versions show a button inside the app. It downloads only what changed and restarts when you press it — never on its own, and never mid-game.",
-  },
-  {
-    head: "windows will warn you",
-    body:
-      "The app is not code-signed yet, so SmartScreen says “unrecognised app”. Choose More info, then Run anyway. A certificate is on the list; it costs money rather than effort.",
-  },
-  {
-    head: "64-bit only",
-    body: "League itself needs 64-bit Windows, so there is no machine that could run the game but not this.",
-  },
-]
-
 /** One subject, annotated: the index and headline, the lead beside it, and the
  *  rebuilt specimen underneath with its tag. */
 function Subject({
@@ -665,7 +624,7 @@ function Subject({
   children: React.ReactNode
 }) {
   return (
-    <section className="px-6 py-20 md:py-28 xl:px-[12%]">
+    <section className="px-6 py-20 md:py-28 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
       <motion.div
         variants={stagger}
         initial="hidden"
@@ -721,7 +680,7 @@ function RuneSpecimen() {
   const page = RUNE_PAGES[on]
 
   return (
-    <div className="relative max-w-[640px]">
+    <div className="relative w-full lg:w-[68%] lg:max-w-[640px]">
       <div className="grid grid-cols-5 gap-1.5">
         {RUNE_PAGES.map((p, i) => {
           const lit = on === i
@@ -808,10 +767,13 @@ function RuneSpecimen() {
         {page.wr} win rate · 12% of games · 43,201 games
       </p>
 
+      {/* Five columns on four 6px gaps: a column is `20% - 4.8px` and each one
+          starts `20% + 1.2px` further along. Written out so the box lands on the
+          lit tile at any width instead of near it at one. */}
       <Callout
         top={-8}
-        left={`${on * 20}%`}
-        width={118}
+        left={`calc(${on} * (20% + 1.2px) - 4px)`}
+        width="calc(20% + 3.2px)"
         height={96}
         head="object (01)"
         body={`${page.name} · ${page.wr}`}
@@ -830,7 +792,7 @@ const BOARD = [
  *  where the lead actually is. */
 function BoardSpecimen({ cdn }: { cdn: string }) {
   return (
-    <div className="relative max-w-[660px]">
+    <div className="relative w-full lg:w-[70%] lg:max-w-[660px]">
       <div className="flex items-end gap-4">
         <div className="flex-1">
           <p className="font-jetbrains text-[9.5px] uppercase tracking-[0.24em] text-flash/30">your team</p>
@@ -940,7 +902,7 @@ function BoardSpecimen({ cdn }: { cdn: string }) {
         <span className="font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">recording</span>
       </div>
 
-      <Callout top={62} left="0px" width={660} height={30} head="the gold lead" body="11.4k ahead · 22:00" />
+      <Callout top={62} left="0px" width="100%" height={30} head="the gold lead" body="11.4k ahead · 22:00" />
     </div>
   )
 }
@@ -1094,7 +1056,7 @@ const MATCHES = [
  *  for deaths and enemies, so a lost game reads as noted rather than as alarm. */
 function MatchesSpecimen({ cdn }: { cdn: string }) {
   return (
-    <div className="relative max-w-[700px]">
+    <div className="relative w-full lg:w-[74%] lg:max-w-[700px]">
       <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:overflow-visible sm:px-0">
         <div className="min-w-[600px] space-y-1.5">
       {MATCHES.map((m) => (
@@ -1137,10 +1099,18 @@ function MatchesSpecimen({ cdn }: { cdn: string }) {
         </div>
       </div>
 
-      {/* Row 2's deaths, measured: rows are 64px tall on a 6px gap, the death
-          chips are right-aligned before a 78px column, and there are seven of
-          them at 22px on a 6px gap. */}
-      <Callout top={86} left="418px" width={194} height={32} head="press one" body="opens at −2s" />
+      {/* Row 2's deaths, measured off the row rather than guessed: the chips are
+          right-aligned inside `pr-3` behind a 78px column and a 12px gap, and
+          seven of them at 22px on 6px gaps is 190px. Anchored to the RIGHT edge,
+          because that is the edge they are aligned to. */}
+      <Callout
+        top={86}
+        left="calc(100% - 296px)"
+        width="198px"
+        height={32}
+        head="press one"
+        body="opens at −2s"
+      />
     </div>
   )
 }
