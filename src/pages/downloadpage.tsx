@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { Footer } from "@/components/footer"
 import { useEffect, useRef, useState } from "react"
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion"
 import { Navbar } from "@/components/navbar"
@@ -103,6 +104,15 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen bg-liquirice text-flash overflow-x-hidden">
+      {/* ⚠️ A solid strip behind the fixed bar. In its floating mode the navbar
+          is only tinted until the page is scrolled, so section headlines ran
+          straight through it and came out unreadable. The bar keeps its own
+          look; this is the ground it stands on. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-0 z-40 h-16"
+        style={{ background: "linear-gradient(180deg, #040A0C 55%, rgba(4,10,12,0.85) 100%)" }}
+      />
       {/* ⚠️ STICKY, where it used to be columnInset. That mode is `md:static`,
           so on any desktop window the bar scrolled away with the page and the
           only way back to the site was the browser's own back button. A page
@@ -112,7 +122,11 @@ export default function DownloadPage() {
       <Navbar sticky addOffsetSpacer={false} />
 
       {/* ── the stage ─────────────────────────────────────────────────── */}
-      <section ref={stage} className="relative px-6 xl:px-[17.5%] min-[2560px]:px-[22.5%] pt-28 pb-24">
+      {/* ⚠️ `pb-10`, not `pb-24`. Between this section's old bottom padding and
+          the first act's own top padding there was a whole empty screen — a
+          viewport of black with nothing in it, which is what "the first page is
+          unwatchable" was really about. The acts below bring their own air. */}
+      <section ref={stage} className="relative px-6 xl:px-[17.5%] min-[2560px]:px-[22.5%] pt-24 pb-10">
         {/* Ambient ground. Contained: a radial only fades to nothing inside its
             own box when centre ± radius stays within 0-100% on both axes, and
             otherwise its rectangle shows as a hard edge across the glow. */}
@@ -283,6 +297,10 @@ export default function DownloadPage() {
           could already see yourself.
         </motion.p>
       </section>
+
+      {/* Every other page on the site ends with this. Without it the page just
+          stopped, and there was no way on from the bottom of it. */}
+      <Footer className="px-6 pb-10 xl:px-[17.5%] min-[2560px]:px-[22.5%]" />
     </div>
   )
 }
@@ -309,6 +327,10 @@ const ACTS: {
   shot: string
   alt: string
   notes: string[]
+  /** A shot far wider than it is tall gets the full column instead of half of
+   *  it. In a half-width column a 6:1 strip lands about forty pixels high and
+   *  everything in it disappears — the picture is there and reads as nothing. */
+  wide?: boolean
 }[] = [
   {
     when: "champion select",
@@ -331,14 +353,18 @@ const ACTS: {
     notes: ["notices land on the game's own HUD", "no alt-tab, ever"],
   },
   {
-    when: "afterwards",
-    title: "Ask the database",
-    hot: "anything",
+    when: "while you play",
+    title: "It records itself, and",
+    hot: "marks the moments",
     lead:
-      "Wire up a champion, the allies, the enemies, the items — and run it against every recorded game. Or just ask lolData AI in words and let it do the wiring.",
-    shot: "/img/desktop/explorer.png",
-    alt: "The Explorer, building a query out of connected modules on a canvas",
-    notes: ["when an item is actually good, tested for significance", "what changed this patch"],
+      "Starts when the game starts, stops when it ends, and captures the League window only — never the rest of your screen. Every kill and death lands on the timeline, so the fight you want is one press away instead of a hunt along a scrub bar.",
+    shot: "/img/desktop/timeline.png",
+    alt: "A recording's timeline, marked at every kill and death",
+    notes: [
+      "hover a mark and it names the champions",
+      "game and Discord on separate channels, balanced in the replay",
+    ],
+    wide: true,
   },
 ]
 
@@ -347,12 +373,88 @@ function Act({ act, flip }: { act: (typeof ACTS)[number]; flip: boolean }) {
   const still = useReducedMotion()
   const view = { once: true, margin: "-120px" } as const
 
+  const shot = (
+    <motion.div
+      initial={still ? {} : { opacity: 0, y: 26 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={view}
+      transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+      className={cn("relative", !act.wide && flip && "lg:order-1")}
+    >
+      <div
+        className="relative overflow-hidden rounded-[6px]"
+        style={{
+          boxShadow: "0 50px 90px -46px rgba(0,0,0,0.95), 0 0 0 1px rgba(0,217,146,0.16)",
+        }}
+      >
+        <img src={act.shot} alt={act.alt} loading="lazy" className="block w-full" />
+        {/* Screen light, not a gloss — see the note on the framed shot below. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(115deg, rgba(0,217,146,0.10) 0%, transparent 36%, transparent 72%, rgba(4,10,12,0.45) 100%)",
+          }}
+        />
+      </div>
+    </motion.div>
+  )
+
+  // A timeline is a wide, shallow thing, and it should be shown as one: the
+  // words above it, the strip running the whole width beneath. It also breaks
+  // the left-right-left rhythm at the right moment, on the last act.
+  if (act.wide) {
+    return (
+      <div className="px-6 py-12 xl:px-[17.5%] min-[2560px]:px-[22.5%] sm:py-16">
+        <motion.div
+          initial={still ? {} : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={view}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="grid items-end gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-16"
+        >
+          <div>
+            <p className="font-jetbrains text-[9px] uppercase tracking-[0.26em] text-jade/55">
+              {act.when}
+            </p>
+            <h3 className="mt-4 max-w-[15ch] font-chakrapetch text-[32px] font-bold leading-[1.05] tracking-tight text-flash/90 sm:text-[40px]">
+              {act.title} <span className="text-jade">{act.hot}</span>.
+            </h3>
+          </div>
+          <div>
+            <p className="max-w-[48ch] font-chakrapetch text-[14px] leading-relaxed text-flash/45">
+              {act.lead}
+            </p>
+            <ul className="mt-5 space-y-2.5">
+              {act.notes.map((n) => (
+                <li key={n} className="flex items-baseline gap-2.5">
+                  <span aria-hidden className="mt-[1px] block h-[5px] w-[5px] shrink-0 rotate-45 bg-jade/70" />
+                  <span className="font-jetbrains text-[10px] uppercase tracking-[0.14em] text-flash/35">
+                    {n}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </motion.div>
+
+        <div className="mt-10">{shot}</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="px-6 py-16 xl:px-[17.5%] min-[2560px]:px-[22.5%] sm:py-24">
+    <div className="px-6 py-12 xl:px-[17.5%] min-[2560px]:px-[22.5%] sm:py-16">
       <div
         className={cn(
-          "grid items-center gap-10 lg:gap-16",
-          "lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]"
+          "grid items-center gap-10 lg:gap-14",
+          // ⚠️ The COLUMNS swap with the sides. Before, the text column stayed
+          // narrow while only the order changed, so a flipped act had its words
+          // squeezed against the edge and the layouts did not mirror.
+          flip
+            ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]"
+            : "lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
         )}
       >
         {/* ⚠️ The words change SIDE between acts, and the picture follows. A
@@ -388,39 +490,7 @@ function Act({ act, flip }: { act: (typeof ACTS)[number]; flip: boolean }) {
 
         {/* The shot, sitting in the page rather than floating on it: a dark
             plate, a jade hairline, and light falling across the glass. */}
-        <motion.div
-          initial={still ? {} : { opacity: 0, y: 26 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={view}
-          transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-          className={cn("relative", flip && "lg:order-1")}
-        >
-          <div
-            className="relative overflow-hidden rounded-[6px]"
-            style={{
-              boxShadow:
-                "0 50px 90px -46px rgba(0,0,0,0.95), 0 0 0 1px rgba(0,217,146,0.16)",
-            }}
-          >
-            <img
-              src={act.shot}
-              alt={act.alt}
-              loading="lazy"
-              className="block w-full"
-            />
-            {/* ⚠️ Screen light, not a gloss. A shot of a dark UI with nothing
-                falling across it reads as a photograph of a switched-off
-                monitor — the same note the hero device carries. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(115deg, rgba(0,217,146,0.10) 0%, transparent 36%, transparent 72%, rgba(4,10,12,0.45) 100%)",
-              }}
-            />
-          </div>
-        </motion.div>
+        {shot}
       </div>
     </div>
   )
@@ -441,11 +511,29 @@ function DownloadButton({ href, state }: { href: string | null; state: "loading"
   const label =
     state === "loading" ? "Checking…" : state === "unavailable" ? "Not released yet" : "Download for Windows"
 
+  /**
+   * ⚠️ FILLED, where it used to be a hairline outline with a light running
+   * around it. This is the one thing the whole page exists to be pressed, and
+   * it was the quietest object on the screen — lighter than the headline above
+   * it and thinner than the paragraph beside it.
+   *
+   * ⚠️ Lit from the INSIDE, with no outward glow. The same rule the app writes
+   * on its own volume panel: an outward coloured shadow makes a flat control
+   * look stuck onto the page instead of cut into it.
+   */
+  const dress =
+    "group inline-flex items-baseline gap-3 rounded-[3px] px-8 py-[18px] select-none transition-colors duration-200"
+  const lit = {
+    boxShadow: "inset 0 0 0 1px rgba(0,217,146,0.42), inset 0 0 22px rgba(0,217,146,0.14)",
+  }
+
   const inner = (
     <>
-      <span aria-hidden className="dl-cta__orbit pointer-events-none" />
-      <span aria-hidden className="dl-cta__body pointer-events-none" />
-      <span className="relative font-jetbrains text-[12px] font-bold uppercase tracking-[0.22em] text-jade">
+      <span
+        aria-hidden
+        className="block h-[7px] w-[7px] shrink-0 translate-y-[-1px] rotate-45 bg-jade transition-transform duration-200 group-hover:rotate-[135deg]"
+      />
+      <span className="font-jetbrains text-[12px] font-bold uppercase tracking-[0.22em] text-jade">
         {label}
       </span>
     </>
@@ -453,26 +541,24 @@ function DownloadButton({ href, state }: { href: string | null; state: "loading"
 
   if (!href) {
     return (
-      <button type="button" disabled className="dl-cta cursor-not-allowed select-none px-8 py-[16px]">
+      <button
+        type="button"
+        disabled
+        className={cn(dress, "cursor-not-allowed bg-jade/[0.05] opacity-60")}
+        style={lit}
+      >
         {inner}
       </button>
     )
   }
 
   return (
-    <a
-      href={href}
-      className="dl-cta inline-block cursor-clicker select-none px-8 py-[16px]"
-      style={{ boxShadow: "0 18px 38px -22px rgba(0,217,146,0.6)" }}
-    >
+    <a href={href} className={cn(dress, "cursor-clicker bg-jade/[0.10] hover:bg-jade/[0.18]")} style={lit}>
       {inner}
     </a>
   )
 }
 
-/** Each panel assembles as it arrives: its rule opens from the left, then the
- *  words lift. Once — a section that re-animates every time you scroll past is
- *  a section you stop reading. */
 function Panel({ index, title, body }: { index: number; title: string; body: string }) {
   const still = useReducedMotion()
   const view = { once: true, margin: "-90px" } as const
