@@ -134,12 +134,8 @@ function Callout({
   height,
   head,
   body,
-  flip = false,
 }: {
   top: number
-  /** Hang the rule and its tag off the LEFT, for a specimen sitting on the
-   *  right of the column. */
-  flip?: boolean
   /** A CSS length inside the specimen box — px or a percentage of it. */
   left: string
   /** ⚠️ A LENGTH, not a number of pixels: the specimens are a fraction of the
@@ -158,19 +154,8 @@ function Callout({
   return (
     <span aria-hidden className="hidden lg:block">
       <Reticle style={{ left, top, width, height }} />
-      <Leader
-        style={
-          flip
-            ? { right: `calc(100% - ${left})`, left: -34, top }
-            : { left: `calc(${left} + ${width})`, right: -34, top }
-        }
-      />
-      <Tag
-        head={head}
-        body={body}
-        className={flip ? "text-right" : undefined}
-        style={flip ? { right: "calc(100% + 42px)", top: top - 13 } : { left: "calc(100% + 42px)", top: top - 13 }}
-      />
+      <Leader style={{ left: `calc(${left} + ${width})`, right: -34, top }} />
+      <Tag head={head} body={body} style={{ left: "calc(100% + 42px)", top: top - 13 }} />
     </span>
   )
 }
@@ -315,90 +300,6 @@ function Halftone({
   }, [src, cols, cell, still])
 
   return <canvas ref={ref} aria-hidden className={className} />
-}
-
-/**
- * The hero's mark, driven by a field instead of a picture.
- *
- * ⚠️ The sections were a UI fragment sitting on black with a lot of air around
- * it, and the reason the hero does not have that problem is that the hero has
- * EDGES — the viewport frames it. This is half of what gives the sections one:
- * a wedge of the same struck crosses coming in from the outer margin and dying
- * before it reaches the content, so the plate has a ground rather than a void.
- *
- * Procedural, and deliberately so: a photograph here would be the hero's
- * subject repeated four times, and four faces is a pattern, not an atmosphere.
- */
-function CrossField({
-  className,
-  from = "right",
-  cols = 42,
-  rows = 24,
-  cell = 15,
-}: {
-  className?: string
-  from?: "left" | "right"
-  cols?: number
-  rows?: number
-  cell?: number
-}) {
-  const ref = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const smoothstep = (e0: number, e1: number, x: number) => {
-      const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
-      return t * t * (3 - 2 * t)
-    }
-    const c = ref.current
-    if (!c) return
-    c.width = cols * cell
-    c.height = rows * cell
-    const g = c.getContext("2d")
-    if (!g) return
-    g.clearRect(0, 0, c.width, c.height)
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const u = from === "right" ? 1 - x / (cols - 1) : x / (cols - 1)
-        const v = Math.abs(y / (rows - 1) - 0.5) * 2
-        // ⚠️ Zero at BOTH ends of the wedge, peaking just inside. Densest at
-        // the very edge, it was cut dead by the section's own boundary and read
-        // as a rectangle of green rather than as light — the same failure the
-        // radial washes in this codebase are commented about three times over.
-        const rise = smoothstep(0, 0.16, u)
-        const fall = Math.max(0, 1 - Math.max(0, u - 0.16) / 0.62)
-        let l = rise * fall * Math.max(0, 1 - Math.pow(v, 1.7))
-        l = Math.pow(l, 1.25)
-        if (l < 0.05) continue
-        const cx = x * cell + cell / 2
-        const cy = y * cell + cell / 2
-        const rr = l * cell * 0.42
-        g.strokeStyle = `rgba(0,217,146,${(0.05 + l * 0.17).toFixed(3)})`
-        g.lineWidth = Math.max(0.6, rr * 0.5)
-        g.beginPath()
-        g.moveTo(cx - rr, cy)
-        g.lineTo(cx + rr, cy)
-        g.moveTo(cx, cy - rr)
-        g.lineTo(cx, cy + rr)
-        g.stroke()
-      }
-    }
-  }, [cols, rows, cell, from])
-
-  return <canvas ref={ref} aria-hidden className={className} />
-}
-
-/** The other half of an edge: crop marks, the way a plate is trimmed. Four
- *  corners, no sides — a frame would turn the specimen back into a picture. */
-function CropMarks() {
-  const arm = "absolute h-[9px] w-[9px] border-jade/30"
-  return (
-    <span aria-hidden className="pointer-events-none absolute -inset-5 hidden lg:block">
-      <span className={cn(arm, "left-0 top-0 border-l border-t")} />
-      <span className={cn(arm, "right-0 top-0 border-r border-t")} />
-      <span className={cn(arm, "bottom-0 left-0 border-b border-l")} />
-      <span className={cn(arm, "bottom-0 right-0 border-b border-r")} />
-    </span>
-  )
 }
 
 /* ─────────────────────── the app's own marks, redrawn ─────────────────── */
@@ -625,14 +526,12 @@ export default function DownloadPage() {
       <Subject
         index="01"
         when="champion select"
-        source="overlay · lock-in"
-        facts={["it never touches a page you made", "the highest-elo one-trick's own page", "ranks on all ten loading-screen cards"]}
         title={
           <>
             The runes are already <Hot>chosen</Hot>.
           </>
         }
-        lead="Lock in, and the five pages people actually run on that champion — in that lane — are on screen with their win rates. One press writes the one you want into the client."
+        lead="Lock in, and the five pages people actually run on that champion — in that lane — are on screen with their win rates. One press writes the one you want into the client, and it never touches a page you made yourself."
       >
         <RuneSpecimen />
       </Subject>
@@ -640,15 +539,12 @@ export default function DownloadPage() {
       <Subject
         index="02"
         when="in game"
-        source="overlay · live"
-        flip
-        facts={["it notices when you go off-plan", "which drakes each team has taken", "nothing to alt-tab to"]}
         title={
           <>
             The scoreboard, on the game's <Hot>own HUD</Hot>.
           </>
         }
-        lead="Both teams, live, with the gold lead spelled out where the kill count already is. Dragon and Baron ninety seconds early, boots read off the composition you are actually against, and a nudge the moment an item is affordable."
+        lead="Both teams, live, with the gold lead spelled out where the kill count already is. Dragon and Baron ninety seconds early, boots read off the composition you are actually against, and a nudge the moment an item is affordable. Nothing to alt-tab to."
       >
         <BoardSpecimen cdn={cdn} />
       </Subject>
@@ -656,8 +552,6 @@ export default function DownloadPage() {
       <Subject
         index="03"
         when="while you play"
-        source="app · the recording"
-        facts={["it always says when it is recording", "two audio channels at 192 kbps", "press a mark to be there"]}
         title={
           <>
             Thirty minutes in. <Hot>Eleven marks</Hot> on it.
@@ -671,9 +565,6 @@ export default function DownloadPage() {
       <Subject
         index="04"
         when="after the game"
-        source="app · the recap"
-        flip
-        facts={["click a row for that player's real profile", "win rate, KDA, CS and vision a minute", "your last ranked and Clash games"]}
         title={
           <>
             Every death is a <Hot>button</Hot>.
@@ -719,80 +610,37 @@ const ANNOTATIONS = [
 
 /** One subject, annotated: the index and headline, the lead beside it, and the
  *  rebuilt specimen underneath with its tag. */
-/**
- * One subject, as a PLATE.
- *
- * ⚠️ THE SECTIONS HAD NO EDGES, and that was the whole of what was wrong with
- * them. The hero works because the viewport frames it; a section was a small
- * rebuilt panel adrift in a lot of black, which reads as a fragment with a
- * caption rather than as a composition. A plate has a top rule carrying its
- * number, a bottom rule carrying what the thing is, crop marks where it was
- * trimmed, and a field of the page's own mark coming in from the outer margin.
- * None of it is a container — the specimen still sits on the page's own ground.
- *
- * The specimen changes SIDE between plates. Four identical rows read as a table
- * however good each row is, and the annotation gutter changes side with it, so
- * the alternation is structural rather than decorative.
- */
 function Subject({
   index,
   when,
-  source,
   title,
   lead,
-  facts,
-  flip = false,
   children,
 }: {
   index: string
   when: string
-  /** Which screen of the app this is, for the far end of the top rule. */
-  source: string
   title: React.ReactNode
   lead: string
-  facts: string[]
-  flip?: boolean
   children: React.ReactNode
 }) {
   return (
-    <section className="relative overflow-hidden px-6 py-16 md:py-20 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
-      <CrossField
-        from={flip ? "left" : "right"}
-        className={cn(
-          "pointer-events-none absolute top-1/2 hidden h-[360px] w-[630px] -translate-y-1/2 lg:block",
-          flip ? "left-0" : "right-0"
-        )}
-      />
-
+    <section className="px-6 py-20 md:py-28 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
       <motion.div
         variants={stagger}
         initial="hidden"
         whileInView="show"
         viewport={VIEWPORT}
-        className="relative"
+        className="grid items-end gap-x-16 gap-y-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]"
       >
-        {/* the top rule, and the plate's number on it */}
-        <motion.div variants={upSm} className="flex items-center gap-4">
-          <span aria-hidden className="h-px w-12 shrink-0 bg-jade/60" />
-          <p className="shrink-0 font-jetbrains text-[9px] uppercase tracking-[0.26em] text-flash/35">
-            <span className="text-jade/80">{index}</span>
+        <div>
+          <motion.p variants={upSm} className="font-jetbrains text-[9px] uppercase tracking-[0.26em] text-flash/30">
+            <span className="text-jade/70">{index}</span>
             <span className="mx-2.5 text-jade/25">/</span>
             {when}
-          </p>
-          <span
-            aria-hidden
-            className="h-px min-w-0 flex-1"
-            style={{ background: "linear-gradient(90deg, rgba(0,217,146,0.22), rgba(0,217,146,0.06))" }}
-          />
-          <p className="hidden shrink-0 font-jetbrains text-[9px] uppercase tracking-[0.26em] text-flash/20 sm:block">
-            {source}
-          </p>
-        </motion.div>
-
-        <div className="mt-10 grid items-end gap-x-16 gap-y-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <Headline className="max-w-[16ch]">{title}</Headline>
-          <Lead className="max-w-[52ch]">{lead}</Lead>
+          </motion.p>
+          <Headline className="mt-4 max-w-[16ch]">{title}</Headline>
         </div>
+        <Lead className="max-w-[52ch]">{lead}</Lead>
       </motion.div>
 
       <motion.div
@@ -800,30 +648,9 @@ function Subject({
         whileInView={{ opacity: 1 }}
         viewport={VIEWPORT}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className={cn("relative mt-16 flex", flip ? "justify-end" : "justify-start")}
+        className="relative mt-16"
       >
         {children}
-      </motion.div>
-
-      {/* the bottom rule, and what the thing on it actually is */}
-      <motion.div
-        variants={stagger}
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        className="relative mt-16 border-t border-jade/[0.12] pt-3.5"
-      >
-        <motion.div
-          variants={upSm}
-          className="flex flex-col gap-2 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/28 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-        >
-          {facts.map((f) => (
-            <span key={f} className="flex items-center gap-2.5">
-              <span aria-hidden className="block h-[4px] w-[4px] shrink-0 rotate-45 bg-jade/50" />
-              {f}
-            </span>
-          ))}
-        </motion.div>
       </motion.div>
     </section>
   )
@@ -854,7 +681,6 @@ function RuneSpecimen() {
 
   return (
     <div className="relative w-full lg:w-[68%] lg:max-w-[640px]">
-      <CropMarks />
       <div className="grid grid-cols-5 gap-1.5">
         {RUNE_PAGES.map((p, i) => {
           const lit = on === i
@@ -972,7 +798,6 @@ const BOARD = [
 function BoardSpecimen({ cdn }: { cdn: string }) {
   return (
     <div className="relative w-full lg:w-[70%] lg:max-w-[660px]">
-      <CropMarks />
       <div className="flex items-end gap-4">
         <div className="flex-1">
           <p className="font-jetbrains text-[9.5px] uppercase tracking-[0.24em] text-flash/30">your team</p>
@@ -1082,7 +907,7 @@ function BoardSpecimen({ cdn }: { cdn: string }) {
         <span className="font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">recording</span>
       </div>
 
-      <Callout flip top={62} left="0px" width="100%" height={30} head="the gold lead" body="11.4k ahead · 22:00" />
+      <Callout top={62} left="0px" width="100%" height={30} head="the gold lead" body="11.4k ahead · 22:00" />
     </div>
   )
 }
@@ -1237,7 +1062,6 @@ const MATCHES = [
 function MatchesSpecimen({ cdn }: { cdn: string }) {
   return (
     <div className="relative w-full lg:w-[74%] lg:max-w-[700px]">
-      <CropMarks />
       <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:overflow-visible sm:px-0">
         <div className="min-w-[600px] space-y-1.5">
       {MATCHES.map((m) => (
@@ -1285,7 +1109,6 @@ function MatchesSpecimen({ cdn }: { cdn: string }) {
           seven of them at 22px on 6px gaps is 190px. Anchored to the RIGHT edge,
           because that is the edge they are aligned to. */}
       <Callout
-        flip
         top={86}
         left="calc(100% - 296px)"
         width="198px"
