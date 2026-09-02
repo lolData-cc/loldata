@@ -111,50 +111,67 @@ export function DesktopShowcase({ id }: { id?: string }) {
 
 /** The download call to action.
  *
- *  It goes somewhere now. It used to be a real <button disabled>, because a
- *  pointer that never resolves is worse than a control that says so — and now
- *  that there is a build, the same rule says make it a link.
+ *  ⚠️ IT SAYS WHAT IT IS. The old one was a dark plate with a single light
+ *  running its perimeter forever — handsome in isolation, and wrong for this
+ *  job twice over. It never said what pressing it got you (a download? a page?
+ *  for which machine?), and its edge never stopped moving: a control that is
+ *  permanently animated is permanently asking for attention it does not need
+ *  once you have found it. The section around it is already the argument; the
+ *  button only has to be obviously pressable and obviously a download.
  *
- *  The pill still tells the truth, it just tells a different one: the app is
- *  released and it is version 0.0.1.
+ *  ⚠️ Motion ON INTENT ONLY. The arrow drops when the pointer arrives, and
+ *  nothing moves before that. That is the difference between a control that
+ *  answers you and one that is performing.
  *
- *  The body is near-black, the same ground the COMING SOON pill sits on, and
- *  the only colour in the whole control is a single light running its
- *  perimeter. That is the invitation: nothing is filled with brand colour, but
- *  the edge never stops moving, and the eye follows a line. See .dl-cta in
- *  index.css for how the running border is built.
- *
- *  The pill straddles the corner — the same half-in, half-out anchoring the
- *  champion level badge uses on a match card. */
+ *  ⚠️ It says WINDOWS. The installer is x64 Windows and nothing else, and a
+ *  Mac user deserves to learn that here rather than one page later. "Beta" sits
+ *  in the same quiet line rather than straddling a corner — it is a caveat, and
+ *  a caveat that shouts is a badge.
+ */
 function DesktopCta() {
   return (
-    <div className="relative inline-block">
-      <Link
-        to="/download"
-        aria-label="Get the lolData desktop app"
-        className="dl-cta inline-block px-7 py-[14px] cursor-clicker select-none"
-        style={{ boxShadow: "0 16px 34px -22px rgba(0,217,146,0.55)" }}
-      >
-        <span aria-hidden className="dl-cta__orbit pointer-events-none" />
-        <span aria-hidden className="dl-cta__body pointer-events-none" />
-        <span className="relative font-jetbrains text-[12px] font-bold uppercase tracking-[0.22em] text-jade">
-          Get the desktop app
-        </span>
-      </Link>
-
-      {/* half in, half out of the corner */}
-      <span
+    <Link
+      to="/download"
+      aria-label="Download the lolData desktop app for Windows"
+      className={cn(
+        "group inline-flex items-center gap-3.5 rounded-[4px] px-6 py-3.5 cursor-clicker select-none",
+        "bg-jade/[0.07] ring-1 ring-inset ring-jade/30",
+        "transition-colors duration-200 hover:bg-jade/[0.13] hover:ring-jade/55"
+      )}
+      style={{ boxShadow: "0 16px 34px -24px rgba(0,217,146,0.5)" }}
+    >
+      {/* The glyph is a download, drawn: an arrow falling onto a tray. Thin
+          strokes, because that is how everything else in this app is drawn. */}
+      <svg
+        width="17"
+        height="17"
+        viewBox="0 0 17 17"
         aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-3 -top-[9px] rounded-[3px] px-2 py-[3px]",
-          "bg-liquirice ring-1 ring-citrine/45",
-          "font-jetbrains text-[8.5px] font-bold uppercase leading-none tracking-[0.2em] text-citrine/90"
-        )}
-        style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.7)" }}
+        className="shrink-0 text-jade"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
-        Beta
+        <path
+          d="M8.5 1.5 V10.2 M5 7 l3.5 3.5 L12 7"
+          className="transition-transform duration-200 group-hover:translate-y-[2px]"
+        />
+        <path d="M2.5 12.4 v2.6 h12 v-2.6" opacity="0.75" />
+      </svg>
+
+      <span className="flex flex-col items-start leading-none">
+        <span className="font-chakrapetch text-[14px] font-bold tracking-[0.06em] text-flash/95">
+          Download for Windows
+        </span>
+        <span className="mt-1.5 font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">
+          free
+          <span className="mx-1.5 text-jade/40">·</span>
+          <span className="text-citrine/70">beta</span>
+        </span>
       </span>
-    </div>
+    </Link>
   );
 }
 
