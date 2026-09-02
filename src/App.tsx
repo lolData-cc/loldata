@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom"
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useAmbientLight } from "@/hooks/useAmbientLight";
 import { useTheme } from "@/hooks/useTheme";
 import { applyThemeClass } from "@/lib/uiPrefs";
@@ -191,6 +191,32 @@ export function RootLayout({
     </>
   )
 }
+/**
+ * Every route starts at the top.
+ *
+ * ⚠️ NOT INSIDE RootLayout, which is where this used to live and still does.
+ * Nine routes are mounted bare — /download, /matches/:matchId, /dashboard,
+ * /login and the callbacks — so they never ran it: clicking "download" from the
+ * bottom of the homepage opened the download page ALREADY SCROLLED to the
+ * bottom, because a client-side navigation keeps the window's scroll position
+ * and nothing on that page put it back.
+ *
+ * ⚠️ `useLayoutEffect`, so the reset happens BEFORE the browser paints. With a
+ * plain effect the new page is drawn once at the old scroll position and then
+ * jumps, which is a visible flash of the wrong screen.
+ *
+ * A hash is an explicit request to land somewhere other than the top, so it is
+ * left alone.
+ */
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useLayoutEffect(() => {
+    if (window.location.hash) return
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
+
 function App() {
   const { theme } = useTheme()
   // Keep <html> class in sync with the stored theme — covers cross-tab
@@ -225,6 +251,7 @@ function App() {
 
             <LiveToastOnBoot />
             <HardwareAccelerationWarning />
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<RootLayout><HomePage /></RootLayout>} />
               <Route path="/patch-notes" element={<RootLayout><PatchNotesPage /></RootLayout>} />
