@@ -71,92 +71,12 @@ function parseRelease(data: unknown): Release | null {
 
 /* ───────────────────────── the annotation layer ───────────────────────── */
 
-/** A monospace tag: what the instrument has decided about a subject. Two lines,
- *  because a label that names a thing and then says what it is reads in that
- *  order or not at all. */
-function Tag({
-  head,
-  body,
-  className,
-  style,
-}: {
-  head: string
-  body?: string
-  className?: string
-  style?: React.CSSProperties
-}) {
-  return (
-    <span
-      className={cn(
-        "pointer-events-none absolute whitespace-nowrap font-jetbrains text-[9px] uppercase leading-[1.5] tracking-[0.22em]",
-        className
-      )}
-      style={style}
-    >
-      <span className="block text-jade/75">{head}</span>
-      {body && <span className="block tabular-nums text-flash/55">{body}</span>}
-    </span>
-  )
-}
-
 /** A hairline box around something the instrument is looking at. Jade, never
  *  white — the house rule, and the reason these read as measurement rather than
  *  as a card. */
 function Reticle({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <span aria-hidden className={cn("pointer-events-none absolute border border-jade/45", className)} style={style} />
-  )
-}
-
-/** The line from a box out to its tag. */
-function Leader({ style, className }: { style: React.CSSProperties; className?: string }) {
-  return <span aria-hidden className={cn("pointer-events-none absolute h-px bg-jade/40", className)} style={style} />
-}
-
-/**
- * A box on the subject, a rule out to the margin, and the tag at the end of it.
- *
- * ⚠️ ONE PRIMITIVE, because three hand-placed ones drifted: a tag landed inside
- * the headline, another sat on top of a row it was supposed to point at, and a
- * box framed empty space beside the thing it meant. Here the leader is pinned to
- * the reticle at one end and to the margin at the other — `left` and `right`
- * together, so its length is whatever the gap happens to be and no arithmetic
- * can be wrong. The tag always lands in the gutter, at the leader's own height.
- *
- * The specimens sit on the LEFT of the column and the gutter is what is left
- * over on the right, which is the whole reason the annotation has anywhere to
- * live. Below `lg` there is no gutter, so there is no annotation.
- */
-function Callout({
-  top,
-  left,
-  width,
-  height,
-  head,
-  body,
-}: {
-  top: number
-  /** A CSS length inside the specimen box — px or a percentage of it. */
-  left: string
-  /** ⚠️ A LENGTH, not a number of pixels: the specimens are a fraction of the
-   *  column so that the gutter beside them always has room for the tag, and a
-   *  box measured in pixels stops matching what it frames the moment the window
-   *  is a different size. */
-  width: string
-  height: number
-  head: string
-  body: string
-}) {
-  // ⚠️ Off the TOP-RIGHT corner, not the middle. A leader at the box's centre
-  // runs straight through whatever sits on that line — it crossed a timestamp
-  // in the match row — and leaving from the corner also continues the box's own
-  // top edge, which is what makes the two read as one drawn figure.
-  return (
-    <span aria-hidden className="hidden lg:block">
-      <Reticle style={{ left, top, width, height }} />
-      <Leader style={{ left: `calc(${left} + ${width})`, right: -34, top }} />
-      <Tag head={head} body={body} style={{ left: "calc(100% + 42px)", top: top - 13 }} />
-    </span>
   )
 }
 
@@ -526,6 +446,7 @@ export default function DownloadPage() {
       <Subject
         index="01"
         when="champion select"
+        note="aery · 52.4% · 43,201 games behind it"
         title={
           <>
             The runes are already <Hot>chosen</Hot>.
@@ -539,6 +460,8 @@ export default function DownloadPage() {
       <Subject
         index="02"
         when="in game"
+        note="11.4k ahead · 22:00"
+        flip
         title={
           <>
             The scoreboard, on the game's <Hot>own HUD</Hot>.
@@ -549,7 +472,7 @@ export default function DownloadPage() {
         <BoardSpecimen cdn={cdn} />
       </Subject>
 
-      <Subject
+      <WideSubject
         index="03"
         when="while you play"
         title={
@@ -560,11 +483,13 @@ export default function DownloadPage() {
         lead="It starts when the game starts and stops when it ends, capturing the League window only — never the rest of your screen. Every kill, death and assist lands on the timeline, so the fight you want is one press away instead of a hunt along a scrub bar."
       >
         <TimelineSpecimen cdn={cdn} />
-      </Subject>
+      </WideSubject>
 
       <Subject
         index="04"
         when="after the game"
+        note="press a death · opens at −2s"
+        flip
         title={
           <>
             Every death is a <Hot>button</Hot>.
@@ -608,9 +533,86 @@ const ANNOTATIONS = [
   },
 ]
 
-/** One subject, annotated: the index and headline, the lead beside it, and the
- *  rebuilt specimen underneath with its tag. */
+/**
+ * One subject: the words on one side of the row, the rebuilt panel on the other.
+ *
+ * ⚠️ ON THE SAME ROW, and vertically centred. Stacked — headline, lead, then the
+ * specimen underneath — every section ended in half a screen of black, because a
+ * panel 600px wide and 200px tall cannot fill a column on its own. Side by side
+ * there is no tail left to go empty.
+ *
+ * ⚠️ The tag that used to float in the margin is now A LINE OF THE COPY. There is
+ * no margin left to put it in, and a jade monospace line under the lead is read
+ * rather than merely noticed — the reticle on the panel is the only mark still
+ * needed to say which part of it is meant.
+ *
+ * The panel changes side between subjects: four identical rows read as a table
+ * however good each row is.
+ */
 function Subject({
+  index,
+  when,
+  title,
+  lead,
+  note,
+  flip = false,
+  children,
+}: {
+  index: string
+  when: string
+  title: React.ReactNode
+  lead: string
+  note: string
+  flip?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <section className="px-6 py-20 md:py-24 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={VIEWPORT}
+        className={cn(
+          "grid items-center gap-x-16 gap-y-12",
+          flip
+            ? "lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]"
+            : "lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]"
+        )}
+      >
+        <div className={cn(flip && "lg:order-2")}>
+          <motion.p variants={upSm} className="font-jetbrains text-[9px] uppercase tracking-[0.26em] text-flash/30">
+            <span className="text-jade/70">{index}</span>
+            <span className="mx-2.5 text-jade/25">/</span>
+            {when}
+          </motion.p>
+          <Headline className="mt-4 max-w-[15ch]">{title}</Headline>
+          <Lead className="mt-5 max-w-[46ch]">{lead}</Lead>
+          <motion.p
+            variants={upSm}
+            className="mt-6 font-jetbrains text-[9px] uppercase tracking-[0.22em] tabular-nums text-jade/60"
+          >
+            {note}
+          </motion.p>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className={cn("relative min-w-0", flip && "lg:order-1")}
+        >
+          {children}
+        </motion.div>
+      </motion.div>
+    </section>
+  )
+}
+
+/** The recording gets the full width: a timeline is a wide, shallow thing, and
+ *  eleven marks squeezed into half a column stop reading as a sequence. */
+function WideSubject({
   index,
   when,
   title,
@@ -624,7 +626,7 @@ function Subject({
   children: React.ReactNode
 }) {
   return (
-    <section className="px-6 py-20 md:py-28 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
+    <section className="px-6 py-20 md:py-24 xl:px-[17.5%] min-[2560px]:px-[22.5%]">
       <motion.div
         variants={stagger}
         initial="hidden"
@@ -648,7 +650,7 @@ function Subject({
         whileInView={{ opacity: 1 }}
         viewport={VIEWPORT}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="relative mt-16"
+        className="relative mt-14"
       >
         {children}
       </motion.div>
@@ -680,7 +682,7 @@ function RuneSpecimen() {
   const page = RUNE_PAGES[on]
 
   return (
-    <div className="relative w-full lg:w-[68%] lg:max-w-[640px]">
+    <div className="relative w-full">
       <div className="grid grid-cols-5 gap-1.5">
         {RUNE_PAGES.map((p, i) => {
           const lit = on === i
@@ -775,13 +777,9 @@ function RuneSpecimen() {
       {/* Five columns on four 6px gaps: a column is `20% - 4.8px` and each one
           starts `20% + 1.2px` further along. Written out so the box lands on the
           lit tile at any width instead of near it at one. */}
-      <Callout
-        top={-8}
-        left={`calc(${on} * (20% + 1.2px) - 4px)`}
-        width="calc(20% + 3.2px)"
-        height={96}
-        head="object (01)"
-        body={`${page.name} · ${page.wr}`}
+      <Reticle
+        className="hidden lg:block"
+        style={{ left: `calc(${on} * (20% + 1.2px) - 4px)`, width: "calc(20% + 3.2px)", top: -8, height: 96 }}
       />
     </div>
   )
@@ -797,7 +795,7 @@ const BOARD = [
  *  where the lead actually is. */
 function BoardSpecimen({ cdn }: { cdn: string }) {
   return (
-    <div className="relative w-full lg:w-[70%] lg:max-w-[660px]">
+    <div className="relative w-full">
       <div className="flex items-end gap-4">
         <div className="flex-1">
           <p className="font-jetbrains text-[9.5px] uppercase tracking-[0.24em] text-flash/30">your team</p>
@@ -848,8 +846,8 @@ function BoardSpecimen({ cdn }: { cdn: string }) {
           phone-width reflow stacked the KDA vertically and cut the right-hand
           column off entirely. Bleeding past the edge is also what tells you
           there is more of it. */}
-      <div className="-mx-6 mt-7 overflow-x-auto px-6 sm:mx-0 sm:overflow-visible sm:px-0">
-        <div className="min-w-[560px] space-y-1.5">
+      <div className="-mx-6 mt-7 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+        <div className="min-w-[480px] space-y-1.5">
         {BOARD.map((p) => (
           <div
             key={p.name}
@@ -907,7 +905,7 @@ function BoardSpecimen({ cdn }: { cdn: string }) {
         <span className="font-jetbrains text-[9px] uppercase tracking-[0.2em] text-flash/35">recording</span>
       </div>
 
-      <Callout top={62} left="0px" width="100%" height={30} head="the gold lead" body="11.4k ahead · 22:00" />
+      <Reticle className="hidden lg:block" style={{ left: 0, top: 62, width: "100%", height: 30 }} />
     </div>
   )
 }
@@ -1052,18 +1050,18 @@ function TimelineSpecimen({ cdn }: { cdn: string }) {
 }
 
 const MATCHES = [
-  { champ: "Ahri", queue: "ranked solo", kda: "9 / 3 / 12", win: true, when: "2h ago", deaths: 3 },
-  { champ: "Lillia", queue: "ranked solo", kda: "4 / 7 / 9", win: false, when: "3h ago", deaths: 7 },
-  { champ: "Ashe", queue: "clash", kda: "14 / 2 / 6", win: true, when: "yesterday", deaths: 2 },
+  { champ: "Ahri", queue: "ranked solo", kda: "9 / 3 / 12", win: true, deaths: 3 },
+  { champ: "Lillia", queue: "ranked solo", kda: "4 / 7 / 9", win: false, deaths: 7 },
+  { champ: "Ashe", queue: "clash", kda: "14 / 2 / 6", win: true, deaths: 2 },
 ]
 
 /** The recap list. ⚠️ A LOSS IS CITRINE, not rose — the app reserves #ff6286
  *  for deaths and enemies, so a lost game reads as noted rather than as alarm. */
 function MatchesSpecimen({ cdn }: { cdn: string }) {
   return (
-    <div className="relative w-full lg:w-[74%] lg:max-w-[700px]">
-      <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:overflow-visible sm:px-0">
-        <div className="min-w-[600px] space-y-1.5">
+    <div className="relative w-full">
+      <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+        <div className="min-w-[500px] space-y-1.5">
       {MATCHES.map((m) => (
         <div
           key={m.champ}
@@ -1096,9 +1094,6 @@ function MatchesSpecimen({ cdn }: { cdn: string }) {
               </span>
             ))}
           </span>
-          <span className="w-[78px] text-right font-jetbrains text-[9px] uppercase tracking-[0.14em] text-flash/25">
-            {m.when}
-          </span>
         </div>
       ))}
         </div>
@@ -1108,13 +1103,9 @@ function MatchesSpecimen({ cdn }: { cdn: string }) {
           right-aligned inside `pr-3` behind a 78px column and a 12px gap, and
           seven of them at 22px on 6px gaps is 190px. Anchored to the RIGHT edge,
           because that is the edge they are aligned to. */}
-      <Callout
-        top={86}
-        left="calc(100% - 296px)"
-        width="198px"
-        height={32}
-        head="press one"
-        body="opens at −2s"
+      <Reticle
+        className="hidden lg:block"
+        style={{ left: "calc(100% - 206px)", width: "198px", top: 86, height: 32 }}
       />
     </div>
   )
