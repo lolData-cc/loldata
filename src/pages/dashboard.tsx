@@ -17,8 +17,6 @@ import {
 } from "@/components/ui/tabs";
 import { DiscordLinker } from "@/components/discordlinker";
 import { useAuth } from "@/context/authcontext";
-import { ProApplicationsAdminPanel } from "@/components/admin/pro-applications-admin-panel";
-import { StreamerAdminPanel } from "@/components/admin/streamer-admin-panel";
 import { AccountLinkOverride } from "@/components/admin/account-link-override";
 import { DatabaseStatsPanel } from "@/components/admin/database-stats-panel";
 import { BorderBeamPreference } from "@/components/borderbeampreference";
@@ -452,7 +450,6 @@ export default function DashboardPage() {
               {isAdmin && (
                 <TabsContent value="proApplications" className="outline-none">
                   <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
-                    <ProApplicationsAdminPanel />
                   </div>
                 </TabsContent>
               )}
@@ -461,7 +458,6 @@ export default function DashboardPage() {
               {isAdmin && (
                 <TabsContent value="streamerApplications" className="outline-none">
                   <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
-                    <StreamerAdminPanel />
                   </div>
                 </TabsContent>
               )}

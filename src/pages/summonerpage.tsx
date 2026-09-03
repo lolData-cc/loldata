@@ -175,7 +175,7 @@ export default function SummonerPage() {
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
   const [closingMatchId, setClosingMatchId] = useState<string | null>(null) // plays the collapse animation before unmount
   const [replayMatch, setReplayMatch] = useState<{ matchId: string; match: MatchWithWin["match"] } | null>(null)
-  const { session: authSession, isAdmin } = useAuth()
+  const { session: authSession } = useAuth()
   const [matches, setMatches] = useState<MatchWithWin[]>([])
   const [analysisMap, setAnalysisMap] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({})
   const [enteringMatchId, setEnteringMatchId] = useState<string | null>(null)
@@ -244,10 +244,6 @@ export default function SummonerPage() {
   const [selectedQueue, setSelectedQueue] = useState<QueueType>("All");
   const [isPro, setIsPro] = useState(false);
   const [isStreamer, setIsStreamer] = useState(false);
-  const [showAdminDialog, setShowAdminDialog] = useState(false);
-  const [adminSaving, setAdminSaving] = useState(false);
-  const [adminType, setAdminType] = useState<"pro" | "streamer">("pro");
-  const [adminFields, setAdminFields] = useState({ nickname: "", team: "", firstName: "", lastName: "", nationality: "", twitchLogin: "" });
   const [proUsernames, setProUsernames] = useState<Set<string>>(new Set());
   const [streamerUsernames, setStreamerUsernames] = useState<Set<string>>(new Set());
   // nametag → who they actually are, so a nameplate can say "Faker" and link
@@ -3519,116 +3515,6 @@ export default function SummonerPage() {
 
       </div>
 
-      {/* ── Admin Dialog: Create Pro/Streamer ── */}
-      {showAdminDialog && createPortal(
-        <div className="fixed inset-0 z-[999] flex items-center justify-center" onClick={() => setShowAdminDialog(false)}>
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-          <div className="relative z-10 w-[420px] rounded-md overflow-hidden bg-filmdark/95 backdrop-blur-xl saturate-150"
-            style={{
-              animation: "dialogOpen 0.25s ease-out",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.7), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
-            }}
-            onClick={e => e.stopPropagation()}>
-            {/* Radial white glow */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.04)_0%,transparent_60%)]" />
-
-            <div className="relative z-10 px-6 py-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[14px] font-orbitron text-citrine/80 uppercase tracking-wider">Admin Panel</h3>
-                <button type="button" onClick={() => setShowAdminDialog(false)} className="text-flash/30 hover:text-flash/70 cursor-pointer">✕</button>
-              </div>
-
-              <div className="text-[11px] font-mono text-flash/40">
-                Creating profile for: <span className="text-flash/70">{name}#{tag}</span>
-              </div>
-
-              {/* Type toggle */}
-              <div className="flex gap-2">
-                {(["pro", "streamer"] as const).map(t => (
-                  <button key={t} type="button" onClick={() => setAdminType(t)}
-                    className={cn("flex-1 py-2 text-[10px] font-orbitron uppercase tracking-[0.12em] rounded-[2px] border transition-all cursor-pointer",
-                      adminType === t ? "text-citrine border-citrine/30 bg-citrine/10" : "text-flash/25 border-flash/[0.06] hover:text-flash/40"
-                    )}>{t}</button>
-                ))}
-              </div>
-
-              {/* Pro fields */}
-              {adminType === "pro" && (
-                <div className="space-y-2">
-                  <input value={adminFields.nickname} onChange={e => setAdminFields(f => ({ ...f, nickname: e.target.value }))} placeholder="Nickname (e.g. Caps)"
-                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                  <input value={adminFields.team} onChange={e => setAdminFields(f => ({ ...f, team: e.target.value }))} placeholder="Team (e.g. G2 Esports)"
-                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                  <div className="flex gap-2">
-                    <input value={adminFields.firstName} onChange={e => setAdminFields(f => ({ ...f, firstName: e.target.value }))} placeholder="First name"
-                      className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                    <input value={adminFields.lastName} onChange={e => setAdminFields(f => ({ ...f, lastName: e.target.value }))} placeholder="Last name"
-                      className="flex-1 bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                  </div>
-                  <input value={adminFields.nationality} onChange={e => setAdminFields(f => ({ ...f, nationality: e.target.value }))} placeholder="Nationality (e.g. DK)"
-                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                </div>
-              )}
-
-              {/* Streamer fields */}
-              {adminType === "streamer" && (
-                <div className="space-y-2">
-                  <input value={adminFields.twitchLogin} onChange={e => setAdminFields(f => ({ ...f, twitchLogin: e.target.value }))} placeholder="Twitch username"
-                    className="w-full bg-flash/[0.02] border border-flash/[0.06] rounded-sm px-3 py-2 text-[11px] font-mono text-flash/50 placeholder:text-flash/15 focus:outline-none focus:border-citrine/20" />
-                </div>
-              )}
-
-              {/* Save */}
-              <button type="button" disabled={adminSaving}
-                onClick={async () => {
-                  setAdminSaving(true);
-                  const nametag = `${name}#${tag}`;
-                  try {
-                    if (adminType === "pro") {
-                      await supabase.from("pro_players").delete().eq("username", nametag);
-                      await supabase.from("pro_players").insert({
-                        username: nametag,
-                        nickname: adminFields.nickname || name,
-                        team: adminFields.team || null,
-                        first_name: adminFields.firstName || null,
-                        last_name: adminFields.lastName || null,
-                        nationality: adminFields.nationality || null,
-                      });
-                    } else {
-                      // Delete existing entry first, then insert
-                      await supabase.from("streamers").delete().eq("lol_nametag", nametag);
-                      await supabase.from("streamers").insert({
-                        lol_nametag: nametag,
-                        twitch_login: adminFields.twitchLogin || null,
-                        region: region?.toUpperCase() || "EUW",
-                      });
-                    }
-                    setShowAdminDialog(false);
-                    setIsPro(adminType === "pro");
-                    setIsStreamer(adminType === "streamer");
-                  } catch (e: any) {
-                    console.error("Admin save error:", e);
-                  } finally {
-                    setAdminSaving(false);
-                  }
-                }}
-                className={cn(
-                  "w-full py-2.5 rounded-sm text-[10px] font-orbitron uppercase tracking-[0.15em] transition-all cursor-pointer",
-                  adminSaving ? "bg-citrine/5 text-citrine/20 border border-citrine/10" : "bg-citrine/15 text-citrine/80 border border-citrine/25 hover:bg-citrine/25"
-                )}>
-                {adminSaving ? "Saving..." : `Create ${adminType} profile`}
-              </button>
-            </div>
-          </div>
-          <style>{`
-            @keyframes dialogOpen {
-              from { opacity: 0; transform: scale(0.95) translateY(8px); filter: blur(4px); }
-              to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-            }
-          `}</style>
-        </div>,
-        document.body
-      )}
 
       {/* ── Custom Context Menu ── */}
       <AnimatePresence>
@@ -3943,15 +3829,6 @@ export default function SummonerPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Admin: create pro/streamer profile — admins ONLY (the button is the entry
-          point to the pro/streamer creation dialog, so it must never render for
-          regular users). */}
-      {isAdmin && (
-        <div className="fixed bottom-10 left-10 z-[999]">
-          <DiamondButton color="citrine" icon="edit" label="ADMIN" onClick={() => setShowAdminDialog(true)} />
-        </div>
-      )}
 
       {/* ───────────  MATCH REPLAY DIALOG  ─────────── */}
       <MatchReplayDialog
