@@ -86,20 +86,17 @@ export function UserDialog() {
 
   // Logged out — sign-in dialog
   //
-  // ⚠️ This is the same room as /login, smaller — the same figure, the same
-  // glass card, the same copy and the same order: one press with Riot or
-  // Discord before any typing. It is the first thing a visitor opens when
-  // they decide to sign in.
+  // ⚠️ The same room as /login, smaller: the same figure, the same copy and
+  // the same order — one press with Riot or Discord before any typing. It is
+  // the first thing a visitor opens when they decide to sign in.
   //
-  // ⚠️ NOT A BOX WITH A PICTURE IN IT. Two earlier cuts put the figure inside
-  // a dark rectangle — first as a band across the top with only the head,
-  // then down one side with a scrim carrying him under the form — and each
-  // time a box edge cut him and a gradient ate him, until he read as texture
-  // rather than as somebody standing there. So the dialog has NO box. The
-  // content panel is transparent; Viego stands full height in the dark of
-  // the blurred overlay, whole, and the glass card floats to his right with
-  // its ground at half strength so the sword arm shows through it. That is
-  // exactly the page's composition, and it is what the page was liked for.
+  // ⚠️ A CENTRED BOX WITH A WATERMARK. Not a side column, not a figure
+  // standing beside the card — both were tried and both were the wrong idea.
+  // The dialog is an ordinary centred panel; Viego is INSIDE it, whole, behind
+  // the form, at a third of his brightness: a watermark the fields sit on,
+  // there to be noticed and not to be read around. No scrims, no gradients —
+  // the opacity is the whole treatment.
+  const ground = "#050d10"
   return (
     <Dialog>
       <DialogTrigger className="cursor-clicker">
@@ -109,29 +106,26 @@ export function UserDialog() {
       </DialogTrigger>
 
       <DialogContent
-        className="p-0 border-0 bg-transparent shadow-none max-w-[860px] w-[calc(100%-2rem)] overflow-visible sm:rounded-none"
-        // ⚠️ 90%, darker than the site's other dialogs: the canvas is transparent
-        // now, so whatever the page has under him shows THROUGH him, and the
-        // blurred champion icons were bright enough to sit on his chest.
-        // ⚠️ A MULTIPLE OF FIVE. Tailwind's opacity modifier only knows the
-        // scale (…85, 90, 95, 100): `/88` and `/92` generate NO class at all,
-        // and the overlay silently fell back to the base 10% — which is why
-        // two "darker" overlays in a row looked exactly the same.
-        overlayClassName="bg-[#040A0C]/90 backdrop-blur-md"
+        className="p-0 border-0 bg-transparent shadow-none max-w-[460px] overflow-hidden sm:rounded-[3px]"
+        overlayClassName="bg-[#040A0C]/70 backdrop-blur-md"
       >
         <DialogTitle className="sr-only">Sign In</DialogTitle>
-        {/* ⚠️ Under sm the composition turns vertical: a band the width of the
-            screen is left ABOVE the card for his head and shoulders at full
-            brightness, and the body runs on under the card. Side by side
-            there is no room on a phone, and behind the card he vanished. */}
-        <div className="relative font-jetbrains flex flex-col items-center pt-[36vw] min-h-[440px] sm:min-h-[500px] sm:flex-row sm:items-center sm:justify-end sm:pt-0 sm:pr-[3%]">
-          {/* ── The figure, whole, in the open ─────────────────────────────
-              Taller than the panel on both ends (nothing clips: the panel
-              has no edges), anchored a little in from the left so the
-              dissolve tail of the sword arm lands under the card's left
-              edge. cols is higher than the page's because he is smaller on
-              screen and needs the detail to stay a face. */}
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[-8%] h-[76%] sm:inset-x-auto sm:left-[11%] sm:w-[60%] sm:top-[-22%] sm:h-[144%]">
+        <div
+          className="relative overflow-hidden font-jetbrains"
+          style={{
+            background: ground,
+            borderRadius: "3px",
+            // lit from the inside, never outlined — the house rule
+            boxShadow:
+              "inset 0 1px 0 0 rgba(215,216,217,0.055), inset 0 0 60px 0 rgba(0,217,146,0.035), 0 40px 90px -30px rgba(0,0,0,0.95)",
+          }}
+        >
+          {/* ── The watermark ──────────────────────────────────────────────
+              Centred in the box and a quarter taller than it, so the whole
+              body is there — head under the top edge, feet running off the
+              bottom — behind every field. The canvas paints no ground of its
+              own (the box has one) and the wrapper's opacity does the rest. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
             <Halftone
               src="/img/desktop/login-viego.jpg"
               cols={120}
@@ -141,23 +135,12 @@ export function UserDialog() {
               gamma={2.6}
               floor={0.17}
               ground={null}
-              className="absolute top-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 sm:left-0 sm:translate-x-0"
+              className="absolute left-1/2 top-1/2 h-[125%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2"
             />
           </div>
-          {/* ── The card ───────────────────────────────────────────────────
-              The page's glass, with its ground at half strength: dark
-              enough for 9px labels to read, open enough that the arm under
-              it is seen. Lit from the inside, never outlined. */}
-          <div
-            className="relative w-full max-w-[400px] px-8 py-8"
-            style={{
-              background: "linear-gradient(rgba(5,13,16,0.64), rgba(5,13,16,0.64))",
-              borderRadius: "3px",
-              boxShadow:
-                "inset 0 1px 0 0 rgba(215,216,217,0.06), inset 0 0 60px 0 rgba(0,217,146,0.04), inset 0 -1px 0 0 rgba(4,10,12,0.6), 0 40px 90px -30px rgba(0,0,0,0.95)",
-              backdropFilter: "blur(6px)",
-            }}
-          >
+
+          {/* Content — on top of him, full width */}
+          <div className="relative px-8 py-7">
             <h2 className="font-mechano text-xl text-flash/90 flex items-center gap-2 mb-1">
               <span className="text-jade/50 text-xs">◈</span>
               SIGN IN
