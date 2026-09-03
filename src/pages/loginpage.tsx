@@ -348,13 +348,14 @@ export default function LoginPage() {
           // half-again taller than the viewport, head clear of the navbar, the
           // rest running off the bottom, and reaches all the way to the card —
           // which is glass, so the last of him shows through its edge.
-          // ⚠️ Its left edge is the navbar's column edge, not the viewport's.
-          // Hanging off the screen edge left a lane of black between him and
-          // the card and put the empty space in the wrong place; on the
-          // page's own margin it is margin, and the gap to the card closes.
-          // (The visible mass is the middle ~60% of the canvas — the dissolve
-          // owns the rest — so the figure reads as starting under the logo.)
-          className="absolute left-1/2 top-[-4%] h-[126%] w-auto max-w-none -translate-x-1/2 lg:left-[8%] lg:top-[-9%] lg:h-[165%] lg:translate-x-0 xl:left-[17.5%] xl:h-[148%] 2xl:h-[165%] min-[2560px]:left-[22.5%]"
+          // ⚠️ Six points LEFT of the navbar's column edge (11.5% at xl, where
+          // the column starts at 17.5%). Flush with the column he sat too
+          // central — the eye had him and the card as one centred block —
+          // and a hand's width to the left puts him in the margin the way a
+          // figure stands beside a page rather than in it. Still not off the
+          // screen: the visible mass is the middle ~60% of the canvas, so it
+          // begins about where the logo does.
+          className="absolute left-1/2 top-[-4%] h-[126%] w-auto max-w-none -translate-x-1/2 lg:left-[3%] lg:top-[-9%] lg:h-[165%] lg:translate-x-0 xl:left-[11.5%] xl:h-[148%] 2xl:h-[165%] min-[2560px]:left-[16.5%]"
           // ⚠️ xl:h-[148%] — a step DOWN at xl, then back up at 2xl. The
           // column is 65% of the viewport: at 1440 that is 936px, and a 165%
           // figure (817px wide) plus a 440px card cannot share it — the face

@@ -93,6 +93,12 @@ export function UserDialog() {
   // thing a visitor opens when they decide to sign in, so it now carries the
   // same figure, the same card, the same copy and the same order as the page:
   // one press with Riot or Discord before any typing.
+  //
+  // ⚠️ WIDE, with the whole figure. The first cut was a 400px column with
+  // only the head as a band across the top, and it read as a tall strip with
+  // a hat on. He now stands full height down the left, under the content
+  // rather than above it — the form is set to the right and a scrim carries
+  // him under it, so the body is seen and the text is read.
   const ground = "#050d10"
   return (
     <Dialog>
@@ -103,7 +109,7 @@ export function UserDialog() {
       </DialogTrigger>
 
       <DialogContent
-        className="p-0 border-0 bg-transparent shadow-none max-w-[400px] overflow-hidden sm:rounded-[3px]"
+        className="p-0 border-0 bg-transparent shadow-none max-w-[580px] overflow-hidden sm:rounded-[3px]"
         overlayClassName="bg-[#040A0C]/70 backdrop-blur-md"
       >
         <DialogTitle className="sr-only">Sign In</DialogTitle>
@@ -117,32 +123,41 @@ export function UserDialog() {
               "inset 0 1px 0 0 rgba(215,216,217,0.055), inset 0 0 60px 0 rgba(0,217,146,0.035), 0 40px 90px -30px rgba(0,0,0,0.95)",
           }}
         >
-          {/* ── The figure, cropped to the face ─────────────────────────────
-              The page stands him full height beside the card; here the card is
-              all there is, so he becomes its top: the head, resolved from the
-              same portrait with the same tone, running down into the ground
-              the form sits on. Sized a little wider than the card so the
-              dissolve — which kills the canvas's own edges — happens outside
-              the box and the marks reach the sides. */}
-          <div aria-hidden className="relative h-[176px] overflow-hidden">
+          {/* ── The figure, whole ───────────────────────────────────────────
+              Same portrait, same tone as the page. Much taller than the box —
+              the feet run off the bottom, the head sits under the top edge —
+              and wide enough that the sword arm reaches under the form. The
+              body owns the left two-fifths in full; past that the scrim takes
+              him down to a texture the text sits on. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
             <Halftone
               src="/img/desktop/login-viego.jpg"
-              cols={72}
+              cols={110}
               cell={8}
               spreadX={1.55}
               black={0.3}
               gamma={2.6}
               floor={0.17}
-              className="absolute left-1/2 top-[-58px] w-[118%] max-w-none -translate-x-1/2"
+              className="absolute left-[-5%] top-[-12%] h-[160%] w-auto max-w-none"
             />
             <span
-              className="absolute inset-x-0 bottom-0 h-16"
-              style={{ background: `linear-gradient(180deg, rgba(5,13,16,0) 0%, ${ground} 100%)` }}
+              className="absolute inset-0"
+              style={{
+                // ⚠️ never fully solid: the scrim tops out at 90%, so the marks that
+                // run under the form are dimmed to a texture, not erased. That is
+                // the "under" — he continues behind the text at a tenth of his
+                // brightness instead of ending at a line where the form begins.
+                background: `linear-gradient(90deg, rgba(5,13,16,0) 0%, rgba(5,13,16,0) 28%, rgba(5,13,16,0.5) 44%, rgba(5,13,16,0.82) 58%, rgba(5,13,16,0.9) 72%, rgba(5,13,16,0.9) 100%)`,
+              }}
             />
+            {/* ⚠️ Under sm the form is full width and sits ON the figure, so
+                the whole thing is dimmed to a glow — the phone gets legibility
+                and atmosphere, the desktop gets the picture. */}
+            <span className="absolute inset-0 sm:hidden" style={{ background: "rgba(5,13,16,0.66)" }} />
           </div>
 
-          {/* Content */}
-          <div className="relative -mt-3 px-7 pb-7">
+          {/* Content — to the right of him */}
+          <div className="relative px-7 py-7 sm:pl-[43%] sm:pr-8">
             <h2 className="font-mechano text-xl text-flash/90 flex items-center gap-2 mb-1">
               <span className="text-jade/50 text-xs">◈</span>
               SIGN IN
@@ -219,14 +234,14 @@ export function UserDialog() {
             </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
+            <div className="flex items-center gap-3 my-4">
               <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${ac} 12%, transparent))` }} />
               <span className="text-[9px] tracking-[0.12em] uppercase text-flash/25 whitespace-nowrap">or with an email</span>
               <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 12%, transparent), transparent)` }} />
             </div>
 
             {/* Form */}
-            <div className="space-y-4" onKeyDown={onKeyDown}>
+            <div className="space-y-3" onKeyDown={onKeyDown}>
               <div>
                 <label className="block font-mono text-[9px] tracking-[0.15em] uppercase text-flash/25 mb-1">
                   Email
@@ -290,7 +305,7 @@ export function UserDialog() {
             </div>
 
             {/* Sign up link */}
-            <p className="text-[10px] text-flash/30 text-center mt-5">
+            <p className="text-[10px] text-flash/30 text-center mt-4">
               Don't have an account?{" "}
               <button
                 type="button"
