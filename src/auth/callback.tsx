@@ -20,7 +20,19 @@ export default function AuthCallback() {
     let cancelled = false
     const fail = (msg: string) => { if (!cancelled) { console.error("[AuthCallback]", msg); setError(msg) } }
     // Honour the stashed return-route (smart redirect); falls back to /dashboard.
-    const ok = () => { if (!cancelled) navigate(consumeStashedRedirect(), { replace: true }) }
+    /**
+     * ⚠️ `next` wins over the stashed redirect. A recovery link has to land on
+     * the page that CHANGES the password, not on wherever the visitor happened
+     * to be before — otherwise the session opens, the user is signed in, and
+     * the password they cannot remember is still the password.
+     * Only same-site paths: an absolute URL here would be an open redirect.
+     */
+    const ok = () => {
+      if (cancelled) return
+      const next = new URLSearchParams(window.location.search).get("next")
+      const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : null
+      navigate(safe ?? consumeStashedRedirect(), { replace: true })
+    }
 
     async function run() {
       const url = new URL(window.location.href)

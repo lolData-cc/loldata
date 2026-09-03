@@ -11,6 +11,7 @@ import SeasonPage from "@/pages/seasonpage"
 import DashboardPage from "@/pages/dashboard"
 import DesktopAuthPage from "@/pages/desktopauth"
 import DownloadPage from "@/pages/downloadpage"
+import ResetPasswordPage from "@/pages/resetpassword"
 import LearnPage from "@/pages/learnpage"
 import ExplorerPage from "@/pages/explorerpage"
 import ImprovementTreePage from "@/pages/improvementtreepage"
@@ -290,6 +291,7 @@ function App() {
               <Route path="/champions/:champId/guides/:guideId" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/champions/:champId/:tab?" element={<RootLayout><ChampionDetailPage /></RootLayout>} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/matches/:matchId" element={<MatchPage />} />
               <Route path="/champions" element={<RootLayout><ChampionsIndexPage /></RootLayout>} />
               <Route path="/leaderboards" element={<RootLayout><LeaderboardPage /></RootLayout>} />

@@ -92,6 +92,35 @@ export default function LoginPage() {
     }
   }
 
+  /**
+   * Ask for a recovery email.
+   *
+   * ⚠️ This did not exist. There was no resetPasswordForEmail anywhere in the
+   * product, so an account created with an email and a password had no way back
+   * in at all — the only recovery was the owner editing the database.
+   *
+   * ⚠️ It always reports success. Telling an anonymous visitor whether an
+   * address has an account here is an account-enumeration oracle, and the reply
+   * is the same either way.
+   */
+  async function handleForgot() {
+    if (!email) {
+      showCyberToast({ title: "Your email first", description: "Type the address you signed up with.", tag: "ERR", variant: "error" })
+      return
+    }
+    setSubmitting(true)
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    })
+    setSubmitting(false)
+    showCyberToast({
+      title: "Check your email",
+      description: "If that address has an account, a recovery link is on its way.",
+      tag: "OK",
+      variant: "status",
+    })
+  }
+
   // Email/password sign up
   async function handleSignUp() {
     if (!email || !password || !confirmPassword) {
@@ -571,6 +600,18 @@ export default function LoginPage() {
                       className="text-sm"
                     />
                   </div>
+
+                  {/* The way back in, for the people who cannot get in. */}
+                  {isSignIn && (
+                    <button
+                      type="button"
+                      onClick={handleForgot}
+                      disabled={submitting}
+                      className="-mt-1 self-start font-mono text-[10px] uppercase tracking-[0.15em] text-flash/30 transition-colors hover:text-jade disabled:opacity-50"
+                    >
+                      forgot your password?
+                    </button>
+                  )}
 
                   {/* Confirm password — sign up only */}
                   {!isSignIn && (
