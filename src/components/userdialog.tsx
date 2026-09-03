@@ -110,10 +110,14 @@ export function UserDialog() {
 
       <DialogContent
         className="p-0 border-0 bg-transparent shadow-none max-w-[860px] w-[calc(100%-2rem)] overflow-visible sm:rounded-none"
-        // ⚠️ 92%, darker than the site's other dialogs: the canvas is transparent
+        // ⚠️ 90%, darker than the site's other dialogs: the canvas is transparent
         // now, so whatever the page has under him shows THROUGH him, and the
         // blurred champion icons were bright enough to sit on his chest.
-        overlayClassName="bg-[#040A0C]/92 backdrop-blur-md"
+        // ⚠️ A MULTIPLE OF FIVE. Tailwind's opacity modifier only knows the
+        // scale (…85, 90, 95, 100): `/88` and `/92` generate NO class at all,
+        // and the overlay silently fell back to the base 10% — which is why
+        // two "darker" overlays in a row looked exactly the same.
+        overlayClassName="bg-[#040A0C]/90 backdrop-blur-md"
       >
         <DialogTitle className="sr-only">Sign In</DialogTitle>
         {/* ⚠️ Under sm the composition turns vertical: a band the width of the
