@@ -51,6 +51,16 @@ export function Halftone({
   black = 0.02,
   gamma = 1.6,
   floor = 0.055,
+  /**
+   * The colour painted under the marks, or null for none.
+   *
+   * ⚠️ On the pages this is the page's own black and the fill is invisible.
+   * Inside a dialog it is NOT: the canvas sits on a blurred, lighter overlay,
+   * and a filled canvas shows up as a dark rectangle with the figure in it —
+   * the exact box the dissolve exists to avoid. There, pass null and the
+   * marks float on whatever is behind them.
+   */
+  ground = "#040A0C" as string | null,
   className,
 }: {
   src: string
@@ -60,6 +70,7 @@ export function Halftone({
   black?: number
   gamma?: number
   floor?: number
+  ground?: string | null
   className?: string
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -133,8 +144,10 @@ export function Halftone({
       canvas.height = rows * cell
       const g = canvas.getContext("2d")
       if (!g) return
-      g.fillStyle = "#040A0C"
-      g.fillRect(0, 0, canvas.width, canvas.height)
+      if (ground) {
+        g.fillStyle = ground
+        g.fillRect(0, 0, canvas.width, canvas.height)
+      }
 
       const paint = (from: number, to: number) => {
         for (let i = from; i < to; i++) {
@@ -172,7 +185,7 @@ export function Halftone({
       dead = true
       cancelAnimationFrame(raf)
     }
-  }, [src, cols, cell, spreadX, black, gamma, floor, still])
+  }, [src, cols, cell, spreadX, black, gamma, floor, ground, still])
 
   return <canvas ref={ref} aria-hidden className={className} />
 }
