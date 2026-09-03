@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import {
   Dialog, DialogContent, DialogTrigger, DialogTitle,
 } from "@/components/ui/dialog"
+import { Halftone } from "@/components/halftone"
 
 const ac = "#00d992"
 const dimGlow = "rgba(0,217,146,0.08)"
@@ -84,6 +85,15 @@ export function UserDialog() {
   }
 
   // Logged out — sign-in dialog
+  //
+  // ⚠️ This is the same room as /login, smaller. It used to be a different
+  // building: an accent bar, scanlines, four HUD brackets, a ":: AUTH ::"
+  // strip and a glowing bottom rule — the generic-terminal kit — with the
+  // email form first and Riot/Discord last as an afterthought. It is the first
+  // thing a visitor opens when they decide to sign in, so it now carries the
+  // same figure, the same card, the same copy and the same order as the page:
+  // one press with Riot or Discord before any typing.
+  const ground = "#050d10"
   return (
     <Dialog>
       <DialogTrigger className="cursor-clicker">
@@ -93,72 +103,127 @@ export function UserDialog() {
       </DialogTrigger>
 
       <DialogContent
-        className="p-0 border-0 bg-transparent shadow-none max-w-[380px]"
+        className="p-0 border-0 bg-transparent shadow-none max-w-[400px] overflow-hidden sm:rounded-[3px]"
+        overlayClassName="bg-[#040A0C]/70 backdrop-blur-md"
       >
         <DialogTitle className="sr-only">Sign In</DialogTitle>
         <div
           className="relative overflow-hidden font-jetbrains"
           style={{
-            background: "#040A0C",
-            border: `1px solid color-mix(in srgb, ${ac} 20%, transparent)`,
-            borderRadius: "2px",
-            boxShadow: `0 0 40px ${dimGlow}, 0 8px 32px rgba(0,0,0,0.6)`,
+            background: ground,
+            borderRadius: "3px",
+            // lit from the inside, never outlined — the house rule
+            boxShadow:
+              "inset 0 1px 0 0 rgba(215,216,217,0.055), inset 0 0 60px 0 rgba(0,217,146,0.035), 0 40px 90px -30px rgba(0,0,0,0.95)",
           }}
         >
-          {/* Left accent bar */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-[2px]"
-            style={{ background: ac, boxShadow: `0 0 8px rgba(0,217,146,0.4)` }}
-          />
-
-          {/* Scanlines */}
-          <div
-            className="absolute inset-0 pointer-events-none z-[1]"
-            style={{
-              backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px)",
-            }}
-          />
-
-          {/* HUD corners */}
-          <Corner pos="top-left" />
-          <Corner pos="top-right" />
-          <Corner pos="bottom-left" />
-          <Corner pos="bottom-right" />
+          {/* ── The figure, cropped to the face ─────────────────────────────
+              The page stands him full height beside the card; here the card is
+              all there is, so he becomes its top: the head, resolved from the
+              same portrait with the same tone, running down into the ground
+              the form sits on. Sized a little wider than the card so the
+              dissolve — which kills the canvas's own edges — happens outside
+              the box and the marks reach the sides. */}
+          <div aria-hidden className="relative h-[176px] overflow-hidden">
+            <Halftone
+              src="/img/desktop/login-viego.jpg"
+              cols={72}
+              cell={8}
+              spreadX={1.55}
+              black={0.3}
+              gamma={2.6}
+              floor={0.17}
+              className="absolute left-1/2 top-[-58px] w-[118%] max-w-none -translate-x-1/2"
+            />
+            <span
+              className="absolute inset-x-0 bottom-0 h-16"
+              style={{ background: `linear-gradient(180deg, rgba(5,13,16,0) 0%, ${ground} 100%)` }}
+            />
+          </div>
 
           {/* Content */}
-          <div className="relative z-[5] px-6 py-6">
-            {/* Tag */}
-            <div
-              className="flex items-center gap-2 text-[9px] tracking-[0.25em] uppercase mb-4"
-              style={{ color: `color-mix(in srgb, ${ac} 40%, transparent)` }}
-            >
-              <span style={{ color: ac, fontSize: "7px" }}>◈</span>
-              <span>::</span>
-              <span
-                className="px-1 py-[1px]"
-                style={{
-                  color: ac,
-                  background: dimGlow,
-                  border: `1px solid color-mix(in srgb, ${ac} 25%, transparent)`,
-                  borderRadius: "1px",
-                  letterSpacing: "0.2em",
-                }}
-              >
-                AUTH
-              </span>
-              <span>::</span>
-              <span className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 20%, transparent), transparent)` }} />
-            </div>
-
-            {/* Title */}
-            <h2 className="font-mechano text-lg text-flash/90 flex items-center gap-2 mb-0.5">
+          <div className="relative -mt-3 px-7 pb-7">
+            <h2 className="font-mechano text-xl text-flash/90 flex items-center gap-2 mb-1">
               <span className="text-jade/50 text-xs">◈</span>
               SIGN IN
             </h2>
-            <div className="w-16 h-px mb-1.5" style={{ background: `linear-gradient(90deg, ${ac}, transparent)` }} />
-            <p className="text-[10px] text-flash/25 tracking-[0.05em] mb-5">
-              Access your analytics dashboard
+            <div className="w-16 h-px mb-2" style={{ background: `linear-gradient(90deg, ${ac}, transparent)` }} />
+            <p className="text-[11px] text-flash/40 tracking-[0.05em] mb-5">
+              Your games, your runes, your record.
             </p>
+
+            {/* ⚠️ The one-press routes come FIRST — see the page for why. */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={loginWithDiscord}
+                className="flex-1 cursor-pointer select-none group"
+                style={{
+                  background: "transparent",
+                  border: "1px solid color-mix(in srgb, #d7d8d9 12%, transparent)",
+                  borderRadius: "2px",
+                  padding: "12px 0",
+                  color: "color-mix(in srgb, #d7d8d9 78%, transparent)",
+                  fontSize: "11px",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "color-mix(in srgb, #5865F2 35%, transparent)"
+                  e.currentTarget.style.background = "rgba(88,101,242,0.05)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 12%, transparent)"
+                  e.currentTarget.style.background = "transparent"
+                }}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" className="w-3.5 h-3.5 fill-current text-flash/50 group-hover:text-[#5865F2] transition-colors duration-200">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.15,105.15,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21a105.73,105.73,0,0,0,31.77,16.15,77.7,77.7,0,0,0,6.85-11.08,68.42,68.42,0,0,1-10.79-5.18c.91-.66,1.8-1.35,2.66-2a75.57,75.57,0,0,0,66.58,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.81,5.19,77,77,0,0,0,6.85,11.08A105.25,105.25,0,0,0,126.6,80.23C129.24,51.37,121.13,27.53,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S53.89,46,53.89,53,48.73,65.69,42.45,65.69Zm42.24,0c-6.27,0-11.43-5.7-11.43-12.71S78.41,40.23,84.69,40.23,96.12,46,96.12,53,90.95,65.69,84.69,65.69Z" />
+                  </svg>
+                  Discord
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={loginWithRiot}
+                className="flex-1 cursor-pointer select-none group"
+                style={{
+                  background: "transparent",
+                  border: "1px solid color-mix(in srgb, #d7d8d9 12%, transparent)",
+                  borderRadius: "2px",
+                  padding: "12px 0",
+                  color: "color-mix(in srgb, #d7d8d9 78%, transparent)",
+                  fontSize: "11px",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "color-mix(in srgb, #c8292e 35%, transparent)"
+                  e.currentTarget.style.background = "rgba(200,41,46,0.05)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 12%, transparent)"
+                  e.currentTarget.style.background = "transparent"
+                }}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-flash/50 group-hover:text-[#c8292e] transition-colors duration-200">
+                    <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z" />
+                  </svg>
+                  Riot Games
+                </span>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${ac} 12%, transparent))` }} />
+              <span className="text-[9px] tracking-[0.12em] uppercase text-flash/25 whitespace-nowrap">or with an email</span>
+              <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 12%, transparent), transparent)` }} />
+            </div>
 
             {/* Form */}
             <div className="space-y-4" onKeyDown={onKeyDown}>
@@ -199,7 +264,7 @@ export function UserDialog() {
                   background: dimGlow,
                   border: `1px solid color-mix(in srgb, ${ac} 40%, transparent)`,
                   borderRadius: "2px",
-                  padding: "8px 0",
+                  padding: "10px 0",
                   color: ac,
                   fontSize: "11px",
                   letterSpacing: "0.15em",
@@ -224,126 +289,20 @@ export function UserDialog() {
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${ac} 12%, transparent))` }} />
-              <span className="text-[9px] tracking-[0.12em] uppercase text-flash/15">or</span>
-              <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 12%, transparent), transparent)` }} />
-            </div>
-
-            {/* OAuth buttons row */}
-            <div className="flex gap-2">
-              {/* Discord */}
-              <button
-                type="button"
-                onClick={loginWithDiscord}
-                className="flex-1 cursor-pointer select-none group"
-                style={{
-                  background: "transparent",
-                  border: "1px solid color-mix(in srgb, #d7d8d9 12%, transparent)",
-                  borderRadius: "2px",
-                  padding: "8px 0",
-                  color: "color-mix(in srgb, #d7d8d9 45%, transparent)",
-                  fontSize: "10px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "color-mix(in srgb, #5865F2 35%, transparent)"
-                  e.currentTarget.style.background = "rgba(88,101,242,0.05)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 12%, transparent)"
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" className="w-3.5 h-3.5 fill-current text-flash/35 group-hover:text-[#5865F2] transition-colors duration-200">
-                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.15,105.15,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21a105.73,105.73,0,0,0,31.77,16.15,77.7,77.7,0,0,0,6.85-11.08,68.42,68.42,0,0,1-10.79-5.18c.91-.66,1.8-1.35,2.66-2a75.57,75.57,0,0,0,66.58,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.81,5.19,77,77,0,0,0,6.85,11.08A105.25,105.25,0,0,0,126.6,80.23C129.24,51.37,121.13,27.53,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S53.89,46,53.89,53,48.73,65.69,42.45,65.69Zm42.24,0c-6.27,0-11.43-5.7-11.43-12.71S78.41,40.23,84.69,40.23,96.12,46,96.12,53,90.95,65.69,84.69,65.69Z" />
-                  </svg>
-                  Discord
-                </span>
-              </button>
-
-              {/* Riot */}
-              <button
-                type="button"
-                onClick={loginWithRiot}
-                className="flex-1 cursor-pointer select-none group"
-                style={{
-                  background: "transparent",
-                  border: "1px solid color-mix(in srgb, #d7d8d9 12%, transparent)",
-                  borderRadius: "2px",
-                  padding: "8px 0",
-                  color: "color-mix(in srgb, #d7d8d9 45%, transparent)",
-                  fontSize: "10px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "color-mix(in srgb, #c8292e 35%, transparent)"
-                  e.currentTarget.style.background = "rgba(200,41,46,0.05)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "color-mix(in srgb, #d7d8d9 12%, transparent)"
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-flash/35 group-hover:text-[#c8292e] transition-colors duration-200">
-                    <path d="M13.458.86 0 7.093l3.353 12.761 2.552-.313-.701-8.024.838-.373 1.447 8.202 4.361-.535-.775-8.857.83-.37 1.591 9.025 4.412-.542-.849-9.708.84-.374 1.74 9.87L24 17.318V3.5Zm.316 19.356.222 1.256L24 23.14v-4.18l-10.22 1.256Z"/>
-                  </svg>
-                  Riot Games
-                </span>
-              </button>
-            </div>
-
             {/* Sign up link */}
-            <p className="text-[10px] text-flash/20 text-center mt-5">
+            <p className="text-[10px] text-flash/30 text-center mt-5">
               Don't have an account?{" "}
               <button
                 type="button"
                 onClick={() => navigate("/login?mode=signup")}
-                className="text-jade/40 hover:text-jade/70 underline underline-offset-2 transition-colors cursor-pointer"
+                className="text-jade/60 hover:text-jade underline underline-offset-2 transition-colors cursor-pointer"
               >
                 Create one
               </button>
             </p>
           </div>
-
-          {/* Bottom accent line */}
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] z-[4]">
-            <div
-              className="h-full"
-              style={{
-                background: `linear-gradient(90deg, ${ac}, color-mix(in srgb, ${ac} 40%, transparent))`,
-                width: "100%",
-                boxShadow: `0 0 8px rgba(0,217,146,0.4)`,
-              }}
-            />
-          </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
-}
-
-/* ── HUD bracket corner ── */
-function Corner({ pos }: { pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" }) {
-  const isTop = pos.includes("top")
-  const isLeft = pos.includes("left")
-  return (
-    <div className={`absolute w-3.5 h-3.5 z-[3] ${isTop ? "top-0" : "bottom-0"} ${isLeft ? "left-0" : "right-0"}`}>
-      <div
-        className={`absolute ${isTop ? "top-0" : "bottom-0"} ${isLeft ? "left-0" : "right-0"} w-full h-[2px]`}
-        style={{ background: ac }}
-      />
-      <div
-        className={`absolute ${isTop ? "top-0" : "bottom-0"} ${isLeft ? "left-0" : "right-0"} w-[2px] h-full`}
-        style={{ background: ac }}
-      />
-    </div>
   )
 }
