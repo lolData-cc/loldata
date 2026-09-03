@@ -24,15 +24,23 @@ export default function RiotCallbackPage() {
     (async () => {
       try {
         // Check if user is already logged in (link mode)
-        const { data: auth } = await supabase.auth.getUser();
-        const userId = auth?.user?.id;
+        // ⚠️ The SESSION, not just the user id. The backend no longer accepts a
+        // user id from the body — it derives who you are from this token —
+        // because taking the id from the request let anyone with a fresh Riot
+        // code bind their account onto somebody else's profile.
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token ?? null;
+        const userId = sess?.session?.user?.id ?? null;
 
         setStatus(userId ? "Linking Riot account..." : "Creating account...");
 
         const res = await fetch(`${API_BASE_URL}/api/auth/riot/callback`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, userId, mode: userId ? "link" : "login" }),
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ code, mode: userId ? "link" : "login" }),
         });
 
         if (!res.ok) {
