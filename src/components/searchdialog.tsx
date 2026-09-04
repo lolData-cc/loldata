@@ -288,11 +288,12 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           ...r,
           icon_id: r.icon_id ?? match.icon_id ?? null,
           rank: r.rank ?? match.rank ?? null,
-          // avatar + plan refresh from the live result (they change: new pfp,
-          // upgrade/downgrade) so an OLD cached row stops showing the LoL icon
-          // and gains its premium/elite badge.
-          avatar_url: match._avatar ?? r.avatar_url ?? null,
-          plan: match._plan ?? r.plan ?? null,
+          // ⚠️ avatar + plan come from the LIVE result even when it has none:
+          // a lapsed membership or a removed picture must clear the cached
+          // value, and `live ?? cached` kept a premium badge and a dead avatar
+          // URL alive months after both were gone.
+          avatar_url: match._avatar ?? null,
+          plan: match._plan ?? null,
         }
         if (
           merged.icon_id !== r.icon_id || merged.rank !== r.rank ||
@@ -591,8 +592,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         ...r, // keeps _isRecent (the badge)
         rank: live.rank ?? r.rank,
         icon_id: live.icon_id ?? r.icon_id,
-        _avatar: live._avatar ?? r._avatar,
-        _plan: live._plan ?? r._plan,
+        // live is authoritative, null included — see the recents merge above
+        _avatar: live._avatar ?? null,
+        _plan: live._plan ?? null,
       }
     })
     const filtered = suggestions.filter(
@@ -1189,6 +1191,13 @@ function SuggestionRow({
             src={sugg._avatar}
             alt=""
             className="w-9 h-9 rounded-sm object-cover border border-jade/25 shrink-0"
+            // a dead avatar URL falls back to the LoL icon, never a broken image
+            onError={(e) => {
+              const el = e.currentTarget
+              if (el.dataset.fallback) { el.style.visibility = "hidden"; return }
+              el.dataset.fallback = "1"
+              el.src = `${cdnBaseUrl()}/img/profileicon/${sugg.icon_id ?? 29}.png`
+            }}
           />
         ) : sugg._isPro ? (
           <div className="w-9 h-9 rounded-sm bg-filmdark/40 border border-jade/15 flex items-center justify-center shrink-0">
