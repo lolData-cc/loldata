@@ -2328,11 +2328,10 @@ export default function SummonerPage() {
                     )}
                   </div>
 
-                  {/* Actions — one row, equal width; the note has its own line */}
+                  {/* Actions — one row, the toolbar chip's size; the note has its own line */}
                   <div className="mt-0.5">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
                       <UpdateButton
-                        fill
                         onClick={() => refreshData(true)}
                         loading={refreshing}
                         cooldown={onCooldown}
@@ -2345,12 +2344,11 @@ export default function SummonerPage() {
                           summonerName={summonerInfo?.name ?? name ?? "Unknown"}
                           externalOpen={analyzeOpen}
                           onExternalOpenChange={setAnalyzeOpen}
-                          fill
                           trialNote="none"
                           onTrialAvailability={setTrialNote}
                         />
                       ) : (
-                        <span aria-hidden className="h-7 rounded-[5px] bg-filmlight/[0.03]" />
+                        <span aria-hidden className="h-6 w-[88px] rounded-[5px] bg-filmlight/[0.03]" />
                       )}
                     </div>
                     <div className="mt-1.5 min-h-[12px] font-mono text-[9px] uppercase tracking-[0.16em] text-citrine/60 leading-none">
