@@ -38,7 +38,13 @@ export function readRecentProfiles(): RecentSearchedProfile[] {
     const raw = localStorage.getItem(RECENT_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    // ⚠️ Avatars uploaded before the move off Supabase Cloud point at a storage
+    // host that now answers 402: a cached entry kept showing a broken image
+    // (and its old premium badge) forever. Those URLs are dropped on read.
+    return parsed.map((r: RecentSearchedProfile) =>
+      r?.avatar_url && /supabase\.co/.test(r.avatar_url) ? { ...r, avatar_url: null } : r
+    )
   } catch {
     return []
   }
@@ -128,10 +134,7 @@ export function removeRecentProfile(
 export function subscribeRecentProfiles(handler: () => void): () => void {
   if (typeof window === "undefined") return () => {}
   window.addEventListener(UPDATED_EVENT, handler)
-  // ⚠️ Avatars uploaded before the move off Supabase Cloud point at a storage
-  // host that now answers 402: a cached entry kept showing a broken image
-  // (and its old premium badge) forever. Those URLs are dropped on read.
-  return (() => window.removeEventListener(UPDATED_EVENT, handler)).map((r) => (r.avatar_url && /supabase\.co/.test(r.avatar_url) ? { ...r, avatar_url: null } : r))
+  return () => window.removeEventListener(UPDATED_EVENT, handler)
 }
 
 export { RECENT_KEY, UPDATED_EVENT }
