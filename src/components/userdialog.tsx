@@ -143,8 +143,8 @@ export function UserDialog() {
   //
   // ⚠️ IT DOES NOT POP IN. The window is BUILT, in the order a holographic
   // panel would be: a horizontal beam strikes at the centre; the plate opens
-  // out of the beam vertically, flickering as it stabilises; the corner
-  // brackets snap out; then the content resolves one block at a time behind
+  // out of the beam vertically, flickering as it stabilises; then the
+  // content resolves one block at a time behind
   // a scanning edge while the title decodes from random glyphs and the
   // figure surfaces underneath. Once built it holds still. On close the
   // plate collapses back to the beam. All of it is in
@@ -166,12 +166,6 @@ export function UserDialog() {
 
         {/* the beam the window opens out of */}
         <span aria-hidden className="sd-beam" />
-
-        {/* the four corner brackets, outside the plate */}
-        <span aria-hidden className="sd-c sd-c-tl" />
-        <span aria-hidden className="sd-c sd-c-tr" />
-        <span aria-hidden className="sd-c sd-c-bl" />
-        <span aria-hidden className="sd-c sd-c-br" />
 
         <div className="sd-plate relative overflow-hidden font-jetbrains">
           {/* scanline texture, static — the moving bands (edge rails, the

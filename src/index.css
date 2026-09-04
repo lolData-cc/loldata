@@ -1270,11 +1270,10 @@ body.modal-frozen #root *::after {
    Timeline (ms from open):
      0     beam     a jade hairline strikes across the centre
      110   plate    opens out of the beam vertically, flickers, settles
-     200   corners  the four brackets snap out, one after another
      380   mark     the figure surfaces
      560+  rows     each block wipes in behind a scanning edge, 75ms apart;
                     the title decodes from random glyphs (DecodedTitle)
-     1600+ ambient  the brackets breathe; nothing else moves
+     built    it holds still
    Close: the plate collapses back to the beam.
 
    ⚠️ Fill modes matter. Rows use `backwards`: hidden until their delay, then
@@ -1333,26 +1332,6 @@ body.modal-frozen #root *::after {
   100% { transform: scaleY(1); opacity: 1; }
 }
 
-/* the corner brackets — jade, outside the plate */
-.sd-c {
-  position: absolute; width: 16px; height: 16px; pointer-events: none;
-  border: 0 solid rgba(0, 217, 146, 0.55);
-  animation: sd-c-in 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both, sd-c-breathe 4s ease-in-out 1.8s infinite;
-}
-.sd-c-tl { top: -7px; left: -7px; border-top-width: 1px; border-left-width: 1px; transform-origin: 0 0; animation-delay: 200ms, 1.8s; }
-.sd-c-tr { top: -7px; right: -7px; border-top-width: 1px; border-right-width: 1px; transform-origin: 100% 0; animation-delay: 270ms, 2.2s; }
-.sd-c-br { bottom: -7px; right: -7px; border-bottom-width: 1px; border-right-width: 1px; transform-origin: 100% 100%; animation-delay: 340ms, 2.6s; }
-.sd-c-bl { bottom: -7px; left: -7px; border-bottom-width: 1px; border-left-width: 1px; transform-origin: 0 100%; animation-delay: 410ms, 3s; }
-@keyframes sd-c-in {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.25); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-@keyframes sd-c-breathe {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
 /* scanlines, static */
 .sd-scan {
   position: absolute; inset: 0; pointer-events: none;
@@ -1393,9 +1372,8 @@ body.modal-frozen #root *::after {
 @media (prefers-reduced-motion: reduce) {
   .sd-content[data-state="closed"] { animation: none !important; }
   .sd-beam { display: none; }
-  .sd-plate, .sd-c, .sd-scan, .sd-mark, .sd-row, .sd-row::after { animation: none !important; }
+  .sd-plate, .sd-scan, .sd-mark, .sd-row, .sd-row::after { animation: none !important; }
   .sd-plate { transform: none; opacity: 1; }
-  .sd-c { transform: none; opacity: 1; }
   .sd-scan { opacity: 1; }
   .sd-mark { opacity: 0.44; }
   .sd-row::after { display: none; }
