@@ -1,19 +1,21 @@
-// Dashboard SCOUT tab — lists the authenticated user's scout lobbies with
-// quota info and a create-new button. Plan limits enforced by the backend:
-// free 3, premium (PRO) 5, elite 10.
+// Dashboard SCOUT tab — the user's scout lobbies, in the dashboard's own
+// language: SettingsCards, the same rows as the Profile tab (square icon,
+// title, a line of context, the action on the right).
+//
+// ⚠️ It used to be a bespoke quota header plus a list of bordered link
+// rows with an accent bar — a third visual system next to Profile and
+// Preferences. Now: one card for the quota and the create action, one card
+// listing the lobbies as rows separated by hairlines.
+//
+// Plan limits are enforced by the backend (free 3, premium 5, elite 10);
+// this only shows what /api/scout/my-lobbies reports.
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Plus,
-  Users,
-  ExternalLink,
-  Clock,
-  AlertCircle,
-  Crown,
-} from "lucide-react";
+import { Crown, ExternalLink, Plus, Users } from "lucide-react";
 import { API_BASE_URL } from "@/config";
 import { supabase } from "@/lib/supabaseClient";
+import { SettingsCard } from "@/components/ui/settings-card";
 import { cn } from "@/lib/utils";
 
 type PlanTier = "free" | "premium" | "elite";
@@ -36,22 +38,16 @@ type MyLobbiesPayload = {
   lobbies: LobbyRow[];
 };
 
-const PLAN_LABEL: Record<PlanTier, string> = {
-  free: "FREE",
-  premium: "PRO",
-  elite: "ELITE",
-};
+const PLAN_LABEL: Record<PlanTier, string> = { free: "FREE", premium: "PREMIUM", elite: "ELITE" };
 
-const PLAN_COLOR: Record<PlanTier, string> = {
-  free: "text-flash/60",
-  premium: "text-jade",
-  elite: "text-amber-300",
-};
+const PRIMARY =
+  "inline-flex items-center gap-1.5 rounded-[2px] border border-jade/35 bg-jade/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-jade transition-colors hover:bg-jade/20 hover:border-jade/50 cursor-clicker";
+const SECONDARY =
+  "inline-flex items-center gap-1.5 rounded-[2px] border border-flash/15 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-flash/50 transition-colors hover:bg-flash/5 hover:text-flash/70 cursor-clicker";
 
 function formatRelative(iso: string | null): string {
   if (!iso) return "never";
-  const then = new Date(iso).getTime();
-  const diff = Date.now() - then;
+  const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60_000);
   if (min < 1) return "just now";
   if (min < 60) return `${min}m ago`;
@@ -59,8 +55,7 @@ function formatRelative(iso: string | null): string {
   if (hr < 24) return `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 30) return `${d}d ago`;
-  const mo = Math.floor(d / 30);
-  return `${mo}mo ago`;
+  return `${Math.floor(d / 30)}mo ago`;
 }
 
 export default function ScoutLobbiesManager() {
@@ -70,7 +65,7 @@ export default function ScoutLobbiesManager() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
@@ -97,8 +92,7 @@ export default function ScoutLobbiesManager() {
           setLoading(false);
         }
       }
-    };
-    load();
+    })();
     return () => {
       cancelled = true;
     };
@@ -106,171 +100,123 @@ export default function ScoutLobbiesManager() {
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-16 rounded-[2px] border border-flash/8 bg-filmdark/20 animate-pulse"
-          />
-        ))}
-      </div>
+      <SettingsCard title="Scout lobbies">
+        <div className="flex items-center gap-3.5">
+          <div className="h-14 w-14 shrink-0 animate-pulse rounded-[2px] bg-flash/5" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-32 animate-pulse rounded-[2px] bg-flash/5" />
+            <div className="h-3 w-56 animate-pulse rounded-[2px] bg-flash/5" />
+          </div>
+        </div>
+      </SettingsCard>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="rounded-[2px] border border-red-400/20 bg-red-400/5 px-4 py-3 flex items-center gap-2">
-        <AlertCircle className="w-4 h-4 text-red-400/70" />
-        <span className="text-[11px] font-mono text-red-300/80">
-          {error ?? "Failed to load"}
-        </span>
-      </div>
+      <SettingsCard title="Scout lobbies" variant="danger" hint="◈ UNAVAILABLE">
+        <span className="text-flash/60 text-sm">Couldn't load your lobbies: {error ?? "unknown error"}.</span>
+      </SettingsCard>
     );
   }
 
+  const limitReached = !data.canCreate && data.plan !== "elite";
+
   return (
-    <div className="space-y-4">
-      {/* QUOTA HEADER */}
-      <div className="relative overflow-hidden rounded-md bg-filmlight/[0.04] backdrop-blur-lg saturate-150 shadow-[0_10px_30px_rgba(var(--c-shadow),0.45),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_0_rgba(255,255,255,0.10)]">
-        <div className="relative z-[1] px-4 py-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h4 className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50">
-                Your Plan
-              </h4>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-[9px] font-mono font-bold tracking-[0.2em] px-1.5 py-[1px] rounded-sm border",
-                  data.plan === "free"
-                    ? "border-flash/15 text-flash/60"
-                    : data.plan === "premium"
-                      ? "border-jade/30 bg-jade/10 text-jade"
-                      : "border-amber-400/30 bg-amber-400/10 text-amber-300"
-                )}
-              >
-                {data.plan !== "free" && <Crown className="w-2.5 h-2.5" />}
+    <>
+      {/* ── Quota + create ── */}
+      <SettingsCard title="Scout lobbies" hint={`◈ ${data.used} / ${data.limit} USED`}>
+        <div className="flex items-center gap-3.5">
+          <div className={cn("grid h-14 w-14 shrink-0 place-items-center rounded-[2px] border bg-filmdark/30", data.plan === "free" ? "border-jade/15 text-flash/35" : "border-jade/25 text-jade")}>
+            <Users className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-medium text-flash/85">Your lobbies</span>
+              <span className={cn("inline-flex items-center gap-1 rounded-sm border px-1.5 py-[1px] font-mono text-[9px] tracking-[0.2em]", data.plan === "free" ? "border-flash/15 text-flash/50" : "border-jade/30 bg-jade/10 text-jade")}>
+                {data.plan !== "free" && <Crown className="h-2.5 w-2.5" />}
                 {PLAN_LABEL[data.plan]}
               </span>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className={cn(
-                  "text-[20px] font-orbitron font-bold tabular-nums",
-                  PLAN_COLOR[data.plan]
-                )}
-              >
-                {data.used}
-              </span>
-              <span className="text-[12px] font-mono text-flash/30">
-                / {data.limit} lobbies used
-              </span>
+            <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-flash/40">
+              {limitReached
+                ? `Shareable feeds tracking up to 20 players each. You are at your plan's limit of ${data.limit}.`
+                : "Shareable feeds tracking up to 20 players each. The quota depends on your plan."}
             </div>
-            {!data.canCreate && data.plan !== "elite" && (
-              <p className="mt-1 text-[10px] font-mono text-flash/40">
-                Limit reached — upgrade for more.{" "}
-                <Link to="/pricing" className="text-jade hover:underline">
-                  See plans →
-                </Link>
-              </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {data.canCreate ? (
+              <Link to="/scout/new" className={PRIMARY}>
+                <Plus className="h-3.5 w-3.5" />
+                New lobby
+              </Link>
+            ) : (
+              <Link to="/pricing" className={PRIMARY}>
+                <Crown className="h-3.5 w-3.5" />
+                Upgrade
+              </Link>
             )}
           </div>
-
-          {data.canCreate ? (
-            <Link
-              to="/scout/new"
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-jade/40 text-jade hover:bg-jade/10 hover:shadow-[0_0_15px_rgba(0,217,146,0.15)] font-mono text-[10px] tracking-[0.2em] uppercase cursor-clicker transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New lobby
-            </Link>
-          ) : (
-            <Link
-              to="/pricing"
-              className={cn(
-                "shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border font-mono text-[10px] tracking-[0.2em] uppercase cursor-clicker transition-all",
-                data.plan === "premium"
-                  ? "border-amber-400/40 text-amber-300 hover:bg-amber-400/10"
-                  : "border-jade/40 text-jade hover:bg-jade/10"
-              )}
-            >
-              <Crown className="w-3.5 h-3.5" />
-              Upgrade
-            </Link>
-          )}
         </div>
-      </div>
+      </SettingsCard>
 
-      {/* LOBBIES LIST */}
-      {data.lobbies.length === 0 ? (
-        <div className="rounded-[2px] border border-dashed border-flash/15 bg-filmdark/20 px-6 py-10 flex flex-col items-center text-center gap-3">
-          <div className="relative w-10 h-10">
-            <span className="absolute inset-0 rotate-45 rounded-[3px] border border-jade/30 bg-jade/5" />
-            <span className="absolute inset-0 flex items-center justify-center text-jade/60">
-              <Users className="w-4 h-4" />
-            </span>
+      {/* ── The lobbies ── */}
+      <SettingsCard title="Lobbies" hint={data.lobbies.length ? `◈ ${data.lobbies.length}` : undefined}>
+        {data.lobbies.length === 0 ? (
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[2px] border border-jade/15 bg-filmdark/30 text-flash/25">
+              <Users className="h-5 w-5" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-flash/85">No lobbies yet</div>
+              <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-flash/40">
+                Create your first lobby to start tracking your squad.
+              </div>
+            </div>
+            {data.canCreate && (
+              <div className="flex shrink-0 items-center gap-2">
+                <Link to="/scout/new" className={PRIMARY}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Create lobby
+                </Link>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-[12px] font-mono text-flash/60 mb-1">
-              No lobbies yet
-            </p>
-            <p className="text-[10px] font-mono text-flash/30">
-              Create your first lobby to start tracking your squad.
-            </p>
-          </div>
-          <Link
-            to="/scout/new"
-            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-sm border border-jade/40 text-jade hover:bg-jade/10 font-mono text-[10px] tracking-[0.2em] uppercase cursor-clicker transition-all"
-          >
-            <Plus className="w-3 h-3" />
-            Create lobby
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {data.lobbies.map((lobby) => (
-            <Link
-              key={lobby.slug}
-              to={`/scout/${lobby.slug}`}
-              className="group relative block rounded-[2px] border border-flash/10 bg-filmdark/25 hover:bg-filmdark/35 hover:border-jade/25 hover:shadow-[0_0_15px_rgba(0,217,146,0.08)] transition-all overflow-hidden"
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-flash/20 group-hover:bg-jade/50 transition-colors" />
-              <div className="relative z-10 px-4 py-3 pl-5 flex items-center gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-[13px] font-mono font-bold text-flash truncate group-hover:text-jade transition-colors">
-                      {lobby.name}
-                    </h3>
-                    {!lobby.isPublic && (
-                      <span className="text-[8px] font-mono uppercase tracking-wider text-flash/40 border border-flash/15 px-1 py-[1px] rounded-sm">
-                        Private
-                      </span>
-                    )}
+        ) : (
+          <div className="flex flex-col">
+            {data.lobbies.map((lobby, i) => (
+              <div key={lobby.slug}>
+                {i > 0 && <div className="my-3 h-[1px] bg-gradient-to-r from-jade/15 via-flash/8 to-transparent" />}
+                <div className="flex items-center gap-3.5">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[2px] border border-jade/15 bg-filmdark/30 font-jetbrains text-[13px] text-jade/80">
+                    {lobby.playerCount}
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] font-mono text-flash/35">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-2.5 h-2.5" />
-                      {lobby.playerCount}{" "}
-                      {lobby.playerCount === 1 ? "player" : "players"}
-                    </span>
-                    <span className="opacity-30">·</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
-                      refreshed {formatRelative(lobby.lastRefreshAt)}
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-flash/85">{lobby.name}</span>
+                      {!lobby.isPublic && (
+                        <span className="rounded-sm border border-flash/15 px-1 py-[1px] font-mono text-[8px] uppercase tracking-wider text-flash/40">
+                          Private
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-[12px] leading-snug text-flash/40">
+                      {lobby.playerCount} {lobby.playerCount === 1 ? "player" : "players"} · refreshed {formatRelative(lobby.lastRefreshAt)}
+                      <span className="hidden sm:inline text-flash/25"> · /{lobby.slug}</span>
+                    </div>
                   </div>
-                </div>
-
-                <div className="shrink-0 flex items-center gap-2">
-                  <code className="hidden sm:block text-[10px] font-mono text-flash/25 tabular-nums">
-                    /{lobby.slug}
-                  </code>
-                  <ExternalLink className="w-3.5 h-3.5 text-flash/30 group-hover:text-jade transition-colors" />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link to={`/scout/${lobby.slug}`} className={SECONDARY}>
+                      Open
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </SettingsCard>
+    </>
   );
 }

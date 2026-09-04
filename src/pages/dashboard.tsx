@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { SettingsCard } from "@/components/ui/settings-card";
 import { Navbar } from "@/components/navbar";
 import { PremiumAvatarUploader } from "@/components/profileavataruploader";
-import { Label } from "@/components/ui/label";
+
 import { useChampionPicker } from "@/context/championpickercontext";
 import { ProfilerLinker } from "@/components/profilelinker";
 import {
@@ -23,7 +23,6 @@ import { BorderBeamPreference } from "@/components/borderbeampreference";
 import { TechBackgroundPreference } from "@/components/techbackgroundpreference";
 import { MatchTransitionPreference } from "@/components/matchtransitionpreference";
 import { AccountDeletion } from "@/components/accountdeletion";
-import { DocumentationGuide } from "@/components/documentationguide";
 import { MatchGroupingPreference } from "@/components/matchgroupingpreference";
 import { ColoredMatchBgPreference } from "@/components/coloredmatchbgpreference";
 import { MatchCenteringPreference } from "@/components/matchcenteringpreference";
@@ -38,13 +37,12 @@ import { AmbientLightPreference } from "@/components/ambientlightpreference";
 import { ThemePreference } from "@/components/themepreference";
 import { ChangePassword } from "@/components/changepassword";
 import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
-import { cdnBaseUrl, API_BASE_URL, BOX_API_BASE_URL } from "@/config";
+import { BillingSettings } from "@/components/billingsettings";
+import { ProfileChecklist, markOnboardFlag } from "@/components/profilechecklist";
+import { cdnBaseUrl, API_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { Loader2, CreditCard, ExternalLink, Check, Crown, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { BorderBeam } from "@/components/ui/border-beam";
+import { Loader2, CreditCard, ExternalLink, Check, Sparkles } from "lucide-react";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -95,13 +93,12 @@ export default function DashboardPage() {
     : `${cdnBaseUrl()}/img/profileicon/${iconId ?? 29}.png`
   const displayName = nametag ?? email
 
-  const validTabs = ["profile", "documentation", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "accountLink", "planSetup"];
+  const validTabs = ["profile", "billing", "preferences", "scout", "database", "proApplications", "streamerApplications", "accountLink", "planSetup"];
   const activeTab = tab && validTabs.includes(tab) ? tab : "profile";
 
   // mobile bottom section picker — rises up to choose a dashboard section
   const SECTIONS = [
     { value: "profile", label: "PROFILE" },
-    { value: "documentation", label: "DOCUMENTATION" },
     { value: "billing", label: "BILLING" },
     { value: "preferences", label: "PREFERENCES" },
     { value: "scout", label: "SCOUT" },
@@ -176,7 +173,7 @@ export default function DashboardPage() {
       {/* riga 2: contenuto */}
       <div className="w-full min-h-0">
         <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto px-4 h-full min-h-0">
-          <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex flex-col lg:flex-row w-full h-full min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => { if (v === "preferences") markOnboardFlag("preferences"); navigate(`/dashboard/${v}`, { replace: true }); }} className="flex flex-col lg:flex-row w-full h-full min-h-0">
             {/* sidebar — desktop only; on phone the bottom section picker replaces it */}
             <div className="hidden lg:flex w-full lg:w-[20%] border-b lg:border-r border-flash/10 h-auto lg:h-full shrink-0 overflow-x-auto lg:overflow-y-auto scrollbar-hide flex-col pt-3 lg:pt-6">
               <div>
@@ -224,13 +221,6 @@ export default function DashboardPage() {
                     className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
                   >
                     PROFILE
-                  </TabsTrigger>
-
-                  <TabsTrigger
-                    value="documentation"
-                    className="shrink-0 lg:w-full justify-center lg:justify-start whitespace-nowrap px-3 py-1.5 font-jetbrains text-[11px] tracking-[0.15em] uppercase text-flash/60 data-[state=active]:text-jade data-[state=active]:bg-jade/10 data-[state=active]:border-b-2 lg:data-[state=active]:border-b-0 lg:data-[state=active]:border-l-2 data-[state=active]:border-jade data-[state=active]:shadow-none border-b-2 lg:border-b-0 lg:border-l-2 border-transparent hover:text-flash/80 rounded-none cursor-clicker transition-colors"
-                  >
-                    DOCUMENTATION
                   </TabsTrigger>
 
                   <TabsTrigger
@@ -311,6 +301,11 @@ export default function DashboardPage() {
 
             {/* 70%: content scrollabile */}
             <div className="w-full lg:w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-20 lg:pb-0">
+              {/* Above every tab until it is complete or dismissed */}
+              <div className="px-3 pt-3 sm:px-6 sm:pt-4">
+                <ProfileChecklist />
+              </div>
+
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
                 <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
@@ -415,28 +410,16 @@ export default function DashboardPage() {
 
               {/* SCOUT TAB */}
               <TabsContent value="scout" className="outline-none">
-                <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
-                  <div>
-                    <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-jade/50 mb-1">
-                      :: YOUR SCOUT LOBBIES ::
-                    </p>
-                    <p className="text-[11px] font-mono text-flash/30 leading-relaxed mb-3">
-                      Shareable feeds tracking up to 20 players each.
-                      Lobby quota depends on your plan.
-                    </p>
-                    <ScoutLobbiesManager />
-                  </div>
+                <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
+                  <ScoutLobbiesManager />
                 </div>
-              </TabsContent>
-
-              {/* DOCUMENTATION TAB */}
-              <TabsContent value="documentation" className="outline-none">
-                <DocumentationGuide />
               </TabsContent>
 
               {/* BILLING TAB */}
               <TabsContent value="billing" className="outline-none">
-                <BillingTabContent plan={plan} />
+                <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
+                  <BillingSettings plan={plan} />
+                </div>
               </TabsContent>
 
               {/* ADMIN TAB: DATABASE */}
@@ -481,324 +464,6 @@ export default function DashboardPage() {
           </Tabs>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Billing tab inner panel ────────────────────────────────────────
-// Luxury treatment: glass plan card with BorderBeam + jade halo, plan
-// perks listed inline, and a Manage Subscription button that opens the
-// Stripe customer portal. Sub-component shared between dashboard tab
-// and (if we ever want to) any standalone billing route.
-//
-// Portal opening flows through POST /api/billing/portal-session —
-// Stripe requires a fresh session URL on each visit (URLs expire), so
-// we never cache it; the fetch happens on click.
-function BillingTabContent({ plan }: { plan: string | null }) {
-  const [loadingPortal, setLoadingPortal] = useState(false);
-  const isPaid = !!plan && plan !== "free";
-  const isElite = plan === "elite";
-  const displayPlan = (plan ?? "free").toUpperCase();
-
-  async function openPortal() {
-    try {
-      setLoadingPortal(true);
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      const resp = await fetch(`${API_BASE_URL}/api/billing/portal-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => "");
-        throw new Error(`HTTP ${resp.status} ${body}`.trim());
-      }
-      const { url } = await resp.json();
-      if (!url) throw new Error("Missing portal URL");
-      window.location.href = url;
-    } catch (err) {
-      console.error("Portal error:", err);
-      showCyberToast({
-        title: "Couldn't open the portal",
-        description:
-          "Stripe didn't return a session URL. Refresh and try again in a moment.",
-        tag: "STRIPE",
-        variant: "error",
-        duration: 4500,
-        id: "stripe-portal-error",
-      });
-      setLoadingPortal(false);
-    }
-  }
-
-  // Per-plan perks shown inline so the user sees what they're getting
-  // even when not on the success page. Truncated copy fitting the
-  // dashboard's compact column width.
-  const perks: { icon: typeof Check; label: string }[] = isElite
-    ? [
-        { icon: Crown, label: "Scout lobbies ×3" },
-        { icon: Sparkles, label: "AI Coach + Matchup Engine" },
-        { icon: Sparkles, label: "10× daily AI tokens" },
-        { icon: Check, label: "Early access to new features" },
-        { icon: Check, label: "Private Discord channel" },
-        { icon: Check, label: "Priority support" },
-      ]
-    : isPaid
-      ? [
-          { icon: Crown, label: "Scout lobbies ×2" },
-          { icon: Sparkles, label: "AI Coach + Matchup Engine" },
-          { icon: Sparkles, label: "Itemization analysis" },
-          { icon: Check, label: "Daily performance reports" },
-          { icon: Check, label: "Unlimited player & champion analysis" },
-        ]
-      : [
-          { icon: Check, label: "Personal data tracking" },
-          { icon: Check, label: "3 daily AI tokens" },
-          { icon: Check, label: "Complete loldata stats access" },
-        ];
-
-  // AI credit balance + plan economics, folded into the membership card below.
-  const allot = isElite ? 750 : isPaid ? 150 : 3;
-  const priceLabel = isElite ? "€14.99 / month" : isPaid ? "€3.49 / month" : null;
-  const [credits, setCredits] = useState<number | null>(null);
-  const [creditReset, setCreditReset] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        if (!token) return;
-        const r = await fetch(`${BOX_API_BASE_URL}/api/ai/credits`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!r.ok || !alive) return;
-        const d = await r.json();
-        if (!alive) return;
-        if (typeof d.credits === "number") setCredits(d.credits);
-        if (d.resetAt) setCreditReset(d.resetAt);
-      } catch {
-        /* endpoint not live yet — show "—" */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const creditPct =
-    credits == null ? 6 : Math.max(6, Math.min(100, (credits / allot) * 100));
-  const creditUntil = (() => {
-    if (!creditReset) return null;
-    const ms = new Date(creditReset).getTime() - Date.now();
-    if (ms <= 0) return "soon";
-    const h = Math.floor(ms / 3_600_000);
-    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
-    if (h < 24) return `${h}h`;
-    return `${Math.floor(h / 24)}d`;
-  })();
-
-  return (
-    <div className="flex flex-col gap-6 p-3 px-3 sm:p-4 sm:px-6">
-      <div className="space-y-2">
-        <h3 className="text-flash/60">BILLING</h3>
-        <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-flash/35">
-          :: SUBSCRIPTION ::
-        </p>
-      </div>
-
-      {/* Membership — plan · AI credits · perks · actions, one cohesive frame. */}
-      <motion.div
-        className="relative overflow-hidden rounded-lg bg-filmdark/40 backdrop-blur-lg saturate-150 glass-panel"
-        style={{
-          boxShadow: isPaid
-            ? "0 22px 60px rgba(0,0,0,0.6), 0 0 36px rgba(0,217,146,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
-            : "0 22px 60px rgba(0,0,0,0.55), inset 0 0 0 0.5px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.04)",
-        }}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {isPaid ? <BorderBeam duration={10} size={220} /> : null}
-
-        {/* Top row — PLAN | AI CREDITS */}
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Plan */}
-          <div className="relative p-6 border-b md:border-b-0 md:border-r border-hairline/[0.07]">
-            {isPaid ? (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -top-20 -left-20 h-56 w-56"
-                style={{
-                  background:
-                    "radial-gradient(circle, rgba(0,217,146,0.28) 0%, transparent 70%)",
-                }}
-              />
-            ) : null}
-            <div className="relative z-10">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-flash/45">
-                  Current plan
-                </span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em]",
-                    isPaid
-                      ? "border-jade/40 bg-jade/15 text-jade"
-                      : "border-flash/15 bg-flash/[0.05] text-flash/50"
-                  )}
-                  style={isPaid ? { boxShadow: "0 0 16px rgba(0,217,146,0.22)" } : undefined}
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isPaid ? "bg-jade animate-pulse" : "bg-flash/40"
-                    )}
-                  />
-                  {isPaid ? "Active" : "Free"}
-                </span>
-              </div>
-              <div
-                className={cn(
-                  "mt-3 font-jetbrains text-4xl font-bold tabular-nums tracking-[0.04em]",
-                  isPaid ? "text-jade" : "text-flash/85"
-                )}
-                style={
-                  isPaid
-                    ? {
-                        textShadow:
-                          "0 0 22px rgba(0,217,146,0.5), 0 0 48px rgba(0,217,146,0.2)",
-                      }
-                    : undefined
-                }
-              >
-                {displayPlan}
-              </div>
-              <div className="mt-2 font-jetbrains text-[12px] text-flash/55">
-                {priceLabel ? (
-                  <>
-                    <span className="text-flash/80">{priceLabel}</span>
-                    <span className="text-flash/40"> · billed via Stripe</span>
-                  </>
-                ) : (
-                  "No active subscription"
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* AI credits */}
-          <div className="relative p-6 bg-jade/[0.03]">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-flash/45">
-                <Sparkles className="h-3 w-3 text-jade" /> AI credits
-              </span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-flash/35">
-                1 / question
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-1.5">
-              <span
-                className="font-jetbrains text-4xl font-bold tabular-nums tracking-[0.04em] text-jade"
-                style={{ textShadow: "0 0 22px rgba(0,217,146,0.45)" }}
-              >
-                {credits ?? "—"}
-              </span>
-              <span className="font-jetbrains text-lg tabular-nums text-flash/35">
-                / {allot}
-              </span>
-            </div>
-            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-flash/[0.07]">
-              <motion.div
-                className="h-full rounded-full bg-jade"
-                style={{ boxShadow: "0 0 10px rgba(0,217,146,0.5)" }}
-                initial={{ width: 0 }}
-                animate={{ width: `${creditPct}%` }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </div>
-            <p className="mt-2.5 font-jetbrains text-[11px] text-flash/45">
-              {isPaid ? `Refills to ${allot} monthly` : "Refills to 3 daily"}
-              {creditUntil ? ` · resets in ${creditUntil}` : ""}
-            </p>
-          </div>
-        </div>
-
-        {/* Perks */}
-        <div className="border-t border-hairline/[0.07] px-6 py-5">
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-flash/40">
-            {isPaid ? "Included with your plan" : "Free tier includes"}
-          </div>
-          <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
-            {perks.map((p, i) => {
-              const Icon = p.icon;
-              return (
-                <motion.li
-                  key={i}
-                  className="flex items-center gap-2.5 font-jetbrains text-[12px] text-flash/75"
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    duration: 0.35,
-                    delay: 0.2 + i * 0.04,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                >
-                  <span
-                    className={cn(
-                      "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border",
-                      isPaid
-                        ? "border-jade/40 bg-jade/15 text-jade"
-                        : "border-flash/15 bg-flash/[0.05] text-flash/55"
-                    )}
-                  >
-                    <Icon className="h-3 w-3" strokeWidth={2.5} />
-                  </span>
-                  <span className="truncate">{p.label}</span>
-                </motion.li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {/* Action bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline/[0.07] bg-filmdark/20 px-6 py-4">
-          {isPaid ? (
-            <motion.button
-              type="button"
-              onClick={openPortal}
-              disabled={loadingPortal}
-              whileHover={loadingPortal ? undefined : { y: -1 }}
-              transition={{ duration: 0.18 }}
-              className="group inline-flex items-center justify-center gap-2.5 rounded-sm bg-jade px-6 py-2.5 font-jetbrains text-[12px] uppercase tracking-[0.22em] text-liquirice shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)] transition-all duration-200 hover:bg-jade/95 disabled:cursor-not-allowed disabled:opacity-60 cursor-clicker"
-            >
-              {loadingPortal ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CreditCard className="h-4 w-4" />
-              )}
-              {loadingPortal ? "OPENING…" : "MANAGE SUBSCRIPTION"}
-              {!loadingPortal && (
-                <ExternalLink className="h-3 w-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
-              )}
-            </motion.button>
-          ) : (
-            <Link
-              to="/pricing"
-              className="group inline-flex items-center justify-center gap-2.5 rounded-sm bg-jade px-6 py-2.5 font-jetbrains text-[12px] uppercase tracking-[0.22em] text-liquirice shadow-[0_12px_28px_rgba(0,217,146,0.32),0_0_18px_rgba(0,217,146,0.25)] transition-all duration-200 hover:bg-jade/95 cursor-clicker"
-            >
-              <CreditCard className="h-4 w-4" />
-              VIEW PLANS
-              <ExternalLink className="h-3 w-3 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </Link>
-          )}
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-flash/30">
-            Secured by Stripe · no card details stored
-          </p>
-        </div>
-      </motion.div>
     </div>
   );
 }
