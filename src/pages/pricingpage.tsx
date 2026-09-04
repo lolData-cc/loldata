@@ -7,10 +7,8 @@
 //
 // ⚠️ ALL THREE MODULES SIT INSIDE THE FIRST SCREEN. The section is the
 // viewport's height on desktop and the modules are sized to it — nothing of
-// a plan is below the fold. The footer still arrives only after a scroll,
-// because the questions section sits under the fold; a pricing page whose
-// footer is on screen from the first frame reads as finished before it has
-// made its case.
+// a plan is below the fold, and the footer (with its own top margin) starts
+// under it, so it arrives only after a scroll.
 //
 // Data and checkout come from pricingplans.tsx (`PLANS`, `useCheckout`) —
 // one source for prices, perks and the Stripe call.
@@ -22,12 +20,6 @@ import { useAuth } from "@/context/authcontext"
 import { cn } from "@/lib/utils"
 
 const EASE = [0.22, 1, 0.36, 1] as const
-
-const NOTES: string[] = [
-  "One credit is one question to the AI.",
-  "Upgrade, downgrade or cancel from your dashboard.",
-  "Payments by Stripe. We never see your card.",
-]
 
 /** A corner mark: two hairlines meeting at a right angle. */
 function Corner({ at, tone = "jade" }: { at: "tl" | "tr" | "bl" | "br"; tone?: "jade" | "dim" }) {
@@ -247,22 +239,6 @@ export default function PricingPage() {
 
       </section>
 
-      {/* ── Under the fold: the questions, then the footer ────────────────── */}
-      <section className="mx-auto w-full max-w-[1200px] px-4 pb-24 pt-14 md:px-6">
-        <div className="mb-7 flex items-center gap-2 font-jetbrains text-[10px] uppercase tracking-[0.3em] text-jade/70">
-          <span className="h-1.5 w-1.5 rotate-45 bg-jade" />
-          Before you decide
-        </div>
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
-          {NOTES.map((n, i) => (
-            <li key={n} className="relative border-l border-jade/25 pl-4 font-jetbrains text-[12.5px] leading-relaxed text-flash/55">
-              <span className="absolute -left-px top-0 h-4 w-px bg-jade" />
-              <span className="mr-2 text-[10px] tracking-[0.2em] text-flash/30">0{i + 1}</span>
-              {n}
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   )
 }
