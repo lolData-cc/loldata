@@ -9,14 +9,11 @@
 // checkout logic (sign-in guard, loading state, plan→ACTIVE detection) is
 // preserved verbatim from the previous version.
 //
-// ⚠️ Two sizes. Inline (homepage) the cards are compact: four lines each,
-// because they share a band with the "Are you with us?" copy. On /pricing
-// they are TALL: on a 900px screen the compact cards ended 450px down and the
-// footer was on screen before anyone scrolled — a pricing page that looked
-// like it had run out of things to say. The tall variant carries the full
-// perk list (the same wording the dashboard and the billing page use — no
-// new claims), the credit allowance as a meter, and a "best for" line, so
-// the height is content, not padding.
+// ⚠️ The plan DATA (`PLANS`) and the checkout (`useCheckout`) are exported:
+// the standalone /pricing page draws its own, larger modules from the same
+// facts and the same Stripe call, so a price or a perk is changed in one
+// place. Perk wording is the dashboard's and billingsuccess.tsx's — keep them
+// in step, add no claims here that the product does not make there.
 
 import { useRef, useState } from "react";
 import { Check, Loader2, ArrowRight } from "lucide-react";
@@ -30,23 +27,24 @@ import { showCyberToast } from "@/lib/toast-utils";
 
 const EASE_BRAND = [0.22, 1, 0.36, 1] as const;
 
-type PlanId = "free" | "premium" | "elite";
+export type PlanId = "free" | "premium" | "elite";
 
-const PLANS: {
+export type Plan = {
   id: PlanId;
   name: string;
   price: string;
   period: string;
   tagline: string;
+  /** The compact list (homepage band). */
   features: string[];
-  /** The full list for the standalone page. Same facts as the dashboard's
-   *  perk list and billingsuccess.tsx — keep them in step. */
-  featuresTall: string[];
-  /** AI credit allowance, the one number every plan is priced on. */
+  /** The full list (the /pricing page). */
+  featuresFull: string[];
+  /** AI credit allowance — the one number every plan is priced on. */
   credits: { n: number; per: "day" | "month" };
-  bestFor: string;
   featured?: boolean;
-}[] = [
+};
+
+export const PLANS: Plan[] = [
   {
     id: "free",
     name: "Free",
@@ -59,7 +57,7 @@ const PLANS: {
       "Full loldata stats access",
       "Community support",
     ],
-    featuresTall: [
+    featuresFull: [
       "Personal data tracking",
       "3 AI credits every day",
       "Complete loldata stats access",
@@ -68,7 +66,6 @@ const PLANS: {
       "Community support",
     ],
     credits: { n: 3, per: "day" },
-    bestFor: "Getting started, and seeing what the data says about you.",
   },
   {
     id: "premium",
@@ -82,7 +79,7 @@ const PLANS: {
       "Matchup analysis",
       "Personal itemization analysis",
     ],
-    featuresTall: [
+    featuresFull: [
       "Everything in Free",
       "150 AI credits every month",
       "AI Coach with daily performance reports",
@@ -92,7 +89,6 @@ const PLANS: {
       "Unlimited player & champion analysis",
     ],
     credits: { n: 150, per: "month" },
-    bestFor: "Climbing seriously. The coach, the matchups and the builds, every day.",
     featured: true,
   },
   {
@@ -107,7 +103,7 @@ const PLANS: {
       "Priority AI processing",
       "Early access to new tools",
     ],
-    featuresTall: [
+    featuresFull: [
       "Everything in Premium",
       "750 AI credits every month",
       "Priority AI processing",
@@ -117,19 +113,14 @@ const PLANS: {
       "Priority support",
     ],
     credits: { n: 750, per: "month" },
-    bestFor: "Teams, coaches and anyone who asks the AI a lot.",
   },
 ];
 
-export function PricingPlans({ tall = false }: { tall?: boolean }) {
-  const { plan, session } = useAuth();
-  // The meter is relative to the biggest allowance, on a monthly footing
-  // (3 a day ≈ 90 a month). Honest proportions: Free is a sliver on purpose.
-  const monthly = (c: { n: number; per: "day" | "month" }) => (c.per === "day" ? c.n * 30 : c.n);
-  const maxMonthly = Math.max(...PLANS.map((p) => monthly(p.credits)));
+/** The Stripe checkout: sign-in guard, loading state, redirect. Shared by
+ *  the homepage cards and the /pricing page. */
+export function useCheckout() {
+  const { session } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<"premium" | "elite" | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.15 });
 
   async function goCheckout(nextPlan: "premium" | "elite") {
     // Logged-out guard — the backend rejects unauthenticated requests anyway,
@@ -181,6 +172,15 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
     }
   }
 
+  return { loadingPlan, goCheckout };
+}
+
+export function PricingPlans() {
+  const { plan } = useAuth();
+  const { loadingPlan, goCheckout } = useCheckout();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.15 });
+
   return (
     <div ref={ref} className="relative w-full py-4">
       {/* Sheen keyframe for the CTA buttons (scoped + self-contained). */}
@@ -192,7 +192,7 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
       `}</style>
 
       {/* Header */}
-      <div className={cn("flex flex-col items-center px-4 text-center", tall ? "mb-12" : "mb-9")}>
+      <div className="mb-9 flex flex-col items-center px-4 text-center">
         <div className="mb-3 flex items-center gap-2.5">
           <span className="relative inline-grid h-3.5 w-3.5 place-items-center">
             <span className="absolute inset-0 rotate-45 rounded-[2px] border border-jade/50 bg-jade/10" />
@@ -214,11 +214,10 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
       </div>
 
       {/* Cards */}
-      <div className={cn("mx-auto grid w-full grid-cols-1 gap-5 px-4 md:grid-cols-3 md:gap-5 md:px-2", tall ? "max-w-[1120px]" : "max-w-[1060px]")}>
+      <div className="mx-auto grid w-full max-w-[1060px] grid-cols-1 gap-5 px-4 md:grid-cols-3 md:gap-5 md:px-2">
         {PLANS.map((p, i) => {
           const isActive = plan === p.id;
           const isLoading = loadingPlan === (p.id as "premium" | "elite");
-          const feats = tall ? p.featuresTall : p.features;
 
           return (
             <motion.div
@@ -227,8 +226,7 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, ease: EASE_BRAND, delay: 0.08 * i }}
               className={cn(
-                "group relative flex flex-col rounded-2xl border backdrop-blur-md transition-[transform,border-color,background-color] duration-300",
-                tall ? "min-h-[660px] p-7 sm:p-9" : "p-6 sm:p-7",
+                "group relative flex flex-col rounded-2xl border p-6 backdrop-blur-md transition-[transform,border-color,background-color] duration-300 sm:p-7",
                 p.featured
                   ? "border-jade/30 bg-[radial-gradient(140%_120%_at_50%_-10%,rgba(0,217,146,0.12),rgba(6,12,13,0.55))] glass-panel shadow-[0_0_55px_-14px_rgba(0,217,146,0.4)] md:-translate-y-3 md:scale-[1.035]"
                   : "border-flash/10 bg-[#0a0f10]/55 glass-panel hover:-translate-y-1 hover:border-jade/25"
@@ -260,39 +258,18 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
 
               {/* Price */}
               <div className="mt-5 flex items-end gap-2">
-                <span className={cn("font-chakrapetch font-bold leading-none text-flash", tall ? "text-[48px]" : "text-[42px]")}>{p.price}</span>
-                {/* nowrap: at 48px "€14.99" left "/ month" no room and it broke across two lines */}
-                <span className="mb-1.5 whitespace-nowrap font-jetbrains text-[12px] lowercase text-flash/40">{p.period}</span>
+                <span className="font-chakrapetch text-[42px] font-bold leading-none text-flash">{p.price}</span>
+                <span className="mb-1.5 font-jetbrains text-[12px] lowercase text-flash/40">{p.period}</span>
               </div>
               <p className="mt-2.5 min-h-[34px] font-jetbrains text-[12.5px] leading-relaxed text-flash/45">
                 {p.tagline}
               </p>
 
-              {/* Credits meter — page only. The number each plan is priced on,
-                  drawn to scale so the three tiers can be read at a glance. */}
-              {tall && (
-                <div className="mt-6">
-                  <div className="flex items-baseline justify-between font-jetbrains">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-flash/35">AI credits</span>
-                    <span className="text-[12px] text-flash/70">
-                      <span className={cn("font-chakrapetch text-[15px] font-bold", p.featured ? "text-jade" : "text-flash/90")}>{p.credits.n}</span>
-                      <span className="text-flash/40"> / {p.credits.per}</span>
-                    </span>
-                  </div>
-                  <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-flash/[0.07]">
-                    <div
-                      className={cn("h-full rounded-full", p.featured ? "bg-jade" : "bg-jade/55")}
-                      style={{ width: `${Math.max(4, Math.round((monthly(p.credits) / maxMonthly) * 100))}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="my-6 h-px w-full bg-gradient-to-r from-transparent via-jade/20 to-transparent" />
 
               {/* Features */}
-              <ul className={cn("flex flex-col", tall ? "gap-4" : "gap-3.5")}>
-                {feats.map((f) => (
+              <ul className="flex flex-col gap-3.5">
+                {p.features.map((f) => (
                   <li key={f} className="flex items-center gap-3 font-jetbrains text-[12.5px] text-flash/70">
                     <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-jade/15">
                       <Check className="h-2.5 w-2.5 text-jade" strokeWidth={3.5} />
@@ -301,13 +278,6 @@ export function PricingPlans({ tall = false }: { tall?: boolean }) {
                   </li>
                 ))}
               </ul>
-
-              {/* Best for — page only, sits above the CTA */}
-              {tall && (
-                <p className="mt-7 border-l border-jade/30 pl-3 font-jetbrains text-[12px] leading-relaxed text-flash/40">
-                  {p.bestFor}
-                </p>
-              )}
 
               {/* CTA — mt-auto pins it to the bottom so every card aligns. */}
               <div className="mt-auto pt-8">
