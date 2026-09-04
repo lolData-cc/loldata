@@ -37,7 +37,7 @@ export type Plan = {
   tagline: string;
   /** The compact list (homepage band). */
   features: string[];
-  /** The full list (the /pricing page). */
+  /** The /pricing page: four lines, short — the credits are on the meter. */
   featuresFull: string[];
   /** AI credit allowance — the one number every plan is priced on. */
   credits: { n: number; per: "day" | "month" };
@@ -59,10 +59,8 @@ export const PLANS: Plan[] = [
     ],
     featuresFull: [
       "Personal data tracking",
-      "3 AI credits every day",
-      "Complete loldata stats access",
-      "Builds, runes and matchups for every champion",
-      "Tier lists and patch notes",
+      "Complete stats access",
+      "Every champion's builds & matchups",
       "Community support",
     ],
     credits: { n: 3, per: "day" },
@@ -81,12 +79,9 @@ export const PLANS: Plan[] = [
     ],
     featuresFull: [
       "Everything in Free",
-      "150 AI credits every month",
-      "AI Coach with daily performance reports",
-      "Matchup Engine — every lane, pre-game",
-      "Itemization Engine — builds that win",
+      "AI Coach & daily reports",
+      "Matchup + Itemization Engine",
       "Scout lobbies ×2",
-      "Unlimited player & champion analysis",
     ],
     credits: { n: 150, per: "month" },
     featured: true,
@@ -105,12 +100,9 @@ export const PLANS: Plan[] = [
     ],
     featuresFull: [
       "Everything in Premium",
-      "750 AI credits every month",
       "Priority AI processing",
       "Scout lobbies ×3",
-      "Early access to new features",
-      "Private Discord channel",
-      "Priority support",
+      "Early access + private Discord",
     ],
     credits: { n: 750, per: "month" },
   },

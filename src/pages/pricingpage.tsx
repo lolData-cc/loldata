@@ -23,19 +23,10 @@ import { cn } from "@/lib/utils"
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
-const QUESTIONS: { q: string; a: string }[] = [
-  {
-    q: "What is an AI credit?",
-    a: "One question to the AI — the coach, a matchup, a build — costs one credit. Free refills three a day; Premium and Elite refill their monthly pool on the day you subscribed.",
-  },
-  {
-    q: "Can I cancel any time?",
-    a: "Yes. Upgrade, downgrade or cancel from your dashboard whenever you like. A cancelled plan stays active until the end of the month you paid for.",
-  },
-  {
-    q: "How do I pay?",
-    a: "Checkout and billing are handled by Stripe. We never see or store your card details.",
-  },
+const NOTES: string[] = [
+  "One credit is one question to the AI.",
+  "Upgrade, downgrade or cancel from your dashboard.",
+  "Payments by Stripe. We never see your card.",
 ]
 
 /** A corner mark: two hairlines meeting at a right angle. */
@@ -115,7 +106,6 @@ function PlanModule({ p, index, active, loading, onCheckout }: {
         <span className="font-chakrapetch text-[clamp(38px,4.6vh,50px)] font-bold leading-none text-flash">{p.price}</span>
         <span className="mb-1 whitespace-nowrap font-jetbrains text-[11px] lowercase tracking-[0.06em] text-flash/40">{p.period}</span>
       </div>
-      <p className="mt-2 font-jetbrains text-[12px] leading-snug text-flash/45">{p.tagline}</p>
 
       {/* credits readout, to scale */}
       <div className="mt-[clamp(12px,2vh,20px)]">
@@ -148,6 +138,11 @@ function PlanModule({ p, index, active, loading, onCheckout }: {
           </li>
         ))}
       </ul>
+
+      {/* the ghost numeral: the poster's big index, in the air above the button */}
+      <span aria-hidden className={cn("pointer-events-none absolute bottom-[68px] right-4 select-none font-chakrapetch text-[clamp(72px,11vh,110px)] font-bold leading-none", p.featured ? "text-jade/[0.07]" : "text-flash/[0.045]")}>
+        0{index + 1}
+      </span>
 
       {/* CTA, pinned to the bottom so the three align */}
       <div className="mt-auto pt-[clamp(14px,2.4vh,26px)]">
@@ -196,7 +191,7 @@ export default function PricingPage() {
           the modules; under md the page is a normal stacked column — with
           76px of top padding, because there the navbar is fixed and overlays
           the page (the eyebrow vanished under it). */}
-      <section className="relative mx-auto flex w-full max-w-[1200px] flex-col px-4 pb-6 pt-[76px] md:h-[calc(100svh-64px)] md:pt-5 md:min-h-[680px] md:justify-between md:px-6">
+      <section className="relative mx-auto flex w-full max-w-[1200px] flex-col px-4 pb-6 pt-[76px] md:h-[calc(100svh-64px)] md:min-h-[640px] md:justify-center md:gap-2 md:px-6 md:pt-5">
         {/* the dither ground: a dot grid, barely there */}
         <span
           aria-hidden
@@ -217,11 +212,8 @@ export default function PricingPage() {
               Choose your <span className="text-jade" style={{ textShadow: "0 0 30px rgba(0,217,146,0.35)" }}>plan</span>
             </h1>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-1 md:justify-end">
-            <Readout label="PLANS" value="03" />
-            <Readout label="CURRENCY" value="EUR" />
-            <Readout label="BILLING" value="MONTHLY" />
-            <Readout label="CANCEL" value="ANYTIME" tone="jade" />
+          <div className="flex md:justify-end">
+            <Readout label="BILLED MONTHLY" value="CANCEL ANYTIME" tone="jade" />
           </div>
         </div>
 
@@ -238,9 +230,9 @@ export default function PricingPage() {
         {/* the three modules */}
         {/* ⚠️ Capped: on a 1080px screen uncapped modules stretched to the
             viewport and left a void between the last perk and the button.
-            With the cap the section distributes the spare height around
-            the grid instead of inside it. */}
-        <div className="relative mt-4 grid min-h-0 flex-1 grid-cols-1 gap-4 md:mt-0 md:max-h-[740px] md:grid-cols-3">
+            With the cap the section centres the grid in the spare height
+            instead of stretching the modules into it. */}
+        <div className="relative mt-4 grid min-h-0 flex-1 grid-cols-1 gap-4 md:mt-0 md:max-h-[500px] md:grid-cols-3">
           {PLANS.map((p, i) => (
             <PlanModule
               key={p.id}
@@ -253,11 +245,6 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* HUD strip */}
-        <div className="relative mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-jade/[0.12] pt-2.5 font-jetbrains text-[9.5px] uppercase tracking-[0.2em] text-flash/30">
-          <span>sys.pricing <span className="text-flash/15">·</span> prices in eur <span className="text-flash/15">·</span> secured by stripe</span>
-          <span>upgrade <span className="text-flash/15">·</span> downgrade <span className="text-flash/15">·</span> cancel <span className="text-jade/70">anytime</span></span>
-        </div>
       </section>
 
       {/* ── Under the fold: the questions, then the footer ────────────────── */}
@@ -266,16 +253,15 @@ export default function PricingPage() {
           <span className="h-1.5 w-1.5 rotate-45 bg-jade" />
           Before you decide
         </div>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-10">
-          {QUESTIONS.map((item, i) => (
-            <div key={item.q} className="relative border-l border-jade/20 pl-4">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+          {NOTES.map((n, i) => (
+            <li key={n} className="relative border-l border-jade/25 pl-4 font-jetbrains text-[12.5px] leading-relaxed text-flash/55">
               <span className="absolute -left-px top-0 h-4 w-px bg-jade" />
-              <div className="font-jetbrains text-[9.5px] tracking-[0.24em] text-flash/30">Q.0{i + 1}</div>
-              <h3 className="mt-1 font-chakrapetch text-[15px] font-bold text-flash/90">{item.q}</h3>
-              <p className="mt-2.5 font-jetbrains text-[12.5px] leading-relaxed text-flash/50">{item.a}</p>
-            </div>
+              <span className="mr-2 text-[10px] tracking-[0.2em] text-flash/30">0{i + 1}</span>
+              {n}
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   )
