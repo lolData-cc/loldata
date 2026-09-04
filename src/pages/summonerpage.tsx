@@ -39,7 +39,6 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
-import { useDominantColors, rgbVar, PENDING_ACC } from "@/hooks/useDominantColors"
 import { useShowRanked5 } from "@/hooks/useShowRanked5"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -293,33 +292,10 @@ export default function SummonerPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
 
-  /**
-   * The two colours the player's own profile picture is made of — the premium
-   * avatar when they have one, otherwise their summoner icon, which is exactly
-   * the image shown beside these buttons.
-   *
-   * UPDATE takes the first, ANALYZE the second. Both fall back to their fixed
-   * citrine/jade the moment the picture cannot be read, so a CDN hiccup costs
-   * the colour and nothing else.
-   */
-  // Mirrors the <img> beside these buttons exactly, including its own fallback
-  // to icon 29 — reading a different picture than the one on screen would give
-  // the pair colours the player cannot see the source of.
-  const avatarForPalette = summonerInfo
-    ? (summonerInfo.avatar_url
-       ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId ?? 29}.png`)
-    : null;
-  const palette = useDominantColors(avatarForPalette);
+  // Whether ANALYZE still has its free run — the card keeps a line under the
+  // button pair for that note, so it can never push a button off its row.
+  const [trialNote, setTrialNote] = useState(false);
   const { enabled: showRanked5 } = useShowRanked5();
-  // While the picture is still loading the pair stays neutral rather than
-  // flashing the fixed accents and then changing colour under the cursor.
-  // ⚠️ `!summonerInfo` counts as pending too. The hook can only be pending once
-  // it has a URL, and during the skeleton there is no summoner yet, so the URL
-  // is null and the pair would fall back to the fixed accents — which is the
-  // yellow flash this is here to stop.
-  const waiting = !summonerInfo || palette.pending;
-  const accUpdate = waiting ? PENDING_ACC : rgbVar(palette.primary);
-  const accAnalyze = waiting ? PENDING_ACC : rgbVar(palette.secondary);
   const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
@@ -2211,18 +2187,25 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div className={cn(glassDark, "hidden lg:block max-w-[440px]")}>
-              <div className="relative z-10 flex items-center gap-5 px-6 py-6">
+            {/* ── Profile card ──────────────────────────────────────────────
+                ⚠️ Written in the page's own language: the glass every other
+                block wears, chakrapetch for the name, mono readouts for the
+                facts, and the toolbar's chips for the two actions. The pair
+                sits on ONE row at equal width; the "one free analysis" note has
+                a reserved line of its own underneath, so its arrival and
+                departure move nothing. */}
+            <div className={cn(glassDark, "hidden lg:block w-[480px]")}>
+              <div className="relative z-10 flex items-center gap-5 px-6 py-5">
 
                 {/* Avatar */}
-                <div className="relative shrink-0 w-[118px] h-[118px]">
+                <div className="relative shrink-0 w-[96px] h-[96px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
                       ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
                     }
                     className={cn(
-                      "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
+                      "relative w-full h-full rounded-md select-none pointer-events-none border-2 object-cover",
                       summonerInfo?.live ? "border-red-500" : "border-transparent"
                     )}
                     style={summonerInfo?.live ? { boxShadow: "0 0 16px rgba(239,68,68,0.35), 0 0 4px rgba(239,68,68,0.5)" } : undefined}
@@ -2247,9 +2230,9 @@ export default function SummonerPage() {
                 </div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-2.5 flex-1 min-w-0">
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
                   {/* Pro / streamer identity — shown directly above the summoner name */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap min-h-[16px]">
                     {proPlayerInfo ? (
                       <Link
                         to={`/players/${proPlayerInfo.slug}`}
@@ -2291,9 +2274,9 @@ export default function SummonerPage() {
                     )}
                   </div>
 
-                  {/* Name */}
+                  {/* Name — one line, the tag never wraps away from it */}
                   <div
-                    className="cursor-clicker"
+                    className="flex items-baseline gap-1.5 min-w-0 cursor-clicker"
                     title="Click to copy"
                     onClick={() => {
                       if (!summonerInfo) return;
@@ -2303,59 +2286,81 @@ export default function SummonerPage() {
                     }}
                   >
                     {!summonerInfo ? (
-                      <Skeleton className="h-8 w-[200px] bg-filmlight/10" />
+                      <Skeleton className="h-7 w-[200px] bg-filmlight/10" />
                     ) : (
                       <>
                         <span className={cn(
-                          "font-bold font-chakrapetch text-flash tracking-wide leading-none",
-                          (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
+                          "font-bold font-chakrapetch text-flash tracking-wide leading-none truncate",
+                          // sized to the column, never truncated: ~18px/char at 24px, the column is ~300px
+                          (summonerInfo.name?.length || 0) > 12 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 9 ? "text-[21px]" : "text-[24px]"
                         )}>
                           {summonerInfo.name}
                         </span>
                         {summonerInfo.tag && (
-                          <span className="text-[18px] font-chakrapetch text-flash/30 ml-1">#{summonerInfo.tag}</span>
+                          <span className="shrink-0 text-[15px] font-chakrapetch text-flash/30 leading-none">#{summonerInfo.tag}</span>
                         )}
                       </>
                     )}
                   </div>
 
-                  {/* Meta line — always rendered (min-h reserves one line) so the
-                      name above and buttons below stay put. Level → avatar pill;
-                      here: PEAK rank (not surfaced elsewhere) + ladder rank. */}
-                  <div className="flex min-h-[18px] items-center gap-2 font-mono text-[12px]">
-                    {summonerInfo?.peakRank && summonerInfo.peakRank.toLowerCase() !== "unranked" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-flash/[0.06] px-1.5 py-[2px] leading-none">
-                        <span className="text-[9px] uppercase tracking-[0.14em] text-citrine/60">Peak</span>
-                        <span className="text-[11px] font-semibold text-flash/70">{summonerInfo.peakRank}</span>
-                        {summonerInfo.peakLp != null && (
-                          <span className="text-[11px] text-flash/40 tabular-nums">{summonerInfo.peakLp} LP</span>
-                        )}
-                      </span>
-                    )}
+                  {/* Readouts — PEAK (surfaced nowhere else) and ladder rank, in
+                      the page's mono. Always one line tall, so the row of
+                      buttons below never moves. */}
+                  <div className="flex min-h-[16px] items-center gap-x-4 gap-y-1 flex-wrap font-mono text-[11px] tracking-[0.06em]">
+                    <span className="inline-flex items-baseline gap-1.5">
+                      <span className="text-[9px] uppercase tracking-[0.18em] text-citrine/70">Peak</span>
+                      {summonerInfo?.peakRank && summonerInfo.peakRank.toLowerCase() !== "unranked" ? (
+                        <>
+                          <span className="font-semibold text-flash/80">{summonerInfo.peakRank}</span>
+                          {summonerInfo.peakLp != null && (
+                            <span className="text-flash/40 tabular-nums">{summonerInfo.peakLp} LP</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-flash/30">—</span>
+                      )}
+                    </span>
                     {summonerInfo?.ladderRank && (
-                      <span className="tracking-[0.08em] text-jade/50">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
+                      <span className="inline-flex items-baseline gap-1.5">
+                        <span className="text-[9px] uppercase tracking-[0.18em] text-jade/60">Rank</span>
+                        <span className="text-flash/70 tabular-nums">#{summonerInfo.ladderRank.toLocaleString()}</span>
+                      </span>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <UpdateButton
-                      accentRgb={accUpdate}
-                      onClick={() => refreshData(true)}
-                      loading={refreshing}
-                      cooldown={onCooldown}
-                      cooldownSeconds={cooldownSeconds}
-                    />
-                    {summonerInfo?.puuid && region && (
-                      <PlayerAnalysisDialog
-                        puuid={summonerInfo.puuid}
-                        region={region}
-                        summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                        accentRgb={accAnalyze}
-                        externalOpen={analyzeOpen}
-                        onExternalOpenChange={setAnalyzeOpen}
+                  {/* Actions — one row, equal width; the note has its own line */}
+                  <div className="mt-0.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <UpdateButton
+                        fill
+                        onClick={() => refreshData(true)}
+                        loading={refreshing}
+                        cooldown={onCooldown}
+                        cooldownSeconds={cooldownSeconds}
                       />
-                    )}
+                      {summonerInfo?.puuid && region ? (
+                        <PlayerAnalysisDialog
+                          puuid={summonerInfo.puuid}
+                          region={region}
+                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                          externalOpen={analyzeOpen}
+                          onExternalOpenChange={setAnalyzeOpen}
+                          fill
+                          trialNote="none"
+                          onTrialAvailability={setTrialNote}
+                        />
+                      ) : (
+                        <span aria-hidden className="h-7 rounded-[5px] bg-filmlight/[0.03]" />
+                      )}
+                    </div>
+                    <div className="mt-1.5 min-h-[12px] font-mono text-[9px] uppercase tracking-[0.16em] text-citrine/60 leading-none">
+                      {trialNote && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span aria-hidden className="h-[3px] w-[3px] rotate-45 bg-citrine" />
+                          one free analysis included
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
