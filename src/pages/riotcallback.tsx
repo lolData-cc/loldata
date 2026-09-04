@@ -44,10 +44,27 @@ export default function RiotCallbackPage() {
         });
 
         if (!res.ok) {
-          const errText = await res.text();
+          // The route answers JSON ({ error, message }) for the cases it
+          // understands — a Riot account held by another living profile is a
+          // 409 — and plain text otherwise.
+          const raw = await res.text();
+          let errText = raw;
+          try {
+            const j = JSON.parse(raw);
+            errText = j.message || j.error || raw;
+          } catch {
+            /* plain text */
+          }
           setStatus(`Failed: ${errText}`);
-          showCyberToast({ title: "Riot auth failed", description: errText, variant: "error", tag: "ERR" });
-          setTimeout(() => navigate("/login"), 3000);
+          showCyberToast({
+            title: res.status === 409 ? "Already linked" : "Riot auth failed",
+            description: errText,
+            variant: "error",
+            tag: "ERR",
+          });
+          // ⚠️ In link mode the person is signed in: a failure sends them back
+          // to their dashboard, not to the login page they never left.
+          setTimeout(() => navigate(userId ? "/dashboard" : "/login"), 3000);
           return;
         }
 
