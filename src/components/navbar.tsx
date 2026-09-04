@@ -14,7 +14,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { markOnboardFlag } from "@/components/profilechecklist"
 
 declare const gtag: (...args: any[]) => void;
 
@@ -72,7 +71,6 @@ export function Navbar({ sticky = false, addOffsetSpacer = sticky, fullBleed = f
         if (nametag && region) {
           const [n, t] = nametag.split("#")
           const slug = `${n.replace(/\s+/g, "+")}-${t}`
-          markOnboardFlag("ctrlY") // the dashboard checklist's "press Ctrl+Y" step
           navigate(`/summoners/${region}/${slug}`)
         }
       }

@@ -13,7 +13,6 @@ import Overview from "@/components/overview"
 import { RecentMatches } from "@/components/learn/recent-matches"
 import type { MatchCardData } from "@/components/matchcard"
 import { motion, AnimatePresence } from "framer-motion"
-import { markOnboardFlag } from "@/components/profilechecklist"
 
 // ── Tab definitions ──
 const TABS = [
@@ -96,8 +95,6 @@ function SidebarButton({
 }
 
 export default function LearnPage() {
-  // the dashboard checklist's "read your daily report" step
-  useEffect(() => { markOnboardFlag("learn") }, [])
     const { nametag, puuid, region, session, avatarUrl } = useAuth()
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()

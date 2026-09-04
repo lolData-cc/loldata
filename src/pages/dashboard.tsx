@@ -38,7 +38,6 @@ import { ThemePreference } from "@/components/themepreference";
 import { ChangePassword } from "@/components/changepassword";
 import ScoutLobbiesManager from "@/components/scoutlobbiesmanager";
 import { BillingSettings } from "@/components/billingsettings";
-import { ProfileChecklist, markOnboardFlag } from "@/components/profilechecklist";
 import { cdnBaseUrl, API_BASE_URL } from "@/config";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -173,7 +172,7 @@ export default function DashboardPage() {
       {/* riga 2: contenuto */}
       <div className="w-full min-h-0">
         <div className="xl:w-[65%] min-[2560px]:w-[55%] w-full mx-auto px-4 h-full min-h-0">
-          <Tabs value={activeTab} onValueChange={(v) => { if (v === "preferences") markOnboardFlag("preferences"); navigate(`/dashboard/${v}`, { replace: true }); }} className="flex flex-col lg:flex-row w-full h-full min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => navigate(`/dashboard/${v}`, { replace: true })} className="flex flex-col lg:flex-row w-full h-full min-h-0">
             {/* sidebar — desktop only; on phone the bottom section picker replaces it */}
             <div className="hidden lg:flex w-full lg:w-[20%] border-b lg:border-r border-flash/10 h-auto lg:h-full shrink-0 overflow-x-auto lg:overflow-y-auto scrollbar-hide flex-col pt-3 lg:pt-6">
               <div>
@@ -301,11 +300,6 @@ export default function DashboardPage() {
 
             {/* 70%: content scrollabile */}
             <div className="w-full lg:w-[80%] h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-20 lg:pb-0">
-              {/* Above every tab until it is complete or dismissed */}
-              <div className="px-3 pt-3 sm:px-6 sm:pt-4">
-                <ProfileChecklist />
-              </div>
-
               {/* PROFILE TAB */}
               <TabsContent value="profile" className="outline-none">
                 <div className="flex flex-col gap-5 p-3 px-3 sm:p-4 sm:px-6">
