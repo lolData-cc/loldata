@@ -32,6 +32,9 @@ export type RecentSearchedProfile = {
 }
 
 /** Read the current trail. Returns [] on missing/corrupt JSON or SSR. */
+/** The day auth and storage moved to the box; older cache entries are stale. */
+const CLOUD_CUTOVER_TS = Date.UTC(2026, 8, 3)
+
 export function readRecentProfiles(): RecentSearchedProfile[] {
   if (typeof window === "undefined") return []
   try {
@@ -39,12 +42,17 @@ export function readRecentProfiles(): RecentSearchedProfile[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    // ⚠️ Avatars uploaded before the move off Supabase Cloud point at a storage
-    // host that now answers 402: a cached entry kept showing a broken image
-    // (and its old premium badge) forever. Those URLs are dropped on read.
-    return parsed.map((r: RecentSearchedProfile) =>
-      r?.avatar_url && /supabase\.co/.test(r.avatar_url) ? { ...r, avatar_url: null } : r
-    )
+    // ⚠️ Entries cached before the move off Supabase Cloud (2026-09-03) carry
+    // an avatar on a storage host that now answers 402 and a plan from an
+    // account that was reset: a broken image and a premium badge, forever,
+    // for anyone who was premium back then. Both are dropped on read; the
+    // live result puts them back when they are real again.
+    return parsed.map((r: RecentSearchedProfile) => {
+      const preCutover = typeof r?.lastSearchedAt === "number" && r.lastSearchedAt < CLOUD_CUTOVER_TS
+      const deadAvatar = !!r?.avatar_url && /supabase\.co/.test(r.avatar_url)
+      if (!preCutover && !deadAvatar) return r
+      return { ...r, avatar_url: deadAvatar || preCutover ? null : r.avatar_url, plan: preCutover ? null : r.plan }
+    })
   } catch {
     return []
   }
