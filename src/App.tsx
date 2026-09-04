@@ -38,7 +38,7 @@ import { ChampionPickerProvider } from "@/context/championpickercontext";
 import ChampionDetailPage from "./pages/championdetailpage";
 import PatchNotesPage from "./pages/patchnotespage";
 import StreamersInfiniteCarousel from "./components/streeamerscarousel";
-import { PricingPlans } from "./components/pricingplans";
+import PricingPage from "./pages/pricingpage";
 import AuthCallback from "./auth/callback";
 import RiotCallbackPage from "./pages/riotcallback";
 import OverlayPage from "./pages/overlaypage";
@@ -300,7 +300,7 @@ function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/riot/callback" element={<RiotCallbackPage />} />
               <Route path="/overlay/:region/:slug" element={<OverlayPage />} />
-              <Route path="/pricing" element={<RootLayout> <PricingPlans /> </RootLayout>}/>
+              <Route path="/pricing" element={<RootLayout> <PricingPage /> </RootLayout>}/>
               <Route path="/billing/success" element={<RootLayout> <BillingSuccessPage /> </RootLayout>}/>
               <Route path="/billing/cancel" element={<RootLayout> <BillingCancelPage /> </RootLayout>}/>
               <Route path="/contact" element={<RootLayout> <ContactPage /> </RootLayout>}/>
