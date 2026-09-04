@@ -1263,3 +1263,228 @@ body.modal-frozen #root *::after {
 @media (prefers-reduced-motion: reduce) {
   .otp-row { animation: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SIGN-IN WINDOW — built, not shown.   (src/components/userdialog.tsx)
+
+   Timeline (ms from open):
+     0     beam     a jade hairline strikes across the centre
+     110   plate    opens out of the beam vertically, flickers, settles
+     200   corners  the four brackets snap out, one after another
+     260   rails    a light runs the top edge left→right, the bottom right→left
+     330   glitch   two slices of the plate knocked sideways for a frame, twice
+     380   mark     the figure surfaces
+     560+  rows     each block wipes in behind a scanning edge, 75ms apart;
+                    the title decodes from random glyphs (DecodedTitle)
+     1600+ ambient  the film drifts, a scan passes every 7s, the top rail
+                    keeps running faintly, the brackets breathe
+   Close: the plate collapses back to the beam.
+
+   ⚠️ Fill modes matter. Rows use `backwards`: hidden until their delay, then
+   their NORMAL styles apply — a `both` fill would pin opacity at 1 forever
+   and the login button's disabled:opacity-50 would never show. The plate,
+   the mark and the brackets use `both` because their finished state IS the
+   keyframe's end.
+   ⚠️ The dialog Content's own Tailwind enter/exit animations are switched
+   off (Radix keeps the node mounted while an exit animation runs, so the
+   collapse below has to be on the Content itself, not on a child).
+   ══════════════════════════════════════════════════════════════════════════ */
+.sd-content[data-state="open"] {
+  animation: none !important;
+}
+.sd-content[data-state="closed"] {
+  animation: sd-out 220ms cubic-bezier(0.6, 0, 0.9, 0.4) forwards !important;
+}
+@keyframes sd-out {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scaleY(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scaleY(0.015); }
+}
+
+/* the beam */
+.sd-beam {
+  position: absolute; left: 0; right: 0; top: 50%; height: 1px;
+  pointer-events: none;
+  background: #00d992;
+  box-shadow: 0 0 8px #00d992, 0 0 22px rgba(0, 217, 146, 0.55);
+  transform-origin: 50% 50%;
+  animation: sd-beam 520ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes sd-beam {
+  0%   { transform: scaleX(0); opacity: 1; }
+  22%  { transform: scaleX(1); opacity: 1; }
+  60%  { opacity: 0.9; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* the plate: lit from the inside, never outlined */
+.sd-plate {
+  background: #050d10;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 0 rgba(215, 216, 217, 0.055),
+    inset 0 0 60px 0 rgba(0, 217, 146, 0.035),
+    0 40px 90px -30px rgba(0, 0, 0, 0.95);
+  transform-origin: 50% 50%;
+  animation: sd-plate-in 460ms cubic-bezier(0.2, 0.9, 0.2, 1) 110ms both;
+}
+@keyframes sd-plate-in {
+  0%   { transform: scaleY(0.012); opacity: 0.95; }
+  55%  { transform: scaleY(1.018); opacity: 1; }
+  66%  { opacity: 0.78; }
+  74%  { opacity: 1; }
+  82%  { opacity: 0.88; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+/* the corner brackets — jade, outside the plate */
+.sd-c {
+  position: absolute; width: 16px; height: 16px; pointer-events: none;
+  border: 0 solid rgba(0, 217, 146, 0.55);
+  animation: sd-c-in 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both, sd-c-breathe 4s ease-in-out 1.8s infinite;
+}
+.sd-c-tl { top: -7px; left: -7px; border-top-width: 1px; border-left-width: 1px; transform-origin: 0 0; animation-delay: 200ms, 1.8s; }
+.sd-c-tr { top: -7px; right: -7px; border-top-width: 1px; border-right-width: 1px; transform-origin: 100% 0; animation-delay: 270ms, 2.2s; }
+.sd-c-br { bottom: -7px; right: -7px; border-bottom-width: 1px; border-right-width: 1px; transform-origin: 100% 100%; animation-delay: 340ms, 2.6s; }
+.sd-c-bl { bottom: -7px; left: -7px; border-bottom-width: 1px; border-left-width: 1px; transform-origin: 0 100%; animation-delay: 410ms, 3s; }
+@keyframes sd-c-in {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes sd-c-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* the edge rails */
+.sd-rail {
+  position: absolute; left: 0; width: 38%; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 217, 146, 0.95), transparent);
+  box-shadow: 0 0 10px rgba(0, 217, 146, 0.5);
+  opacity: 0;
+}
+.sd-rail-top {
+  top: 0;
+  animation: sd-rail 720ms cubic-bezier(0.4, 0, 0.2, 1) 260ms both, sd-rail-faint 7s linear 2.4s infinite;
+}
+.sd-rail-bottom {
+  bottom: 0;
+  animation: sd-rail-back 720ms cubic-bezier(0.4, 0, 0.2, 1) 300ms both;
+}
+@keyframes sd-rail {
+  0%   { transform: translateX(-100%); opacity: 1; }
+  100% { transform: translateX(265%); opacity: 1; }
+}
+@keyframes sd-rail-back {
+  0%   { transform: translateX(265%); opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 1; }
+}
+@keyframes sd-rail-faint {
+  0%      { transform: translateX(-100%); opacity: 0.45; }
+  22%     { transform: translateX(265%); opacity: 0.45; }
+  22.01%, 100% { transform: translateX(265%); opacity: 0; }
+}
+
+/* the stabilising glitch */
+.sd-glitch {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(0, 217, 146, 0.16), rgba(215, 216, 217, 0.06) 50%, rgba(0, 217, 146, 0.14));
+  mix-blend-mode: screen;
+}
+.sd-glitch-a { clip-path: inset(26% 0 62% 0); animation: sd-glitch-a 900ms steps(1, end) 330ms both; }
+.sd-glitch-b { clip-path: inset(58% 0 30% 0); animation: sd-glitch-b 900ms steps(1, end) 330ms both; }
+@keyframes sd-glitch-a {
+  0%   { opacity: 0; transform: translateX(0); }
+  4%   { opacity: 1; transform: translateX(-7px); }
+  11%  { opacity: 0; transform: translateX(0); }
+  46%  { opacity: 0; }
+  50%  { opacity: 1; transform: translateX(5px); }
+  56%, 100% { opacity: 0; transform: translateX(0); }
+}
+@keyframes sd-glitch-b {
+  0%   { opacity: 0; transform: translateX(0); }
+  6%   { opacity: 1; transform: translateX(6px); }
+  13%  { opacity: 0; transform: translateX(0); }
+  48%  { opacity: 0; }
+  52%  { opacity: 1; transform: translateX(-4px); }
+  58%, 100% { opacity: 0; transform: translateX(0); }
+}
+
+/* the holographic film: an iridescent sheen that drifts, screened on */
+.sd-film {
+  position: absolute; inset: -40%; pointer-events: none;
+  background:
+    linear-gradient(115deg,
+      transparent 30%,
+      rgba(0, 217, 146, 0.10) 42%,
+      rgba(215, 216, 217, 0.07) 48%,
+      rgba(0, 217, 146, 0.08) 54%,
+      transparent 66%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: sd-film-in 900ms ease-out 900ms forwards, sd-film-drift 9s ease-in-out 1.6s infinite;
+}
+@keyframes sd-film-in { to { opacity: 1; } }
+@keyframes sd-film-drift {
+  0%   { transform: translate3d(-18%, -8%, 0) rotate(0.001deg); }
+  50%  { transform: translate3d(18%, 8%, 0) rotate(0.001deg); }
+  100% { transform: translate3d(-18%, -8%, 0) rotate(0.001deg); }
+}
+
+/* scanlines, and a scan that passes every 7s */
+.sd-scan {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(180deg, rgba(215, 216, 217, 0.028) 0 1px, transparent 1px 3px);
+  opacity: 0;
+  animation: sd-film-in 700ms ease-out 700ms forwards;
+}
+.sd-scan::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 26%; top: -30%;
+  background: linear-gradient(180deg, transparent, rgba(0, 217, 146, 0.07) 50%, transparent);
+  animation: sd-scan-pass 7s cubic-bezier(0.4, 0, 0.6, 1) 1.6s infinite;
+}
+@keyframes sd-scan-pass {
+  0%      { top: -30%; }
+  28%     { top: 104%; }
+  100%    { top: 104%; }
+}
+
+/* the figure surfaces */
+.sd-mark {
+  opacity: 0;
+  animation: sd-mark-in 1000ms ease-out 380ms both;
+}
+@keyframes sd-mark-in { to { opacity: 0.44; } }
+
+/* the rows: hidden until their turn, then wiped in behind a scanning edge */
+.sd-row {
+  position: relative;
+  animation: sd-row-in 320ms cubic-bezier(0.2, 0.9, 0.2, 1) calc(560ms + var(--i, 0) * 75ms) backwards;
+}
+.sd-row::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; pointer-events: none;
+  background: #00d992;
+  box-shadow: 0 0 10px #00d992, 0 0 20px rgba(0, 217, 146, 0.5);
+  opacity: 0;
+  animation: sd-row-edge 360ms cubic-bezier(0.2, 0.9, 0.2, 1) calc(560ms + var(--i, 0) * 75ms) both;
+}
+@keyframes sd-row-in {
+  0%   { clip-path: inset(0 100% 0 0); opacity: 0.6; transform: translateY(3px); }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; transform: translateY(0); }
+}
+@keyframes sd-row-edge {
+  0%   { left: 0; opacity: 1; }
+  80%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-content[data-state="closed"] { animation: none !important; }
+  .sd-beam, .sd-glitch, .sd-rail, .sd-scan::after { display: none; }
+  .sd-plate, .sd-c, .sd-film, .sd-scan, .sd-mark, .sd-row, .sd-row::after { animation: none !important; }
+  .sd-plate { transform: none; opacity: 1; }
+  .sd-c { transform: none; opacity: 1; }
+  .sd-film, .sd-scan { opacity: 1; }
+  .sd-mark { opacity: 0.44; }
+  .sd-row::after { display: none; }
+}

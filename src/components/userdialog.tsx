@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState, type CSSProperties } from "react"
+import { useReducedMotion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/authcontext"
@@ -9,6 +10,50 @@ import {
   Dialog, DialogContent, DialogTrigger, DialogTitle,
 } from "@/components/ui/dialog"
 import { Halftone } from "@/components/halftone"
+
+/** Stagger index for the build-in: each block resolves `--i` steps after the frame. */
+const row = (i: number) => ({ "--i": i } as CSSProperties)
+
+/**
+ * The title, arriving as a decode: every glyph cycles through random
+ * characters and locks in left to right.
+ *
+ * ⚠️ Its own component, because the dialog's content is mounted on OPEN and
+ * torn down on close — the hook has to live inside that lifetime so the
+ * decode replays every time the window is built, and runs once per open, not
+ * once per app.
+ */
+function DecodedTitle({ text, delay, duration = 620 }: { text: string; delay: number; duration?: number }) {
+  const still = useReducedMotion()
+  const [out, setOut] = useState(still ? text : "")
+  useEffect(() => {
+    if (still) {
+      setOut(text)
+      return
+    }
+    const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>/\\|_-=+*#"
+    const t0 = performance.now() + delay
+    let raf = 0
+    const tick = () => {
+      const t = performance.now() - t0
+      if (t < 0) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      const p = Math.min(1, t / duration)
+      const settled = Math.floor(p * text.length)
+      let next = text.slice(0, settled)
+      for (let i = settled; i < text.length; i++) {
+        next += text[i] === " " ? " " : glyphs[Math.floor(Math.random() * glyphs.length)]
+      }
+      setOut(next)
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [text, delay, duration, still])
+  return <>{out}</>
+}
 
 const ac = "#00d992"
 const dimGlow = "rgba(0,217,146,0.08)"
@@ -92,11 +137,20 @@ export function UserDialog() {
   //
   // ⚠️ A CENTRED BOX WITH A WATERMARK. Not a side column, not a figure
   // standing beside the card — both were tried and both were the wrong idea.
-  // The dialog is an ordinary centred panel; Viego is INSIDE it, whole, behind
-  // the form, at a third of his brightness: a watermark the fields sit on,
-  // there to be noticed and not to be read around. No scrims, no gradients —
-  // the opacity is the whole treatment.
-  const ground = "#050d10"
+  // The dialog is an ordinary centred panel; Viego is INSIDE it, whole,
+  // behind the form, set to the right and at under half his brightness: a
+  // watermark the fields sit on. No scrims, no gradients.
+  //
+  // ⚠️ IT DOES NOT POP IN. The window is BUILT, in the order a holographic
+  // panel would be: a horizontal beam strikes at the centre; the plate opens
+  // out of the beam vertically, flickering as it stabilises; the corner
+  // brackets and the edge rails trace themselves; then the content resolves
+  // one block at a time behind a scanning edge while the title decodes from
+  // random glyphs and the figure surfaces underneath. Afterwards an
+  // iridescent film drifts across the plate and a scan passes every few
+  // seconds. On close the plate collapses back to the beam. All of it is in
+  // the `.sd-*` block of index.css; every element carries its own delay and
+  // `prefers-reduced-motion` skips straight to the finished state.
   return (
     <Dialog>
       <DialogTrigger className="cursor-clicker">
@@ -106,26 +160,40 @@ export function UserDialog() {
       </DialogTrigger>
 
       <DialogContent
-        className="p-0 border-0 bg-transparent shadow-none max-w-[460px] overflow-hidden sm:rounded-[3px]"
+        className="sd-content p-0 border-0 bg-transparent shadow-none max-w-[460px] overflow-visible sm:rounded-none"
         overlayClassName="bg-[#040A0C]/70 backdrop-blur-md"
       >
         <DialogTitle className="sr-only">Sign In</DialogTitle>
-        <div
-          className="relative overflow-hidden font-jetbrains"
-          style={{
-            background: ground,
-            borderRadius: "3px",
-            // lit from the inside, never outlined — the house rule
-            boxShadow:
-              "inset 0 1px 0 0 rgba(215,216,217,0.055), inset 0 0 60px 0 rgba(0,217,146,0.035), 0 40px 90px -30px rgba(0,0,0,0.95)",
-          }}
-        >
+
+        {/* the beam the window opens out of */}
+        <span aria-hidden className="sd-beam" />
+
+        {/* the four corner brackets, outside the plate */}
+        <span aria-hidden className="sd-c sd-c-tl" />
+        <span aria-hidden className="sd-c sd-c-tr" />
+        <span aria-hidden className="sd-c sd-c-bl" />
+        <span aria-hidden className="sd-c sd-c-br" />
+
+        <div className="sd-plate relative overflow-hidden font-jetbrains">
+          {/* edge rails: a light runs along the top and the bottom as the
+              frame is traced, then the top one keeps passing, faintly */}
+          <span aria-hidden className="sd-rail sd-rail-top" />
+          <span aria-hidden className="sd-rail sd-rail-bottom" />
+          {/* the stabilising glitch: two thin slices of the plate knocked
+              sideways for a frame, twice */}
+          <span aria-hidden className="sd-glitch sd-glitch-a" />
+          <span aria-hidden className="sd-glitch sd-glitch-b" />
+          {/* holographic film + scanlines, ambient */}
+          <span aria-hidden className="sd-film" />
+          <span aria-hidden className="sd-scan" />
+
           {/* ── The watermark ──────────────────────────────────────────────
-              Centred in the box and a quarter taller than it, so the whole
-              body is there — head under the top edge, feet running off the
-              bottom — behind every field. The canvas paints no ground of its
-              own (the box has one) and the wrapper's opacity does the rest. */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+              Whole body, a quarter taller than the box, centred right of
+              middle so he stands beside the labels rather than under them.
+              The canvas paints no ground of its own (the plate has one) and
+              the wrapper's opacity is the whole treatment — it fades up as
+              the plate builds. */}
+          <div aria-hidden className="sd-mark pointer-events-none absolute inset-0 overflow-hidden">
             <Halftone
               src="/img/desktop/login-viego.jpg"
               cols={120}
@@ -135,23 +203,23 @@ export function UserDialog() {
               gamma={2.6}
               floor={0.17}
               ground={null}
-              className="absolute left-1/2 top-1/2 h-[125%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2"
+              className="absolute left-[66%] top-1/2 h-[125%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2"
             />
           </div>
 
-          {/* Content — on top of him, full width */}
+          {/* Content — on top of him, full width; each block builds in turn */}
           <div className="relative px-8 py-7">
-            <h2 className="font-mechano text-xl text-flash/90 flex items-center gap-2 mb-1">
+            <h2 className="sd-row font-mechano text-xl text-flash/90 flex items-center gap-2 mb-1" style={row(0)}>
               <span className="text-jade/50 text-xs">◈</span>
-              SIGN IN
+              <DecodedTitle text="SIGN IN" delay={560} />
             </h2>
-            <div className="w-16 h-px mb-2" style={{ background: `linear-gradient(90deg, ${ac}, transparent)` }} />
-            <p className="text-[11px] text-flash/40 tracking-[0.05em] mb-5">
+            <div className="sd-row w-16 h-px mb-2" style={{ ...row(0), background: `linear-gradient(90deg, ${ac}, transparent)` }} />
+            <p className="sd-row text-[11px] text-flash/40 tracking-[0.05em] mb-5" style={row(1)}>
               Your games, your runes, your record.
             </p>
 
             {/* ⚠️ The one-press routes come FIRST — see the page for why. */}
-            <div className="flex gap-2">
+            <div className="sd-row flex gap-2" style={row(2)}>
               <button
                 type="button"
                 onClick={loginWithDiscord}
@@ -217,7 +285,7 @@ export function UserDialog() {
             </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-4">
+            <div className="sd-row flex items-center gap-3 my-4" style={row(3)}>
               <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${ac} 12%, transparent))` }} />
               <span className="text-[9px] tracking-[0.12em] uppercase text-flash/25 whitespace-nowrap">or with an email</span>
               <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${ac} 12%, transparent), transparent)` }} />
@@ -225,7 +293,7 @@ export function UserDialog() {
 
             {/* Form */}
             <div className="space-y-3" onKeyDown={onKeyDown}>
-              <div>
+              <div className="sd-row" style={row(4)}>
                 <label className="block font-mono text-[9px] tracking-[0.15em] uppercase text-flash/25 mb-1">
                   Email
                 </label>
@@ -238,7 +306,7 @@ export function UserDialog() {
                   className="text-sm"
                 />
               </div>
-              <div>
+              <div className="sd-row" style={row(5)}>
                 <label className="block font-mono text-[9px] tracking-[0.15em] uppercase text-flash/25 mb-1">
                   Password
                 </label>
@@ -257,8 +325,9 @@ export function UserDialog() {
                 type="button"
                 onClick={handleLogin}
                 disabled={loggingIn}
-                className="w-full cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none"
+                className="sd-row w-full cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none"
                 style={{
+                  ...row(6),
                   background: dimGlow,
                   border: `1px solid color-mix(in srgb, ${ac} 40%, transparent)`,
                   borderRadius: "2px",
@@ -288,7 +357,7 @@ export function UserDialog() {
             </div>
 
             {/* Sign up link */}
-            <p className="text-[10px] text-flash/30 text-center mt-4">
+            <p className="sd-row text-[10px] text-flash/30 text-center mt-4" style={row(7)}>
               Don't have an account?{" "}
               <button
                 type="button"
