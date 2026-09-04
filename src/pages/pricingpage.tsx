@@ -21,24 +21,6 @@ import { cn } from "@/lib/utils"
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
-/** A corner mark: two hairlines meeting at a right angle. */
-function Corner({ at, tone = "jade" }: { at: "tl" | "tr" | "bl" | "br"; tone?: "jade" | "dim" }) {
-  const c = tone === "jade" ? "border-jade/60" : "border-flash/20"
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "pointer-events-none absolute h-3 w-3 border-0",
-        c,
-        at === "tl" && "left-0 top-0 border-l border-t",
-        at === "tr" && "right-0 top-0 border-r border-t",
-        at === "bl" && "bottom-0 left-0 border-b border-l",
-        at === "br" && "bottom-0 right-0 border-b border-r"
-      )}
-    />
-  )
-}
-
 /** A monospace readout: LABEL on the left, value on the right. */
 function Readout({ label, value, tone }: { label: string; value: string; tone?: "jade" }) {
   return (
@@ -74,10 +56,6 @@ function PlanModule({ p, index, active, loading, onCheckout }: {
           : "border border-jade/[0.14] bg-[#050d10]/70"
       )}
     >
-      <Corner at="tl" tone={p.featured ? "jade" : "dim"} />
-      <Corner at="tr" tone={p.featured ? "jade" : "dim"} />
-      <Corner at="bl" tone={p.featured ? "jade" : "dim"} />
-      <Corner at="br" tone={p.featured ? "jade" : "dim"} />
 
       {/* tag strip */}
       <div className="flex items-center justify-between">
@@ -183,15 +161,13 @@ export default function PricingPage() {
           the modules; under md the page is a normal stacked column — with
           76px of top padding, because there the navbar is fixed and overlays
           the page (the eyebrow vanished under it). */}
-      <section className="relative mx-auto flex w-full max-w-[1200px] flex-col px-4 pb-6 pt-[76px] md:h-[calc(100svh-64px)] md:min-h-[640px] md:justify-center md:gap-2 md:px-6 md:pt-5">
+      <section className="relative mx-auto flex w-full max-w-[1200px] flex-col px-4 pb-6 pt-[76px] md:h-[calc(100svh-64px)] md:min-h-[640px] md:justify-start md:gap-2 md:px-6 md:pt-8">
         {/* the dither ground: a dot grid, barely there */}
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.35]"
           style={{ backgroundImage: "radial-gradient(rgba(0,217,146,0.13) 0.6px, transparent 0.8px)", backgroundSize: "14px 14px" }}
         />
-        {/* crop marks at the sheet's corners */}
-        <Corner at="tl" /><Corner at="tr" /><Corner at="bl" /><Corner at="br" />
 
         {/* header row: title left, readouts right */}
         <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -222,8 +198,9 @@ export default function PricingPage() {
         {/* the three modules */}
         {/* ⚠️ Capped: on a 1080px screen uncapped modules stretched to the
             viewport and left a void between the last perk and the button.
-            With the cap the section centres the grid in the spare height
-            instead of stretching the modules into it. */}
+            With the cap the spare height goes UNDER the grid, not into the
+            modules and not above the title — centring it left the title
+            120px down the page. */}
         <div className="relative mt-4 grid min-h-0 flex-1 grid-cols-1 gap-4 md:mt-0 md:max-h-[500px] md:grid-cols-3">
           {PLANS.map((p, i) => (
             <PlanModule
