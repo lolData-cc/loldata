@@ -30,6 +30,69 @@ export function DiscordLinker() {
   const [connectingOAuth, setConnectingOAuth] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
+  // ===== Persist: identity → profile_players + user metadata =====
+  //
+  // ⚠️ UPSERT, not update. After the account reset a fresh user has no
+  // profile_players row yet; an update matched nothing, said nothing, and the
+  // Discord link lived only in user metadata — invisible to everything that
+  // reads the table (scout, the bot's role sync).
+  const persistDiscord = async (user: any, info: DiscordInfo) => {
+    const now = new Date().toISOString();
+    const { error: upErr } = await supabase
+      .from("profile_players")
+      .upsert(
+        {
+          profile_id: user.id,
+          player_id: user.id,
+          discord_id: info.id,
+          discord_username: info.username,
+          discord_avatar_url: info.avatarUrl,
+          discord_linked_at: now,
+        },
+        { onConflict: "profile_id" }
+      );
+    if (upErr) console.warn("profile_players discord upsert error:", upErr.message);
+
+    const { data: updatedUser, error: metaErr } = await supabase.auth.updateUser({
+      data: {
+        discord_id: info.id,
+        discord_username: info.username,
+        discord_avatar_url: info.avatarUrl,
+        discord_linked_at: now,
+      },
+    });
+    if (metaErr) console.warn("auth.updateUser discord meta error:", metaErr.message);
+
+    if (updatedUser?.user) {
+      setAuthUser(updatedUser.user);
+    } else {
+      setAuthUser((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              user_metadata: {
+                ...(prev.user_metadata ?? {}),
+                discord_id: info.id,
+                discord_username: info.username,
+                discord_avatar_url: info.avatarUrl,
+                discord_linked_at: now,
+              },
+            }
+          : prev
+      );
+    }
+    setProfile((prev) => ({
+      profile_id: user.id,
+      player_id: prev?.player_id ?? user.id,
+      discord_public: prev?.discord_public ?? null,
+      ...(prev ?? {}),
+      discord_id: info.id,
+      discord_username: info.username,
+      discord_avatar_url: info.avatarUrl,
+    }));
+    return !upErr;
+  };
+
   // ===== INIT: user + profile_players + avatar sync =====
   useEffect(() => {
     (async () => {
@@ -55,6 +118,27 @@ export function DiscordLinker() {
         }
 
         if (data) setProfile(data);
+
+        // ── Auto-link ──
+        // ⚠️ Signing in WITH Discord, or coming back from CONNECT, already
+        // put a Discord identity on the account. Asking the person to press
+        // LINK on top of that was a second click for something they had
+        // just done. If the identity is there and the profile does not have
+        // it yet, it is saved now, without a button.
+        if (!data?.discord_id) {
+          const fresh = extractDiscordFromUser(auth.user);
+          if (fresh?.id) {
+            const ok = await persistDiscord(auth.user, fresh);
+            if (ok) {
+              showCyberToast({
+                title: "Discord connected",
+                description: fresh.username ? `Connected as ${fresh.username}.` : "Your Discord account is linked.",
+                variant: "status",
+                tag: "OK",
+              });
+            }
+          }
+        }
 
         // ── Auto-sync Discord avatar from identity if it changed ──
         // The Discord identity in auth.user.identities gets refreshed on login,
@@ -222,64 +306,7 @@ export function DiscordLinker() {
         return;
       }
 
-      const now = new Date().toISOString();
-
-      const { error: updErr } = await supabase
-        .from("profile_players")
-        .update({
-          discord_id: info.id,
-          discord_username: info.username,
-          discord_avatar_url: info.avatarUrl,
-        })
-        .eq("profile_id", user.id);
-
-      if (updErr) {
-        console.warn("profile_players discord update error:", updErr);
-      }
-
-      const { data: updatedUser, error: metaErr } =
-        await supabase.auth.updateUser({
-          data: {
-            discord_id: info.id,
-            discord_username: info.username,
-            discord_avatar_url: info.avatarUrl,
-            discord_linked_at: now,
-          },
-        });
-
-      if (metaErr) {
-        console.warn("auth.updateUser discord meta error:", metaErr.message);
-      }
-
-      if (updatedUser?.user) {
-        setAuthUser(updatedUser.user);
-      } else {
-        setAuthUser((prev: any) =>
-          prev
-            ? {
-                ...prev,
-                user_metadata: {
-                  ...(prev.user_metadata ?? {}),
-                  discord_id: info.id,
-                  discord_username: info.username,
-                  discord_avatar_url: info.avatarUrl,
-                  discord_linked_at: now,
-                },
-              }
-            : prev
-        );
-      }
-
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              discord_id: info.id,
-              discord_username: info.username,
-              discord_avatar_url: info.avatarUrl,
-            }
-          : prev
-      );
+      await persistDiscord(user, info);
 
       showCyberToast({
         title: "Discord linked",
