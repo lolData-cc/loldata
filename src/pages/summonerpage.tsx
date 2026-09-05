@@ -2154,7 +2154,7 @@ export default function SummonerPage() {
                   : []),
               ];
               return (
-                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
+                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-6 h-full shrink-0 mt-3 pl-4">
                   {ranks.map(({ key, label, rank, lp }) => {
                     const unranked = !rank || String(rank).toLowerCase() === "unranked";
                     return (
@@ -2187,11 +2187,11 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div className={cn(glassDark, "hidden lg:block w-[476px] shrink-0")}>
+            <div className={cn(glassDark, "hidden lg:block flex-1 min-w-0")}>
               <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
-                <div className="relative shrink-0 w-[118px] h-[118px]">
+                <div className="relative shrink-0 w-[96px] h-[96px]">
                   <img
                     src={
                       summonerInfo?.avatar_url

@@ -65,7 +65,7 @@ export function ActionButton({
       className={cn(
         // the toolbar chip's exact height; narrow — a pair of actions, not a bar
         "act-btn h-7 shrink-0 inline-flex items-center justify-center",
-        fill ? "w-full" : "w-[100px]",
+        fill ? "w-full" : "w-[96px]",
         // the filter toolbar's type, so the pair and the chips beside them agree
         "font-chakrapetch font-semibold text-[10px] uppercase tracking-[0.13em]",
         "cursor-clicker select-none disabled:pointer-events-none",
