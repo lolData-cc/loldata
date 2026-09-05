@@ -2140,53 +2140,7 @@ export default function SummonerPage() {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse lg:flex-row-reverse lg:flex-nowrap justify-center lg:justify-between items-center lg:items-start mt-2 lg:mt-[22px] mb-2 lg:mb-0 w-full min-w-full max-w-full">
-            {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
-            {(() => {
-              const ranks = [
-                { key: "solo", label: "Solo/Duo", rank: summonerInfo?.rank ?? "Unranked", lp: summonerInfo?.lp ?? 0 },
-                { key: "flex", label: "Flex", rank: summonerInfo?.flexRank ?? "Unranked", lp: summonerInfo?.flexLp ?? 0 },
-                // Off unless asked for: a weekend-only queue on its own ladder,
-                // which for most profiles is a third card reading "Unranked"
-                // beside the two people came to read.
-                ...(showRanked5
-                  ? [{ key: "ranked5", label: "Ranked 5s", rank: summonerInfo?.ranked5Rank ?? "Unranked", lp: summonerInfo?.ranked5Lp ?? 0 }]
-                  : []),
-              ];
-              return (
-                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
-                  {ranks.map(({ key, label, rank, lp }) => {
-                    const unranked = !rank || String(rank).toLowerCase() === "unranked";
-                    return (
-                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[106px]">
-                        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 whitespace-nowrap">{label}</span>
-                        <div className="relative w-[84px] h-[84px] flex items-center justify-center">
-                          <div className="absolute w-14 h-14 bg-filmdark/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
-                          <img
-                            src={unranked ? "/img/unranked.png" : getRankImage(rank)}
-                            alt={`${label} rank`}
-                            className="relative z-10 w-[98px] h-[98px]"
-                            draggable={false}
-                            onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
-                          />
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <span className="text-[13px] font-mono font-semibold text-flash/65 tracking-wide whitespace-nowrap">{rank}</span>
-                          {!unranked && (
-                            <span
-                              className="text-[16px] font-chakrapetch font-bold text-flash tabular-nums"
-                              style={{ textShadow: "0 0 10px rgba(255,255,255,0.35), 0 0 20px rgba(255,255,255,0.12)" }}
-                            >
-                              {lp} <span className="text-[11px] text-flash/45">LP</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+          <div className="hidden lg:block mt-[22px] w-full">
             {/* ── Profile card ──────────────────────────────────────────────
                 ⚠️ Written in the page's own language: the glass every other
                 block wears, chakrapetch for the name, mono readouts for the
@@ -2194,11 +2148,11 @@ export default function SummonerPage() {
                 sits on ONE row at equal width; the "one free analysis" note has
                 a reserved line of its own underneath, so its arrival and
                 departure move nothing. */}
-            <div className={cn(glassDark, "hidden lg:block w-[480px]")}>
-              <div className="relative z-10 flex items-center gap-5 px-6 py-5">
+            <div className={cn(glassDark, "w-full")}>
+              <div className="relative z-10 flex items-center gap-5 px-5 pt-5 pb-4">
 
                 {/* Avatar */}
-                <div className="relative shrink-0 w-[96px] h-[96px]">
+                <div className="relative shrink-0 w-[88px] h-[88px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
@@ -2230,7 +2184,7 @@ export default function SummonerPage() {
                 </div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                   {/* Pro / streamer identity — shown directly above the summoner name */}
                   <div className="flex items-center gap-2 flex-wrap min-h-[16px]">
                     {proPlayerInfo ? (
@@ -2328,38 +2282,86 @@ export default function SummonerPage() {
                     )}
                   </div>
 
-                  {/* Actions — one row, the toolbar chip's size; the note has its own line */}
-                  <div className="mt-0.5">
-                    <div className="flex items-center gap-2">
-                      <UpdateButton
-                        onClick={() => refreshData(true)}
-                        loading={refreshing}
-                        cooldown={onCooldown}
-                        cooldownSeconds={cooldownSeconds}
-                      />
-                      {summonerInfo?.puuid && region ? (
-                        <PlayerAnalysisDialog
-                          puuid={summonerInfo.puuid}
-                          region={region}
-                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                          externalOpen={analyzeOpen}
-                          onExternalOpenChange={setAnalyzeOpen}
-                          trialNote="none"
-                          onTrialAvailability={setTrialNote}
-                        />
-                      ) : (
-                        <span aria-hidden className="h-6 w-[88px] rounded-[5px] bg-filmlight/[0.03]" />
-                      )}
-                    </div>
-                    <div className="mt-1.5 min-h-[12px] font-mono text-[9px] uppercase tracking-[0.16em] text-citrine/60 leading-none">
-                      {trialNote && (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span aria-hidden className="h-[3px] w-[3px] rotate-45 bg-citrine" />
-                          one free analysis included
-                        </span>
-                      )}
-                    </div>
+                </div>
+
+                {/* Ranks — inside the card, on its right */}
+                {(() => {
+                const ranks = [
+                { key: "solo", label: "Solo/Duo", rank: summonerInfo?.rank ?? "Unranked", lp: summonerInfo?.lp ?? 0 },
+                { key: "flex", label: "Flex", rank: summonerInfo?.flexRank ?? "Unranked", lp: summonerInfo?.flexLp ?? 0 },
+                // Off unless asked for: a weekend-only queue on its own ladder,
+                // which for most profiles is a third card reading "Unranked"
+                // beside the two people came to read.
+                ...(showRanked5
+                  ? [{ key: "ranked5", label: "Ranked 5s", rank: summonerInfo?.ranked5Rank ?? "Unranked", lp: summonerInfo?.ranked5Lp ?? 0 }]
+                  : []),
+              ];
+                return (
+                  <div className="hidden lg:flex shrink-0 items-start gap-6 pl-2">
+                    {ranks.map(({ key, label, rank, lp }) => {
+                      const unranked = !rank || String(rank).toLowerCase() === "unranked";
+                      return (
+                        <div key={key} className="flex w-[96px] flex-col items-center gap-1">
+                          <span className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.2em] text-flash/30">{label}</span>
+                          <div className="relative flex h-[64px] w-[64px] items-center justify-center">
+                            <div className="absolute z-0 h-11 w-11 rounded-full border border-jade/15 bg-filmdark/40" />
+                            <img
+                              src={unranked ? "/img/unranked.png" : getRankImage(rank)}
+                              alt={`${label} rank`}
+                              className="relative z-10 h-[76px] w-[76px]"
+                              draggable={false}
+                              onError={(e) => { e.currentTarget.src = "/img/unranked.png"; }}
+                            />
+                          </div>
+                          <span className="whitespace-nowrap font-mono text-[11px] font-semibold tracking-wide text-flash/65">{rank}</span>
+                          {!unranked && (
+                            <span className="font-chakrapetch text-[14px] font-bold tabular-nums leading-none text-flash">
+                              {lp} <span className="text-[10px] text-flash/45">LP</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                );
+              })()}
+              </div>
+
+              {/* ── Action bar ──────────────────────────────────────────────
+                  The card's footer, like the billing card's: the trial note
+                  on the left, the two chips on the right edge. The pair has a
+                  home instead of floating under the name, and the note sits
+                  on the same line as the buttons it talks about. */}
+              <div className="relative z-10 mx-5 h-px bg-gradient-to-r from-jade/15 via-flash/[0.08] to-transparent" />
+              <div className="relative z-10 flex items-center justify-between gap-3 px-5 py-3">
+                <span className="min-w-0 truncate whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.16em] text-citrine/60 leading-none">
+                  {trialNote && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span aria-hidden className="h-[3px] w-[3px] rotate-45 bg-citrine" />
+                      one free analysis included
+                    </span>
+                  )}
+                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <UpdateButton
+                    onClick={() => refreshData(true)}
+                    loading={refreshing}
+                    cooldown={onCooldown}
+                    cooldownSeconds={cooldownSeconds}
+                  />
+                  {summonerInfo?.puuid && region ? (
+                    <PlayerAnalysisDialog
+                      puuid={summonerInfo.puuid}
+                      region={region}
+                      summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                      externalOpen={analyzeOpen}
+                      onExternalOpenChange={setAnalyzeOpen}
+                      trialNote="none"
+                      onTrialAvailability={setTrialNote}
+                    />
+                  ) : (
+                    <span aria-hidden className="h-7 w-[96px] rounded-[5px] bg-filmlight/[0.03]" />
+                  )}
                 </div>
               </div>
 
