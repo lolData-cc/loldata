@@ -2187,7 +2187,7 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div className={cn(glassDark, "hidden lg:block max-w-[476px]")}>
+            <div className={cn(glassDark, "hidden lg:block w-[476px] shrink-0")}>
               <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
