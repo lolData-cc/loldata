@@ -2191,7 +2191,6 @@ export default function SummonerPage() {
             <SummonerIdCard
               className={cn(glassDark, "flex-1 min-w-0")}
               info={summonerInfo}
-              region={region ?? ""}
               trialNote={trialNote}
               identity={
                 <>
