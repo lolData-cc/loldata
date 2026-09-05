@@ -41,7 +41,7 @@ type ActionButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 // Fixed so a label change (UPDATE → UPDATED → 2:31) cannot shift the text off
 // centre and make the button twitch.
-const LABEL_W = "w-[62px]"
+const LABEL_W = "w-[60px]"
 
 export function ActionButton({
   accent = "jade",
@@ -64,15 +64,16 @@ export function ActionButton({
       style={{ ["--acc" as string]: accentRgb ?? ACTION_ACCENTS[accent], ...style } as CSSProperties}
       className={cn(
         // the toolbar chip's exact height; narrow — a pair of actions, not a bar
-        "act-btn h-7 shrink-0 inline-flex items-center justify-center",
+        "act-btn h-7 shrink-0 inline-flex items-center justify-start gap-2 pl-2.5 pr-2",
         fill ? "w-full" : "w-[96px]",
-        // the filter toolbar's type, so the pair and the chips beside them agree
-        "font-chakrapetch font-semibold text-[10px] uppercase tracking-[0.13em]",
+        // the reference's light monospace capitals
+        "font-jetbrains text-[10.5px] uppercase tracking-[0.08em]",
         "cursor-clicker select-none disabled:pointer-events-none",
         className
       )}
     >
-      <span className={cn("relative z-10 text-center tabular-nums", fill ? "" : LABEL_W)}>
+      <span aria-hidden className="act-mark relative z-10" />
+      <span className={cn("relative z-10 text-left tabular-nums", fill ? "" : LABEL_W)}>
         {label}
       </span>
 

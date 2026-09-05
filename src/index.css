@@ -1023,47 +1023,54 @@ body.modal-frozen #root *::after {
 /* ── Profile actions: UPDATE / ANALYZE ─────────────────────────────────────
    One component drives both so they cannot drift apart.
 
-   ⚠️ They are the page's CHIPS — the same soft fill + inset ring the filter
-   toolbar uses for ROLE / ALL — not a third design. The previous chrome (an
-   accent rail, a slanted sweep, colours lifted from the player's avatar) put
-   two oddly coloured, oddly lit buttons under the name, and beside the
-   toolbar's chips they read as imports from another site.
+   ⚠️ The OBSIDIAN bar, from the reference the user keeps coming back to: a
+   flat, frosted, translucent strip — no corners, no ring, no rail — with a
+   small coloured square on the left and the label in light monospace
+   capitals ("■ PAUSE", "SOUND ON"). The colour lives ONLY in the square and
+   in the state bar along the bottom edge; the strip itself is neutral glass,
+   so the pair reads as instrument controls, not as two coloured pills.
 
-   --acc is an "R G B" triple so every layer can take its own alpha. Fixed per
-   button: UPDATE wears jade, ANALYZE wears citrine. */
+   --acc is an "R G B" triple: UPDATE wears jade, ANALYZE wears citrine. */
 .act-btn {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-radius: 5px;
-    background-color: rgb(var(--acc) / 0.10);
-    color: rgb(var(--acc));
-    box-shadow: inset 0 0 0 1px rgb(var(--acc) / 0.30);
-    transition: background-color 200ms ease, box-shadow 200ms ease, color 200ms ease;
+    border-radius: 0;
+    background-color: rgb(215 216 217 / 0.08);
+    backdrop-filter: blur(8px);
+    color: rgb(215 216 217 / 0.92);
+    transition: background-color 180ms ease, color 180ms ease;
 }
 .act-btn:hover:not(:disabled) {
-    background-color: rgb(var(--acc) / 0.18);
-    box-shadow: inset 0 0 0 1px rgb(var(--acc) / 0.55);
+    background-color: rgb(215 216 217 / 0.15);
+    color: #ffffff;
 }
-.act-btn:active:not(:disabled) { background-color: rgb(var(--acc) / 0.24); }
+.act-btn:active:not(:disabled) { background-color: rgb(215 216 217 / 0.2); }
 .act-btn:focus-visible {
     outline: 1px solid rgb(var(--acc) / 0.7);
     outline-offset: 1px;
 }
-
-/* Cooldown / locked: still legible, plainly not actionable. Dimming inside the
-   accent rather than greying out keeps it in palette. */
-.act-btn[data-state="muted"] {
-    background-color: rgb(var(--acc) / 0.05);
-    color: rgb(var(--acc) / 0.5);
-    box-shadow: inset 0 0 0 1px rgb(var(--acc) / 0.16);
+/* the square */
+.act-mark {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    background: rgb(var(--acc));
+    box-shadow: 0 0 6px rgb(var(--acc) / 0.55);
 }
+
+/* Cooldown / locked: the strip fades, the square stays lit but dim — still
+   plainly a control, plainly not available. */
+.act-btn[data-state="muted"] {
+    background-color: rgb(215 216 217 / 0.05);
+    color: rgb(215 216 217 / 0.45);
+}
+.act-btn[data-state="muted"] .act-mark { opacity: 0.45; box-shadow: none; }
 /* A muted button can still be live — locked ANALYZE opens the paywall — so it
    answers the cursor, just without pretending to be available. */
 .act-btn[data-state="muted"]:hover:not(:disabled) {
-    background-color: rgb(var(--acc) / 0.09);
-    color: rgb(var(--acc) / 0.7);
-    box-shadow: inset 0 0 0 1px rgb(var(--acc) / 0.3);
+    background-color: rgb(215 216 217 / 0.09);
+    color: rgb(215 216 217 / 0.65);
 }
 
 /* Cooldown drain along the bottom edge — the remaining wait as a quantity, not
