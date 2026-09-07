@@ -2151,7 +2151,7 @@ export default function SummonerPage() {
                   : []),
               ];
               return (
-                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-6 h-full flex-1 min-w-0 mt-3">
+                <div className="hidden lg:flex flex-nowrap items-start justify-between h-full flex-1 min-w-0 mt-3 px-3 xl:px-16">
                   {ranks.map(({ key, label, rank, lp }) => {
                     const unranked = !rank || String(rank).toLowerCase() === "unranked";
                     return (
