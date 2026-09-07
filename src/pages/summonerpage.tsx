@@ -1212,30 +1212,36 @@ export default function SummonerPage() {
         // list never blanks and the scroll position survives. Computed against
         // the ref, NOT inside a setMatches updater: an updater that calls
         // another setter is impure and tears the tree down.
-        const seen = new Set(
-          matchesRef.current.map((m: any) => m?.metadata?.matchId).filter(Boolean)
-        );
+        // ⚠️ A row is { match, win, championName }: the id lives at
+        // m.match.metadata.matchId. This read m.metadata.matchId — undefined on
+        // every row — so nothing ever counted as new, and UPDATE never showed a
+        // game the backend had already returned. A reload "worked" only because
+        // the hard path replaces the list wholesale.
+        const idOf = (m: any) => m?.match?.metadata?.matchId ?? m?.metadata?.matchId;
+        const seen = new Set(matchesRef.current.map(idOf).filter(Boolean));
         const incoming = ((data.matches ?? []) as any[]).filter(
-          (m) => m?.metadata?.matchId && !seen.has(m.metadata.matchId)
+          (m) => idOf(m) && !seen.has(idOf(m))
         );
         if (incoming.length > 0) {
           // Second dedupe against `prev`: the ref only catches up on commit, so
           // two refreshes in quick succession could otherwise prepend the same
           // game twice - and matchId is the list key.
           setMatches(prev => {
-            const have = new Set(prev.map((m: any) => m?.metadata?.matchId));
-            const add = incoming.filter((m) => !have.has(m.metadata.matchId));
+            const have = new Set(prev.map(idOf));
+            const add = incoming.filter((m) => !have.has(idOf(m)));
             return add.length > 0 ? [...add, ...prev] : prev;
           });
-          setFreshMatchIds(new Set(incoming.map((m: any) => m.metadata.matchId)));
+          setFreshMatchIds(new Set(incoming.map(idOf)));
           // Slide the pagination window by however many games we spliced in,
           // otherwise the next "load more" re-requests rows we already show.
           setNextOffset(prev => prev + incoming.length);
         }
       } else if (append) {
         setMatches(prev => {
-          const have = new Set(prev.map((m: any) => m?.metadata?.matchId));
-          const add = (data.matches as any[]).filter((m) => !have.has(m?.metadata?.matchId));
+          // same shape trap as the merge above: the id is on m.match
+          const idOf = (m: any) => m?.match?.metadata?.matchId ?? m?.metadata?.matchId;
+          const have = new Set(prev.map(idOf));
+          const add = (data.matches as any[]).filter((m) => !have.has(idOf(m)));
           return add.length > 0 ? [...prev, ...add] : prev;
         });
       } else {
