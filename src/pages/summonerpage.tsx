@@ -39,7 +39,6 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
-import { useDominantColors, rgbVar, PENDING_ACC } from "@/hooks/useDominantColors"
 import { useShowRanked5 } from "@/hooks/useShowRanked5"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -293,33 +292,7 @@ export default function SummonerPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
 
-  /**
-   * The two colours the player's own profile picture is made of — the premium
-   * avatar when they have one, otherwise their summoner icon, which is exactly
-   * the image shown beside these buttons.
-   *
-   * UPDATE takes the first, ANALYZE the second. Both fall back to their fixed
-   * citrine/jade the moment the picture cannot be read, so a CDN hiccup costs
-   * the colour and nothing else.
-   */
-  // Mirrors the <img> beside these buttons exactly, including its own fallback
-  // to icon 29 — reading a different picture than the one on screen would give
-  // the pair colours the player cannot see the source of.
-  const avatarForPalette = summonerInfo
-    ? (summonerInfo.avatar_url
-       ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId ?? 29}.png`)
-    : null;
-  const palette = useDominantColors(avatarForPalette);
   const { enabled: showRanked5 } = useShowRanked5();
-  // While the picture is still loading the pair stays neutral rather than
-  // flashing the fixed accents and then changing colour under the cursor.
-  // ⚠️ `!summonerInfo` counts as pending too. The hook can only be pending once
-  // it has a URL, and during the skeleton there is no summoner yet, so the URL
-  // is null and the pair would fall back to the fixed accents — which is the
-  // yellow flash this is here to stop.
-  const waiting = !summonerInfo || palette.pending;
-  const accUpdate = waiting ? PENDING_ACC : rgbVar(palette.primary);
-  const accAnalyze = waiting ? PENDING_ACC : rgbVar(palette.secondary);
   const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
@@ -2178,11 +2151,11 @@ export default function SummonerPage() {
                   : []),
               ];
               return (
-                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
+                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-4 h-full shrink-0 mt-3 pl-1">
                   {ranks.map(({ key, label, rank, lp }) => {
                     const unranked = !rank || String(rank).toLowerCase() === "unranked";
                     return (
-                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[106px]">
+                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[96px]">
                         <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 whitespace-nowrap">{label}</span>
                         <div className="relative w-[84px] h-[84px] flex items-center justify-center">
                           <div className="absolute w-14 h-14 bg-filmdark/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
@@ -2211,11 +2184,11 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div className={cn(glassDark, "hidden lg:block max-w-[440px]")}>
+            <div className={cn(glassDark, "hidden lg:block flex-1 min-w-0 max-w-[440px]")}>
               <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
-                <div className="relative shrink-0 w-[118px] h-[118px]">
+                <div className="relative shrink-0 w-[108px] h-[108px]">
                   <img
                     src={
                       summonerInfo?.avatar_url
@@ -2340,7 +2313,6 @@ export default function SummonerPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-1">
                     <UpdateButton
-                      accentRgb={accUpdate}
                       onClick={() => refreshData(true)}
                       loading={refreshing}
                       cooldown={onCooldown}
@@ -2351,7 +2323,6 @@ export default function SummonerPage() {
                         puuid={summonerInfo.puuid}
                         region={region}
                         summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                        accentRgb={accAnalyze}
                         externalOpen={analyzeOpen}
                         onExternalOpenChange={setAnalyzeOpen}
                       />

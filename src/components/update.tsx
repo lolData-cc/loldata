@@ -41,7 +41,7 @@ export function UpdateButton({
   return (
     <ActionButton
       {...props}
-      accent="citrine"
+      accent="jade"
       label={label}
       loading={loading}
       muted={cooldown}

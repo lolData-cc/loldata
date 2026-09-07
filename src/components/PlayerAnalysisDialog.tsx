@@ -1031,7 +1031,7 @@ export function PlayerAnalysisDialog({
   return (
     <>
       {/* Trigger Button */}
-      <div className={cn("relative inline-flex flex-col items-center", fill && "w-full")}>
+      <div className={cn("relative inline-flex", fill && "w-full")}>
         <ActionButton
           accent="jade"
           accentRgb={accentRgb}
@@ -1052,15 +1052,11 @@ export function PlayerAnalysisDialog({
           }}
         />
         {isFreeUser && usageChecked && !trialUsed && (
-          /* In the flow, not floating.
-             It used to be an 8px line absolutely positioned 16px BELOW the
-             button, overlapping whatever sat under it and belonging to nothing.
-             Now it is a badge in the column the button already occupies: it
-             takes its own space, sits on the button's centre line, and reads as
-             a property of that button rather than as debris under it. */
-          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-[3px] border border-citrine/25 bg-citrine/[0.06] px-2 py-[3px] font-jetbrains text-[8.5px] uppercase leading-none tracking-[0.16em] text-citrine/80">
-            <span aria-hidden className="h-[3px] w-[3px] rotate-45 bg-citrine" />
-            one free analysis
+          /* A pill on the button's top-right corner, like a notification
+             count: it belongs to ANALYZE, takes no room in the layout, and
+             cannot push anything around it. */
+          <span className="pointer-events-none absolute -right-2 -top-2 z-20 inline-flex items-center rounded-full bg-[#040A0C] px-1.5 py-[2px] font-jetbrains text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-jade shadow-[0_0_0_1px_rgba(0,217,146,0.55)]">
+            1 free
           </span>
         )}
       </div>
