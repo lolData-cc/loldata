@@ -39,7 +39,7 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import { UpdateButton } from "@/components/update"
-import { SummonerIdCard } from "@/components/summoneridcard"
+import { useDominantColors, rgbVar, PENDING_ACC } from "@/hooks/useDominantColors"
 import { useShowRanked5 } from "@/hooks/useShowRanked5"
 import { SummonerBootOverlay } from "@/components/summonerbootoverlay"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -293,10 +293,33 @@ export default function SummonerPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
 
-  // Whether ANALYZE still has its free run — shown on a reserved line under
-  // the button pair, so it can never push a button off its row.
-  const [trialNote, setTrialNote] = useState(false);
+  /**
+   * The two colours the player's own profile picture is made of — the premium
+   * avatar when they have one, otherwise their summoner icon, which is exactly
+   * the image shown beside these buttons.
+   *
+   * UPDATE takes the first, ANALYZE the second. Both fall back to their fixed
+   * citrine/jade the moment the picture cannot be read, so a CDN hiccup costs
+   * the colour and nothing else.
+   */
+  // Mirrors the <img> beside these buttons exactly, including its own fallback
+  // to icon 29 — reading a different picture than the one on screen would give
+  // the pair colours the player cannot see the source of.
+  const avatarForPalette = summonerInfo
+    ? (summonerInfo.avatar_url
+       ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo.profileIconId ?? 29}.png`)
+    : null;
+  const palette = useDominantColors(avatarForPalette);
   const { enabled: showRanked5 } = useShowRanked5();
+  // While the picture is still loading the pair stays neutral rather than
+  // flashing the fixed accents and then changing colour under the cursor.
+  // ⚠️ `!summonerInfo` counts as pending too. The hook can only be pending once
+  // it has a URL, and during the skeleton there is no summoner yet, so the URL
+  // is null and the pair would fall back to the fixed accents — which is the
+  // yellow flash this is here to stop.
+  const waiting = !summonerInfo || palette.pending;
+  const accUpdate = waiting ? PENDING_ACC : rgbVar(palette.primary);
+  const accAnalyze = waiting ? PENDING_ACC : rgbVar(palette.secondary);
   const [mobileLiveOpen, setMobileLiveOpen] = useState(false); // phone LIVE viewer (desktop card has its own trigger)
   const [reportReason, setReportReason] = useState<string | null>(null);
 
@@ -2141,7 +2164,7 @@ export default function SummonerPage() {
             </div>
           </div>
 
-          <div className="hidden lg:flex lg:flex-row-reverse lg:flex-nowrap lg:justify-between lg:items-start mt-[22px] w-full">
+          <div className="flex flex-col-reverse lg:flex-row-reverse lg:flex-nowrap justify-center lg:justify-between items-center lg:items-start mt-2 lg:mt-[22px] mb-2 lg:mb-0 w-full min-w-full max-w-full">
             {/* Ranks (rendered first in DOM but displayed on the right via flex-row-reverse) */}
             {(() => {
               const ranks = [
@@ -2155,11 +2178,11 @@ export default function SummonerPage() {
                   : []),
               ];
               return (
-                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-4 h-full shrink-0 mt-3 pl-2">
+                <div className="hidden lg:flex flex-nowrap items-start justify-center gap-9 h-full flex-1 mt-3">
                   {ranks.map(({ key, label, rank, lp }) => {
                     const unranked = !rank || String(rank).toLowerCase() === "unranked";
                     return (
-                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[96px]">
+                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[106px]">
                         <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 whitespace-nowrap">{label}</span>
                         <div className="relative w-[84px] h-[84px] flex items-center justify-center">
                           <div className="absolute w-14 h-14 bg-filmdark/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
@@ -2188,84 +2211,157 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <SummonerIdCard
-              className={cn(glassDark, "flex-1 min-w-0")}
-              info={summonerInfo}
-              trialNote={trialNote}
-              identity={
-                <>
-                        {proPlayerInfo ? (
-                          <Link
-                            to={`/players/${proPlayerInfo.slug}`}
-                            className="group/talent flex items-center gap-1.5 cursor-clicker"
-                          >
-                            {proPlayerInfo.team && proTeamLogo && <TeamLogo src={proTeamLogo} className="w-4 h-4 object-contain" />}
-                            {proPlayerInfo.team && (
-                              <span className="font-chakrapetch text-[12px] font-semibold uppercase tracking-[0.1em] text-jade/80">{proPlayerInfo.team}</span>
-                            )}
-                            {proPlayerInfo.team && <span className="text-jade/35 text-[9px]">◆</span>}
-                            <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">
-                              {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
-                            </span>
-                            <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
-                          </Link>
-                        ) : streamerInfo ? (
-                          <Link
-                            to={`/players/${streamerInfo.slug}`}
-                            className="group/talent flex items-center gap-1.5 cursor-clicker"
-                          >
-                            <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STRM</span>
-                            <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">{streamerInfo.twitch_login}</span>
-                          </Link>
-                        ) : (
-                          <>
-                            {isPro && (
-                              <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
-                            )}
-                            {isStreamer && (
-                              <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
-                            )}
-                          </>
+            <div className={cn(glassDark, "hidden lg:block max-w-[440px]")}>
+              <div className="relative z-10 flex items-center gap-5 px-6 py-6">
+
+                {/* Avatar */}
+                <div className="relative shrink-0 w-[118px] h-[118px]">
+                  <img
+                    src={
+                      summonerInfo?.avatar_url
+                      ?? `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
+                    }
+                    className={cn(
+                      "relative w-full h-full rounded-xl select-none pointer-events-none border-2 object-cover",
+                      summonerInfo?.live ? "border-red-500" : "border-transparent"
+                    )}
+                    style={summonerInfo?.live ? { boxShadow: "0 0 16px rgba(239,68,68,0.35), 0 0 4px rgba(239,68,68,0.5)" } : undefined}
+                    draggable={false}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        `${cdnBaseUrl()}/img/profileicon/${summonerInfo?.profileIconId ?? 29}.png`
+                    }}
+                  />
+                  {summonerInfo?.level != null && (
+                    <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-[3px] bg-black/85 px-1.5 py-[2px] font-chakrapetch text-[10px] font-bold tabular-nums leading-none text-flash/90 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
+                      {summonerInfo.level}
+                    </span>
+                  )}
+                  {summonerInfo?.live && summonerInfo?.puuid && (
+                    <LiveViewer
+                      puuid={summonerInfo.puuid}
+                      riotId={`${summonerInfo.name}#${summonerInfo.tag}`}
+                      region={region!}
+                    />
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-col gap-2.5 flex-1 min-w-0">
+                  {/* Pro / streamer identity — shown directly above the summoner name */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {proPlayerInfo ? (
+                      <Link
+                        to={`/players/${proPlayerInfo.slug}`}
+                        className="group/talent flex items-center gap-1.5 cursor-clicker"
+                      >
+                        {proPlayerInfo.team && proTeamLogo && <TeamLogo src={proTeamLogo} className="w-4 h-4 object-contain" />}
+                        {proPlayerInfo.team && (
+                          <span className="font-chakrapetch text-[12px] font-semibold uppercase tracking-[0.1em] text-jade/80">{proPlayerInfo.team}</span>
                         )}
-                        {linkedDiscord && (
-                          <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
-                            {linkedDiscord.discord_username}
-                          </span>
+                        {proPlayerInfo.team && <span className="text-jade/35 text-[9px]">◆</span>}
+                        <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">
+                          {proPlayerInfo.nickname || proPlayerInfo.username.split("#")[0]}
+                        </span>
+                        <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
+                      </Link>
+                    ) : streamerInfo ? (
+                      <Link
+                        to={`/players/${streamerInfo.slug}`}
+                        className="group/talent flex items-center gap-1.5 cursor-clicker"
+                      >
+                        <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STRM</span>
+                        <span className="font-chakrapetch text-[13px] font-bold text-flash/95 tracking-wide transition-colors group-hover/talent:text-jade">{streamerInfo.twitch_login}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        {isPro && (
+                          <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #00d992, #00b8ff)", color: "#040A0C" }}>PRO</span>
                         )}
-                </>
-              }
-              liveViewer={
-                summonerInfo?.live && summonerInfo?.puuid ? (
-                      <LiveViewer
+                        {isStreamer && (
+                          <span className="text-[8px] font-black px-[5px] py-[2px] rounded-[3px] tracking-wide" style={{ background: "linear-gradient(135deg, #7b42a1, #a855c7)", color: "#e0d0f0" }}>STR</span>
+                        )}
+                      </>
+                    )}
+                    {linkedDiscord && (
+                      <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#7289da]/60">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/></svg>
+                        {linkedDiscord.discord_username}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div
+                    className="cursor-clicker"
+                    title="Click to copy"
+                    onClick={() => {
+                      if (!summonerInfo) return;
+                      const riotId = `${summonerInfo.name}#${summonerInfo.tag}`;
+                      navigator.clipboard.writeText(riotId);
+                      showCyberToast({ title: "Summoner name copied", description: riotId });
+                    }}
+                  >
+                    {!summonerInfo ? (
+                      <Skeleton className="h-8 w-[200px] bg-filmlight/10" />
+                    ) : (
+                      <>
+                        <span className={cn(
+                          "font-bold font-chakrapetch text-flash tracking-wide leading-none",
+                          (summonerInfo.name?.length || 0) > 14 ? "text-[18px]" : (summonerInfo.name?.length || 0) > 10 ? "text-[22px]" : "text-[26px]"
+                        )}>
+                          {summonerInfo.name}
+                        </span>
+                        {summonerInfo.tag && (
+                          <span className="text-[18px] font-chakrapetch text-flash/30 ml-1">#{summonerInfo.tag}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Meta line — always rendered (min-h reserves one line) so the
+                      name above and buttons below stay put. Level → avatar pill;
+                      here: PEAK rank (not surfaced elsewhere) + ladder rank. */}
+                  <div className="flex min-h-[18px] items-center gap-2 font-mono text-[12px]">
+                    {summonerInfo?.peakRank && summonerInfo.peakRank.toLowerCase() !== "unranked" && (
+                      <span className="inline-flex items-center gap-1.5 rounded-[3px] bg-flash/[0.06] px-1.5 py-[2px] leading-none">
+                        <span className="text-[9px] uppercase tracking-[0.14em] text-citrine/60">Peak</span>
+                        <span className="text-[11px] font-semibold text-flash/70">{summonerInfo.peakRank}</span>
+                        {summonerInfo.peakLp != null && (
+                          <span className="text-[11px] text-flash/40 tabular-nums">{summonerInfo.peakLp} LP</span>
+                        )}
+                      </span>
+                    )}
+                    {summonerInfo?.ladderRank && (
+                      <span className="tracking-[0.08em] text-jade/50">Rank #{summonerInfo.ladderRank.toLocaleString()}</span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <UpdateButton
+                      accentRgb={accUpdate}
+                      onClick={() => refreshData(true)}
+                      loading={refreshing}
+                      cooldown={onCooldown}
+                      cooldownSeconds={cooldownSeconds}
+                    />
+                    {summonerInfo?.puuid && region && (
+                      <PlayerAnalysisDialog
                         puuid={summonerInfo.puuid}
-                        riotId={`${summonerInfo.name}#${summonerInfo.tag}`}
-                        region={region!}
+                        region={region}
+                        summonerName={summonerInfo?.name ?? name ?? "Unknown"}
+                        accentRgb={accAnalyze}
+                        externalOpen={analyzeOpen}
+                        onExternalOpenChange={setAnalyzeOpen}
                       />
-                ) : null
-              }
-              actions={
-                <>
-                      <UpdateButton
-                        onClick={() => refreshData(true)}
-                        loading={refreshing}
-                        cooldown={onCooldown}
-                        cooldownSeconds={cooldownSeconds}
-                      />
-                      {summonerInfo?.puuid && region && (
-                        <PlayerAnalysisDialog
-                          puuid={summonerInfo.puuid}
-                          region={region}
-                          summonerName={summonerInfo?.name ?? name ?? "Unknown"}
-                          externalOpen={analyzeOpen}
-                          onExternalOpenChange={setAnalyzeOpen}
-                          trialNote="none"
-                          onTrialAvailability={setTrialNote}
-                        />
-                      )}
-                </>
-              }
-            />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
 
           {/* mobile-only season overall W/L/WR (the sidebar version is hidden on phones) */}

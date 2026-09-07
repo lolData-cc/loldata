@@ -816,8 +816,6 @@ export function PlayerAnalysisDialog({
   summonerName,
   externalOpen,
   onExternalOpenChange,
-  trialNote = "badge",
-  onTrialAvailability,
   fill,
   accentRgb,
 }: {
@@ -828,15 +826,6 @@ export function PlayerAnalysisDialog({
   accentRgb?: string;
   externalOpen?: boolean;
   onExternalOpenChange?: (open: boolean) => void;
-  /**
-   * Where the "one free analysis" note goes. "badge" (default) draws it under
-   * the button, inside this component. "none" draws nothing and instead
-   * reports availability through `onTrialAvailability`, so the host can put
-   * the note where it does not push the button off its row — the profile
-   * card keeps a reserved line under the UPDATE / ANALYZE pair for it.
-   */
-  trialNote?: "badge" | "none";
-  onTrialAvailability?: (available: boolean) => void;
   /** Stretch the trigger to its container width (profile-card layout). */
   fill?: boolean;
 }) {
@@ -861,10 +850,6 @@ export function PlayerAnalysisDialog({
   const isPremium = !!plan && plan.toLowerCase() !== "free";
   const isFreeUser = !plan || plan.toLowerCase() === "free";
   const isLocked = isFreeUser && trialUsed;
-  const trialAvailable = isFreeUser && usageChecked && !trialUsed;
-  useEffect(() => {
-    onTrialAvailability?.(trialAvailable);
-  }, [trialAvailable, onTrialAvailability]);
 
   // Check usage status on mount / session change
   useEffect(() => {
@@ -1048,7 +1033,7 @@ export function PlayerAnalysisDialog({
       {/* Trigger Button */}
       <div className={cn("relative inline-flex flex-col items-center", fill && "w-full")}>
         <ActionButton
-          accent="citrine"
+          accent="jade"
           accentRgb={accentRgb}
           label="ANALYZE"
           muted={isLocked}
@@ -1066,7 +1051,7 @@ export function PlayerAnalysisDialog({
             }
           }}
         />
-        {trialNote === "badge" && trialAvailable && (
+        {isFreeUser && usageChecked && !trialUsed && (
           /* In the flow, not floating.
              It used to be an 8px line absolutely positioned 16px BELOW the
              button, overlapping whatever sat under it and belonging to nothing.

@@ -3,12 +3,12 @@
 // they sit side by side, so anything that can drift between them will. Only the
 // accent and the label differ.
 //
-// No glyph by design — the label carries the meaning and the colour the
-// identity. State is told along the bottom edge: a drain bar for cooldown, a
-// travelling bar while in flight.
+// No glyph by design — the label carries the meaning and the accent rail
+// carries the identity. State is told along the bottom edge instead: a drain
+// bar for cooldown, a travelling bar while in flight.
 //
-// Chrome lives in .act-* in index.css: the page's chip (soft fill + inset
-// ring), in the accent the caller names.
+// Chrome lives in .act-* in index.css — the states need :hover/::before, which
+// utilities cannot express against a runtime accent colour.
 import { ButtonHTMLAttributes, CSSProperties } from "react"
 import { cn } from "@/lib/utils"
 
@@ -41,7 +41,7 @@ type ActionButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 // Fixed so a label change (UPDATE → UPDATED → 2:31) cannot shift the text off
 // centre and make the button twitch.
-const LABEL_W = "w-[60px]"
+const LABEL_W = "w-[62px]"
 
 export function ActionButton({
   accent = "jade",
@@ -63,14 +63,19 @@ export function ActionButton({
       data-state={muted ? "muted" : undefined}
       style={{ ["--acc" as string]: accentRgb ?? ACTION_ACCENTS[accent], ...style } as CSSProperties}
       className={cn(
-        // the toolbar chip's exact height; narrow — a pair of actions, not a bar
-        "act-btn h-7 shrink-0 inline-flex items-center justify-center px-3",
-        fill ? "w-full" : "w-[96px]",
-        "font-jetbrains text-[10px] font-semibold uppercase tracking-[0.16em]",
+        "act-btn h-8 shrink-0 inline-flex items-center justify-center",
+        fill ? "w-full" : "w-[104px]",
+        "font-jetbrains text-[10px] uppercase tracking-[0.16em]",
         "cursor-clicker select-none disabled:pointer-events-none",
         className
       )}
     >
+      <span
+        aria-hidden
+        className="act-sweep pointer-events-none absolute inset-y-0 left-0 w-[34%]"
+        style={{ background: "linear-gradient(90deg, transparent, rgb(var(--acc) / 0.16), transparent)" }}
+      />
+
       <span className={cn("relative z-10 text-center tabular-nums", fill ? "" : LABEL_W)}>
         {label}
       </span>

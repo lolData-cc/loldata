@@ -12,8 +12,6 @@ type UpdateButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean
   cooldown?: boolean
   cooldownSeconds?: number
-  /** stretch to the container — the profile card sets the pair at equal width */
-  fill?: boolean
 }
 
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`
@@ -22,7 +20,6 @@ export function UpdateButton({
   loading,
   cooldown,
   cooldownSeconds,
-  fill,
   children,
   ...props
 }: UpdateButtonProps) {
@@ -44,9 +41,8 @@ export function UpdateButton({
   return (
     <ActionButton
       {...props}
-      accent="jade"
+      accent="citrine"
       label={label}
-      fill={fill}
       loading={loading}
       muted={cooldown}
       disabled={cooldown}

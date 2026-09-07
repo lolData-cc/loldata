@@ -1021,89 +1021,142 @@ body.modal-frozen #root *::after {
 
 
 /* ── Profile actions: UPDATE / ANALYZE ─────────────────────────────────────
-   One component drives both so they cannot drift apart.
+   One component drives both so they cannot drift apart. The pair they replace
+   used MIRRORED corner notches — update cut top-left, analyze cut top-right —
+   which side by side read as a mistake rather than a set. Here the accent rail
+   runs the same way on both, borrowing the match card's language, and only the
+   colour separates them.
 
-   ⚠️ SMOOTH — the user's word. A pill with no border: a soft vertical
-   gradient of the accent, a thread of light along its top edge, a faint
-   glow underneath, and everything eased over a quarter of a second — it
-   lifts a pixel on hover instead of snapping. The cooldown does not draw a
-   bar; the pill's fill DRAINS from right to left. Colour is the accent alone:
-   UPDATE jade, ANALYZE citrine. --acc is an "R G B" triple. */
+   --acc is an "R G B" triple rather than a colour so every layer can take its
+   own alpha; the component sets it per variant. */
 .act-btn {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgb(var(--acc) / 0.22), rgb(var(--acc) / 0.09));
-    color: rgb(var(--acc));
-    box-shadow:
-        inset 0 1px 0 rgb(255 255 255 / 0.10),
-        0 8px 22px -10px rgb(var(--acc) / 0.55);
-    transform: translateY(0);
-    transition: background 260ms cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
-                transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
-                color 260ms ease;
-}
-.act-btn:hover:not(:disabled) {
-    background: linear-gradient(180deg, rgb(var(--acc) / 0.34), rgb(var(--acc) / 0.16));
-    box-shadow:
-        inset 0 1px 0 rgb(255 255 255 / 0.14),
-        0 12px 28px -10px rgb(var(--acc) / 0.8);
-    transform: translateY(-1px);
-}
-.act-btn:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 4px 12px -8px rgb(var(--acc) / 0.5);
-}
-.act-btn:focus-visible {
-    outline: 1px solid rgb(var(--acc) / 0.7);
-    outline-offset: 2px;
+    border: 1px solid rgb(var(--acc) / 0.30);
+    border-radius: 3px;
+    background-color: #070E10;
+    color: rgb(var(--acc) / 0.9);
+    transition: border-color 260ms ease, background-color 260ms ease, color 260ms ease;
 }
 
-/* Cooldown / locked: the same pill at rest, dimmed, no lift. */
-.act-btn[data-state="muted"] {
-    background: linear-gradient(180deg, rgb(var(--acc) / 0.10), rgb(var(--acc) / 0.05));
-    color: rgb(var(--acc) / 0.55);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
-}
-.act-btn[data-state="muted"]:hover:not(:disabled) {
-    background: linear-gradient(180deg, rgb(var(--acc) / 0.16), rgb(var(--acc) / 0.08));
-    color: rgb(var(--acc) / 0.75);
-    transform: translateY(0);
-}
-
-/* The cooldown as the pill's own fill, draining right to left. */
-.act-progress {
+/* the rail — the signature, and the only thing that grows on hover */
+.act-btn::before {
+    content: "";
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
-    z-index: 1;
-    border-radius: inherit;
-    background: rgb(var(--acc) / 0.14);
+    width: 2px;
+    background: rgb(var(--acc) / 0.75);
+    transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 260ms ease,
+                box-shadow 260ms ease;
+}
+
+/* wash anchored to the rail, so the button reads as lit from that edge */
+.act-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgb(var(--acc) / 0.12), rgb(var(--acc) / 0) 62%);
+    opacity: 0.7;
+    transition: opacity 260ms ease;
+}
+
+.act-btn:hover:not(:disabled) {
+    border-color: rgb(var(--acc) / 0.6);
+    background-color: rgb(var(--acc) / 0.06);
+    color: rgb(var(--acc));
+}
+.act-btn:hover:not(:disabled)::before {
+    width: 3px;
+    background: rgb(var(--acc));
+    box-shadow: 0 0 10px rgb(var(--acc) / 0.75);
+}
+.act-btn:hover:not(:disabled)::after { opacity: 1; }
+.act-btn:active:not(:disabled) { background-color: rgb(var(--acc) / 0.11); }
+
+.act-btn:focus-visible {
+    outline: 1px solid rgb(var(--acc) / 0.7);
+    outline-offset: 1px;
+}
+
+/* Cooldown / locked: still legible, plainly not actionable. Dimming inside the
+   accent rather than greying out keeps it in palette. */
+.act-btn[data-state="muted"] {
+    border-color: rgb(var(--acc) / 0.16);
+    color: rgb(var(--acc) / 0.42);
+}
+.act-btn[data-state="muted"]::before {
+    background: rgb(var(--acc) / 0.28);
+    box-shadow: none;
+}
+.act-btn[data-state="muted"]::after { opacity: 0.3; }
+
+/* A muted button can still be live — locked ANALYZE opens the paywall — so it
+   answers the cursor, just without pretending to be available. */
+.act-btn[data-state="muted"]:hover:not(:disabled) {
+    border-color: rgb(var(--acc) / 0.34);
+    background-color: rgb(var(--acc) / 0.04);
+    color: rgb(var(--acc) / 0.66);
+}
+.act-btn[data-state="muted"]:hover:not(:disabled)::before {
+    width: 2px;
+    background: rgb(var(--acc) / 0.5);
+    box-shadow: none;
+}
+.act-btn[data-state="muted"]:hover:not(:disabled)::after { opacity: 0.45; }
+.act-btn[data-state="muted"]:hover:not(:disabled) .act-sweep { animation: none; opacity: 0; }
+
+/* One-shot sweep on hover. Its own element, never the label's container: a
+   lingering transform on text leaves it on a compositing layer and blurry. */
+@keyframes actSweep {
+    from { transform: translateX(-140%) skewX(-14deg); }
+    to   { transform: translateX(360%) skewX(-14deg); }
+}
+.act-sweep {
+    opacity: 0;
+    transform: translateX(-140%) skewX(-14deg);
+}
+.act-btn:hover:not(:disabled) .act-sweep {
+    opacity: 1;
+    animation: actSweep 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cooldown drain along the bottom edge — the remaining wait as a quantity, not
+   just a number to read. */
+.act-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    z-index: 5;
+    background: rgb(var(--acc) / 0.55);
     transition: width 1s linear;
 }
 
-/* In-flight: a soft band gliding across the pill. */
+/* In-flight. The buttons carry no glyph, so there is nothing to spin: the wait
+   goes on the bottom edge instead, the same band the cooldown drains along. */
 @keyframes actIndeterminate {
     0%   { transform: translateX(-110%); }
     100% { transform: translateX(420%); }
 }
 .act-indeterminate {
     position: absolute;
-    top: 0;
-    bottom: 0;
     left: 0;
+    bottom: 0;
+    height: 2px;
     width: 24%;
-    z-index: 1;
-    background: linear-gradient(90deg, transparent, rgb(var(--acc) / 0.22), transparent);
-    animation: actIndeterminate 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    z-index: 5;
+    background: rgb(var(--acc) / 0.7);
+    animation: actIndeterminate 1000ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .act-btn, .act-progress { transition: none; }
-    .act-btn:hover:not(:disabled) { transform: none; }
+    .act-btn, .act-btn::before, .act-btn::after, .act-progress { transition: none; }
+    .act-btn:hover:not(:disabled) .act-sweep { animation: none; opacity: 0; }
     .act-indeterminate { animation: none; width: 100%; opacity: 0.5; }
 }
 
