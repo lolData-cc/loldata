@@ -2155,7 +2155,7 @@ export default function SummonerPage() {
                   {ranks.map(({ key, label, rank, lp }) => {
                     const unranked = !rank || String(rank).toLowerCase() === "unranked";
                     return (
-                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[96px]">
+                      <div key={key} className="flex flex-col items-center gap-1.5 min-w-[88px]">
                         <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-flash/30 whitespace-nowrap">{label}</span>
                         <div className="relative w-[84px] h-[84px] flex items-center justify-center">
                           <div className="absolute w-14 h-14 bg-filmdark/40 rounded-full z-0 border border-flash/[0.08] shadow-md" />
@@ -2184,7 +2184,7 @@ export default function SummonerPage() {
                 </div>
               );
             })()}
-            <div className={cn(glassDark, "hidden lg:block w-[400px] shrink-0")}>
+            <div className={cn(glassDark, "hidden lg:block w-[390px] shrink-0")}>
               <div className="relative z-10 flex items-center gap-5 px-6 py-6">
 
                 {/* Avatar */}
